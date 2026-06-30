@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
-
+use App\Forms\Components\PersonSelect;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\Select;
@@ -44,6 +44,34 @@ TextInput::make('suffix')
     ->label('Suffix')
     ->placeholder('Jr., Sr., III'),
 
+TextInput::make('nickname')
+->label('Nickname')
+->columnSpan(1),
+
+Select::make('sex')
+    ->options([
+        'Male' => 'Male',
+        'Female' => 'Female',
+    ])
+    ->required(),
+
+DatePicker::make('birthdate')
+->label('Birthdate'),
+
+TextInput::make('birthplace')
+->placeholder('Lucena, Pagbilao, Tayabas')
+->columnSpan(1),
+
+
+                        TextInput::make('contact_number')
+                            ->label('Contact Number')
+                            ->tel(),
+
+                        TextInput::make('email')
+                            ->email(),
+
+                    ]),
+
 
 Select::make('spouse_id')
     ->label('Spouse')
@@ -54,7 +82,6 @@ Select::make('spouse_id')
     ->searchable()
     ->preload()
     ->nullable()
-
 
 ->options(function ($livewire) {
 
@@ -72,21 +99,9 @@ Select::make('spouse_id')
 }),
 
 
-
-
-                        DatePicker::make('birthdate')
-                            ->label('Birthdate'),
-
-                        TextInput::make('contact_number')
-                            ->label('Contact Number')
-                            ->tel(),
-
-                        TextInput::make('email')
-                            ->email(),
-
-                    ]),
-
-                TextInput::make('locality'),
+                TextInput::make('locality')
+    		->placeholder('Lucana, Pagbilao, Tayabas'),
+//		->columnSpan(1),
 
                 TextInput::make('home_address')
                     ->columnSpanFull(),
@@ -97,7 +112,17 @@ Select::make('spouse_id')
                 TextInput::make('geocoordinates')
                     ->label('GPS Coordinates'),
 
-                TextInput::make('emergency_contact'),
+Select::make('emergency_contact_id')
+    ->label('Emergency Contact')
+    ->relationship(
+        name: 'emergencyContact',
+        titleAttribute: 'lastname'
+    )
+    ->getOptionLabelFromRecordUsing(
+        fn ($record) => $record->display_name
+    )
+    ->searchable()
+    ->preload(),
 
                 TextInput::make('emergency_contact_number')
                     ->tel(),
@@ -224,15 +249,21 @@ Section::make('Parents / Guardian')
 
 Grid::make(2)
     ->schema([
-
-        Select::make('parent_id')
+/*
+        PersonSelect::make('parent_id')
             ->label('Existing Person')
-            ->relationship('parent', 'lastname')
+            ->relationship('parent')
             ->getOptionLabelFromRecordUsing(
                 fn ($record) => $record->full_name
             )
             ->searchable()
             ->preload(),
+ */
+PersonSelect::relationship(
+    field: 'parent_id',
+    relationship: 'parent',
+    label: 'Existing Person',
+),
 
         TextInput::make('parent_name')
             ->label('Or Enter Parent Name')

@@ -109,4 +109,32 @@ public function siblings(Person $person)
     ]);
 }
 
+public function grandparents(Person $person)
+{
+    return collect([
+        $this->father($this->father($person)),
+        $this->mother($this->father($person)),
+        $this->father($this->mother($person)),
+        $this->mother($this->mother($person)),
+    ])
+    ->filter()
+    ->unique('id')
+    ->values();
+}
+
+public function grandchildren(Person $person)
+{
+    return $this->children($person)
+        ->flatMap(fn ($child) => $this->children($child))
+        ->unique('id')
+        ->values();
+}
+
+
+
+
+
+
+
+
 }

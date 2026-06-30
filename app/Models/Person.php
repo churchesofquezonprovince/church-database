@@ -121,4 +121,35 @@ class Person extends Model
     {
         return $this->belongsTo(Person::class, 'spouse_id');
     }
+
+
+
+// Emergency Contact
+
+public function emergencyContact(): BelongsTo
+{
+    return $this->belongsTo(Person::class, 'emergency_contact_id');
+}
+
+
+// centralize it so every dropdown, relationship picker, and search displays names consistently.
+public function getFilamentName(): string
+{
+    return $this->display_name;
+}
+
+public function __toString(): string
+{
+    return $this->display_name;
+}
+
+public function scopeSearchName($query, string $search)
+{
+    return $query->where('firstname', 'like', "%{$search}%")
+        ->orWhere('middlename', 'like', "%{$search}%")
+        ->orWhere('lastname', 'like', "%{$search}%")
+        ->orWhere('nickname', 'like', "%{$search}%");
+}
+
+
 }
