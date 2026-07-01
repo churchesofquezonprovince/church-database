@@ -27,6 +27,8 @@ class ShepherdingDashboard extends Page
 
     public array $peopleWithoutService = [];
 
+public array $listUrls = [];
+
     public function mount(): void
     {
         $this->localities = Person::query()
@@ -137,6 +139,29 @@ $this->stats = [
             'shepherding_group' => '__none',
         ]),
     ],
+];
+
+
+$this->listUrls = [
+    'without_shepherd' => $this->peopleTableUrl([
+        'shepherd_status' => 'without_shepherd',
+    ]),
+
+    'dormant' => $this->peopleTableUrl([
+        'church_status' => 'Dormant',
+    ]),
+
+    'new_ones' => $this->peopleTableUrl([
+        'church_status' => 'New One',
+    ]),
+
+    'gospel_friends' => $this->peopleTableUrl([
+        'church_status' => 'Gospel Friend',
+    ]),
+
+    'without_service' => $this->peopleTableUrl([
+        'shepherding_group' => '__none',
+    ]),
 ];
 
         $this->peopleWithoutShepherd = $this->peopleQuery()

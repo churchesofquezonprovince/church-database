@@ -55,31 +55,36 @@
         </div>
 
         <div class="grid gap-6 xl:grid-cols-2">
-            @include('filament.pages.partials.shepherding-list', [
-                'title' => 'People Without Shepherd',
-                'people' => $peopleWithoutShepherd,
-            ])
+@include('filament.pages.partials.shepherding-list', [
+    'title' => 'People Without Shepherd',
+    'people' => $peopleWithoutShepherd,
+    'viewAllUrl' => $listUrls['without_shepherd'] ?? null,
+])
 
-            @include('filament.pages.partials.shepherding-list', [
-                'title' => 'Dormant People',
-                'people' => $dormantPeople,
-            ])
+@include('filament.pages.partials.shepherding-list', [
+    'title' => 'Dormant People',
+    'people' => $dormantPeople,
+    'viewAllUrl' => $listUrls['dormant'] ?? null,
+])
 
-            @include('filament.pages.partials.shepherding-list', [
-                'title' => 'New Ones',
-                'people' => $newOnes,
-            ])
+@include('filament.pages.partials.shepherding-list', [
+    'title' => 'New Ones',
+    'people' => $newOnes,
+    'viewAllUrl' => $listUrls['new_ones'] ?? null,
+])
 
-            @include('filament.pages.partials.shepherding-list', [
-                'title' => 'Gospel Friends',
-                'people' => $gospelFriends,
-            ])
+@include('filament.pages.partials.shepherding-list', [
+    'title' => 'Gospel Friends',
+    'people' => $gospelFriends,
+    'viewAllUrl' => $listUrls['gospel_friends'] ?? null,
+])
 
-            @include('filament.pages.partials.shepherding-list', [
-                'title' => 'People Without Shepherding Group',
-                'people' => $peopleWithoutService,
-            ])
-        </div>
+@include('filament.pages.partials.shepherding-list', [
+    'title' => 'People Without Shepherding Group',
+    'people' => $peopleWithoutService,
+    'viewAllUrl' => $listUrls['without_service'] ?? null,
+])
+    </div>
 
     </div>
 </x-filament-panels::page>
