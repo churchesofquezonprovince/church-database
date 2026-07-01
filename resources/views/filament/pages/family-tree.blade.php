@@ -45,14 +45,49 @@
                 </p>
             </div>
 
-            <div class="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-8 shadow-sm dark:border-gray-700 dark:bg-gray-950">
-                <div class="flex min-w-max justify-center">
-                    @include('filament.pages.partials.family-node', [
-                        'node' => $root,
+<div class="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-8 shadow-sm dark:border-gray-700 dark:bg-gray-950">
+    <div class="flex min-w-max flex-col items-center">
+
+        @if (! empty($root['father']) || ! empty($root['mother']))
+            <div class="flex items-center gap-3">
+                @if (! empty($root['father']))
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => [
+                            'id' => $root['father']['id'],
+                            'name' => $root['father']['name'],
+                            'sex' => 'Male',
+                        ],
                         'selectedId' => $personId,
+                        'relationshipLabel' => 'father',
                     ])
-                </div>
+                @endif
+
+                @if (! empty($root['father']) && ! empty($root['mother']))
+                    <div class="h-px w-8 bg-gray-300 dark:bg-gray-700"></div>
+                @endif
+
+                @if (! empty($root['mother']))
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => [
+                            'id' => $root['mother']['id'],
+                            'name' => $root['mother']['name'],
+                            'sex' => 'Female',
+                        ],
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'mother',
+                    ])
+                @endif
             </div>
+
+            <div class="h-8 w-px bg-gray-300 dark:bg-gray-700"></div>
+        @endif
+
+        @include('filament.pages.partials.family-node', [
+            'node' => $root,
+            'selectedId' => $personId,
+        ])
+    </div>
+</div>
 
             <div class="grid gap-6 md:grid-cols-2">
 
