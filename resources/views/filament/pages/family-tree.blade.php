@@ -11,11 +11,14 @@
                 wire:model.live="personId"
                 class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             >
-                @foreach ($people as $id => $name)
-                    <option value="{{ $id }}">
-                        {{ $name }}
-                    </option>
-                @endforeach
+@foreach ($people as $id => $name)
+    <option
+        value="{{ $id }}"
+        style="color: #111827; background-color: #ffffff;"
+    >
+        {{ $name }}
+    </option>
+@endforeach
             </select>
         </div>
 
@@ -30,7 +33,7 @@
 
             <div class="rounded-xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-800 dark:bg-gray-900">
                 <p class="text-sm font-medium text-primary-600 dark:text-primary-400">
-                    Selected Person
+                    Visual Family Tree
                 </p>
 
                 <h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
@@ -38,8 +41,17 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                    Sex: {{ $root['sex'] ?? 'Not specified' }}
+                    Click any person in the tree to focus on that person.
                 </p>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-8 shadow-sm dark:border-gray-700 dark:bg-gray-950">
+                <div class="flex min-w-max justify-center">
+                    @include('filament.pages.partials.family-node', [
+                        'node' => $root,
+                        'selectedId' => $personId,
+                    ])
+                </div>
             </div>
 
             <div class="grid gap-6 md:grid-cols-2">
