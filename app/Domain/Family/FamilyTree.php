@@ -49,15 +49,21 @@ class FamilyTree
         ];
     }
 
-    private function mapPeople(Collection $people): array
-    {
-        return $people
-            ->map(fn (Person $person) => [
-                'id' => $person->id,
-                'name' => $person->display_name,
-                'sex' => $person->sex,
-            ])
-            ->values()
-            ->all();
-    }
+
+private function mapPeople(Collection $people): array
+{
+    return $people
+        ->map(fn (Person $person) => [
+            'id' => $person->id,
+            'name' => $person->display_name,
+            'sex' => $person->sex,
+            'locality' => $person->locality,
+            'household' => $person->household?->display_name,
+            'contact_number' => $person->contact_number,
+        ])
+        ->values()
+        ->all();
+}
+
+
 }

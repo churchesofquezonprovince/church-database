@@ -30,6 +30,20 @@
         </p>
     @endif
 
+
+@if (! empty($person['household']))
+    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        Household: {{ $person['household'] }}
+    </p>
+@endif
+
+@if (! empty($person['locality']))
+    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        Locality: {{ $person['locality'] }}
+    </p>
+@endif
+
+
     <div class="mt-4 flex items-center justify-center gap-2">
         <button
             type="button"

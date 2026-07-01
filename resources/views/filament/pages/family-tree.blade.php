@@ -154,11 +154,13 @@
             <div class="flex items-center gap-3">
                 @if (! empty($root['father']))
                     @include('filament.pages.partials.family-person-card', [
-                        'person' => [
-                            'id' => $root['father']['id'],
-                            'name' => $root['father']['name'],
-                            'sex' => 'Male',
-                        ],
+'person' => [
+    'id' => $root['father']['id'],
+    'name' => $root['father']['name'],
+    'sex' => $root['father']['sex'] ?? 'Male',
+    'household' => $root['father']['household'] ?? null,
+    'locality' => $root['father']['locality'] ?? null,
+],
                         'selectedId' => $personId,
                         'relationshipLabel' => 'father',
                     ])
@@ -170,11 +172,13 @@
 
                 @if (! empty($root['mother']))
                     @include('filament.pages.partials.family-person-card', [
-                        'person' => [
-                            'id' => $root['mother']['id'],
-                            'name' => $root['mother']['name'],
-                            'sex' => 'Female',
-                        ],
+'person' => [
+    'id' => $root['mother']['id'],
+    'name' => $root['mother']['name'],
+    'sex' => $root['mother']['sex'] ?? 'Female',
+    'household' => $root['mother']['household'] ?? null,
+    'locality' => $root['mother']['locality'] ?? null,
+],
                         'selectedId' => $personId,
                         'relationshipLabel' => 'mother',
                     ])

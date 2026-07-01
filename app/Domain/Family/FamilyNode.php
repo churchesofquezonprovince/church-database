@@ -33,34 +33,25 @@ class FamilyNode
     public function toArray(): array
     {
         return [
-            'id' => $this->person->id,
-            'name' => $this->person->display_name,
-            'sex' => $this->person->sex,
+            ...$this->personData($this->person),
+
             'generation' => $this->generation,
             'relationship_to_root' => $this->relationshipToRoot,
 
-            'spouse' => $this->spouse ? [
-                'id' => $this->spouse->id,
-                'name' => $this->spouse->display_name,
-                'sex' => $this->spouse->sex,
-            ] : null,
+            'spouse' => $this->spouse
+                ? $this->personData($this->spouse)
+                : null,
 
-            'father' => $this->father ? [
-                'id' => $this->father->id,
-                'name' => $this->father->display_name,
-            ] : null,
+            'father' => $this->father
+                ? $this->personData($this->father)
+                : null,
 
-            'mother' => $this->mother ? [
-                'id' => $this->mother->id,
-                'name' => $this->mother->display_name,
-            ] : null,
+            'mother' => $this->mother
+                ? $this->personData($this->mother)
+                : null,
 
             'siblings' => $this->siblings
-                ->map(fn (Person $person) => [
-                    'id' => $person->id,
-                    'name' => $person->display_name,
-                    'sex' => $person->sex,
-                ])
+                ->map(fn (Person $person) => $this->personData($person))
                 ->values()
                 ->all(),
 
@@ -68,6 +59,18 @@ class FamilyNode
                 ->map(fn (FamilyNode $child) => $child->toArray())
                 ->values()
                 ->all(),
+        ];
+    }
+
+    private function personData(Person $person): array
+    {
+        return [
+            'id' => $person->id,
+            'name' => $person->display_name,
+            'sex' => $person->sex,
+            'locality' => $person->locality,
+            'household' => $person->household?->display_name,
+            'contact_number' => $person->contact_number,
         ];
     }
 }
