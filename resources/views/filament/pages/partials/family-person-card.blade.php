@@ -5,6 +5,12 @@
     $profileUrl = \App\Filament\Resources\People\PersonResource::getUrl('view', [
         'record' => $person['id'],
     ]);
+
+    $householdUrl = ! empty($person['household_id'])
+        ? \App\Filament\Resources\Households\HouseholdResource::getUrl('view', [
+            'record' => $person['household_id'],
+        ])
+        : null;
 @endphp
 
 <div
@@ -30,19 +36,27 @@
         </p>
     @endif
 
+    @if (! empty($person['household']))
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Household:
+            @if ($householdUrl)
+                <a
+                    href="{{ $householdUrl }}"
+                    class="text-primary-600 hover:underline dark:text-primary-400"
+                >
+                    {{ $person['household'] }}
+                </a>
+            @else
+                {{ $person['household'] }}
+            @endif
+        </p>
+    @endif
 
-@if (! empty($person['household']))
-    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        Household: {{ $person['household'] }}
-    </p>
-@endif
-
-@if (! empty($person['locality']))
-    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        Locality: {{ $person['locality'] }}
-    </p>
-@endif
-
+    @if (! empty($person['locality']))
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Locality: {{ $person['locality'] }}
+        </p>
+    @endif
 
     <div class="mt-4 flex items-center justify-center gap-2">
         <button
