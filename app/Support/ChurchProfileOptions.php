@@ -68,4 +68,36 @@ class ChurchProfileOptions
             default => 'Unknown',
         };
     }
+
+public static function statusColor(?string $status): string
+{
+    return match ($status) {
+        'Active' => 'success',
+        'Full-Timer' => 'info',
+        'New One' => 'sky',
+        'Gospel Friend' => 'warning',
+        'Dormant' => 'gray',
+        'Moved' => 'purple',
+        'Deceased' => 'danger',
+        'Unknown' => 'gray',
+        default => 'gray',
+    };
+}
+
+public static function categoryColor(?string $category): string
+{
+    return match ($category) {
+        'Children' => 'sky',
+        'Junior Young People' => 'info',
+        'Young People' => 'primary',
+        'Collegian' => 'warning',
+        'Young Adults' => 'success',
+        'Middle Age' => 'gray',
+        'Elderly' => 'purple',
+        'Unknown' => 'gray',
+        default => 'gray',
+    };
+}
+
+
 }

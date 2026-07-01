@@ -6,6 +6,7 @@ use App\Domain\Family\FamilyRelationshipService;
 use App\Filament\Pages\FamilyTree;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\People\PersonResource;
+use App\Support\ChurchProfileOptions;
 use App\Models\ChurchProfile;
 use App\Models\Household;
 use App\Models\Person;
@@ -164,10 +165,14 @@ TextEntry::make('view_people_introduced')
                     ->schema([
                         TextEntry::make('churchProfile.category')
                             ->label('Category')
+                            ->badge()
+                            ->color(fn (?string $state): string => ChurchProfileOptions::categoryColor($state))
                             ->placeholder('None recorded'),
 
                         TextEntry::make('churchProfile.status')
                             ->label('Status')
+                            ->badge()
+                            ->color(fn (?string $state): string => ChurchProfileOptions::statusColor($state))
                             ->placeholder('None recorded'),
 
                         TextEntry::make('churchProfile.baptism_date')

@@ -75,11 +75,13 @@ TextColumn::make('emergencyContact.display_name')
 TextColumn::make('churchProfile.category')
     ->label('Category')
     ->badge()
+    ->color(fn (?string $state): string => ChurchProfileOptions::categoryColor($state))
     ->sortable(),
 
 TextColumn::make('churchProfile.status')
     ->label('Status')
     ->badge()
+    ->color(fn (?string $state): string => ChurchProfileOptions::statusColor($state))
     ->sortable(),
 
 TextColumn::make('churchProfile.service')
