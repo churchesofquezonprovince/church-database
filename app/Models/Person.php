@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,147 +11,224 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Person extends Model
 {
+use HasFactory;
+    /*
+    |--------------------------------------------------------------------------
+    | Configuration
+    |--------------------------------------------------------------------------
+    */
+
     protected $table = 'persons';
 
-    public $timestamps = false;
+    protected $fillable = [
+        'firstname',
+        'middlename',
+        'lastname',
+        'suffix',
 
-    protected $guarded = [];
+        'sex',
+
+        'nickname',
+
+        'birthdate',
+        'birthplace',
+
+        'household_id',
+        'spouse_id',
+
+        'locality',
+        'permanent_address',
+        'home_address',
+        'geocoordinates',
+
+        'email',
+        'contact_number',
+
+        'emergency_contact_id',
+        'emergency_contact_relationship',
+        'emergency_contact_number',
+    ];
+
+    protected $casts = [
+        'birthdate' => 'date',
+    ];
+
+    protected $appends = [
+        'display_name',
+        'full_name',
+    ];
 
     /*
     |--------------------------------------------------------------------------
-    | Display Name
+    | Relationships
     |--------------------------------------------------------------------------
     */
 
-    public function getFullNameAttribute(): string
-    {
-        $parts = [
-            $this->lastname . ',',
-            $this->firstname,
-        ];
-
-        if ($this->middlename) {
-            $parts[] = $this->middlename;
-        }
-
-        if ($this->suffix) {
-            $parts[] = $this->suffix;
-        }
-
-        return trim(implode(' ', $parts));
-    }
-
-    public function getDisplayNameAttribute(): string
-    {
-        return $this->full_name;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Household
-    |--------------------------------------------------------------------------
-    */
-
+    /**
+     * Household this person belongs to.
+     */
     public function household(): BelongsTo
     {
-        return $this->belongsTo(Household::class);
+        return $this->belongsTo(Household::class, 'household_id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Church
-    |--------------------------------------------------------------------------
-    */
-
-    public function church(): HasOne
-    {
-        return $this->hasOne(PersonChurch::class);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Education
-    |--------------------------------------------------------------------------
-    */
-
-    public function education(): HasOne
-    {
-        return $this->hasOne(PersonEducation::class);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Parents
-    |--------------------------------------------------------------------------
-    */
-
-    public function parents(): HasMany
-    {
-        return $this->hasMany(PersonParent::class);
-    }
-
-    public function mother(): HasOne
-    {
-        return $this->hasOne(PersonParent::class)
-            ->where('relationship', 'Mother');
-    }
-
-    public function father(): HasOne
-    {
-        return $this->hasOne(PersonParent::class)
-            ->where('relationship', 'Father');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Siblings
-    |--------------------------------------------------------------------------
-    */
-
-    public function siblings(): HasMany
-    {
-        return $this->hasMany(PersonSibling::class);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Spouse
-    |--------------------------------------------------------------------------
-    */
-
+    /**
+     * Person's spouse.
+     */
     public function spouse(): BelongsTo
     {
-        return $this->belongsTo(Person::class, 'spouse_id');
+        return $this->belongsTo(self::class, 'spouse_id');
     }
 
+    /**
+     * Emergency contact.
+     */
+    public function emergencyContact(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'emergency_contact_id');
+    }
 
+    /**
+     * Church profile.
+     */
+    public function churchProfile(): HasOne
+    {
+        return $this->hasOne(ChurchProfile::class, 'person_id');
+    }
 
-// Emergency Contact
+    /**
+     * Education profile.
+     */
+    public function educationProfile(): HasOne
+    {
+        return $this->hasOne(EducationProfile::class, 'person_id');
+    }
 
-public function emergencyContact(): BelongsTo
+    /**
+     * Parent relationships.
+     */
+    public function parentRelationships(): HasMany
+    {
+        return $this->hasMany(ParentRelationship::class, 'person_id');
+    }
+
+    /**
+     * Households headed by this person.
+     */
+    public function householdsHeaded(): HasMany
+    {
+        return $this->hasMany(Household::class, 'household_head_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Computed Attributes
+    |--------------------------------------------------------------------------
+    */
+
+    protected function displayName(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+
+                $parts = [];
+
+                if (! empty($this->lastname)) {
+                    $parts[] = $this->lastname . ',';
+                }
+
+                if (! empty($this->firstname)) {
+                    $parts[] = $this->firstname;
+                }
+
+                if (! empty($this->middlename)) {
+                    $parts[] = $this->middlename;
+                }
+
+                if (! empty($this->suffix)) {
+                    $parts[] = $this->suffix;
+                }
+
+                return trim(implode(' ', $parts));
+            }
+        );
+    }
+
+    protected function fullName(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => $this->display_name,
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helper Methods
+    |--------------------------------------------------------------------------
+    */
+
+    public function isMale(): bool
+    {
+        return $this->sex === 'Male';
+    }
+
+    public function isFemale(): bool
+    {
+        return $this->sex === 'Female';
+    }
+
+    public function hasSpouse(): bool
+    {
+        return ! is_null($this->spouse_id);
+    }
+
+    public function isMarried(): bool
+    {
+        return $this->hasSpouse();
+    }
+
+    public function hasChurchProfile(): bool
+    {
+        return $this->churchProfile()->exists();
+    }
+
+    public function hasEducationProfile(): bool
+    {
+        return $this->educationProfile()->exists();
+    }
+
+    public function hasEmergencyContact(): bool
+    {
+        return ! is_null($this->emergency_contact_id);
+    }
+
+    public function headsHousehold(): bool
+    {
+        return $this->householdsHeaded()->exists();
+    }
+
+public function hasHousehold(): bool
 {
-    return $this->belongsTo(Person::class, 'emergency_contact_id');
+    return ! is_null($this->household_id);
 }
 
+    public function fullAddress(): string
+    {
+        return $this->home_address
+            ?: $this->permanent_address
+            ?: '';
+    }
 
-// centralize it so every dropdown, relationship picker, and search displays names consistently.
-public function getFilamentName(): string
+public function initials(): string
 {
-    return $this->display_name;
+    return collect([
+        $this->firstname,
+        $this->middlename,
+        $this->lastname,
+    ])
+        ->filter()
+        ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
+        ->implode('');
 }
-
-public function __toString(): string
-{
-    return $this->display_name;
-}
-
-public function scopeSearchName($query, string $search)
-{
-    return $query->where('firstname', 'like', "%{$search}%")
-        ->orWhere('middlename', 'like', "%{$search}%")
-        ->orWhere('lastname', 'like', "%{$search}%")
-        ->orWhere('nickname', 'like', "%{$search}%");
-}
-
 
 }

@@ -2,16 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PersonChurch extends Model
+class ChurchProfile extends Model
 {
-    protected $table = 'person_church';
-
-    public $timestamps = false;
-
-    protected $guarded = [];
+use HasFactory;
+    protected $table = 'church_profiles';
 
     protected $fillable = [
         'person_id',
@@ -23,10 +21,9 @@ class PersonChurch extends Model
         'status',
     ];
 
-//    public function person()
-//    {
-//        return $this->belongsTo(Person::class);
-//    }
+    protected $casts = [
+        'baptism_date' => 'date',
+    ];
 
     public function person(): BelongsTo
     {

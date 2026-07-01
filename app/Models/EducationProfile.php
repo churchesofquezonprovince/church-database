@@ -2,16 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class PersonEducation extends Model
+class EducationProfile extends Model
 {
-    protected $table = 'person_education';
-
-    public $timestamps = false;
-
-    protected $guarded = [];
+use HasFactory;
+    protected $table = 'education_profiles';
 
     protected $fillable = [
         'person_id',

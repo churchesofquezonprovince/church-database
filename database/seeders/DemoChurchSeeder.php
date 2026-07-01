@@ -2,14 +2,14 @@
 
 namespace Database\Seeders;
 
-use App\Services\ChurchBuilder;
+use App\Domain\Church\ChurchBuilder;
 use Illuminate\Database\Seeder;
 
 class DemoChurchSeeder extends Seeder
 {
 public function run(): void
 {
-    $builder = app(\App\Services\ChurchBuilder::class);
+    $builder = app(\App\Domain\Church\ChurchBuilder::class);
 
     /*
     |--------------------------------------------------------------------------
@@ -104,7 +104,7 @@ public function run(): void
         ]
 
     );
-}
+
 
 
 $reyes = $builder->family(
@@ -137,9 +137,7 @@ $reyes = $builder->family(
 
 );
 
-$builder->childOf(...);
 
-$builder->childOf(...);
-
+}
 
 }
