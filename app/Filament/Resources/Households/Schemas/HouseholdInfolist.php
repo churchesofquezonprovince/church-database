@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
+use App\Filament\Resources\People\PersonResource;
+use Illuminate\Support\HtmlString;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -40,13 +42,33 @@ class HouseholdInfolist
                             ->label('Total Members')
                             ->state(fn ($record): int => $record->members()->count()),
 
-                        TextEntry::make('members_list')
-                            ->label('Members')
-                            ->state(fn ($record): string => $record->members
-                                ->map(fn ($person) => $person->display_name)
-                                ->join(', '))
-                            ->placeholder('No members recorded')
-                            ->columnSpanFull(),
+
+TextEntry::make('members_list')
+    ->label('Members')
+    ->state(function ($record): HtmlString {
+        if ($record->members->isEmpty()) {
+            return new HtmlString('No members recorded');
+        }
+
+        $links = $record->members
+            ->sortBy('lastname')
+            ->map(function ($person): string {
+                $url = PersonResource::getUrl('view', [
+                    'record' => $person->id,
+                ]);
+
+                return '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
+                    . e($person->display_name)
+                    . '</a>';
+            })
+            ->join('<br>');
+
+        return new HtmlString($links);
+    })
+    ->html()
+    ->columnSpanFull(),
+
+
                     ]),
             ]);
     }
