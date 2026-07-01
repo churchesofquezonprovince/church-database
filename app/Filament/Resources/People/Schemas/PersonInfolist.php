@@ -6,6 +6,7 @@ use App\Domain\Family\FamilyRelationshipService;
 use App\Filament\Pages\FamilyTree;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\People\PersonResource;
+use App\Models\ChurchProfile;
 use App\Models\Household;
 use App\Models\Person;
 use Filament\Infolists\Components\TextEntry;
@@ -83,6 +84,40 @@ class PersonInfolist
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+
+Section::make('Shepherding Responsibility')
+    ->schema([
+        TextEntry::make('people_shepherded')
+            ->label('People Shepherded')
+            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record))
+            ->html()
+            ->columnSpanFull(),
+
+        TextEntry::make('dormant_under_care')
+            ->label('Dormant Under Care')
+            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Dormant'))
+            ->html()
+            ->columnSpanFull(),
+
+        TextEntry::make('new_ones_under_care')
+            ->label('New Ones Under Care')
+            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'New One'))
+            ->html()
+            ->columnSpanFull(),
+
+        TextEntry::make('gospel_friends_under_care')
+            ->label('Gospel Friends Under Care')
+            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Gospel Friend'))
+            ->html()
+            ->columnSpanFull(),
+
+        TextEntry::make('people_introduced')
+            ->label('People Introduced')
+            ->state(fn (Person $record): HtmlString => self::introducedPeople($record))
+            ->html()
+            ->columnSpanFull(),
+    ])
+    ->columns(2),
 
                 Section::make('Address')
                     ->schema([
@@ -240,6 +275,33 @@ class PersonInfolist
             . '</a>'
         );
     }
+
+private static function shepherdedPeople(Person $record, ?string $status = null): HtmlString
+{
+    $people = ChurchProfile::query()
+        ->with('person')
+        ->where('shepherd_id', $record->id)
+        ->when($status, fn ($query) => $query->where('status', $status))
+        ->get()
+        ->pluck('person')
+        ->filter()
+        ->values();
+
+    return self::peopleLinks($people);
+}
+
+private static function introducedPeople(Person $record): HtmlString
+{
+    $people = ChurchProfile::query()
+        ->with('person')
+        ->where('introduced_by_id', $record->id)
+        ->get()
+        ->pluck('person')
+        ->filter()
+        ->values();
+
+    return self::peopleLinks($people);
+}
 
     private static function none(): HtmlString
     {
