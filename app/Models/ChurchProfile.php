@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Support\ChurchProfileOptions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ChurchProfile extends Model
 {
-use HasFactory;
+    use HasFactory;
+
     protected $table = 'church_profiles';
 
     protected $fillable = [
@@ -24,6 +26,25 @@ use HasFactory;
     protected $casts = [
         'baptism_date' => 'date',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (ChurchProfile $profile): void {
+            $person = $profile->person;
+
+            if (! $person && $profile->person_id) {
+                $person = Person::find($profile->person_id);
+            }
+
+            $profile->category = ChurchProfileOptions::categoryFromBirthdate(
+                $person?->birthdate
+            );
+
+            if (blank($profile->status)) {
+                $profile->status = 'Unknown';
+            }
+        });
+    }
 
     public function person(): BelongsTo
     {

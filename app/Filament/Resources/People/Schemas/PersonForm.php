@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
+use App\Support\ChurchProfileOptions;
 use App\Forms\Components\PersonSelect;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
@@ -138,6 +139,7 @@ Section::make('Church Information')
         Grid::make(2)
             ->schema([
 
+/*
 Select::make('category')
     ->options([
         'Children' => 'Children',
@@ -149,8 +151,15 @@ Select::make('category')
     ])
     ->searchable()
     ->required(),
+*/
 
+TextInput::make('category')
+    ->label('Category')
+    ->disabled()
+    ->dehydrated(false)
+    ->helperText('Automatically calculated from birthdate / age after saving.'),
 
+/*
                 Select::make('status')
                     ->options([
                         'Active' => 'Active',
@@ -158,10 +167,18 @@ Select::make('category')
                     ])
                     ->default('Active')
                     ->required(),
+*/
+
+Select::make('status')
+    ->label('Status')
+    ->options(ChurchProfileOptions::statuses())
+    ->default('Active')
+    ->required()
+    ->native(false),
 
                 DatePicker::make('baptism_date'),
 
-
+/*
 Select::make('service')
     ->options([
         'Children (Toddler-Kinder)' => 'Children (Toddler-Kinder)',
@@ -172,7 +189,13 @@ Select::make('service')
         'Collegian (C2-Graduating)' => 'Collegian (C2-Graduating)',
     ])
     ->searchable(),
+*/
 
+Select::make('service')
+    ->label('Shepherding Service')
+    ->options(ChurchProfileOptions::shepherdingServices())
+    ->searchable()
+    ->native(false),
 
                 Select::make('shepherd_id')
                     ->label('Shepherd')
