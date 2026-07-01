@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ChurchProfileOptions;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -230,5 +231,30 @@ public function initials(): string
         ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
         ->implode('');
 }
+
+protected static function booted(): void
+{
+    static::saved(function (Person $person): void {
+        $person->syncChurchProfile();
+    });
+}
+
+public function syncChurchProfile(): void
+{
+    if (! $this->exists) {
+        return;
+    }
+
+    $profile = $this->churchProfile()->firstOrNew([]);
+
+    $profile->category = ChurchProfileOptions::categoryFromBirthdate($this->birthdate);
+
+    if (blank($profile->status)) {
+        $profile->status = 'Unknown';
+    }
+
+    $profile->save();
+}
+
 
 }
