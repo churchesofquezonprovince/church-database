@@ -243,45 +243,37 @@ Section::make('Parents / Guardian')
     ->schema([
 
 Repeater::make('parentRelationships')
+    ->label('Parents / Guardian')
     ->relationship('parentRelationships')
-            ->schema([
-
-
-Grid::make(2)
     ->schema([
-/*
-        PersonSelect::make('parent_id')
-            ->label('Existing Person')
-            ->relationship('parent')
-            ->getOptionLabelFromRecordUsing(
-                fn ($record) => $record->full_name
-            )
-            ->searchable()
-            ->preload(),
- */
-PersonSelect::relationship(
-    field: 'parent_id',
-    relationship: 'parent',
-    label: 'Existing Person',
-),
-
-        TextInput::make('parent_name')
-            ->label('Or Enter Parent Name')
-            ->maxLength(150),
-
         Select::make('relationship')
+            ->label('Relationship')
             ->options([
                 'Father' => 'Father',
                 'Mother' => 'Mother',
                 'Guardian' => 'Guardian',
             ])
-            ->required(),
+            ->required()
+            ->native(false),
 
+        PersonSelect::relationship(
+            field: 'parent_id',
+            relationship: 'parent',
+            label: 'Existing Person',
+        )
+            ->helperText('Use this if the parent or guardian is already encoded.'),
+
+        TextInput::make('parent_name')
+            ->label('Parent / Guardian Name')
+            ->maxLength(255)
+            ->helperText('Use this if the parent or guardian is not yet encoded.'),
     ])
-
-            ])
-            ->defaultItems(0)
-            ->addActionLabel('Add Parent'),
+    ->columns(3)
+    ->defaultItems(0)
+    ->addActionLabel('Add Parent / Guardian')
+    ->reorderable(false)
+    ->collapsible()
+    ->itemLabel(fn (array $state): ?string => $state['relationship'] ?? 'Parent / Guardian'),
 
     ])
 //
