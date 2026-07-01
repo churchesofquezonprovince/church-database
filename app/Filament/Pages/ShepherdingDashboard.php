@@ -236,22 +236,22 @@ $this->listUrls = [
 
 private function peopleTableUrl(array $filters = []): string
 {
-    $tableFilters = [];
+    $queryFilters = [];
 
     if (filled($this->locality)) {
-        $tableFilters['locality'] = [
+        $queryFilters['locality'] = [
             'value' => $this->locality,
         ];
     }
 
     foreach ($filters as $filter => $value) {
-        $tableFilters[$filter] = [
-            'value' => $value,
+        $queryFilters[$filter] = [
+            'value' => (string) $value,
         ];
     }
 
-    return PersonResource::getUrl('index', [
-        'tableFilters' => $tableFilters,
+    return PersonResource::getUrl('index') . '?' . http_build_query([
+        'filters' => $queryFilters,
     ]);
 }
 

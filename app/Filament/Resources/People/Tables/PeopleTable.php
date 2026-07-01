@@ -196,6 +196,52 @@ SelectFilter::make('shepherding_group')
         });
     }),
 
+SelectFilter::make('shepherd_id')
+    ->label('Shepherd')
+    ->options(fn (): array => Person::query()
+        ->orderBy('lastname')
+        ->orderBy('firstname')
+        ->get()
+        ->mapWithKeys(fn (Person $person) => [
+            $person->id => $person->display_name,
+        ])
+        ->toArray())
+    ->searchable()
+    ->query(function (Builder $query, array $data): Builder {
+        $value = $data['value'] ?? null;
+
+        if (blank($value)) {
+            return $query;
+        }
+
+        return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
+            $query->where('shepherd_id', $value);
+        });
+    }),
+
+SelectFilter::make('introduced_by_id')
+    ->label('Introduced By')
+    ->options(fn (): array => Person::query()
+        ->orderBy('lastname')
+        ->orderBy('firstname')
+        ->get()
+        ->mapWithKeys(fn (Person $person) => [
+            $person->id => $person->display_name,
+        ])
+        ->toArray())
+    ->searchable()
+    ->query(function (Builder $query, array $data): Builder {
+        $value = $data['value'] ?? null;
+
+        if (blank($value)) {
+            return $query;
+        }
+
+        return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
+            $query->where('introduced_by_id', $value);
+        });
+    }),
+
 
 ])
 

@@ -87,6 +87,29 @@ class PersonInfolist
 
 Section::make('Shepherding Responsibility')
     ->schema([
+
+TextEntry::make('view_people_shepherded')
+    ->label('People Shepherded Link')
+    ->state(fn (Person $record): HtmlString => self::peopleTableLink(
+        label: 'View all people shepherded by this person',
+        filters: [
+            'shepherd_id' => $record->id,
+        ],
+    ))
+    ->html()
+    ->columnSpanFull(),
+
+TextEntry::make('view_people_introduced')
+    ->label('People Introduced Link')
+    ->state(fn (Person $record): HtmlString => self::peopleTableLink(
+        label: 'View all people introduced by this person',
+        filters: [
+            'introduced_by_id' => $record->id,
+        ],
+    ))
+    ->html()
+    ->columnSpanFull(),
+
         TextEntry::make('people_shepherded')
             ->label('People Shepherded')
             ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record))
@@ -302,6 +325,29 @@ private static function introducedPeople(Person $record): HtmlString
 
     return self::peopleLinks($people);
 }
+
+
+private static function peopleTableLink(string $label, array $filters): HtmlString
+{
+    $queryFilters = [];
+
+    foreach ($filters as $filter => $value) {
+        $queryFilters[$filter] = [
+            'value' => (string) $value,
+        ];
+    }
+
+    $url = PersonResource::getUrl('index') . '?' . http_build_query([
+        'filters' => $queryFilters,
+    ]);
+
+    return new HtmlString(
+        '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
+        . e($label)
+        . '</a>'
+    );
+}
+
 
     private static function none(): HtmlString
     {
