@@ -2,16 +2,20 @@
 
 namespace App\Filament\Resources\People\Tables;
 
-use App\Models\Person;
-use App\Support\ChurchProfileOptions;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\ChurchProfile;
+use App\Models\Person;
 use App\Filament\Pages\FamilyTree;
+use App\Support\ChurchProfileOptions;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -257,10 +261,108 @@ SelectFilter::make('introduced_by_id')
     EditAction::make(),
 ])
 
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+->toolbarActions([
+    BulkActionGroup::make([
+        BulkAction::make('assignStatus')
+            ->label('Assign Status')
+            ->icon('heroicon-o-check-circle')
+            ->schema([
+                Select::make('status')
+                    ->label('Status')
+                    ->options(ChurchProfileOptions::statuses())
+                    ->required()
+                    ->native(false),
+            ])
+            ->action(function (Collection $records, array $data): void {
+                $records->each(function (Person $person) use ($data): void {
+                    $profile = $person->churchProfile()->firstOrNew([]);
+
+                    $profile->status = $data['status'];
+                    $profile->save();
+                });
+            })
+            ->deselectRecordsAfterCompletion(),
+
+        BulkAction::make('assignShepherd')
+            ->label('Assign Shepherd')
+            ->icon('heroicon-o-user-plus')
+            ->schema([
+                Select::make('shepherd_id')
+                    ->label('Shepherd')
+                    ->options(fn (): array => Person::query()
+                        ->orderBy('lastname')
+                        ->orderBy('firstname')
+                        ->get()
+                        ->mapWithKeys(fn (Person $person) => [
+                            $person->id => $person->display_name,
+                        ])
+                        ->toArray())
+                    ->searchable()
+                    ->required()
+                    ->native(false),
+            ])
+            ->action(function (Collection $records, array $data): void {
+                $records->each(function (Person $person) use ($data): void {
+                    $profile = $person->churchProfile()->firstOrNew([]);
+
+                    $profile->shepherd_id = $data['shepherd_id'];
+                    $profile->save();
+                });
+            })
+            ->deselectRecordsAfterCompletion(),
+
+        BulkAction::make('assignIntroducedBy')
+            ->label('Assign Introduced By')
+            ->icon('heroicon-o-user')
+            ->schema([
+                Select::make('introduced_by_id')
+                    ->label('Introduced By')
+                    ->options(fn (): array => Person::query()
+                        ->orderBy('lastname')
+                        ->orderBy('firstname')
+                        ->get()
+                        ->mapWithKeys(fn (Person $person) => [
+                            $person->id => $person->display_name,
+                        ])
+                        ->toArray())
+                    ->searchable()
+                    ->required()
+                    ->native(false),
+            ])
+            ->action(function (Collection $records, array $data): void {
+                $records->each(function (Person $person) use ($data): void {
+                    $profile = $person->churchProfile()->firstOrNew([]);
+
+                    $profile->introduced_by_id = $data['introduced_by_id'];
+                    $profile->save();
+                });
+            })
+            ->deselectRecordsAfterCompletion(),
+
+        BulkAction::make('assignShepherdingGroup')
+            ->label('Assign Shepherding Group')
+            ->icon('heroicon-o-users')
+            ->schema([
+                Select::make('service')
+                    ->label('Shepherding Group')
+                    ->options(ChurchProfileOptions::shepherdingServices())
+                    ->searchable()
+                    ->required()
+                    ->native(false),
+            ])
+            ->action(function (Collection $records, array $data): void {
+                $records->each(function (Person $person) use ($data): void {
+                    $profile = $person->churchProfile()->firstOrNew([]);
+
+                    $profile->service = $data['service'];
+                    $profile->save();
+                });
+            })
+            ->deselectRecordsAfterCompletion(),
+
+        DeleteBulkAction::make(),
+    ]),
+]);
+
     }
 }
