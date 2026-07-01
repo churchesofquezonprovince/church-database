@@ -360,6 +360,66 @@ SelectFilter::make('introduced_by_id')
             })
             ->deselectRecordsAfterCompletion(),
 
+BulkAction::make('clearShepherd')
+    ->label('Clear Shepherd')
+    ->icon('heroicon-o-x-circle')
+    ->color('warning')
+    ->requiresConfirmation()
+    ->action(function (Collection $records): void {
+        $records->each(function (Person $person): void {
+            $profile = $person->churchProfile()->firstOrNew([]);
+
+            $profile->shepherd_id = null;
+            $profile->save();
+        });
+    })
+    ->deselectRecordsAfterCompletion(),
+
+BulkAction::make('clearIntroducedBy')
+    ->label('Clear Introduced By')
+    ->icon('heroicon-o-x-circle')
+    ->color('warning')
+    ->requiresConfirmation()
+    ->action(function (Collection $records): void {
+        $records->each(function (Person $person): void {
+            $profile = $person->churchProfile()->firstOrNew([]);
+
+            $profile->introduced_by_id = null;
+            $profile->save();
+        });
+    })
+    ->deselectRecordsAfterCompletion(),
+
+BulkAction::make('clearShepherdingGroup')
+    ->label('Clear Shepherding Group')
+    ->icon('heroicon-o-x-circle')
+    ->color('warning')
+    ->requiresConfirmation()
+    ->action(function (Collection $records): void {
+        $records->each(function (Person $person): void {
+            $profile = $person->churchProfile()->firstOrNew([]);
+
+            $profile->service = null;
+            $profile->save();
+        });
+    })
+    ->deselectRecordsAfterCompletion(),
+
+BulkAction::make('resetStatusUnknown')
+    ->label('Set Status to Unknown')
+    ->icon('heroicon-o-question-mark-circle')
+    ->color('gray')
+    ->requiresConfirmation()
+    ->action(function (Collection $records): void {
+        $records->each(function (Person $person): void {
+            $profile = $person->churchProfile()->firstOrNew([]);
+
+            $profile->status = 'Unknown';
+            $profile->save();
+        });
+    })
+    ->deselectRecordsAfterCompletion(),
+
         DeleteBulkAction::make(),
     ]),
 ]);
