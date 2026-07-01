@@ -70,33 +70,74 @@ class ShepherdingDashboard extends Page
     {
         $baseQuery = $this->basePeopleQuery();
 
-        $this->stats = [
-            'total' => (clone $baseQuery)->count(),
 
-            'active' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Active'))
-                ->count(),
+$this->stats = [
+    'total' => [
+        'label' => 'Total People',
+        'count' => (clone $baseQuery)->count(),
+        'url' => $this->peopleTableUrl(),
+    ],
 
-            'new_ones' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'New One'))
-                ->count(),
+    'active' => [
+        'label' => 'Active',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Active'))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'church_status' => 'Active',
+        ]),
+    ],
 
-            'gospel_friends' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Gospel Friend'))
-                ->count(),
+    'new_ones' => [
+        'label' => 'New Ones',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'New One'))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'church_status' => 'New One',
+        ]),
+    ],
 
-            'dormant' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Dormant'))
-                ->count(),
+    'gospel_friends' => [
+        'label' => 'Gospel Friends',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Gospel Friend'))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'church_status' => 'Gospel Friend',
+        ]),
+    ],
 
-            'without_shepherd' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
-                ->count(),
+    'dormant' => [
+        'label' => 'Dormant',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Dormant'))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'church_status' => 'Dormant',
+        ]),
+    ],
 
-            'without_service' => (clone $baseQuery)
-                ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
-                ->count(),
-        ];
+    'without_shepherd' => [
+        'label' => 'No Shepherd',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'shepherd_status' => 'without_shepherd',
+        ]),
+    ],
+
+    'without_service' => [
+        'label' => 'No Shepherding Group',
+        'count' => (clone $baseQuery)
+            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
+            ->count(),
+        'url' => $this->peopleTableUrl([
+            'shepherding_group' => '__none',
+        ]),
+    ],
+];
 
         $this->peopleWithoutShepherd = $this->peopleQuery()
             ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
@@ -166,4 +207,27 @@ class ShepherdingDashboard extends Page
             ]),
         ];
     }
+
+
+private function peopleTableUrl(array $filters = []): string
+{
+    $tableFilters = [];
+
+    if (filled($this->locality)) {
+        $tableFilters['locality'] = [
+            'value' => $this->locality,
+        ];
+    }
+
+    foreach ($filters as $filter => $value) {
+        $tableFilters[$filter] = [
+            'value' => $value,
+        ];
+    }
+
+    return PersonResource::getUrl('index', [
+        'tableFilters' => $tableFilters,
+    ]);
+}
+
 }
