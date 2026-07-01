@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Households\Pages;
 
+use App\Filament\Pages\FamilyTree;
 use App\Filament\Resources\Households\HouseholdResource;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -13,6 +15,14 @@ class ViewHousehold extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('viewHeadFamilyTree')
+                ->label("View Head's Family Tree")
+                ->icon('heroicon-o-user-group')
+                ->visible(fn (): bool => filled($this->record->household_head_id))
+                ->url(fn (): string => FamilyTree::getUrl([
+                    'personId' => $this->record->household_head_id,
+                ])),
+
             EditAction::make(),
         ];
     }

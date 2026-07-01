@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Households\Tables;
 
+use App\Filament\Pages\FamilyTree;
+use Filament\Actions\Action;
 use App\Models\Household;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -47,10 +49,20 @@ class HouseholdsTable
             ->filters([
                 //
             ])
-            ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-            ])
+
+->recordActions([
+    Action::make('viewHeadFamilyTree')
+        ->label("Head's Family Tree")
+        ->icon('heroicon-o-user-group')
+        ->visible(fn (Household $record): bool => filled($record->household_head_id))
+        ->url(fn (Household $record): string => FamilyTree::getUrl([
+            'personId' => $record->household_head_id,
+        ])),
+
+    ViewAction::make(),
+    EditAction::make(),
+])
+
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
