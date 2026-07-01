@@ -69,7 +69,8 @@ class FamilyNode
             'name' => $person->display_name,
             'sex' => $person->sex,
             'locality' => $person->locality,
-            'household' => $person->household?->display_name,
+'household_id' => $person->household?->id,
+'household' => $person->household?->display_name,
             'contact_number' => $person->contact_number,
         ];
     }
