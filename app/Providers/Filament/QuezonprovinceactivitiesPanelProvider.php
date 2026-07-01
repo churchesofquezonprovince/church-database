@@ -27,6 +27,7 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ->default()
             ->id('quezonprovinceactivities')
             ->path('quezonprovinceactivities')
+            ->viteTheme('resources/css/filament/quezonprovinceactivities/theme.css')
             ->login()
             ->colors([
                 'primary' => Color::Amber,
