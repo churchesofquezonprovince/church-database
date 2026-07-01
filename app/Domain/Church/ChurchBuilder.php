@@ -156,4 +156,37 @@ public function family(
     ];
 }
 
+public function setParents(
+    Person $child,
+    ?Person $father = null,
+    ?Person $mother = null,
+): void {
+    if ($father) {
+        ParentRelationship::updateOrCreate(
+            [
+                'person_id' => $child->id,
+                'relationship' => 'Father',
+            ],
+            [
+                'parent_id' => $father->id,
+                'parent_name' => null,
+            ],
+        );
+    }
+
+    if ($mother) {
+        ParentRelationship::updateOrCreate(
+            [
+                'person_id' => $child->id,
+                'relationship' => 'Mother',
+            ],
+            [
+                'parent_id' => $mother->id,
+                'parent_name' => null,
+            ],
+        );
+    }
+}
+
+
 }

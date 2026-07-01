@@ -7,137 +7,166 @@ use Illuminate\Database\Seeder;
 
 class DemoChurchSeeder extends Seeder
 {
-public function run(): void
-{
-    $builder = app(\App\Domain\Church\ChurchBuilder::class);
+    public function run(): void
+    {
+        $builder = app(ChurchBuilder::class);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Santos Family
-    |--------------------------------------------------------------------------
-    */
+        $this->seedSantosFamily($builder);
+        $this->seedReyesFamily($builder);
+    }
 
-    $santos = $builder->family(
+    private function seedSantosFamily(ChurchBuilder $builder): void
+    {
+        // Generation 1: Santos grandparents
+        $santosGrandparents = $builder->family(
+            household: [
+                'household_name' => 'Santos Ancestral Family',
+                'locality' => 'Lucena City',
+                'address' => 'Old Lucena Road',
+            ],
+            husband: [
+                'firstname' => 'Gregorio',
+                'middlename' => null,
+                'lastname' => 'Santos',
+                'sex' => 'Male',
+                'birthdate' => '1948-03-12',
+            ],
+            wife: [
+                'firstname' => 'Elena',
+                'middlename' => null,
+                'lastname' => 'Santos',
+                'sex' => 'Female',
+                'birthdate' => '1951-07-25',
+            ],
+        );
 
-        household: [
+        // Generation 2: Juan and Maria
+        $santos = $builder->family(
+            household: [
+                'household_name' => 'Santos Family',
+                'locality' => 'Lucena City',
+                'address' => 'Maharlika Highway',
+            ],
+            husband: [
+                'firstname' => 'Juan',
+                'middlename' => null,
+                'lastname' => 'Santos',
+                'sex' => 'Male',
+                'birthdate' => '1978-06-15',
+            ],
+            wife: [
+                'firstname' => 'Maria',
+                'middlename' => null,
+                'lastname' => 'Santos',
+                'sex' => 'Female',
+                'birthdate' => '1980-02-21',
+            ],
+        );
 
-            'household_name' => 'Santos Family',
+        $builder->setParents(
+            child: $santos['husband'],
+            father: $santosGrandparents['husband'],
+            mother: $santosGrandparents['wife'],
+        );
 
-            'locality' => 'Lucena City',
+        // Maria's parents
+        $cruzGrandparents = $builder->family(
+            household: [
+                'household_name' => 'Cruz Family',
+                'locality' => 'Lucena City',
+                'address' => 'Quezon Avenue',
+            ],
+            husband: [
+                'firstname' => 'Roberto',
+                'middlename' => null,
+                'lastname' => 'Cruz',
+                'sex' => 'Male',
+                'birthdate' => '1950-01-10',
+            ],
+            wife: [
+                'firstname' => 'Lourdes',
+                'middlename' => null,
+                'lastname' => 'Cruz',
+                'sex' => 'Female',
+                'birthdate' => '1953-09-18',
+            ],
+        );
 
-            'address' => 'Maharlika Highway',
+        $builder->setParents(
+            child: $santos['wife'],
+            father: $cruzGrandparents['husband'],
+            mother: $cruzGrandparents['wife'],
+        );
 
-        ],
-
-        husband: [
-
-            'firstname' => 'Juan',
-
-            'lastname' => 'Santos',
-
-            'sex' => 'Male',
-
-        ],
-
-        wife: [
-
-            'firstname' => 'Maria',
-
-            'lastname' => 'Santos',
-
-            'sex' => 'Female',
-
-        ],
-
-    );
-
-    $builder->childOf(
-
-        $santos['husband'],
-
-        $santos['wife'],
-
-        [
-
+        // Generation 3: Juan and Maria's children
+        $peter = $builder->childOf($santos['husband'], $santos['wife'], [
             'firstname' => 'Peter',
-
+            'middlename' => null,
             'lastname' => 'Santos',
-
             'sex' => 'Male',
+            'birthdate' => '2002-04-05',
+        ]);
 
-        ]
-
-    );
-
-    $builder->childOf(
-
-        $santos['husband'],
-
-        $santos['wife'],
-
-        [
-
+        $builder->childOf($santos['husband'], $santos['wife'], [
             'firstname' => 'Anna',
-
+            'middlename' => null,
             'lastname' => 'Santos',
-
             'sex' => 'Female',
+            'birthdate' => '2005-08-17',
+        ]);
 
-        ]
-
-    );
-
-    $builder->childOf(
-
-        $santos['husband'],
-
-        $santos['wife'],
-
-        [
-
+        $builder->childOf($santos['husband'], $santos['wife'], [
             'firstname' => 'Paul',
-
+            'middlename' => null,
             'lastname' => 'Santos',
-
             'sex' => 'Male',
+            'birthdate' => '2008-11-03',
+        ]);
 
-        ]
+        // Peter's spouse
+        $ruth = $builder->person([
+            'firstname' => 'Ruth',
+            'middlename' => null,
+            'lastname' => 'Garcia',
+            'sex' => 'Female',
+            'birthdate' => '2003-12-09',
+            'household_id' => $santos['household']->id,
+        ]);
 
-    );
+        $builder->marry($peter, $ruth);
 
+        // Generation 4: Juan and Maria's grandchild
+        $builder->childOf($peter, $ruth, [
+            'firstname' => 'Daniel',
+            'middlename' => null,
+            'lastname' => 'Santos',
+            'sex' => 'Male',
+            'birthdate' => '2025-01-15',
+        ]);
+    }
 
-
-$reyes = $builder->family(
-
-    household: [
-
-        'household_name' => 'Reyes Family',
-
-    ],
-
-    husband: [
-
-        'firstname' => 'Mark',
-
-        'lastname' => 'Reyes',
-
-        'sex' => 'Male',
-
-    ],
-
-    wife: [
-
-        'firstname' => 'Grace',
-
-        'lastname' => 'Reyes',
-
-        'sex' => 'Female',
-
-    ],
-
-);
-
-
-}
-
+    private function seedReyesFamily(ChurchBuilder $builder): void
+    {
+        $builder->family(
+            household: [
+                'household_name' => 'Reyes Family',
+                'locality' => 'Lucena City',
+                'address' => 'Dalahican Road',
+            ],
+            husband: [
+                'firstname' => 'Mark',
+                'middlename' => null,
+                'lastname' => 'Reyes',
+                'sex' => 'Male',
+                'birthdate' => '1990-05-11',
+            ],
+            wife: [
+                'firstname' => 'Grace',
+                'middlename' => null,
+                'lastname' => 'Reyes',
+                'sex' => 'Female',
+                'birthdate' => '1992-10-22',
+            ],
+        );
+    }
 }
