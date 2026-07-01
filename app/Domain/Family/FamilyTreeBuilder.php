@@ -25,6 +25,10 @@ class FamilyTreeBuilder
             rootNode: $rootNode,
             ancestors: $this->relationships->ancestors($person),
             descendants: $this->relationships->descendants($person),
+            parents: $this->relationships->parents($person),
+            grandparents: $this->relationships->grandparents($person),
+            children: $this->relationships->children($person),
+            grandchildren: $this->relationships->grandchildren($person),
         );
     }
 

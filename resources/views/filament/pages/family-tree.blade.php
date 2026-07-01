@@ -45,6 +45,108 @@
                 </p>
             </div>
 
+@php
+    $generations = $tree['generations'] ?? [];
+@endphp
+
+<div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        Generation Levels
+    </h3>
+
+    <div class="mt-6 space-y-6">
+
+        <div>
+            <p class="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Grandparents
+            </p>
+
+            <div class="flex flex-wrap gap-3">
+                @forelse ($generations['grandparents'] ?? [] as $person)
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => $person,
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'grandparent',
+                    ])
+                @empty
+                    <p class="text-sm text-gray-600 dark:text-gray-300">None recorded</p>
+                @endforelse
+            </div>
+        </div>
+
+        <div>
+            <p class="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Parents
+            </p>
+
+            <div class="flex flex-wrap gap-3">
+                @forelse ($generations['parents'] ?? [] as $person)
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => $person,
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'parent',
+                    ])
+                @empty
+                    <p class="text-sm text-gray-600 dark:text-gray-300">None recorded</p>
+                @endforelse
+            </div>
+        </div>
+
+        <div>
+            <p class="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Selected Person
+            </p>
+
+            <div class="flex flex-wrap gap-3">
+                @foreach ($generations['self'] ?? [] as $person)
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => $person,
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'selected',
+                    ])
+                @endforeach
+            </div>
+        </div>
+
+        <div>
+            <p class="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Children
+            </p>
+
+            <div class="flex flex-wrap gap-3">
+                @forelse ($generations['children'] ?? [] as $person)
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => $person,
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'child',
+                    ])
+                @empty
+                    <p class="text-sm text-gray-600 dark:text-gray-300">None recorded</p>
+                @endforelse
+            </div>
+        </div>
+
+        <div>
+            <p class="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Grandchildren
+            </p>
+
+            <div class="flex flex-wrap gap-3">
+                @forelse ($generations['grandchildren'] ?? [] as $person)
+                    @include('filament.pages.partials.family-person-card', [
+                        'person' => $person,
+                        'selectedId' => $personId,
+                        'relationshipLabel' => 'grandchild',
+                    ])
+                @empty
+                    <p class="text-sm text-gray-600 dark:text-gray-300">None recorded</p>
+                @endforelse
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <div class="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-8 shadow-sm dark:border-gray-700 dark:bg-gray-950">
     <div class="flex min-w-max flex-col items-center">
 
