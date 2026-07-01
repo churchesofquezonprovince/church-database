@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\People\Tables;
 
+use App\Filament\Pages\FamilyTree;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -68,10 +70,18 @@ TextColumn::make('suffix')
             ->filters([
                 //
             ])
-            ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-            ])
+
+->recordActions([
+    Action::make('viewFamilyTree')
+        ->label('View Family Tree')
+        ->icon('heroicon-o-user-group')
+        ->url(fn ($record): string => FamilyTree::getUrl([
+            'personId' => $record->id,
+        ])),
+
+    EditAction::make(),
+])
+
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),

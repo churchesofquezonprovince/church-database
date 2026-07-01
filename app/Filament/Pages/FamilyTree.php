@@ -16,21 +16,27 @@ class FamilyTree extends Page
 
     public array $tree = [];
 
-    public function mount(): void
-    {
-        $this->people = Person::query()
-            ->orderBy('lastname')
-            ->orderBy('firstname')
-            ->get()
-            ->mapWithKeys(fn (Person $person) => [
-                $person->id => $person->display_name,
-            ])
-            ->all();
+public function mount(): void
+{
+    $this->people = Person::query()
+        ->orderBy('lastname')
+        ->orderBy('firstname')
+        ->get()
+        ->mapWithKeys(fn (Person $person) => [
+            $person->id => $person->display_name,
+        ])
+        ->all();
 
+    $requestedPersonId = request()->integer('personId');
+
+    if ($requestedPersonId && array_key_exists($requestedPersonId, $this->people)) {
+        $this->personId = $requestedPersonId;
+    } else {
         $this->personId = array_key_first($this->people);
-
-        $this->loadTree();
     }
+
+    $this->loadTree();
+}
 
     public function getTitle(): string
     {
