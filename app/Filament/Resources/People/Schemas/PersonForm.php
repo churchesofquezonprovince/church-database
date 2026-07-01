@@ -132,7 +132,7 @@ Select::make('emergency_contact_id')
 
 
 Section::make('Church Information')
-    ->relationship('church')
+->relationship('churchProfile')
     ->schema([
 
         Grid::make(2)
@@ -196,7 +196,7 @@ Select::make('service')
     ]),
 
 Section::make('Education / Work')
-    ->relationship('education')
+->relationship('educationProfile')
     ->schema([
 
         Grid::make(2)
@@ -242,8 +242,8 @@ Select::make('grade_level')
 Section::make('Parents / Guardian')
     ->schema([
 
-        Repeater::make('parents')
-            ->relationship()
+Repeater::make('parentRelationships')
+    ->relationship('parentRelationships')
             ->schema([
 
 
