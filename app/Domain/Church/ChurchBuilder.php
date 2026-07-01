@@ -85,15 +85,14 @@ public function householdHead(
     return $household->refresh();
 }
 
-public function churchProfile(
-    Person $person,
-    array $attributes = [],
-): ChurchProfile {
+public function churchProfile(Person $person, array $attributes = []): ChurchProfile
+{
+    $profile = $person->churchProfile()->firstOrNew([]);
 
-    return ChurchProfile::factory()->create([
-        'person_id' => $person->id,
-        ...$attributes,
-    ]);
+    $profile->fill($attributes);
+    $profile->save();
+
+    return $profile->refresh();
 }
 
 public function educationProfile(

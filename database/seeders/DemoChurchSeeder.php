@@ -136,6 +136,7 @@ class DemoChurchSeeder extends Seeder
         $builder->marry($peter, $ruth);
 
         // Generation 4: Juan and Maria's grandchild
+/*
         $builder->childOf($peter, $ruth, [
             'firstname' => 'Daniel',
             'middlename' => null,
@@ -143,6 +144,73 @@ class DemoChurchSeeder extends Seeder
             'sex' => 'Male',
             'birthdate' => '2025-01-15',
         ]);
+*/
+$daniel = $builder->childOf($peter, $ruth, [
+    'firstname' => 'Daniel',
+    'middlename' => null,
+    'lastname' => 'Santos',
+    'sex' => 'Male',
+    'birthdate' => '2025-01-15',
+]);
+
+// Demo church care assignments
+$builder->churchProfile($santos['husband'], [
+    'status' => 'Active',
+    'service' => 'Middle Age (Age 46 - Age 59)',
+]);
+
+$builder->churchProfile($santos['wife'], [
+    'status' => 'Full-Timer',
+    'service' => 'Middle Age (Age 46 - Age 59)',
+]);
+
+$builder->churchProfile($peter, [
+    'status' => 'Active',
+    'service' => 'Young Adults (Graduates - Age 45)',
+    'shepherd_id' => $santos['husband']->id,
+    'introduced_by_id' => $santos['wife']->id,
+]);
+
+$builder->churchProfile($ruth, [
+    'status' => 'New One',
+    'service' => 'Young Adults (Graduates - Age 45)',
+    'shepherd_id' => $santos['wife']->id,
+    'introduced_by_id' => $peter->id,
+]);
+
+$anna = \App\Models\Person::where('firstname', 'Anna')
+    ->where('lastname', 'Santos')
+    ->first();
+
+$paul = \App\Models\Person::where('firstname', 'Paul')
+    ->where('lastname', 'Santos')
+    ->first();
+
+if ($anna) {
+    $builder->churchProfile($anna, [
+        'status' => 'New One',
+        'service' => 'Collegian (G11-C1)',
+        'shepherd_id' => $santos['wife']->id,
+        'introduced_by_id' => $santos['husband']->id,
+    ]);
+}
+
+if ($paul) {
+    $builder->churchProfile($paul, [
+        'status' => 'Gospel Friend',
+        'service' => 'Young People (G8-G10)',
+        'shepherd_id' => $santos['husband']->id,
+        'introduced_by_id' => $peter->id,
+    ]);
+}
+
+$builder->churchProfile($daniel, [
+    'status' => 'Active',
+    'service' => 'Children (Toddler-Kinder)',
+    'shepherd_id' => $peter->id,
+    'introduced_by_id' => $ruth->id,
+]);
+
     }
 
     private function seedReyesFamily(ChurchBuilder $builder): void
