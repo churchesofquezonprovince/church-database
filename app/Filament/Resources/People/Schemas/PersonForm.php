@@ -192,7 +192,7 @@ Select::make('service')
 */
 
 Select::make('service')
-    ->label('Shepherding Service')
+    ->label('Shepherding Group')
     ->options(ChurchProfileOptions::shepherdingServices())
     ->searchable()
     ->native(false),

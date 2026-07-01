@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\People\Tables;
 
+use App\Models\Person;
 use App\Support\ChurchProfileOptions;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,7 +79,7 @@ TextColumn::make('churchProfile.status')
     ->sortable(),
 
 TextColumn::make('churchProfile.service')
-    ->label('Shepherding Service')
+    ->label('Shepherding Group')
     ->limit(30)
     ->toggleable(),
 
@@ -130,20 +131,72 @@ TextColumn::make('churchProfile.introducedBy.display_name')
             });
         }),
 
-    SelectFilter::make('shepherding_service')
-        ->label('Shepherding Service')
-        ->options(ChurchProfileOptions::shepherdingServices())
-        ->query(function (Builder $query, array $data): Builder {
-            $value = $data['value'] ?? null;
+SelectFilter::make('locality')
+    ->label('Locality')
+    ->options(fn (): array => Person::query()
+        ->whereNotNull('locality')
+        ->where('locality', '!=', '')
+        ->distinct()
+        ->orderBy('locality')
+        ->pluck('locality', 'locality')
+        ->toArray())
+    ->searchable(),
 
-            if (blank($value)) {
-                return $query;
-            }
+SelectFilter::make('shepherd_status')
+    ->label('Shepherd Status')
+    ->options([
+        'with_shepherd' => 'With Shepherd',
+        'without_shepherd' => 'No Shepherd',
+    ])
+    ->query(function (Builder $query, array $data): Builder {
+        $value = $data['value'] ?? null;
 
-            return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
-                $query->where('service', $value);
+        if (blank($value)) {
+            return $query;
+        }
+
+        if ($value === 'with_shepherd') {
+            return $query->whereHas('churchProfile', function (Builder $query): void {
+                $query->whereNotNull('shepherd_id');
             });
-        }),
+        }
+
+        if ($value === 'without_shepherd') {
+            return $query->whereHas('churchProfile', function (Builder $query): void {
+                $query->whereNull('shepherd_id');
+            });
+        }
+
+        return $query;
+    }),
+
+
+SelectFilter::make('shepherding_group')
+    ->label('Shepherding Group')
+    ->options([
+        '__none' => 'No Shepherding Group',
+        ...ChurchProfileOptions::shepherdingServices(),
+    ])
+    ->query(function (Builder $query, array $data): Builder {
+        $value = $data['value'] ?? null;
+
+        if (blank($value)) {
+            return $query;
+        }
+
+        if ($value === '__none') {
+            return $query->whereHas('churchProfile', function (Builder $query): void {
+                $query->whereNull('service')
+                    ->orWhere('service', '');
+            });
+        }
+
+        return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
+            $query->where('service', $value);
+        });
+    }),
+
+
 ])
 
 ->recordActions([
