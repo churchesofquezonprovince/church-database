@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Households\Tables;
 
+use App\Models\Household;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -14,44 +15,30 @@ class HouseholdsTable
     public static function configure(Table $table): Table
     {
         return $table
-
-->columns([
-
-    TextColumn::make('household_name')
-        ->searchable()
-        ->sortable(),
-
-    TextColumn::make('head.lastname')
-        ->label('Head')
-        ->formatStateUsing(fn ($record) =>
-            $record->head
-                ? "{$record->head->lastname}, {$record->head->firstname}"
-                : '-'
-        )
-        ->searchable(),
-
-    TextColumn::make('locality')
-        ->searchable(),
-
-    TextColumn::make('members_count')
-        ->counts('members')
-        ->label('Members')
-        ->sortable(),
-
-]);
-
-
-/*
             ->columns([
                 TextColumn::make('household_name')
-                    ->searchable(),
-                TextColumn::make('head_of_household_id')
-                    ->numeric()
+                    ->label('Household')
+                    ->searchable()
                     ->sortable(),
-                TextColumn::make('address')
-                    ->searchable(),
+
+                TextColumn::make('head.display_name')
+                    ->label('Head')
+                    ->searchable(['firstname', 'lastname'])
+                    ->sortable(),
+
+                TextColumn::make('members_count')
+                    ->label('Members')
+                    ->getStateUsing(fn (Household $record): int => $record->members()->count())
+                    ->sortable(),
+
                 TextColumn::make('locality')
+                    ->searchable()
+                    ->sortable(),
+
+                TextColumn::make('address')
+                    ->limit(40)
                     ->searchable(),
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -69,9 +56,5 @@ class HouseholdsTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
-*/
-
-
-
     }
 }

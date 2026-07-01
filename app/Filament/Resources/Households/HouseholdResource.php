@@ -18,18 +18,17 @@ use Filament\Tables\Table;
 
 class HouseholdResource extends Resource
 {
+protected static ?string $navigationLabel = 'Households';
+
+protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
+
+protected static ?string $modelLabel = 'Household';
+
+protected static ?string $pluralModelLabel = 'Households';
+
     protected static ?string $model = Household::class;
 
-//    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
-    protected static ?string $recordTitleAttribute = 'household_name';
-
-// Nav Group for Households
-
-    protected static string|\UnitEnum|null $navigationGroup = 'People';
-
-    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedHome;
-
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
     public static function form(Schema $schema): Schema
     {

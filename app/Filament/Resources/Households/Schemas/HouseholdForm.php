@@ -4,9 +4,8 @@ namespace App\Filament\Resources\Households\Schemas;
 
 use App\Models\Person;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
-use Filament\Schemas\Components\Grid;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -14,61 +13,39 @@ class HouseholdForm
 {
     public static function configure(Schema $schema): Schema
     {
-/*
         return $schema
             ->components([
-                TextInput::make('household_name')
-                    ->required(),
-                TextInput::make('head_of_household_id')
-                    ->numeric()
-                    ->default(null),
-                TextInput::make('address')
-                    ->default(null),
-                TextInput::make('locality')
-                    ->default(null),
-                Textarea::make('remarks')
-                    ->default(null)
-                    ->columnSpanFull(),
-            ]);
-*/
-
-return $schema
-    ->components([
-
-        Section::make('Household Information')
-            ->schema([
-
-                Grid::make(2)
+                Section::make('Household Information')
                     ->schema([
-
                         TextInput::make('household_name')
+                            ->label('Household Name')
                             ->required()
                             ->maxLength(150),
 
-                        Select::make('head_of_household_id')
-                            ->label('Head of Household')
-                            ->relationship('head', 'lastname')
+                        Select::make('household_head_id')
+                            ->label('Household Head')
+                            ->relationship(
+                                name: 'head',
+                                titleAttribute: 'lastname',
+                            )
                             ->getOptionLabelFromRecordUsing(
-                                fn (Person $record) =>
-                                    "{$record->lastname}, {$record->firstname}"
+                                fn (Person $record): string => $record->display_name
                             )
                             ->searchable()
                             ->preload(),
 
-                        TextInput::make('locality'),
+                        TextInput::make('locality')
+                            ->maxLength(150),
 
-                        TextInput::make('address')
+                        Textarea::make('address')
+                            ->rows(3)
                             ->columnSpanFull(),
 
                         Textarea::make('remarks')
+                            ->rows(3)
                             ->columnSpanFull(),
-
-                    ]),
-
-            ]),
-
-    ]);
-
-
+                    ])
+                    ->columns(2),
+            ]);
     }
 }
