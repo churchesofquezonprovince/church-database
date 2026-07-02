@@ -18,6 +18,8 @@ class PeopleImportController extends Controller
 
     public function import(Request $request): RedirectResponse
     {
+        abort_unless(auth()->user()?->canImportRecords(), 403);
+
         $request->validate([
             'csv_file' => ['required', 'file', 'max:5120'],
             'action' => ['required', 'in:validate,import'],

@@ -35,6 +35,7 @@
         </div>
 
 
+        @if (auth()->user()?->canExportRecords())
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div class="flex flex-col gap-2">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
@@ -80,6 +81,8 @@
                 </a>
             </div>
         </div>
+
+        @endif
 
         <div class="grid gap-6 xl:grid-cols-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">

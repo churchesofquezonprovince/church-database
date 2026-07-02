@@ -12,6 +12,8 @@ class ReportExportController extends Controller
 {
     public function people(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = Person::query()
             ->with(['churchProfile.shepherd', 'churchProfile.introducedBy', 'household'])
             ->orderBy('lastname')
@@ -66,6 +68,8 @@ class ReportExportController extends Controller
 
     public function households(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = Household::query()
             ->with(['head'])
             ->withCount('members')
@@ -96,6 +100,8 @@ class ReportExportController extends Controller
 
     public function localitySummary(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $peopleByLocality = Person::query()
             ->selectRaw("COALESCE(NULLIF(locality, ''), 'No Locality') as locality_name, COUNT(*) as total")
             ->groupBy('locality_name')
@@ -129,6 +135,8 @@ class ReportExportController extends Controller
 
     public function shepherding(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = Person::query()
             ->with(['churchProfile.shepherd', 'churchProfile.introducedBy', 'household'])
             ->orderBy('lastname')
@@ -161,6 +169,8 @@ class ReportExportController extends Controller
 
     public function missingPeople(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = Person::query()
             ->with(['churchProfile.shepherd', 'household'])
             ->where(function (Builder $query): void {
@@ -208,6 +218,8 @@ class ReportExportController extends Controller
 
     public function missingHouseholds(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = Household::query()
             ->with(['head'])
             ->withCount('members')
@@ -241,6 +253,8 @@ class ReportExportController extends Controller
 
     public function peopleImportTemplate(): StreamedResponse
     {
+        $this->authorizeExport();
+
         $rows = collect([
             array_fill(0, 32, ''),
         ]);
@@ -279,6 +293,11 @@ class ReportExportController extends Controller
             'remarks',
             'import_notes',
         ], $rows);
+    }
+
+    private function authorizeExport(): void
+    {
+        abort_unless(auth()->user()?->canExportRecords(), 403);
     }
 
     private function missingPersonFields(Person $person): array
