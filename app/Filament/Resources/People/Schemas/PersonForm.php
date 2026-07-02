@@ -6,12 +6,14 @@ use App\Forms\Components\PersonSelect;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class PersonForm
 {
@@ -25,6 +27,7 @@ class PersonForm
                         TextInput::make('firstname')
                             ->label('First Name')
                             ->required()
+                            ->live(onBlur: true)
                             ->maxLength(100)
                             ->placeholder('Juan'),
 
@@ -36,6 +39,7 @@ class PersonForm
                         TextInput::make('lastname')
                             ->label('Last Name')
                             ->required()
+                            ->live(onBlur: true)
                             ->maxLength(100)
                             ->placeholder('Santos'),
 
@@ -60,8 +64,15 @@ class PersonForm
 
                         DatePicker::make('birthdate')
                             ->label('Birthdate')
+                            ->live()
                             ->maxDate(now())
                             ->helperText('Used to automatically calculate the church category and detect duplicate records.'),
+
+                        Placeholder::make('duplicate_person_warning')
+                            ->label('')
+                            ->content(fn ($get, $livewire): HtmlString => self::duplicatePersonWarning($get, $livewire))
+                            ->visible(fn ($get, $livewire): bool => self::duplicatePersonFromForm($get, $livewire) !== null)
+                            ->columnSpanFull(),
 
                         TextInput::make('birthplace')
                             ->label('Birthplace')
@@ -264,6 +275,49 @@ class PersonForm
                     ])
                     ->columns(2),
             ]);
+    }
+
+
+    private static function duplicatePersonWarning($get, $livewire): HtmlString
+    {
+        $duplicate = self::duplicatePersonFromForm($get, $livewire);
+
+        if (! $duplicate) {
+            return new HtmlString('');
+        }
+
+        $name = e($duplicate->display_name);
+        $url = e(\App\Filament\Resources\People\PersonResource::getUrl('edit', [
+            'record' => $duplicate,
+        ]));
+
+        return new HtmlString(
+            '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">'
+            . '<p class="font-bold">Possible duplicate person found.</p>'
+            . '<p class="mt-1 text-sm">A person with the same first name, last name, and birthdate already exists: <strong>' . $name . '</strong></p>'
+            . '<a href="' . $url . '" class="mt-3 inline-flex rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Open existing record</a>'
+            . '</div>'
+        );
+    }
+
+    private static function duplicatePersonFromForm($get, $livewire): ?Person
+    {
+        $firstname = trim((string) $get('firstname'));
+        $lastname = trim((string) $get('lastname'));
+        $birthdate = $get('birthdate');
+
+        if ($firstname === '' || $lastname === '' || blank($birthdate)) {
+            return null;
+        }
+
+        $currentId = $livewire->record?->id ?? null;
+
+        return Person::query()
+            ->whereRaw('LOWER(firstname) = ?', [strtolower($firstname)])
+            ->whereRaw('LOWER(lastname) = ?', [strtolower($lastname)])
+            ->whereDate('birthdate', (string) $birthdate)
+            ->when($currentId, fn ($query) => $query->where('id', '!=', $currentId))
+            ->first();
     }
 
     private static function personOptions(): array

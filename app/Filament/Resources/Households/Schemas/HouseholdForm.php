@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
+use App\Models\Household;
 use App\Models\Person;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class HouseholdForm
 {
@@ -21,6 +24,7 @@ class HouseholdForm
                         TextInput::make('household_name')
                             ->label('Household Name')
                             ->required()
+                            ->live(onBlur: true)
                             ->maxLength(150)
                             ->placeholder('Santos Family'),
 
@@ -36,9 +40,16 @@ class HouseholdForm
                         TextInput::make('locality')
                             ->label('Locality')
                             ->required()
+                            ->live(onBlur: true)
                             ->maxLength(150)
                             ->helperText('Used together with household name to detect duplicate households.')
                             ->placeholder('Lucena, Pagbilao, Tayabas'),
+
+                        Placeholder::make('duplicate_household_warning')
+                            ->label('')
+                            ->content(fn ($get, $livewire): HtmlString => self::duplicateHouseholdWarning($get, $livewire))
+                            ->visible(fn ($get, $livewire): bool => self::duplicateHouseholdFromForm($get, $livewire) !== null)
+                            ->columnSpanFull(),
 
                         Textarea::make('address')
                             ->label('Address')
@@ -53,6 +64,47 @@ class HouseholdForm
                     ])
                     ->columns(2),
             ]);
+    }
+
+
+    private static function duplicateHouseholdWarning($get, $livewire): HtmlString
+    {
+        $duplicate = self::duplicateHouseholdFromForm($get, $livewire);
+
+        if (! $duplicate) {
+            return new HtmlString('');
+        }
+
+        $name = e($duplicate->household_name);
+        $url = e(\App\Filament\Resources\Households\HouseholdResource::getUrl('edit', [
+            'record' => $duplicate,
+        ]));
+
+        return new HtmlString(
+            '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">'
+            . '<p class="font-bold">Possible duplicate household found.</p>'
+            . '<p class="mt-1 text-sm">A household with the same name and locality already exists: <strong>' . $name . '</strong></p>'
+            . '<a href="' . $url . '" class="mt-3 inline-flex rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Open existing household</a>'
+            . '</div>'
+        );
+    }
+
+    private static function duplicateHouseholdFromForm($get, $livewire): ?Household
+    {
+        $householdName = trim((string) $get('household_name'));
+        $locality = trim((string) $get('locality'));
+
+        if ($householdName === '' || $locality === '') {
+            return null;
+        }
+
+        $currentId = $livewire->record?->id ?? null;
+
+        return Household::query()
+            ->whereRaw('LOWER(household_name) = ?', [strtolower($householdName)])
+            ->whereRaw('LOWER(locality) = ?', [strtolower($locality)])
+            ->when($currentId, fn ($query) => $query->where('id', '!=', $currentId))
+            ->first();
     }
 
     private static function personOptions(): array
