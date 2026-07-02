@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
@@ -28,4 +29,12 @@ Route::middleware(['auth'])
     ->name('church-database.imports.')
     ->group(function (): void {
         Route::post('/people', [PeopleImportController::class, 'import'])->name('people');
+    });
+
+
+Route::middleware(['auth'])
+    ->prefix('attendance/church-database')
+    ->name('church-database.attendance-sheets.')
+    ->group(function (): void {
+        Route::post('/sheets', [AttendanceSheetController::class, 'store'])->name('store');
     });
