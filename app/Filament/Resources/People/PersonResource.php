@@ -24,9 +24,9 @@ class PersonResource extends Resource
 
 protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
-//protected static ?string $navigationGroup = 'People';
+//protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 
-protected static string|\UnitEnum|null $navigationGroup = 'People';
+protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 
 protected static ?string $navigationLabel = 'People';
 
