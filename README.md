@@ -104,3 +104,17 @@ Do not commit:
 The .env file contains private passwords.
 
 Database backups may contain personal names, contact numbers, addresses, family relationships, and church information. Do not upload raw database backups to GitHub.
+
+## Seeding
+
+Production-safe seeding:
+
+    php artisan db:seed
+
+Demo seeding for development only:
+
+    php artisan db:seed --class=DemoDatabaseSeeder
+
+More details:
+
+    docs/seeding.md

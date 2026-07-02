@@ -7,13 +7,15 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Production-safe seed.
+     *
+     * This should only create required system records.
+     * Demo people, households, and family trees must not be seeded here.
      */
     public function run(): void
     {
         $this->call([
             AdminUserSeeder::class,
-            DemoChurchSeeder::class,
         ]);
     }
 }
