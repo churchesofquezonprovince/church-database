@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,4 +20,12 @@ Route::middleware(['auth'])
         Route::get('/shepherding', [ReportExportController::class, 'shepherding'])->name('shepherding');
         Route::get('/missing-people', [ReportExportController::class, 'missingPeople'])->name('missing-people');
         Route::get('/missing-households', [ReportExportController::class, 'missingHouseholds'])->name('missing-households');
+    });
+
+
+Route::middleware(['auth'])
+    ->prefix('imports/church-database')
+    ->name('church-database.imports.')
+    ->group(function (): void {
+        Route::post('/people', [PeopleImportController::class, 'import'])->name('people');
     });
