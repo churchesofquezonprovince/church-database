@@ -32,3 +32,4 @@ Thumbs.db
 # Vim
 *.swp
 *.swo
+/backups/
