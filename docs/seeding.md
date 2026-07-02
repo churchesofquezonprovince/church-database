@@ -49,3 +49,15 @@ Before running any command with migrate:fresh, run:
 For the real church database, use forms, CSV import, and normal editing.
 
 Do not use demo seeders for real church records.
+
+## Admin User Environment Variables
+
+The admin account is controlled by .env:
+
+ADMIN_USER_EMAIL
+ADMIN_USER_NAME
+ADMIN_USER_PASSWORD
+
+Never commit the real admin password.
+
+The .env.example file must only contain placeholder values.
