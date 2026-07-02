@@ -2,305 +2,312 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
-use App\Support\ChurchProfileOptions;
 use App\Forms\Components\PersonSelect;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Grid;
-use Filament\Forms\Components\Select;
+use App\Models\Person;
+use App\Support\ChurchProfileOptions;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class PersonForm
 {
     public static function configure(Schema $schema): Schema
     {
-
-return $schema
-    ->components([
-
-        Section::make('Personal Information')
-            ->schema([
-
-                Grid::make(2)
+        return $schema
+            ->components([
+                Section::make('Personal Information')
+                    ->description('Basic identity and contact information of the person.')
                     ->schema([
+                        TextInput::make('firstname')
+                            ->label('First Name')
+                            ->required()
+                            ->maxLength(100)
+                            ->placeholder('Juan'),
 
+                        TextInput::make('middlename')
+                            ->label('Middle Name')
+                            ->maxLength(100)
+                            ->placeholder('Reyes'),
 
-TextInput::make('firstname')
-    ->label('First Name')
-    ->required()
-    ->maxLength(100),
+                        TextInput::make('lastname')
+                            ->label('Last Name')
+                            ->required()
+                            ->maxLength(100)
+                            ->placeholder('Santos'),
 
-TextInput::make('middlename')
-    ->label('Middle Name')
-    ->maxLength(100),
+                        TextInput::make('suffix')
+                            ->label('Suffix')
+                            ->maxLength(20)
+                            ->placeholder('Jr., Sr., III'),
 
-TextInput::make('lastname')
-    ->label('Last Name')
-    ->required()
-    ->maxLength(100),
+                        TextInput::make('nickname')
+                            ->label('Nickname')
+                            ->maxLength(100)
+                            ->placeholder('Optional'),
 
-TextInput::make('suffix')
-    ->label('Suffix')
-    ->placeholder('Jr., Sr., III'),
+                        Select::make('sex')
+                            ->label('Sex')
+                            ->options([
+                                'Male' => 'Male',
+                                'Female' => 'Female',
+                            ])
+                            ->required()
+                            ->native(false),
 
-TextInput::make('nickname')
-->label('Nickname')
-->columnSpan(1),
+                        DatePicker::make('birthdate')
+                            ->label('Birthdate')
+                            ->helperText('Used to automatically calculate the church category.'),
 
-Select::make('sex')
-    ->options([
-        'Male' => 'Male',
-        'Female' => 'Female',
-    ])
-    ->required(),
-
-DatePicker::make('birthdate')
-->label('Birthdate'),
-
-TextInput::make('birthplace')
-->placeholder('Lucena, Pagbilao, Tayabas')
-->columnSpan(1),
-
+                        TextInput::make('birthplace')
+                            ->label('Birthplace')
+                            ->maxLength(255)
+                            ->placeholder('Lucena, Pagbilao, Tayabas'),
 
                         TextInput::make('contact_number')
                             ->label('Contact Number')
-                            ->tel(),
+                            ->tel()
+                            ->maxLength(50)
+                            ->placeholder('09XXXXXXXXX'),
 
                         TextInput::make('email')
-                            ->email(),
-
-                    ]),
-
-
-Select::make('spouse_id')
-    ->label('Spouse')
-    ->relationship('spouse', 'lastname')
-    ->getOptionLabelFromRecordUsing(
-        fn ($record) => $record->full_name
-    )
-    ->searchable()
-    ->preload()
-    ->nullable()
-
-->options(function ($livewire) {
-
-    $id = $livewire->record?->id;
-
-    return \App\Models\Person::query()
-        ->when($id, fn ($q) => $q->where('id', '!=', $id))
-        ->orderBy('lastname')
-        ->orderBy('firstname')
-        ->get()
-        ->mapWithKeys(fn ($person) => [
-            $person->id => "{$person->lastname}, {$person->firstname}"
-        ]);
-
-}),
-
-
-                TextInput::make('locality')
-    		->placeholder('Lucana, Pagbilao, Tayabas'),
-//		->columnSpan(1),
-
-                TextInput::make('home_address')
-                    ->columnSpanFull(),
-
-                TextInput::make('permanent_address')
-                    ->columnSpanFull(),
-
-                TextInput::make('geocoordinates')
-                    ->label('GPS Coordinates'),
-
-Select::make('emergency_contact_id')
-    ->label('Emergency Contact')
-    ->relationship(
-        name: 'emergencyContact',
-        titleAttribute: 'lastname'
-    )
-    ->getOptionLabelFromRecordUsing(
-        fn ($record) => $record->display_name
-    )
-    ->searchable()
-    ->preload(),
-
-                TextInput::make('emergency_contact_number')
-                    ->tel(),
-
-            ]),
-	
-
-
-Section::make('Church Information')
-->relationship('churchProfile')
-    ->schema([
-
-        Grid::make(2)
-            ->schema([
-
-/*
-Select::make('category')
-    ->options([
-        'Children' => 'Children',
-        'Young People' => 'Young People',
-        'Collegian' => 'Collegian',
-        'Young Adult' => 'Young Adult',
-        'Middle Age' => 'Middle Age',
-        'Elderly' => 'Elderly',
-    ])
-    ->searchable()
-    ->required(),
-*/
-
-TextInput::make('category')
-    ->label('Category')
-    ->disabled()
-    ->dehydrated(false)
-    ->helperText('Automatically calculated from birthdate / age after saving.'),
-
-/*
-                Select::make('status')
-                    ->options([
-                        'Active' => 'Active',
-                        'Dormant' => 'Dormant',
+                            ->label('Email')
+                            ->email()
+                            ->maxLength(255)
+                            ->placeholder('name@example.com'),
                     ])
-                    ->default('Active')
-                    ->required(),
-*/
+                    ->columns(2),
 
-Select::make('status')
-    ->label('Status')
-    ->options(ChurchProfileOptions::statuses())
-    ->default('Active')
-    ->required()
-    ->native(false),
+                Section::make('Family and Household')
+                    ->description('Link this person to their spouse, household, parents, or guardian.')
+                    ->schema([
+                        Select::make('spouse_id')
+                            ->label('Spouse')
+                            ->options(fn ($livewire): array => self::personOptionsExceptCurrent($livewire->record?->id))
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select spouse if recorded'),
 
-                DatePicker::make('baptism_date'),
+                        Select::make('household_id')
+                            ->label('Household')
+                            ->relationship(
+                                name: 'household',
+                                titleAttribute: 'household_name',
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select household'),
 
-/*
-Select::make('service')
-    ->options([
-        'Children (Toddler-Kinder)' => 'Children (Toddler-Kinder)',
-        'Children (G1-G4)' => 'Children (G1-G4)',
-        'Junior Young People (G5-G7)' => 'Junior Young People (G5-G7)',
-        'Young People (G8-G10)' => 'Young People (G8-G10)',
-        'Collegian (G11-C1)' => 'Collegian (G11-C1)',
-        'Collegian (C2-Graduating)' => 'Collegian (C2-Graduating)',
-    ])
-    ->searchable(),
-*/
+                        Repeater::make('parentRelationships')
+                            ->label('Parents / Guardian')
+                            ->relationship('parentRelationships')
+                            ->schema([
+                                Select::make('relationship')
+                                    ->label('Relationship')
+                                    ->options([
+                                        'Father' => 'Father',
+                                        'Mother' => 'Mother',
+                                        'Guardian' => 'Guardian',
+                                    ])
+                                    ->required()
+                                    ->native(false),
 
-Select::make('service')
-    ->label('Shepherding Group')
-    ->options(ChurchProfileOptions::shepherdingServices())
-    ->searchable()
-    ->native(false),
+                                PersonSelect::relationship(
+                                    field: 'parent_id',
+                                    relationship: 'parent',
+                                    label: 'Existing Person',
+                                )
+                                    ->helperText('Use this if the parent or guardian is already encoded.'),
 
-                Select::make('shepherd_id')
-                    ->label('Shepherd')
-                    ->relationship(
-                        name: 'shepherd',
-                        titleAttribute: 'firstname'
-                    )
-                    ->searchable()
-                    ->preload(),
+                                TextInput::make('parent_name')
+                                    ->label('Parent / Guardian Name')
+                                    ->maxLength(255)
+                                    ->helperText('Use this if the parent or guardian is not yet encoded.'),
+                            ])
+                            ->columns(3)
+                            ->defaultItems(0)
+                            ->addActionLabel('Add Parent / Guardian')
+                            ->reorderable(false)
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => $state['relationship'] ?? 'Parent / Guardian')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
 
-                Select::make('introduced_by_id')
-                    ->label('Introduced By')
-                    ->relationship(
-                        name: 'introducedBy',
-                        titleAttribute: 'firstname'
-                    )
-                    ->searchable()
-                    ->preload(),
+                Section::make('Address')
+                    ->description('Locality, home address, permanent address, and optional map coordinates.')
+                    ->schema([
+                        TextInput::make('locality')
+                            ->label('Locality')
+                            ->maxLength(150)
+                            ->placeholder('Lucena, Pagbilao, Tayabas'),
 
-            ]),
-    ]),
+                        TextInput::make('geocoordinates')
+                            ->label('GPS Coordinates')
+                            ->maxLength(255)
+                            ->placeholder('14.0642, 121.5540'),
 
-Section::make('Education / Work')
-->relationship('educationProfile')
-    ->schema([
+                        Textarea::make('home_address')
+                            ->label('Home Address')
+                            ->rows(3)
+                            ->columnSpanFull(),
 
-        Grid::make(2)
-            ->schema([
+                        Textarea::make('permanent_address')
+                            ->label('Permanent Address')
+                            ->rows(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
 
+                Section::make('Church Information')
+                    ->description('Church status, shepherding group, shepherd, and gospel contact information.')
+                    ->relationship('churchProfile')
+                    ->schema([
+                        TextInput::make('category')
+                            ->label('Category')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->helperText('Automatically calculated from birthdate / age after saving.'),
 
-Select::make('grade_level')
-    ->options(
-        collect([
-            'Pre-School',
-            'Kinder I',
-            'Kinder II',
-        ])
-        ->merge(
-            collect(range(1, 12))
-                ->mapWithKeys(fn ($i) => ["Grade $i" => "Grade $i"])
-        )
-        ->merge([
-            'College - Year 1' => 'College - Year 1',
-            'College - Year 2' => 'College - Year 2',
-            'College - Year 3' => 'College - Year 3',
-            'College - Year 4' => 'College - Year 4',
-        ])
-        ->toArray()
-    )
-    ->searchable(),
+                        Select::make('status')
+                            ->label('Status')
+                            ->options(ChurchProfileOptions::statuses())
+                            ->default('Active')
+                            ->required()
+                            ->native(false),
 
+                        DatePicker::make('baptism_date')
+                            ->label('Baptism Date'),
 
-                TextInput::make('course_strand')
-                    ->label('Course / Strand')
-                    ->maxLength(100),
+                        Select::make('service')
+                            ->label('Shepherding Group')
+                            ->options(ChurchProfileOptions::shepherdingServices())
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Select shepherding group'),
 
-                TextInput::make('occupation')
-                    ->maxLength(100),
+                        Select::make('shepherd_id')
+                            ->label('Shepherd')
+                            ->options(fn (): array => self::personOptions())
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select shepherd'),
 
-                TextInput::make('school_workplace')
-                    ->label('School / Workplace')
-                    ->maxLength(255),
+                        Select::make('introduced_by_id')
+                            ->label('Introduced By')
+                            ->options(fn (): array => self::personOptions())
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select introducer'),
+                    ])
+                    ->columns(2),
 
-            ]),
-    ]),
+                Section::make('Education / Work')
+                    ->description('School level, course or strand, occupation, and workplace.')
+                    ->relationship('educationProfile')
+                    ->schema([
+                        Select::make('grade_level')
+                            ->label('Grade Level')
+                            ->options(self::gradeLevelOptions())
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Select grade / year level'),
 
-Section::make('Parents / Guardian')
-    ->schema([
+                        TextInput::make('course_strand')
+                            ->label('Course / Strand')
+                            ->maxLength(100)
+                            ->placeholder('STEM, ABM, BSEE, BSIT'),
 
-Repeater::make('parentRelationships')
-    ->label('Parents / Guardian')
-    ->relationship('parentRelationships')
-    ->schema([
-        Select::make('relationship')
-            ->label('Relationship')
-            ->options([
-                'Father' => 'Father',
-                'Mother' => 'Mother',
-                'Guardian' => 'Guardian',
+                        TextInput::make('occupation')
+                            ->label('Occupation')
+                            ->maxLength(100)
+                            ->placeholder('Student, Teacher, Engineer'),
+
+                        TextInput::make('school_workplace')
+                            ->label('School / Workplace')
+                            ->maxLength(255)
+                            ->placeholder('School or workplace name'),
+                    ])
+                    ->columns(2),
+
+                Section::make('Emergency Contact')
+                    ->description('Person to contact in case of emergency.')
+                    ->schema([
+                        Select::make('emergency_contact_id')
+                            ->label('Emergency Contact')
+                            ->options(fn ($livewire): array => self::personOptionsExceptCurrent($livewire->record?->id))
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select emergency contact'),
+
+                        TextInput::make('emergency_contact_relationship')
+                            ->label('Relationship')
+                            ->maxLength(100)
+                            ->placeholder('Father, Mother, Spouse, Sibling'),
+
+                        TextInput::make('emergency_contact_number')
+                            ->label('Emergency Contact Number')
+                            ->tel()
+                            ->maxLength(50)
+                            ->placeholder('09XXXXXXXXX'),
+                    ])
+                    ->columns(2),
+            ]);
+    }
+
+    private static function personOptions(): array
+    {
+        return Person::query()
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get()
+            ->mapWithKeys(fn (Person $person): array => [
+                $person->id => $person->display_name,
             ])
-            ->required()
-            ->native(false),
+            ->toArray();
+    }
 
-        PersonSelect::relationship(
-            field: 'parent_id',
-            relationship: 'parent',
-            label: 'Existing Person',
-        )
-            ->helperText('Use this if the parent or guardian is already encoded.'),
+    private static function personOptionsExceptCurrent(?int $currentId): array
+    {
+        return Person::query()
+            ->when($currentId, fn ($query) => $query->where('id', '!=', $currentId))
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get()
+            ->mapWithKeys(fn (Person $person): array => [
+                $person->id => $person->display_name,
+            ])
+            ->toArray();
+    }
 
-        TextInput::make('parent_name')
-            ->label('Parent / Guardian Name')
-            ->maxLength(255)
-            ->helperText('Use this if the parent or guardian is not yet encoded.'),
-    ])
-    ->columns(3)
-    ->defaultItems(0)
-    ->addActionLabel('Add Parent / Guardian')
-    ->reorderable(false)
-    ->collapsible()
-    ->itemLabel(fn (array $state): ?string => $state['relationship'] ?? 'Parent / Guardian'),
-
-    ])
-//
-]);
-
+    private static function gradeLevelOptions(): array
+    {
+        return collect([
+            'Pre-School' => 'Pre-School',
+            'Kinder I' => 'Kinder I',
+            'Kinder II' => 'Kinder II',
+        ])
+            ->merge(
+                collect(range(1, 12))
+                    ->mapWithKeys(fn (int $i): array => ["Grade {$i}" => "Grade {$i}"])
+            )
+            ->merge([
+                'College - Year 1' => 'College - Year 1',
+                'College - Year 2' => 'College - Year 2',
+                'College - Year 3' => 'College - Year 3',
+                'College - Year 4' => 'College - Year 4',
+                'College - Year 5' => 'College - Year 5',
+                'Graduated' => 'Graduated',
+                'Not Applicable' => 'Not Applicable',
+            ])
+            ->toArray();
     }
 }
