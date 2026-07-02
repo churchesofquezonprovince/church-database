@@ -6,10 +6,11 @@ use App\Domain\Family\FamilyRelationshipService;
 use App\Filament\Pages\FamilyTree;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\People\PersonResource;
-use App\Support\ChurchProfileOptions;
 use App\Models\ChurchProfile;
 use App\Models\Household;
 use App\Models\Person;
+use App\Support\ChurchProfileOptions;
+use Carbon\CarbonInterface;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -22,26 +23,46 @@ class PersonInfolist
     {
         return $schema
             ->components([
+                Section::make('Profile Overview')
+                    ->schema([
+                        TextEntry::make('profile_overview')
+                            ->label('Summary')
+                            ->state(fn (Person $record): HtmlString => self::profileOverview($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+
                 Section::make('Personal Information')
                     ->schema([
                         TextEntry::make('display_name')
-                            ->label('Name'),
+                            ->label('Name')
+                            ->state(fn (Person $record): HtmlString => self::value($record->display_name, important: true))
+                            ->html(),
 
                         TextEntry::make('sex')
-                            ->placeholder('None recorded'),
+                            ->label('Sex')
+                            ->state(fn (Person $record): HtmlString => self::value($record->sex))
+                            ->html(),
 
                         TextEntry::make('birthdate')
-                            ->date()
-                            ->placeholder('None recorded'),
+                            ->label('Birthdate')
+                            ->state(fn (Person $record): HtmlString => self::dateValue($record->birthdate))
+                            ->html(),
 
                         TextEntry::make('birthplace')
-                            ->placeholder('None recorded'),
+                            ->label('Birthplace')
+                            ->state(fn (Person $record): HtmlString => self::value($record->birthplace))
+                            ->html(),
 
                         TextEntry::make('contact_number')
-                            ->placeholder('None recorded'),
+                            ->label('Contact Number')
+                            ->state(fn (Person $record): HtmlString => self::phoneValue($record->contact_number))
+                            ->html(),
 
                         TextEntry::make('email')
-                            ->placeholder('None recorded'),
+                            ->label('Email')
+                            ->state(fn (Person $record): HtmlString => self::emailValue($record->email))
+                            ->html(),
                     ])
                     ->columns(2),
 
@@ -86,78 +107,89 @@ class PersonInfolist
                     ])
                     ->columns(2),
 
-Section::make('Shepherding Responsibility')
-    ->schema([
+                Section::make('Shepherding Responsibility')
+                    ->schema([
+                        TextEntry::make('care_summary')
+                            ->label('Care Summary')
+                            ->state(fn (Person $record): HtmlString => self::careSummary($record))
+                            ->html()
+                            ->columnSpanFull(),
 
-TextEntry::make('view_people_shepherded')
-    ->label('People Shepherded Link')
-    ->state(fn (Person $record): HtmlString => self::peopleTableLink(
-        label: 'View all people shepherded by this person',
-        filters: [
-            'shepherd_id' => $record->id,
-        ],
-    ))
-    ->html()
-    ->columnSpanFull(),
+                        TextEntry::make('view_people_shepherded')
+                            ->label('Quick Filter: Shepherded')
+                            ->state(fn (Person $record): HtmlString => self::peopleTableLink(
+                                label: 'View all people shepherded by this person',
+                                filters: [
+                                    'shepherd_id' => $record->id,
+                                ],
+                            ))
+                            ->html(),
 
-TextEntry::make('view_people_introduced')
-    ->label('People Introduced Link')
-    ->state(fn (Person $record): HtmlString => self::peopleTableLink(
-        label: 'View all people introduced by this person',
-        filters: [
-            'introduced_by_id' => $record->id,
-        ],
-    ))
-    ->html()
-    ->columnSpanFull(),
+                        TextEntry::make('view_people_introduced')
+                            ->label('Quick Filter: Introduced')
+                            ->state(fn (Person $record): HtmlString => self::peopleTableLink(
+                                label: 'View all people introduced by this person',
+                                filters: [
+                                    'introduced_by_id' => $record->id,
+                                ],
+                            ))
+                            ->html(),
 
-        TextEntry::make('people_shepherded')
-            ->label('People Shepherded')
-            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record))
-            ->html()
-            ->columnSpanFull(),
+                        TextEntry::make('people_shepherded')
+                            ->label('People Shepherded')
+                            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record))
+                            ->html()
+                            ->columnSpanFull(),
 
-        TextEntry::make('dormant_under_care')
-            ->label('Dormant Under Care')
-            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Dormant'))
-            ->html()
-            ->columnSpanFull(),
+                        TextEntry::make('dormant_under_care')
+                            ->label('Dormant Under Care')
+                            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Dormant'))
+                            ->html()
+                            ->columnSpanFull(),
 
-        TextEntry::make('new_ones_under_care')
-            ->label('New Ones Under Care')
-            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'New One'))
-            ->html()
-            ->columnSpanFull(),
+                        TextEntry::make('new_ones_under_care')
+                            ->label('New Ones Under Care')
+                            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'New One'))
+                            ->html()
+                            ->columnSpanFull(),
 
-        TextEntry::make('gospel_friends_under_care')
-            ->label('Gospel Friends Under Care')
-            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Gospel Friend'))
-            ->html()
-            ->columnSpanFull(),
+                        TextEntry::make('gospel_friends_under_care')
+                            ->label('Gospel Friends Under Care')
+                            ->state(fn (Person $record): HtmlString => self::shepherdedPeople($record, 'Gospel Friend'))
+                            ->html()
+                            ->columnSpanFull(),
 
-        TextEntry::make('people_introduced')
-            ->label('People Introduced')
-            ->state(fn (Person $record): HtmlString => self::introducedPeople($record))
-            ->html()
-            ->columnSpanFull(),
-    ])
-    ->columns(2),
+                        TextEntry::make('people_introduced')
+                            ->label('People Introduced')
+                            ->state(fn (Person $record): HtmlString => self::introducedPeople($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
 
                 Section::make('Address')
                     ->schema([
                         TextEntry::make('locality')
-                            ->placeholder('None recorded'),
+                            ->label('Locality')
+                            ->state(fn (Person $record): HtmlString => self::value($record->locality))
+                            ->html(),
+
+                        TextEntry::make('geocoordinates')
+                            ->label('Geocoordinates')
+                            ->state(fn (Person $record): HtmlString => self::value($record->geocoordinates))
+                            ->html(),
 
                         TextEntry::make('home_address')
-                            ->placeholder('None recorded')
+                            ->label('Home Address')
+                            ->state(fn (Person $record): HtmlString => self::value($record->home_address))
+                            ->html()
                             ->columnSpanFull(),
 
                         TextEntry::make('permanent_address')
-                            ->placeholder('None recorded')
+                            ->label('Permanent Address')
+                            ->state(fn (Person $record): HtmlString => self::value($record->permanent_address))
+                            ->html()
                             ->columnSpanFull(),
-
-                        TextEntry::make('geocoordinates')
-                            ->placeholder('None recorded'),
                     ])
                     ->columns(2),
 
@@ -177,56 +209,66 @@ TextEntry::make('view_people_introduced')
 
                         TextEntry::make('churchProfile.baptism_date')
                             ->label('Baptism Date')
-                            ->date()
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::dateValue($record->churchProfile?->baptism_date))
+                            ->html(),
 
                         TextEntry::make('churchProfile.service')
-                            ->label('Service')
-                            ->placeholder('None recorded'),
+                            ->label('Shepherding Group')
+                            ->state(fn (Person $record): HtmlString => self::value($record->churchProfile?->service))
+                            ->html(),
 
-                        TextEntry::make('churchProfile.shepherd.display_name')
+                        TextEntry::make('church_shepherd')
                             ->label('Shepherd')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::personLink($record->churchProfile?->shepherd))
+                            ->html(),
 
-                        TextEntry::make('churchProfile.introducedBy.display_name')
+                        TextEntry::make('church_introduced_by')
                             ->label('Introduced By')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::personLink($record->churchProfile?->introducedBy))
+                            ->html(),
                     ])
                     ->columns(2),
 
                 Section::make('Education / Work')
                     ->schema([
-                        TextEntry::make('educationProfile.grade_level')
+                        TextEntry::make('education_grade_level')
                             ->label('Grade Level')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->grade_level))
+                            ->html(),
 
-                        TextEntry::make('educationProfile.course_strand')
+                        TextEntry::make('education_course_strand')
                             ->label('Course / Strand')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->course_strand))
+                            ->html(),
 
-                        TextEntry::make('educationProfile.occupation')
+                        TextEntry::make('education_occupation')
                             ->label('Occupation')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->occupation))
+                            ->html(),
 
-                        TextEntry::make('educationProfile.school_workplace')
+                        TextEntry::make('education_school_workplace')
                             ->label('School / Workplace')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->school_workplace))
+                            ->html(),
                     ])
                     ->columns(2),
 
                 Section::make('Emergency Contact')
                     ->schema([
-                        TextEntry::make('emergencyContact.display_name')
+                        TextEntry::make('emergency_contact_person')
                             ->label('Emergency Contact')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::personLink($record->emergencyContact))
+                            ->html(),
 
                         TextEntry::make('emergency_contact_relationship')
                             ->label('Relationship')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::value($record->emergency_contact_relationship))
+                            ->html(),
 
                         TextEntry::make('emergency_contact_number')
                             ->label('Contact Number')
-                            ->placeholder('None recorded'),
+                            ->state(fn (Person $record): HtmlString => self::phoneValue($record->emergency_contact_number))
+                            ->html(),
                     ])
                     ->columns(2),
             ]);
@@ -237,6 +279,110 @@ TextEntry::make('view_people_introduced')
         return app(FamilyRelationshipService::class);
     }
 
+    private static function profileOverview(Person $record): HtmlString
+    {
+        $name = $record->display_name;
+        $initials = collect(preg_split('/\s+/', trim((string) $name)))
+            ->filter()
+            ->take(2)
+            ->map(fn (string $part): string => strtoupper(mb_substr($part, 0, 1)))
+            ->join('');
+
+        $status = $record->churchProfile?->status ?? 'Unknown';
+        $category = $record->churchProfile?->category ?? 'Unknown';
+        $service = $record->churchProfile?->service ?? 'No Shepherding Group';
+        $locality = $record->locality ?: 'No Locality';
+
+        $treeUrl = FamilyTree::getUrl([
+            'personId' => $record->id,
+        ]);
+
+        return new HtmlString(
+            '<div class="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-white p-6 dark:border-primary-900 dark:from-gray-900 dark:to-gray-950">'
+            . '<div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">'
+            . '<div class="flex items-center gap-4">'
+            . '<div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary-600 text-xl font-bold text-white shadow-sm">'
+            . e($initials ?: '?')
+            . '</div>'
+            . '<div>'
+            . '<p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400">Person Profile</p>'
+            . '<h2 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">' . e($name) . '</h2>'
+            . '<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">' . e($category) . ' • ' . e($locality) . '</p>'
+            . '</div>'
+            . '</div>'
+            . '<a href="' . e($treeUrl) . '" class="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500">'
+            . 'Open visual family tree'
+            . '</a>'
+            . '</div>'
+            . '<div class="mt-5 grid gap-3 md:grid-cols-3">'
+            . self::summaryBox('Status', $status, self::statusTone($status))
+            . self::summaryBox('Category', $category, 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200')
+            . self::summaryBox('Shepherding Group', $service, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
+            . '</div>'
+            . '</div>'
+        );
+    }
+
+    private static function summaryBox(string $label, ?string $value, string $tone): string
+    {
+        return '<div class="rounded-xl border p-4 ' . e($tone) . '">'
+            . '<p class="text-xs font-semibold uppercase tracking-wide opacity-75">' . e($label) . '</p>'
+            . '<p class="mt-1 text-lg font-bold">' . e($value ?: 'Not recorded') . '</p>'
+            . '</div>';
+    }
+
+    private static function value(?string $value, bool $important = false): HtmlString
+    {
+        if (blank($value)) {
+            return self::none();
+        }
+
+        $class = $important
+            ? 'block rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-base font-bold text-primary-800 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200'
+            : 'block rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100';
+
+        return new HtmlString('<span class="' . e($class) . '">' . e($value) . '</span>');
+    }
+
+    private static function dateValue(mixed $date): HtmlString
+    {
+        if (blank($date)) {
+            return self::none();
+        }
+
+        $value = $date instanceof CarbonInterface
+            ? $date->format('F j, Y')
+            : (string) $date;
+
+        return self::value($value);
+    }
+
+    private static function phoneValue(?string $number): HtmlString
+    {
+        if (blank($number)) {
+            return self::none();
+        }
+
+        return new HtmlString(
+            '<a href="tel:' . e($number) . '" class="block rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
+            . e($number)
+            . '</a>'
+        );
+    }
+
+    private static function emailValue(?string $email): HtmlString
+    {
+        if (blank($email)) {
+            return self::none();
+        }
+
+        return new HtmlString(
+            '<a href="mailto:' . e($email) . '" class="block rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
+            . e($email)
+            . '</a>'
+        );
+    }
+
     private static function familyTreeLink(Person $person): HtmlString
     {
         $url = FamilyTree::getUrl([
@@ -244,7 +390,9 @@ TextEntry::make('view_people_introduced')
         ]);
 
         return new HtmlString(
-            '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">Open visual family tree</a>'
+            '<a href="' . e($url) . '" class="inline-flex items-center rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">'
+            . 'Open visual family tree'
+            . '</a>'
         );
     }
 
@@ -259,7 +407,7 @@ TextEntry::make('view_people_introduced')
         ]);
 
         return new HtmlString(
-            '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
+            '<a href="' . e($url) . '" class="inline-flex rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
             . e($person->display_name)
             . '</a>'
         );
@@ -278,13 +426,13 @@ TextEntry::make('view_people_introduced')
                     'record' => $person->id,
                 ]);
 
-                return '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
+                return '<a href="' . e($url) . '" class="inline-flex rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
                     . e($person->display_name)
                     . '</a>';
             })
-            ->join('<br>');
+            ->join('');
 
-        return new HtmlString($links);
+        return new HtmlString('<div class="flex flex-wrap gap-2">' . $links . '</div>');
     }
 
     private static function householdLink(?Household $household): HtmlString
@@ -298,64 +446,118 @@ TextEntry::make('view_people_introduced')
         ]);
 
         return new HtmlString(
-            '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
+            '<a href="' . e($url) . '" class="inline-flex rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
             . e($household->display_name)
             . '</a>'
         );
     }
 
-private static function shepherdedPeople(Person $record, ?string $status = null): HtmlString
-{
-    $people = ChurchProfile::query()
-        ->with('person')
-        ->where('shepherd_id', $record->id)
-        ->when($status, fn ($query) => $query->where('status', $status))
-        ->get()
-        ->pluck('person')
-        ->filter()
-        ->values();
+    private static function shepherdedPeople(Person $record, ?string $status = null): HtmlString
+    {
+        $people = ChurchProfile::query()
+            ->with('person')
+            ->where('shepherd_id', $record->id)
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->get()
+            ->pluck('person')
+            ->filter()
+            ->values();
 
-    return self::peopleLinks($people);
-}
-
-private static function introducedPeople(Person $record): HtmlString
-{
-    $people = ChurchProfile::query()
-        ->with('person')
-        ->where('introduced_by_id', $record->id)
-        ->get()
-        ->pluck('person')
-        ->filter()
-        ->values();
-
-    return self::peopleLinks($people);
-}
-
-
-private static function peopleTableLink(string $label, array $filters): HtmlString
-{
-    $queryFilters = [];
-
-    foreach ($filters as $filter => $value) {
-        $queryFilters[$filter] = [
-            'value' => (string) $value,
-        ];
+        return self::peopleLinks($people);
     }
 
-    $url = PersonResource::getUrl('index') . '?' . http_build_query([
-        'filters' => $queryFilters,
-    ]);
+    private static function introducedPeople(Person $record): HtmlString
+    {
+        $people = ChurchProfile::query()
+            ->with('person')
+            ->where('introduced_by_id', $record->id)
+            ->get()
+            ->pluck('person')
+            ->filter()
+            ->values();
 
-    return new HtmlString(
-        '<a href="' . e($url) . '" class="text-primary-600 hover:underline dark:text-primary-400">'
-        . e($label)
-        . '</a>'
-    );
-}
+        return self::peopleLinks($people);
+    }
 
+    private static function careSummary(Person $record): HtmlString
+    {
+        $total = ChurchProfile::query()
+            ->where('shepherd_id', $record->id)
+            ->count();
+
+        $dormant = ChurchProfile::query()
+            ->where('shepherd_id', $record->id)
+            ->where('status', 'Dormant')
+            ->count();
+
+        $newOnes = ChurchProfile::query()
+            ->where('shepherd_id', $record->id)
+            ->where('status', 'New One')
+            ->count();
+
+        $introduced = ChurchProfile::query()
+            ->where('introduced_by_id', $record->id)
+            ->count();
+
+        return new HtmlString(
+            '<div class="grid gap-3 md:grid-cols-4">'
+            . self::metricBox('Shepherded', $total, 'border-primary-200 bg-primary-50 text-primary-800 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200')
+            . self::metricBox('Dormant', $dormant, 'border-gray-300 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200')
+            . self::metricBox('New Ones', $newOnes, 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200')
+            . self::metricBox('Introduced', $introduced, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
+            . '</div>'
+        );
+    }
+
+    private static function metricBox(string $label, int $count, string $tone): string
+    {
+        return '<div class="rounded-xl border p-4 text-center ' . e($tone) . '">'
+            . '<p class="text-2xl font-bold">' . e((string) $count) . '</p>'
+            . '<p class="mt-1 text-xs font-semibold uppercase tracking-wide opacity-75">' . e($label) . '</p>'
+            . '</div>';
+    }
+
+    private static function peopleTableLink(string $label, array $filters): HtmlString
+    {
+        $queryFilters = [];
+
+        foreach ($filters as $filter => $value) {
+            $queryFilters[$filter] = [
+                'value' => (string) $value,
+            ];
+        }
+
+        $url = PersonResource::getUrl('index') . '?' . http_build_query([
+            'filters' => $queryFilters,
+        ]);
+
+        return new HtmlString(
+            '<a href="' . e($url) . '" class="inline-flex rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">'
+            . e($label)
+            . '</a>'
+        );
+    }
+
+    private static function statusTone(?string $status): string
+    {
+        return match ($status) {
+            'Active' => 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200',
+            'Full-Timer' => 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200',
+            'New One' => 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200',
+            'Gospel Friend' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200',
+            'Dormant' => 'border-gray-300 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200',
+            'Moved' => 'border-purple-200 bg-purple-50 text-purple-800 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-200',
+            'Deceased' => 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200',
+            default => 'border-gray-300 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200',
+        };
+    }
 
     private static function none(): HtmlString
     {
-        return new HtmlString('<span class="text-gray-500 dark:text-gray-400">None recorded</span>');
+        return new HtmlString(
+            '<span class="block rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">'
+            . 'Not recorded'
+            . '</span>'
+        );
     }
 }
