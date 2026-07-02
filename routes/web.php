@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AttendanceSheetController;
+use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\ReportExportController;
 use Illuminate\Support\Facades\Route;
@@ -37,4 +38,6 @@ Route::middleware(['auth'])
     ->name('church-database.attendance-sheets.')
     ->group(function (): void {
         Route::post('/sheets', [AttendanceSheetController::class, 'store'])->name('store');
+        Route::post('/sheets/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])->name('participants.store');
+        Route::delete('/sheets/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])->name('participants.destroy');
     });

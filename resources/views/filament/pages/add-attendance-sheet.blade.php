@@ -20,6 +20,13 @@
                 <p class="mt-1 text-sm">
                     {{ session('attendance_sheet_title') }} was created with {{ session('attendance_sessions_created') }} session date(s).
                 </p>
+
+                <a
+                    href="{{ \App\Filament\Pages\AttendanceSheets::getUrl() }}"
+                    class="mt-4 inline-flex rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500"
+                >
+                    Manage Attendance Sheets
+                </a>
             </div>
         @endif
 
