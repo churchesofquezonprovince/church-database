@@ -34,6 +34,45 @@
             </div>
         </div>
 
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex flex-col gap-2">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                    CSV Exports
+                </h3>
+
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Download records and reports for checking, encoding, printing, or sharing with authorized workers.
+                </p>
+            </div>
+
+            <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <a href="{{ route('church-database.exports.people') }}" class="rounded-xl border border-primary-200 bg-primary-50 p-4 font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
+                    Export People CSV
+                </a>
+
+                <a href="{{ route('church-database.exports.households') }}" class="rounded-xl border border-purple-200 bg-purple-50 p-4 font-semibold text-purple-700 transition hover:bg-purple-100 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-200">
+                    Export Households CSV
+                </a>
+
+                <a href="{{ route('church-database.exports.locality-summary') }}" class="rounded-xl border border-sky-200 bg-sky-50 p-4 font-semibold text-sky-700 transition hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                    Export Locality Summary CSV
+                </a>
+
+                <a href="{{ route('church-database.exports.shepherding') }}" class="rounded-xl border border-green-200 bg-green-50 p-4 font-semibold text-green-700 transition hover:bg-green-100 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+                    Export Shepherding CSV
+                </a>
+
+                <a href="{{ route('church-database.exports.missing-people') }}" class="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                    Export Missing People CSV
+                </a>
+
+                <a href="{{ route('church-database.exports.missing-households') }}" class="rounded-xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                    Export Missing Households CSV
+                </a>
+            </div>
+        </div>
+
         <div class="grid gap-6 xl:grid-cols-2">
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
