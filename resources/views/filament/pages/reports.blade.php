@@ -35,6 +35,31 @@
         </div>
 
 
+        @if (auth()->user()?->canImportRecords())
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
+            <div class="flex flex-col gap-2">
+                <h3 class="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                    Import Tools
+                </h3>
+
+                <p class="text-sm text-emerald-700 dark:text-emerald-200">
+                    Upload People CSV records or download the correct Excel/CSV template.
+                </p>
+            </div>
+
+            <div class="mt-5 grid gap-3 md:grid-cols-2">
+                <a href="{{ \App\Filament\Pages\PeopleImport::getUrl() }}" class="rounded-xl border border-emerald-200 bg-white p-4 font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900 dark:bg-gray-900 dark:text-emerald-200 dark:hover:bg-emerald-950">
+                    Open People Import Page
+                </a>
+
+                <a href="{{ route('church-database.exports.people-import-template') }}" class="rounded-xl border border-indigo-200 bg-white p-4 font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-gray-900 dark:text-indigo-200 dark:hover:bg-indigo-950">
+                    Download People Import Template
+                </a>
+            </div>
+        </div>
+
+        @endif
+
         @if (auth()->user()?->canExportRecords())
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div class="flex flex-col gap-2">
@@ -48,14 +73,6 @@
             </div>
 
             <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <a href="{{ \App\Filament\Pages\PeopleImport::getUrl() }}" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-                    Open People Import Page
-                </a>
-
-                <a href="{{ route('church-database.exports.people-import-template') }}" class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">
-                    Download People Import Template
-                </a>
-
                 <a href="{{ route('church-database.exports.people') }}" class="rounded-xl border border-primary-200 bg-primary-50 p-4 font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
                     Export People CSV
                 </a>

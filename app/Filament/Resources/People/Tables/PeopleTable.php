@@ -310,7 +310,8 @@ class PeopleTable
                     ])),
 
                 ViewAction::make(),
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(fn (): bool => auth()->user()?->canManageRecords() ?? false),
             ])
 
             ->toolbarActions([
@@ -458,8 +459,10 @@ class PeopleTable
                         })
                         ->deselectRecordsAfterCompletion(),
 
-                    DeleteBulkAction::make(),
-                ]),
+                    DeleteBulkAction::make()
+                        ->visible(fn (): bool => auth()->user()?->canDeleteRecords() ?? false),
+                ])
+                    ->visible(fn (): bool => auth()->user()?->canManageRecords() ?? false),
             ]);
     }
 

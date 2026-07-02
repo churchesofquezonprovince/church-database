@@ -253,7 +253,7 @@ class ReportExportController extends Controller
 
     public function peopleImportTemplate(): StreamedResponse
     {
-        $this->authorizeExport();
+        $this->authorizeImportTemplate();
 
         $rows = collect([
             array_fill(0, 32, ''),
@@ -298,6 +298,11 @@ class ReportExportController extends Controller
     private function authorizeExport(): void
     {
         abort_unless(auth()->user()?->canExportRecords(), 403);
+    }
+
+    private function authorizeImportTemplate(): void
+    {
+        abort_unless(auth()->user()?->canImportRecords(), 403);
     }
 
     private function missingPersonFields(Person $person): array

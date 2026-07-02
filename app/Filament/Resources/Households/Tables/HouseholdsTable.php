@@ -115,13 +115,16 @@ class HouseholdsTable
                     ])),
 
                 ViewAction::make(),
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(fn (): bool => auth()->user()?->canManageRecords() ?? false),
             ])
 
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                    DeleteBulkAction::make()
+                        ->visible(fn (): bool => auth()->user()?->canDeleteRecords() ?? false),
+                ])
+                    ->visible(fn (): bool => auth()->user()?->canDeleteRecords() ?? false),
             ]);
     }
 
