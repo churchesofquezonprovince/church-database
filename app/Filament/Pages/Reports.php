@@ -113,7 +113,9 @@ class Reports extends Page
                 'count' => Person::query()
                     ->where(fn (Builder $query) => $query->whereNull('contact_number')->orWhere('contact_number', ''))
                     ->count(),
-                'url' => PersonResource::getUrl('index'),
+                'url' => $this->peopleTableUrl([
+                    'missing_data' => 'no_contact',
+                ]),
             ],
             [
                 'label' => 'People Without Locality',
@@ -121,7 +123,9 @@ class Reports extends Page
                 'count' => Person::query()
                     ->where(fn (Builder $query) => $query->whereNull('locality')->orWhere('locality', ''))
                     ->count(),
-                'url' => PersonResource::getUrl('index'),
+                'url' => $this->peopleTableUrl([
+                    'missing_data' => 'no_locality',
+                ]),
             ],
             [
                 'label' => 'People Without Household',
@@ -129,7 +133,9 @@ class Reports extends Page
                 'count' => Person::query()
                     ->whereNull('household_id')
                     ->count(),
-                'url' => PersonResource::getUrl('index'),
+                'url' => $this->peopleTableUrl([
+                    'missing_data' => 'no_household',
+                ]),
             ],
         ];
 
@@ -146,7 +152,9 @@ class Reports extends Page
                 'count' => Household::query()
                     ->whereNull('household_head_id')
                     ->count(),
-                'url' => HouseholdResource::getUrl('index'),
+                'url' => $this->householdTableUrl([
+                    'missing_data' => 'no_head',
+                ]),
             ],
             [
                 'label' => 'Households Without Locality',
@@ -154,7 +162,9 @@ class Reports extends Page
                 'count' => Household::query()
                     ->where(fn (Builder $query) => $query->whereNull('locality')->orWhere('locality', ''))
                     ->count(),
-                'url' => HouseholdResource::getUrl('index'),
+                'url' => $this->householdTableUrl([
+                    'missing_data' => 'no_locality',
+                ]),
             ],
         ];
     }
@@ -187,6 +197,25 @@ class Reports extends Page
         }
 
         return PersonResource::getUrl('index') . '?' . http_build_query([
+            'filters' => $queryFilters,
+        ]);
+    }
+
+private function householdTableUrl(array $filters = []): string
+    {
+        if (empty($filters)) {
+            return HouseholdResource::getUrl('index');
+        }
+
+        $queryFilters = [];
+
+        foreach ($filters as $filter => $value) {
+            $queryFilters[$filter] = [
+                'value' => (string) $value,
+            ];
+        }
+
+        return HouseholdResource::getUrl('index') . '?' . http_build_query([
             'filters' => $queryFilters,
         ]);
     }

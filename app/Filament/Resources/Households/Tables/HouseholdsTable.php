@@ -75,6 +75,34 @@ class HouseholdsTable
                         ->pluck('locality', 'locality')
                         ->toArray())
                     ->searchable(),
+
+                SelectFilter::make('missing_data')
+                    ->label('Missing Data')
+                    ->options([
+                        'no_head' => 'No Household Head',
+                        'no_locality' => 'No Locality',
+                    ])
+                    ->query(function ($query, array $data) {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'no_head') {
+                            return $query->whereNull('household_head_id');
+                        }
+
+                        if ($value === 'no_locality') {
+                            return $query->where(function ($query): void {
+                                $query->whereNull('locality')
+                                    ->orWhere('locality', '');
+                            });
+                        }
+
+                        return $query;
+                    }),
+
             ])
 
             ->recordActions([

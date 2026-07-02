@@ -263,6 +263,42 @@ class PeopleTable
                             $query->where('introduced_by_id', $value);
                         });
                     }),
+
+                SelectFilter::make('missing_data')
+                    ->label('Missing Data')
+                    ->options([
+                        'no_contact' => 'No Contact Number',
+                        'no_locality' => 'No Locality',
+                        'no_household' => 'No Household',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        if ($value === 'no_contact') {
+                            return $query->where(function (Builder $query): void {
+                                $query->whereNull('contact_number')
+                                    ->orWhere('contact_number', '');
+                            });
+                        }
+
+                        if ($value === 'no_locality') {
+                            return $query->where(function (Builder $query): void {
+                                $query->whereNull('locality')
+                                    ->orWhere('locality', '');
+                            });
+                        }
+
+                        if ($value === 'no_household') {
+                            return $query->whereNull('household_id');
+                        }
+
+                        return $query;
+                    }),
+
             ])
 
             ->recordActions([
