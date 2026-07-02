@@ -258,6 +258,6 @@ private function peopleTableUrl(array $filters = []): string
 
 public static function getNavigationSort(): ?int
     {
-        return 4;
+        return 5;
     }
 }

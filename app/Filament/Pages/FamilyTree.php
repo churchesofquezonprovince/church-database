@@ -93,6 +93,6 @@ public static function getNavigationIcon(): ?string
 
     public static function getNavigationSort(): ?int
     {
-        return 5;
+        return 6;
     }
 }
