@@ -47,6 +47,10 @@
             </div>
 
             <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <a href="{{ route('church-database.exports.people-import-template') }}" class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">
+                    Download People Import Template
+                </a>
+
                 <a href="{{ route('church-database.exports.people') }}" class="rounded-xl border border-primary-200 bg-primary-50 p-4 font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
                     Export People CSV
                 </a>

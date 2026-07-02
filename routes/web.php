@@ -13,6 +13,7 @@ Route::middleware(['auth'])
     ->name('church-database.exports.')
     ->group(function (): void {
         Route::get('/people', [ReportExportController::class, 'people'])->name('people');
+        Route::get('/people-import-template', [ReportExportController::class, 'peopleImportTemplate'])->name('people-import-template');
         Route::get('/households', [ReportExportController::class, 'households'])->name('households');
         Route::get('/locality-summary', [ReportExportController::class, 'localitySummary'])->name('locality-summary');
         Route::get('/shepherding', [ReportExportController::class, 'shepherding'])->name('shepherding');

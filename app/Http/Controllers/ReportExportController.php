@@ -238,6 +238,49 @@ class ReportExportController extends Controller
         ], $rows);
     }
 
+
+    public function peopleImportTemplate(): StreamedResponse
+    {
+        $rows = collect([
+            array_fill(0, 32, ''),
+        ]);
+
+        return $this->csv('people_import_template', [
+            'firstname',
+            'middlename',
+            'lastname',
+            'suffix',
+            'sex',
+            'nickname',
+            'birthdate',
+            'birthplace',
+            'locality',
+            'contact_number',
+            'email',
+            'home_address',
+            'permanent_address',
+            'geocoordinates',
+            'church_status',
+            'baptism_date',
+            'shepherding_group',
+            'shepherd_full_name',
+            'introduced_by_full_name',
+            'household_name',
+            'occupation',
+            'school_workplace',
+            'grade_level',
+            'course_strand',
+            'father_name',
+            'mother_name',
+            'guardian_name',
+            'emergency_contact_full_name',
+            'emergency_contact_relationship',
+            'emergency_contact_number',
+            'remarks',
+            'import_notes',
+        ], $rows);
+    }
+
     private function missingPersonFields(Person $person): array
     {
         $missing = [];
