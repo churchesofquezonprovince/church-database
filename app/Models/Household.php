@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Person;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,23 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Household extends Model
 {
+// Add 1 to Household number because 0 is returned if the household head is incuded
+protected static function booted(): void
+{
+    static::saved(function (Household $household): void {
+        if (! $household->household_head_id) {
+            return;
+        }
+
+        Person::query()
+            ->whereKey($household->household_head_id)
+            ->update([
+                'household_id' => $household->id,
+            ]);
+    });
+}
+
+
 use HasFactory;
     protected $table = 'households';
 
