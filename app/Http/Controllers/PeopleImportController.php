@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Household;
 use App\Models\Person;
+use App\Support\ActivityLogger;
 use App\Support\ChurchProfileOptions;
 use DateTime;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,6 +58,15 @@ class PeopleImportController extends Controller
 
             return $count;
         });
+
+        ActivityLogger::log(
+            action: 'people.imported',
+            description: 'Imported people from CSV.',
+            newValues: [
+                'rows_found' => count($parsed['rows']),
+                'rows_imported' => $imported,
+            ],
+        );
 
         return back()
             ->with('import_status', 'imported')
