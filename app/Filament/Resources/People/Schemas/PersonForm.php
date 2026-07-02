@@ -60,7 +60,8 @@ class PersonForm
 
                         DatePicker::make('birthdate')
                             ->label('Birthdate')
-                            ->helperText('Used to automatically calculate the church category.'),
+                            ->maxDate(now())
+                            ->helperText('Used to automatically calculate the church category and detect duplicate records.'),
 
                         TextInput::make('birthplace')
                             ->label('Birthplace')
@@ -70,6 +71,7 @@ class PersonForm
                         TextInput::make('contact_number')
                             ->label('Contact Number')
                             ->tel()
+                            ->rules(['nullable', 'regex:/^[0-9+()\-\s]+$/'])
                             ->maxLength(50)
                             ->placeholder('09XXXXXXXXX'),
 
@@ -144,6 +146,7 @@ class PersonForm
                     ->schema([
                         TextInput::make('locality')
                             ->label('Locality')
+                            ->required()
                             ->maxLength(150)
                             ->placeholder('Lucena, Pagbilao, Tayabas'),
 

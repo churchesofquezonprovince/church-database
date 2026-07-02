@@ -3,21 +3,17 @@
 namespace App\Models;
 
 use App\Support\ChurchProfileOptions;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Validation\ValidationException;
 
 class Person extends Model
 {
-use HasFactory;
-    /*
-    |--------------------------------------------------------------------------
-    | Configuration
-    |--------------------------------------------------------------------------
-    */
+    use HasFactory;
 
     protected $table = 'persons';
 
@@ -26,25 +22,18 @@ use HasFactory;
         'middlename',
         'lastname',
         'suffix',
-
         'sex',
-
         'nickname',
-
         'birthdate',
         'birthplace',
-
         'household_id',
         'spouse_id',
-
         'locality',
         'permanent_address',
         'home_address',
         'geocoordinates',
-
         'email',
         'contact_number',
-
         'emergency_contact_id',
         'emergency_contact_relationship',
         'emergency_contact_number',
@@ -59,79 +48,56 @@ use HasFactory;
         'full_name',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relationships
-    |--------------------------------------------------------------------------
-    */
+    protected static function booted(): void
+    {
+        static::saving(function (Person $person): void {
+            $person->validateBeforeSave();
+        });
 
-    /**
-     * Household this person belongs to.
-     */
+        static::saved(function (Person $person): void {
+            $person->syncChurchProfile();
+        });
+    }
+
     public function household(): BelongsTo
     {
         return $this->belongsTo(Household::class, 'household_id');
     }
 
-    /**
-     * Person's spouse.
-     */
     public function spouse(): BelongsTo
     {
         return $this->belongsTo(self::class, 'spouse_id');
     }
 
-    /**
-     * Emergency contact.
-     */
     public function emergencyContact(): BelongsTo
     {
         return $this->belongsTo(self::class, 'emergency_contact_id');
     }
 
-    /**
-     * Church profile.
-     */
     public function churchProfile(): HasOne
     {
         return $this->hasOne(ChurchProfile::class, 'person_id');
     }
 
-    /**
-     * Education profile.
-     */
     public function educationProfile(): HasOne
     {
         return $this->hasOne(EducationProfile::class, 'person_id');
     }
 
-    /**
-     * Parent relationships.
-     */
     public function parentRelationships(): HasMany
     {
         return $this->hasMany(ParentRelationship::class, 'person_id');
     }
 
-    /**
-     * Households headed by this person.
-     */
     public function householdsHeaded(): HasMany
     {
         return $this->hasMany(Household::class, 'household_head_id');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Computed Attributes
-    |--------------------------------------------------------------------------
-    */
-
     protected function displayName(): Attribute
     {
         return Attribute::make(
             get: function (): string {
-
                 $parts = [];
 
                 if (! empty($this->lastname)) {
@@ -161,12 +127,6 @@ use HasFactory;
             get: fn (): string => $this->display_name,
         );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Helper Methods
-    |--------------------------------------------------------------------------
-    */
 
     public function isMale(): bool
     {
@@ -208,10 +168,10 @@ use HasFactory;
         return $this->householdsHeaded()->exists();
     }
 
-public function hasHousehold(): bool
-{
-    return ! is_null($this->household_id);
-}
+    public function hasHousehold(): bool
+    {
+        return ! is_null($this->household_id);
+    }
 
     public function fullAddress(): string
     {
@@ -220,41 +180,82 @@ public function hasHousehold(): bool
             ?: '';
     }
 
-public function initials(): string
-{
-    return collect([
-        $this->firstname,
-        $this->middlename,
-        $this->lastname,
-    ])
-        ->filter()
-        ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
-        ->implode('');
-}
-
-protected static function booted(): void
-{
-    static::saved(function (Person $person): void {
-        $person->syncChurchProfile();
-    });
-}
-
-public function syncChurchProfile(): void
-{
-    if (! $this->exists) {
-        return;
+    public function initials(): string
+    {
+        return collect([
+            $this->firstname,
+            $this->middlename,
+            $this->lastname,
+        ])
+            ->filter()
+            ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
+            ->implode('');
     }
 
-    $profile = $this->churchProfile()->firstOrNew([]);
+    public function syncChurchProfile(): void
+    {
+        if (! $this->exists) {
+            return;
+        }
 
-    $profile->category = ChurchProfileOptions::categoryFromBirthdate($this->birthdate);
+        $profile = $this->churchProfile()->firstOrNew([]);
 
-    if (blank($profile->status)) {
-        $profile->status = 'Unknown';
+        $profile->category = ChurchProfileOptions::categoryFromBirthdate($this->birthdate);
+
+        if (blank($profile->status)) {
+            $profile->status = 'Unknown';
+        }
+
+        $profile->save();
     }
 
-    $profile->save();
-}
+    private function validateBeforeSave(): void
+    {
+        $errors = [];
 
+        if (blank($this->firstname)) {
+            $errors['firstname'][] = 'First name is required.';
+        }
 
+        if (blank($this->lastname)) {
+            $errors['lastname'][] = 'Last name is required.';
+        }
+
+        if (filled($this->sex) && ! in_array($this->sex, ['Male', 'Female'], true)) {
+            $errors['sex'][] = 'Sex must be Male or Female.';
+        }
+
+        if (filled($this->email) && ! filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'][] = 'Email address is invalid.';
+        }
+
+        if ($this->exists && filled($this->spouse_id) && (int) $this->spouse_id === (int) $this->id) {
+            $errors['spouse_id'][] = 'A person cannot be their own spouse.';
+        }
+
+        if ($this->exists && filled($this->emergency_contact_id) && (int) $this->emergency_contact_id === (int) $this->id) {
+            $errors['emergency_contact_id'][] = 'A person cannot be their own emergency contact.';
+        }
+
+        if (filled($this->firstname) && filled($this->lastname) && filled($this->birthdate)) {
+            $birthdate = $this->birthdate instanceof \DateTimeInterface
+                ? $this->birthdate->format('Y-m-d')
+                : (string) $this->birthdate;
+
+            $duplicate = self::query()
+                ->whereRaw('LOWER(firstname) = ?', [strtolower(trim((string) $this->firstname))])
+                ->whereRaw('LOWER(lastname) = ?', [strtolower(trim((string) $this->lastname))])
+                ->whereDate('birthdate', $birthdate)
+                ->when($this->exists, fn ($query) => $query->where('id', '!=', $this->id))
+                ->exists();
+
+            if ($duplicate) {
+                $errors['firstname'][] = 'Possible duplicate: another person already has the same first name, last name, and birthdate.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
 }

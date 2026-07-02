@@ -2,33 +2,17 @@
 
 namespace App\Models;
 
-use App\Models\Person;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Validation\ValidationException;
 
 class Household extends Model
 {
-// Add 1 to Household number because 0 is returned if the household head is incuded
-protected static function booted(): void
-{
-    static::saved(function (Household $household): void {
-        if (! $household->household_head_id) {
-            return;
-        }
+    use HasFactory;
 
-        Person::query()
-            ->whereKey($household->household_head_id)
-            ->update([
-                'household_id' => $household->id,
-            ]);
-    });
-}
-
-
-use HasFactory;
     protected $table = 'households';
 
     protected $fillable = [
@@ -43,11 +27,24 @@ use HasFactory;
         'display_name',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relationships
-    |--------------------------------------------------------------------------
-    */
+    protected static function booted(): void
+    {
+        static::saving(function (Household $household): void {
+            $household->validateBeforeSave();
+        });
+
+        static::saved(function (Household $household): void {
+            if (! $household->household_head_id) {
+                return;
+            }
+
+            Person::query()
+                ->whereKey($household->household_head_id)
+                ->update([
+                    'household_id' => $household->id,
+                ]);
+        });
+    }
 
     public function head(): BelongsTo
     {
@@ -59,17 +56,10 @@ use HasFactory;
         return $this->hasMany(Person::class);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Accessors
-    |--------------------------------------------------------------------------
-    */
-
     protected function displayName(): Attribute
     {
         return Attribute::make(
             get: function (): string {
-
                 if (! empty($this->household_name)) {
                     return $this->household_name;
                 }
@@ -81,5 +71,40 @@ use HasFactory;
                 return 'Unnamed Household';
             }
         );
+    }
+
+    private function validateBeforeSave(): void
+    {
+        $errors = [];
+
+        if (blank($this->household_name)) {
+            $errors['household_name'][] = 'Household name is required.';
+        }
+
+        if (filled($this->household_name)) {
+            $query = self::query()
+                ->whereRaw('LOWER(household_name) = ?', [strtolower(trim((string) $this->household_name))]);
+
+            if (filled($this->locality)) {
+                $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $this->locality))]);
+            } else {
+                $query->where(function ($query): void {
+                    $query->whereNull('locality')
+                        ->orWhere('locality', '');
+                });
+            }
+
+            $duplicate = $query
+                ->when($this->exists, fn ($query) => $query->where('id', '!=', $this->id))
+                ->exists();
+
+            if ($duplicate) {
+                $errors['household_name'][] = 'Possible duplicate: another household already has the same name in the same locality.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 }

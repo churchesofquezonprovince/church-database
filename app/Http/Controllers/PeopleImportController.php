@@ -162,6 +162,8 @@ class PeopleImportController extends Controller
         $allowedStatuses = array_keys(ChurchProfileOptions::statuses());
         $allowedGroups = array_keys(ChurchProfileOptions::shepherdingServices());
 
+        $seenPersonIdentities = [];
+
         foreach ($rows as $entry) {
             $line = $entry['line'];
             $row = $entry['data'];
@@ -214,20 +216,55 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: emergency_contact_full_name was not found in existing People records.";
             }
 
-            if (filled($row['birthdate'] ?? '')) {
-                $exists = Person::query()
-                    ->where('firstname', $row['firstname'] ?? '')
-                    ->where('lastname', $row['lastname'] ?? '')
-                    ->where('birthdate', $row['birthdate'])
-                    ->exists();
+            $identityKey = $this->personIdentityKey($row);
 
-                if ($exists) {
-                    $errors[] = "Line {$line}: possible duplicate person already exists with same firstname, lastname, and birthdate.";
+            if ($identityKey !== null) {
+                if (isset($seenPersonIdentities[$identityKey])) {
+                    $firstLine = $seenPersonIdentities[$identityKey];
+
+                    $errors[] = "Line {$line}: duplicate inside CSV. Same firstname, lastname, and birthdate already appears on line {$firstLine}.";
+                } else {
+                    $seenPersonIdentities[$identityKey] = $line;
+                }
+
+                if ($this->existingPersonByIdentity($row)) {
+                    $errors[] = "Line {$line}: possible duplicate person already exists in the database with same firstname, lastname, and birthdate.";
                 }
             }
         }
 
         return $errors;
+    }
+
+
+    private function personIdentityKey(array $row): ?string
+    {
+        if (
+            blank($row['firstname'] ?? null)
+            || blank($row['lastname'] ?? null)
+            || blank($row['birthdate'] ?? null)
+        ) {
+            return null;
+        }
+
+        return strtolower(trim((string) $row['firstname']))
+            . '|'
+            . strtolower(trim((string) $row['lastname']))
+            . '|'
+            . trim((string) $row['birthdate']);
+    }
+
+    private function existingPersonByIdentity(array $row): ?Person
+    {
+        if ($this->personIdentityKey($row) === null) {
+            return null;
+        }
+
+        return Person::query()
+            ->whereRaw('LOWER(firstname) = ?', [strtolower(trim((string) $row['firstname']))])
+            ->whereRaw('LOWER(lastname) = ?', [strtolower(trim((string) $row['lastname']))])
+            ->whereDate('birthdate', trim((string) $row['birthdate']))
+            ->first();
     }
 
     private function importPersonRow(array $row): Person
@@ -236,7 +273,12 @@ class PeopleImportController extends Controller
 
         if (filled($row['household_name'] ?? null)) {
             $household = Household::query()
-                ->where('household_name', $row['household_name'])
+                ->whereRaw('LOWER(household_name) = ?', [strtolower(trim((string) $row['household_name']))])
+                ->when(
+                    filled($row['locality'] ?? null),
+                    fn (Builder $query): Builder => $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $row['locality']))]),
+                    fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereNull('locality')->orWhere('locality', ''))
+                )
                 ->first();
 
             if (! $household) {

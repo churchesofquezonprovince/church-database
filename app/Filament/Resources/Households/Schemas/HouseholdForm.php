@@ -35,7 +35,9 @@ class HouseholdForm
 
                         TextInput::make('locality')
                             ->label('Locality')
+                            ->required()
                             ->maxLength(150)
+                            ->helperText('Used together with household name to detect duplicate households.')
                             ->placeholder('Lucena, Pagbilao, Tayabas'),
 
                         Textarea::make('address')
