@@ -22,6 +22,8 @@ protected static ?string $navigationLabel = 'Households';
 
 protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 
+protected static ?int $navigationSort = 3;
+
 protected static ?string $modelLabel = 'Household';
 
 protected static ?string $pluralModelLabel = 'Households';

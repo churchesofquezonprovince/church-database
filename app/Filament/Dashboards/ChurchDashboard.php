@@ -25,4 +25,9 @@ class ChurchDashboard extends BaseDashboard
     {
         return 'heroicon-o-home';
     }
+
+public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
 }

@@ -85,4 +85,14 @@ public function mount(): void
             ->build($person)
             ->toArray();
     }
+
+public static function getNavigationIcon(): ?string
+    {
+        return 'heroicon-o-user-group';
+    }
+
+    public static function getNavigationSort(): ?int
+    {
+        return 5;
+    }
 }
