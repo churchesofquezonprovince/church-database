@@ -7,6 +7,14 @@
         $selectedSession = $this->selectedSession();
         $selectedMeetingTime = request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5));
         $people = $this->people();
+        $categoryOptions = $people
+            ->pluck('churchProfile.category')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $hasNoCategory = $people->contains(fn ($person) => blank($person->churchProfile?->category));
         $presentPersonIds = $this->presentPersonIds();
         $counts = $this->counts();
         $selectedDateObject = \Carbon\CarbonImmutable::parse($selectedMeetingDate);
@@ -316,7 +324,7 @@
                         <input type="hidden" name="locality" value="{{ $selectedLocality }}">
                         <input type="hidden" name="meeting_date" value="{{ $selectedMeetingDate }}">
 
-                        <div class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                        <div class="mb-4 grid gap-3 lg:grid-cols-[1fr_240px_auto] lg:items-end">
                             <div>
                                 <label for="lords_table_participant_search" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                                     Search Participants
@@ -324,19 +332,44 @@
 
                                 <input
                                     id="lords_table_participant_search"
+                                    data-participant-search
                                     type="search"
-                                    placeholder="Search name, category, or locality..."
-                                    oninput="const q = this.value.toLowerCase().trim(); this.closest('form').querySelectorAll('tbody tr').forEach((row) => { row.hidden = q !== '' && ! row.textContent.toLowerCase().includes(q); });"
+                                    placeholder="Search name, category, or contact..."
+                                    oninput="filterPermanentMeetingChecklist(this.closest('form'))"
                                     class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                 >
                             </div>
 
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Category
+                                </label>
+
+                                <select
+                                    data-participant-category-filter
+                                    onchange="filterPermanentMeetingChecklist(this.closest('form'))"
+                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                >
+                                    <option value="__all">All Categories</option>
+
+                                    @foreach ($categoryOptions as $category)
+                                        <option value="{{ \Illuminate\Support\Str::lower($category) }}">
+                                            {{ $category }}
+                                        </option>
+                                    @endforeach
+
+                                    @if ($hasNoCategory)
+                                        <option value="__no_category">No category</option>
+                                    @endif
+                                </select>
+                            </div>
+
                             <button
                                 type="button"
-                                onclick="const input = document.getElementById('lords_table_participant_search'); input.value = ''; input.dispatchEvent(new Event('input')); input.focus();"
+                                onclick="const form = this.closest('form'); const search = form.querySelector('[data-participant-search]'); const category = form.querySelector('[data-participant-category-filter]'); search.value = ''; category.value = '__all'; filterPermanentMeetingChecklist(form); search.focus();"
                                 class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
                             >
-                                Clear Search
+                                Clear Filters
                             </button>
                         </div>
 
@@ -353,7 +386,7 @@
 
                                 <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                     @foreach ($people as $person)
-                                        <tr>
+                                        <tr data-category="{{ \Illuminate\Support\Str::lower($person->churchProfile?->category ?: '__no_category') }}">
                                             <td class="px-4 py-3 text-center">
                                                 <input
                                                     type="checkbox"
@@ -392,4 +425,21 @@
             </div>
         @endif
     </div>
+    <script>
+        function filterPermanentMeetingChecklist(form) {
+            const searchInput = form.querySelector('[data-participant-search]');
+            const categoryFilter = form.querySelector('[data-participant-category-filter]');
+
+            const query = (searchInput?.value || '').toLowerCase().trim();
+            const category = (categoryFilter?.value || '__all').toLowerCase();
+
+            form.querySelectorAll('tbody tr[data-category]').forEach((row) => {
+                const matchesSearch = query === '' || row.textContent.toLowerCase().includes(query);
+                const matchesCategory = category === '__all' || row.dataset.category === category;
+
+                row.hidden = ! (matchesSearch && matchesCategory);
+            });
+        }
+    </script>
+
 </x-filament-panels::page>
