@@ -7,52 +7,13 @@
         $participantRows = $this->participantRows();
         $presentPersonIds = $this->presentPersonIds();
         $recordCounts = $this->recordCounts();
+        $lordsTableLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE);
+        $prayerMeetingLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING);
     @endphp
 
     <div class="space-y-6">
-        <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
-            <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Attendance Module
-            </p>
 
-            <h2 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                Check Attendance
-            </h2>
-
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Select an attendance sheet and session date, then check the people who are present.
-            </p>
-        </div>
-
-        @if (session('attendance_records_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
-                <p class="font-bold">Attendance saved.</p>
-                <p class="mt-1 text-sm">
-                    Present: {{ session('attendance_present_count') }}.
-                    Absent: {{ session('attendance_absent_count') }}.
-                </p>
-            </div>
-        @endif
-
-        @if (! $selectedSheet || ! $selectedSession)
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                    No attendance sheet/session found.
-                </h3>
-
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Create an attendance sheet first, then add participants.
-                </p>
-
-                <a
-                    href="{{ \App\Filament\Pages\AddAttendanceSheet::getUrl() }}"
-                    class="mt-5 inline-flex rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500"
-                >
-                    Add Attendance Sheet
-                </a>
-            </div>
-        @else
-            <div class="grid gap-6 xl:grid-cols-4">
+        <div class="grid gap-6 xl:grid-cols-4">
                 <div class="space-y-4 xl:col-span-1">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <h3 class="font-bold text-gray-900 dark:text-white">
@@ -80,6 +41,54 @@
                                     </p>
                                 </a>
                             @endforeach
+
+                            <details class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                                <summary class="cursor-pointer font-bold text-amber-900 dark:text-amber-100">
+                                    Lord's Table Meeting
+                                </summary>
+
+                                <div class="mt-3 space-y-2">
+                                    @foreach ($lordsTableLocalities as $row)
+                                        <a
+                                            href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE, $row['locality'], $row['sheet']) }}"
+                                            class="block rounded-lg border border-amber-200 bg-white p-3 hover:bg-amber-100 dark:border-amber-900 dark:bg-gray-950 dark:hover:bg-amber-950"
+                                        >
+                                            <p class="font-bold text-gray-900 dark:text-white">
+                                                {{ $row['label'] }}
+                                            </p>
+
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $row['sessions_count'] }} date(s)
+                                                · {{ $row['participants_count'] }} participant(s)
+                                            </p>
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </details>
+
+                            <details class="rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950">
+                                <summary class="cursor-pointer font-bold text-sky-900 dark:text-sky-100">
+                                    Prayer Meeting
+                                </summary>
+
+                                <div class="mt-3 space-y-2">
+                                    @foreach ($prayerMeetingLocalities as $row)
+                                        <a
+                                            href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING, $row['locality'], $row['sheet']) }}"
+                                            class="block rounded-lg border border-sky-200 bg-white p-3 hover:bg-sky-100 dark:border-sky-900 dark:bg-gray-950 dark:hover:bg-sky-950"
+                                        >
+                                            <p class="font-bold text-gray-900 dark:text-white">
+                                                {{ $row['label'] }}
+                                            </p>
+
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $row['sessions_count'] }} date(s)
+                                                · {{ $row['participants_count'] }} participant(s)
+                                            </p>
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </details>
                         </div>
                     </div>
 
@@ -257,6 +266,5 @@
                     </div>
                 </div>
             </div>
-        @endif
     </div>
 </x-filament-panels::page>
