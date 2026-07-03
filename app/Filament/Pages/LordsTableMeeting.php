@@ -217,6 +217,30 @@ class LordsTableMeeting extends Page
         ];
     }
 
+
+    public function otherLocalityPresentRecords(): Collection
+    {
+        $session = $this->selectedSession();
+        $sheet = $this->selectedSheet();
+
+        if (! $session || ! $sheet) {
+            return collect();
+        }
+
+        $participantIds = $sheet->participants()
+            ->pluck('person_id')
+            ->all();
+
+        return AttendanceRecord::query()
+            ->with('person')
+            ->where('attendance_session_id', $session->id)
+            ->where('is_present', true)
+            ->whereNotNull('person_id')
+            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('person_id', $participantIds))
+            ->orderBy('marked_at')
+            ->get();
+    }
+
     public function localityLabel(?string $locality = null): string
     {
         $locality ??= $this->selectedLocality();
