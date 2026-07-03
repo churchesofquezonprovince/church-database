@@ -12,6 +12,8 @@ class AttendanceSheet extends Model
 
     public const TYPE_LORDS_TABLE = 'lords_table';
 
+    public const TYPE_PRAYER_MEETING = 'prayer_meeting';
+
     protected $fillable = [
         'title',
         'sheet_type',

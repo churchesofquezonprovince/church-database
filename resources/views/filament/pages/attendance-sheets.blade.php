@@ -132,6 +132,13 @@
                             </div>
 
                             <div class="flex flex-wrap gap-2">
+                                <a
+                                    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?sheetId=' . $selectedSheet->id }}"
+                                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+                                >
+                                    Check Attendance
+                                </a>
+
                                 <span class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white">
                                     {{ $selectedSheet->sessions_count }} session(s)
                                 </span>
