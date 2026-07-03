@@ -16,6 +16,9 @@ class AttendanceRecordController extends Controller
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
+        $session->loadMissing('sheet');
+        abort_unless($session->sheet?->is_active, 403);
+
         $data = $request->validate([
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],

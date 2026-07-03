@@ -82,6 +82,7 @@ class AttendanceSheets extends Page
     {
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+            ->where('is_active', true)
             ->when($this->selectedMode() === 'recurring', fn ($query) => $query->where('is_one_time', false))
             ->when($this->selectedMode() === 'one_time', fn ($query) => $query->where('is_one_time', true))
             ->withCount(['sessions', 'participants'])

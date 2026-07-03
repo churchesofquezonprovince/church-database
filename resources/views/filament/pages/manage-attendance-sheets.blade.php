@@ -14,7 +14,7 @@
             </h2>
 
             <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Edit safe sheet details or archive wrong sheets without deleting attendance records.
+                Edit safe sheet details or archive wrong sheets without deleting attendance records. Archived sheets are hidden from normal attendance pages but remain available here and in reports.
             </p>
         </div>
 

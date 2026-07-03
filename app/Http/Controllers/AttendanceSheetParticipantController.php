@@ -16,6 +16,7 @@ class AttendanceSheetParticipantController extends Controller
     public function store(Request $request, AttendanceSheet $sheet): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
+        abort_unless($sheet->is_active, 403);
 
         $data = $request->validate([
             'person_ids' => ['required', 'array', 'min:1'],
@@ -93,6 +94,7 @@ class AttendanceSheetParticipantController extends Controller
     public function destroy(AttendanceSheet $sheet, AttendanceParticipant $participant): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
+        abort_unless($sheet->is_active, 403);
 
         abort_unless((int) $participant->attendance_sheet_id === (int) $sheet->id, 404);
 

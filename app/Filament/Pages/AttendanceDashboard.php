@@ -130,6 +130,7 @@ class AttendanceDashboard extends Page
     {
         return AttendanceSession::query()
             ->with(['sheet'])
+            ->whereHas('sheet', fn ($query) => $query->where('is_active', true))
             ->whereDate('session_date', today())
             ->withCount([
                 'records as present_count' => fn ($query) => $query->where('is_present', true),
@@ -145,6 +146,7 @@ class AttendanceDashboard extends Page
     {
         return AttendanceSession::query()
             ->with(['sheet'])
+            ->whereHas('sheet', fn ($query) => $query->where('is_active', true))
             ->whereDate('session_date', '>=', today())
             ->orderBy('session_date')
             ->take(8)
@@ -155,6 +157,7 @@ class AttendanceDashboard extends Page
     {
         return AttendanceSession::query()
             ->with(['sheet'])
+            ->whereHas('sheet', fn ($query) => $query->where('is_active', true))
             ->whereHas('records')
             ->withCount([
                 'records as present_count' => fn ($query) => $query->where('is_present', true),
@@ -171,6 +174,7 @@ class AttendanceDashboard extends Page
     {
         return AttendanceRecord::query()
             ->with(['person', 'session.sheet', 'markedBy'])
+            ->whereHas('session.sheet', fn ($query) => $query->where('is_active', true))
             ->whereNotNull('marked_at')
             ->orderByDesc('marked_at')
             ->take(10)
