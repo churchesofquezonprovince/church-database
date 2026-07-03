@@ -1,6 +1,8 @@
 <x-filament-panels::page>
     @php
         $summary = $this->summary();
+        $customSheets = $this->customSheets();
+        $localities = $this->localities();
         $todaysMeetings = $this->todaysMeetings();
         $upcomingMeetings = $this->upcomingMeetings();
         $latestMeetingSummaries = $this->latestMeetingSummaries();
@@ -41,6 +43,175 @@
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 <p class="text-sm font-semibold opacity-75">Active Participants</p>
                 <p class="mt-3 text-3xl font-bold">{{ $summary['total_participants'] }}</p>
+            </div>
+        </div>
+
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                        Quick Access
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Jump directly to the most-used attendance pages.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-5 grid gap-4 xl:grid-cols-4">
+                <form
+                    method="GET"
+                    action="{{ \App\Filament\Pages\CheckAttendance::getUrl() }}"
+                    class="rounded-2xl border border-primary-200 bg-primary-50 p-5 dark:border-primary-900 dark:bg-primary-950"
+                >
+                    <p class="font-bold text-gray-900 dark:text-white">
+                        Custom Sheet
+                    </p>
+
+                    <label for="quick_sheet_id" class="mt-4 block text-sm font-semibold text-primary-900 dark:text-primary-100">
+                        Attendance Sheet
+                    </label>
+
+                    <select
+                        id="quick_sheet_id"
+                        name="sheetId"
+                        class="mt-2 block w-full rounded-xl border border-primary-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-primary-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        @forelse ($customSheets as $sheet)
+                            <option value="{{ $sheet->id }}">
+                                {{ $sheet->title }} — {{ $sheet->sessions_count }} date(s)
+                            </option>
+                        @empty
+                            <option value="">No custom sheets</option>
+                        @endforelse
+                    </select>
+
+                    <button
+                        type="submit"
+                        class="mt-4 w-full rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-500"
+                    >
+                        Check Attendance
+                    </button>
+                </form>
+
+                <form
+                    method="GET"
+                    action="{{ \App\Filament\Pages\LordsTableMeeting::getUrl() }}"
+                    class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950"
+                >
+                    <p class="font-bold text-gray-900 dark:text-white">
+                        Lord's Table
+                    </p>
+
+                    <label for="quick_lords_locality" class="mt-4 block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                        Locality
+                    </label>
+
+                    <select
+                        id="quick_lords_locality"
+                        name="locality"
+                        class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        @forelse ($localities as $locality)
+                            <option value="{{ $locality }}">
+                                {{ $this->localityLabel($locality) }}
+                            </option>
+                        @empty
+                            <option value="">No localities</option>
+                        @endforelse
+                    </select>
+
+                    <input
+                        type="date"
+                        name="meeting_date"
+                        value="{{ $this->nextSundayDate() }}"
+                        class="mt-3 block w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+
+                    <button
+                        type="submit"
+                        class="mt-4 w-full rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500"
+                    >
+                        Open Lord's Table
+                    </button>
+                </form>
+
+                <form
+                    method="GET"
+                    action="{{ \App\Filament\Pages\PrayerMeeting::getUrl() }}"
+                    class="rounded-2xl border border-sky-200 bg-sky-50 p-5 dark:border-sky-900 dark:bg-sky-950"
+                >
+                    <p class="font-bold text-gray-900 dark:text-white">
+                        Prayer Meeting
+                    </p>
+
+                    <label for="quick_prayer_locality" class="mt-4 block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                        Locality
+                    </label>
+
+                    <select
+                        id="quick_prayer_locality"
+                        name="locality"
+                        class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        @forelse ($localities as $locality)
+                            <option value="{{ $locality }}">
+                                {{ $this->localityLabel($locality) }}
+                            </option>
+                        @empty
+                            <option value="">No localities</option>
+                        @endforelse
+                    </select>
+
+                    <input type="hidden" name="meeting_day" value="2">
+
+                    <input
+                        type="date"
+                        name="meeting_date"
+                        value="{{ $this->nextTuesdayDate() }}"
+                        class="mt-3 block w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+
+                    <button
+                        type="submit"
+                        class="mt-4 w-full rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500"
+                    >
+                        Open Prayer Meeting
+                    </button>
+                </form>
+
+                <form
+                    method="GET"
+                    action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}"
+                    class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-950"
+                >
+                    <p class="font-bold text-gray-900 dark:text-white">
+                        Reports
+                    </p>
+
+                    <label for="quick_report_type" class="mt-4 block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Report Type
+                    </label>
+
+                    <select
+                        id="quick_report_type"
+                        name="report_type"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                    >
+                        <option value="{{ \App\Models\AttendanceSheet::TYPE_CUSTOM }}">Custom Sheets</option>
+                        <option value="{{ \App\Models\AttendanceSheet::TYPE_LORDS_TABLE }}">Lord's Table</option>
+                        <option value="{{ \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING }}">Prayer Meeting</option>
+                    </select>
+
+                    <button
+                        type="submit"
+                        class="mt-4 w-full rounded-xl bg-gray-700 px-4 py-2 text-sm font-bold text-white hover:bg-gray-600"
+                    >
+                        Open Reports
+                    </button>
+                </form>
             </div>
         </div>
 

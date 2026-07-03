@@ -6,6 +6,8 @@ use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
+use App\Models\Person;
+use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -46,6 +48,61 @@ class AttendanceDashboard extends Page
     public static function canAccess(): bool
     {
         return auth()->user()?->canManageRecords() ?? false;
+    }
+
+    public function customSheets(): Collection
+    {
+        return AttendanceSheet::query()
+            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+            ->where('is_active', true)
+            ->withCount(['sessions', 'participants'])
+            ->latest()
+            ->get();
+    }
+
+    public function localities(): Collection
+    {
+        $localities = Person::query()
+            ->whereNotNull('locality')
+            ->where('locality', '!=', '')
+            ->distinct()
+            ->orderBy('locality')
+            ->pluck('locality');
+
+        $hasNoLocality = Person::query()
+            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
+            ->exists();
+
+        if ($hasNoLocality) {
+            $localities->push('__no_locality');
+        }
+
+        return $localities;
+    }
+
+    public function localityLabel(?string $locality): string
+    {
+        return $locality === '__no_locality'
+            ? 'No Locality'
+            : (string) $locality;
+    }
+
+    public function nextSundayDate(): string
+    {
+        $today = CarbonImmutable::today();
+
+        return $today->dayOfWeek === 0
+            ? $today->toDateString()
+            : $today->next(0)->toDateString();
+    }
+
+    public function nextTuesdayDate(): string
+    {
+        $today = CarbonImmutable::today();
+
+        return $today->dayOfWeek === 2
+            ? $today->toDateString()
+            : $today->next(2)->toDateString();
     }
 
     public function summary(): array
