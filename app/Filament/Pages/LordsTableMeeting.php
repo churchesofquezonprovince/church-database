@@ -14,6 +14,31 @@ class LordsTableMeeting extends Page
 {
     protected string $view = 'filament.pages.lords-table-meeting';
 
+    public function otherLocalityCandidates(): \Illuminate\Support\Collection
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return collect();
+        }
+
+        $participantIds = $sheet->participants()
+            ->pluck('person_id')
+            ->all();
+
+        return Person::query()
+            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('id', $participantIds))
+            ->when(! blank($sheet->locality), function ($query) use ($sheet): void {
+                $query->where(function ($query) use ($sheet): void {
+                    $query->whereNull('locality')
+                        ->orWhere('locality', '')
+                        ->orWhereRaw('LOWER(locality) != ?', [strtolower(trim((string) $sheet->locality))]);
+                });
+            })
+            ->orderBy('id')
+            ->get();
+    }
+
     public function getTitle(): string
     {
         return "Lord's Table Meeting";

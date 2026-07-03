@@ -4,6 +4,8 @@
         $selectedLocality = $this->selectedLocality();
         $selectedMeetingDay = $this->selectedMeetingDay();
         $selectedMeetingDate = $this->selectedMeetingDate();
+        $selectedSheet = $this->selectedSheet();
+        $selectedSession = $this->selectedSession();
         $people = $this->people();
         $presentPersonIds = $this->presentPersonIds();
         $counts = $this->counts();
@@ -20,6 +22,77 @@
             6 => 'Saturday',
         ];
     @endphp
+
+        @if (session('other_locality_attendee_added'))
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+                Other locality attendee added and marked present.
+            </div>
+        @endif
+
+        @if (isset($selectedSession) && $selectedSession)
+            @php
+                $otherLocalityCandidates = $this->otherLocalityCandidates();
+            @endphp
+
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950">
+                <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100">
+                    Other Locality Attendee
+                </h3>
+
+                <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                    Use this if someone from another locality attended this meeting. The person will be added to this meeting date and marked Present.
+                </p>
+
+                <form
+                    method="POST"
+                    action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.store', $selectedSession) }}"
+                    class="mt-4 grid gap-3 md:grid-cols-[1fr_auto]"
+                >
+                    @csrf
+
+                    <div class="space-y-2">
+                        <input
+                            type="search"
+                            placeholder="Search name or locality..."
+                            oninput="const q = this.value.toLowerCase(); this.closest('form').querySelectorAll('select[name=person_id] option').forEach((option, index) => { if (index === 0) return; option.hidden = ! option.textContent.toLowerCase().includes(q); });"
+                            class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
+                        >
+
+                        <select
+                            name="person_id"
+                            required
+                            class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                        <option value="">Select person from other locality</option>
+
+                        @foreach ($otherLocalityCandidates as $person)
+                            <option value="{{ $person->id }}">
+                                {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }}
+                            </option>
+                        @endforeach
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white hover:bg-amber-500"
+                    >
+                        Add as Present
+                    </button>
+                </form>
+
+                @if ($otherLocalityCandidates->isEmpty())
+                    <p class="mt-3 text-xs text-amber-700 dark:text-amber-200">
+                        No other locality candidates available.
+                    </p>
+                @endif
+            </div>
+        @else
+            <div class="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                Select a locality and meeting date first to add other locality attendees.
+            </div>
+        @endif
+
 
     <div class="space-y-6">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-6 shadow-sm dark:border-sky-900 dark:bg-sky-950">
