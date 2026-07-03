@@ -119,6 +119,15 @@ class AttendanceReports extends Page
         ];
     }
 
+    public function hasInvalidDateRange(): bool
+    {
+        if (! $this->selectedDateFrom() || ! $this->selectedDateTo()) {
+            return false;
+        }
+
+        return $this->selectedDateTo() < $this->selectedDateFrom();
+    }
+
     public function categoryOptions(): array
     {
         return ChurchProfileOptions::categories();
@@ -187,7 +196,7 @@ class AttendanceReports extends Page
     {
         $sheet = $this->selectedSheet();
 
-        if (! $sheet) {
+        if (! $sheet || $this->hasInvalidDateRange()) {
             return collect();
         }
 
@@ -236,7 +245,7 @@ class AttendanceReports extends Page
     {
         $sheet = $this->selectedSheet();
 
-        if (! $sheet) {
+        if (! $sheet || $this->hasInvalidDateRange()) {
             return collect();
         }
 

@@ -35,6 +35,28 @@ class AttendanceSheetController extends Controller
             ]);
         }
 
+        $duplicateSheet = AttendanceSheet::query()
+            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+            ->whereRaw('LOWER(title) = ?', [strtolower(trim((string) $data['title']))])
+            ->where('meeting_day', (int) $data['meeting_day'])
+            ->whereDate('start_date', $startDate->toDateString())
+            ->whereDate('end_date', $endDate->toDateString())
+            ->where(function ($query) use ($data): void {
+                if (blank($data['locality'] ?? null)) {
+                    $query->whereNull('locality')
+                        ->orWhere('locality', '');
+                } else {
+                    $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $data['locality']))]);
+                }
+            })
+            ->exists();
+
+        if ($duplicateSheet) {
+            throw ValidationException::withMessages([
+                'title' => 'A similar attendance sheet already exists with the same title, locality, meeting day, start date, and end date.',
+            ]);
+        }
+
         $sessionDates = $this->sessionDates(
             startDate: $startDate,
             endDate: $endDate,

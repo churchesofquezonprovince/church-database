@@ -8,6 +8,7 @@ use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportExportController extends Controller
@@ -17,10 +18,14 @@ class AttendanceReportExportController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
         $data = $request->validate([
-            'report_type' => ['required', 'string'],
+            'report_type' => ['required', 'string', Rule::in([
+                AttendanceSheet::TYPE_CUSTOM,
+                AttendanceSheet::TYPE_LORDS_TABLE,
+                AttendanceSheet::TYPE_PRAYER_MEETING,
+            ])],
             'sheetId' => ['required', 'integer', 'exists:attendance_sheets,id'],
             'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'category' => ['nullable', 'string', 'max:150'],
             'meeting_day' => ['nullable', 'integer', 'between:0,6'],
         ]);
@@ -68,10 +73,14 @@ class AttendanceReportExportController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
         $data = $request->validate([
-            'report_type' => ['required', 'string'],
+            'report_type' => ['required', 'string', Rule::in([
+                AttendanceSheet::TYPE_CUSTOM,
+                AttendanceSheet::TYPE_LORDS_TABLE,
+                AttendanceSheet::TYPE_PRAYER_MEETING,
+            ])],
             'sheetId' => ['required', 'integer', 'exists:attendance_sheets,id'],
             'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'category' => ['nullable', 'string', 'max:150'],
             'meeting_day' => ['nullable', 'integer', 'between:0,6'],
         ]);

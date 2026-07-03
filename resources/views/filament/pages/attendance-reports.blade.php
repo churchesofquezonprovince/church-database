@@ -298,6 +298,16 @@
             </div>
         @endif
 
+
+        @if ($this->hasInvalidDateRange())
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <p class="font-bold">Invalid date range.</p>
+                <p class="mt-1 text-sm">
+                    Date To must not be earlier than Date From.
+                </p>
+            </div>
+        @endif
+
         @if (! $selectedSheet)
             <div class="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
