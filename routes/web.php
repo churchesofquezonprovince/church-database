@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AttendanceRecordController;
 use App\Http\Controllers\AttendanceSheetController;
+use App\Http\Controllers\LordsTableAttendanceController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\ReportExportController;
@@ -40,4 +42,6 @@ Route::middleware(['auth'])
         Route::post('/sheets', [AttendanceSheetController::class, 'store'])->name('store');
         Route::post('/sheets/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])->name('participants.store');
         Route::delete('/sheets/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])->name('participants.destroy');
+        Route::post('/sessions/{session}/records', [AttendanceRecordController::class, 'store'])->name('records.store');
+        Route::post('/lords-table', [LordsTableAttendanceController::class, 'store'])->name('lords-table.store');
     });
