@@ -105,6 +105,9 @@
                                     <p class="font-bold text-gray-900 dark:text-white">
                                         {{ $sheet->title }}
                                     </p>
+                            <p class="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                {{ $sheet->attendanceModeLabel() }} · {{ $sheet->meetingTimeLabel() }}
+                            </p>
 
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         {{ $sheet->locality ?: 'No locality' }} · {{ $sheet->sessions_count }} date(s)

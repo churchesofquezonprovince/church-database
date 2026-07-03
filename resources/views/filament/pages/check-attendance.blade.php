@@ -99,7 +99,7 @@
                                     ])
                                 >
                                     <span class="font-bold">
-                                        {{ $session->session_date->format('M d, Y') }}
+                                        {{ $session->dateTimeLabel() }}
                                     </span>
 
                                     <span class="block text-xs opacity-75">

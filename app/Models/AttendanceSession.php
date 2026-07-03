@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,26 @@ class AttendanceSession extends Model
     protected $casts = [
         'session_date' => 'date',
     ];
+
+
+    public function sessionTimeLabel(): ?string
+    {
+        $time = $this->session_time ?: $this->sheet?->meeting_time;
+
+        if (blank($time)) {
+            return null;
+        }
+
+        return CarbonImmutable::parse((string) $time)->format('g:i A');
+    }
+
+    public function dateTimeLabel(string $dateFormat = 'M d, Y'): string
+    {
+        $date = $this->session_date?->format($dateFormat) ?? 'No date';
+        $time = $this->sessionTimeLabel();
+
+        return $time ? $date . ' · ' . $time : $date;
+    }
 
     public function sheet(): BelongsTo
     {

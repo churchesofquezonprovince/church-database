@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -38,6 +39,21 @@ class AttendanceSheet extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+
+    public function meetingTimeLabel(): string
+    {
+        if (blank($this->meeting_time)) {
+            return 'No time set';
+        }
+
+        return CarbonImmutable::parse((string) $this->meeting_time)->format('g:i A');
+    }
+
+    public function attendanceModeLabel(): string
+    {
+        return $this->is_one_time ? 'One-time' : 'Recurring';
     }
 
     public function sessions(): HasMany

@@ -248,7 +248,7 @@
 
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $this->sheetTypeLabel($row['sheet']?->sheet_type) }}
-                                · {{ $row['session']->session_date->format('M d, Y') }}
+                                · {{ $row['session']->dateTimeLabel() }}
                             </p>
 
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -285,7 +285,7 @@
                             </p>
 
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                {{ $session->session_date->format('l, M d, Y') }}
+                                {{ $session->dateTimeLabel('l, M d, Y') }}
                                 · {{ $this->sheetTypeLabel($session->sheet?->sheet_type) }}
                             </p>
                         </a>
@@ -330,7 +330,7 @@
                                     <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
                                         {{ $row['sheet']?->title ?? 'Unknown Sheet' }}
                                         <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">
-                                            {{ $row['session']->session_date->format('M d, Y') }}
+                                            {{ $row['session']->dateTimeLabel() }}
                                         </span>
                                     </td>
 
@@ -372,7 +372,7 @@
 
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 {{ $record->session?->sheet?->title ?? 'Unknown Sheet' }}
-                                · {{ optional($record->session?->session_date)->format('M d, Y') }}
+                                · {{ $record->session?->dateTimeLabel() ?? 'No date' }}
                             </p>
 
                             <p class="mt-2 text-xs font-semibold {{ $record->is_present ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300' }}">
