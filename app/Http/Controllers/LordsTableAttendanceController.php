@@ -24,11 +24,13 @@ class LordsTableAttendanceController extends Controller
         $data = $request->validate([
             'locality' => ['required', 'string', 'max:150'],
             'meeting_date' => ['required', 'date'],
+            'meeting_time' => ['nullable', 'date_format:H:i'],
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],
         ]);
 
         $meetingDate = CarbonImmutable::parse($data['meeting_date'])->startOfDay();
+        $meetingTime = blank($data['meeting_time'] ?? null) ? null : $data['meeting_time'];
 
         if ($meetingDate->dayOfWeek !== 0) {
             throw ValidationException::withMessages([
@@ -52,7 +54,7 @@ class LordsTableAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds): array {
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
                 ->where(function ($query) use ($storedLocality): void {
@@ -70,6 +72,7 @@ class LordsTableAttendanceController extends Controller
                     'sheet_type' => AttendanceSheet::TYPE_LORDS_TABLE,
                     'locality' => $storedLocality,
                     'meeting_day' => 0,
+                'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
                     'end_date' => null,
                     'is_active' => true,
@@ -88,6 +91,14 @@ class LordsTableAttendanceController extends Controller
 
                 $sheet->update($updates);
             }
+
+            if ($meetingTime !== null && $sheet->meeting_time !== $meetingTime) {
+
+                $sheet->forceFill(['meeting_time' => $meetingTime])->save();
+
+            }
+
+            
 
             $session = AttendanceSession::query()->firstOrCreate(
                 [

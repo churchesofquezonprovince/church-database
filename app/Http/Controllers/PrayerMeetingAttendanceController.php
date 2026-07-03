@@ -25,12 +25,14 @@ class PrayerMeetingAttendanceController extends Controller
             'locality' => ['required', 'string', 'max:150'],
             'meeting_day' => ['required', 'integer', 'between:0,6'],
             'meeting_date' => ['required', 'date'],
+            'meeting_time' => ['nullable', 'date_format:H:i'],
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],
         ]);
 
         $meetingDay = (int) $data['meeting_day'];
         $meetingDate = CarbonImmutable::parse($data['meeting_date'])->startOfDay();
+        $meetingTime = blank($data['meeting_time'] ?? null) ? null : $data['meeting_time'];
 
         if ($meetingDate->dayOfWeek !== $meetingDay) {
             throw ValidationException::withMessages([
@@ -54,7 +56,7 @@ class PrayerMeetingAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds): array {
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
                 ->where(function ($query) use ($storedLocality): void {
@@ -72,6 +74,7 @@ class PrayerMeetingAttendanceController extends Controller
                     'sheet_type' => AttendanceSheet::TYPE_PRAYER_MEETING,
                     'locality' => $storedLocality,
                     'meeting_day' => $meetingDay,
+                'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
                     'end_date' => null,
                     'is_active' => true,
@@ -90,6 +93,14 @@ class PrayerMeetingAttendanceController extends Controller
 
                 $sheet->update($updates);
             }
+
+            if ($meetingTime !== null && $sheet->meeting_time !== $meetingTime) {
+
+                $sheet->forceFill(['meeting_time' => $meetingTime])->save();
+
+            }
+
+            
 
             $session = AttendanceSession::query()->firstOrCreate(
                 [

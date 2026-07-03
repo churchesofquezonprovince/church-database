@@ -130,7 +130,25 @@
                         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                     >
 
-                    @if (! $isCorrectDay)
+                    
+                            <div>
+                                <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Time
+                                </label>
+
+                                <input
+                                    id="meeting_time"
+                                    name="meeting_time"
+                                    type="time"
+                                    value="{{ request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5)) }}"
+                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                >
+
+                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Optional meeting time.
+                                </p>
+                            </div>
+@if (! $isCorrectDay)
                         <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-300">
                             Selected date is not {{ $this->dayLabel($selectedMeetingDay) }}. Saving will be blocked.
                         </p>
@@ -223,6 +241,12 @@
                         class="mt-5"
                     >
                         @csrf
+                            <input
+                                type="hidden"
+                                name="meeting_time"
+                                value="{{ request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5)) }}"
+                            >
+
 
                         <input type="hidden" name="locality" value="{{ $selectedLocality }}">
                         <input type="hidden" name="meeting_day" value="{{ $selectedMeetingDay }}">

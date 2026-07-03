@@ -130,6 +130,12 @@
                         class="mt-3 block w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
                     >
 
+                    <input
+                        type="time"
+                        name="meeting_time"
+                        class="mt-3 block w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+
                     <button
                         type="submit"
                         class="mt-4 w-full rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500"
@@ -171,6 +177,12 @@
                         type="date"
                         name="meeting_date"
                         value="{{ $this->nextTuesdayDate() }}"
+                        class="mt-3 block w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+
+                    <input
+                        type="time"
+                        name="meeting_time"
                         class="mt-3 block w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
                     >
 
