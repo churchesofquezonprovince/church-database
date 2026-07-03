@@ -295,7 +295,7 @@
                         </p>
                     </div>
 
-                    <div class="flex gap-2">
+                    <div class="grid grid-cols-2 gap-2 sm:flex">
                         <button
                             type="button"
                             onclick="document.querySelectorAll('.lords-table-checkbox').forEach((box) => box.checked = true)"
@@ -424,14 +424,14 @@
                             </button>
                         </div>
 
-                        <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="min-w-[720px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
-                                        <th class="w-20 px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Contact</th>
+                                        <th class="w-20 px-3 py-3 sm:px-4 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Contact</th>
                                     </tr>
                                 </thead>
 
@@ -448,7 +448,7 @@
                                             data-initial-attendance-status="{{ $attendanceStatus }}"
                                             data-attendance-status="{{ $attendanceStatus }}"
                                         >
-                                            <td class="px-4 py-3 text-center">
+                                            <td class="px-3 py-3 text-center sm:px-4">
                                                 <input
                                                     type="checkbox"
                                                     name="present_person_ids[]"
@@ -456,19 +456,19 @@
                                                     @checked(in_array((int) $person->id, $presentPersonIds, true))
                                                     data-attendance-checkbox
                                                     onchange="updatePermanentMeetingRowStatus(this); filterPermanentMeetingChecklist(this.closest('form'))"
-                                                    class="lords-table-checkbox h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                    class="lords-table-checkbox h-6 w-6 rounded border-gray-300 text-primary-600 focus:ring-primary-500 sm:h-5 sm:w-5"
                                                 >
                                             </td>
 
-                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                            <td class="px-3 py-3 font-semibold sm:px-4 text-gray-900 dark:text-white">
                                                 {{ $person->display_name }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                            <td class="px-3 py-3 text-gray-500 sm:px-4 dark:text-gray-400">
                                                 {{ $person->churchProfile?->category ?: 'No category' }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                            <td class="px-3 py-3 text-gray-500 sm:px-4 dark:text-gray-400">
                                                 {{ $person->contact_number ?: 'No contact' }}
                                             </td>
                                         </tr>
@@ -479,7 +479,7 @@
 
                         <button
                             type="submit"
-                            class="mt-5 inline-flex rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500"
+                            class="mt-5 inline-flex w-full justify-center rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white hover:bg-primary-500 sm:w-auto sm:py-2"
                         >
                             Save Lord's Table Attendance
                         </button>
