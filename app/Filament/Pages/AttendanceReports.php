@@ -412,6 +412,53 @@ class AttendanceReports extends Page
         ]);
     }
 
+    public function attendanceEntryUrl(): string
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return '#';
+        }
+
+        if ($sheet->sheet_type === AttendanceSheet::TYPE_CUSTOM) {
+            return \App\Filament\Pages\CheckAttendance::getUrl() . '?' . http_build_query([
+                'sheetId' => $sheet->id,
+            ]);
+        }
+
+        $locality = $sheet->locality ?: '__no_locality';
+
+        if ($sheet->sheet_type === AttendanceSheet::TYPE_LORDS_TABLE) {
+            return \App\Filament\Pages\LordsTableMeeting::getUrl() . '?' . http_build_query([
+                'locality' => $locality,
+            ]);
+        }
+
+        if ($sheet->sheet_type === AttendanceSheet::TYPE_PRAYER_MEETING) {
+            return \App\Filament\Pages\PrayerMeeting::getUrl() . '?' . http_build_query([
+                'locality' => $locality,
+                'meeting_day' => $sheet->meeting_day ?? 2,
+            ]);
+        }
+
+        return '#';
+    }
+
+    public function attendanceEntryLabel(): string
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return 'Check Attendance';
+        }
+
+        return match ($sheet->sheet_type) {
+            AttendanceSheet::TYPE_LORDS_TABLE => "Go to Lord's Table",
+            AttendanceSheet::TYPE_PRAYER_MEETING => 'Go to Prayer Meeting',
+            default => 'Check Attendance',
+        };
+    }
+
     public function exportUrl(): string
     {
         $sheet = $this->selectedSheet();

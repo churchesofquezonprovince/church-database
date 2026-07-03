@@ -347,10 +347,10 @@
                         </a>
 
                         <a
-                            href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?sheetId=' . $selectedSheet->id }}"
+                            href="{{ $this->attendanceEntryUrl() }}"
                             class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
                         >
-                            Check Attendance
+                            {{ $this->attendanceEntryLabel() }}
                         </a>
 
                         @if ($selectedSheet->sheet_type === \App\Models\AttendanceSheet::TYPE_CUSTOM)
