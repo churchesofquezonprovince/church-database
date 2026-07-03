@@ -57,6 +57,7 @@ class AttendanceHistory extends Page
             'attendance_sheet.deleted' => 'Sheets Deleted',
             'attendance_participants.added' => 'Participants Added',
             'attendance_participant.removed' => 'Participants Removed',
+            'permanent_meeting_other_attendee.added' => 'Other Locality Attendees',
             'attendance_records.saved' => 'Custom Attendance Saved',
             'lords_table.attendance.saved' => "Lord's Table Saved",
             'prayer_meeting.attendance.saved' => 'Prayer Meeting Saved',

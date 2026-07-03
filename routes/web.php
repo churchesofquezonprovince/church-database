@@ -62,3 +62,13 @@ Route::middleware(['auth'])
         Route::post('/lords-table', [LordsTableAttendanceController::class, 'store'])->name('lords-table.store');
         Route::post('/prayer-meeting', [PrayerMeetingAttendanceController::class, 'store'])->name('prayer-meeting.store');
     });
+
+Route::middleware(['auth'])
+    ->prefix('attendance/church-database')
+    ->name('church-database.attendance-sheets.')
+    ->group(function (): void {
+        Route::post(
+            '/sessions/{session}/permanent-meeting-other-attendees',
+            [\App\Http\Controllers\PermanentMeetingOtherAttendeeController::class, 'store']
+        )->name('permanent-meeting.other-attendees.store');
+    });
