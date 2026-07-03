@@ -71,4 +71,10 @@ Route::middleware(['auth'])
             '/sessions/{session}/permanent-meeting-other-attendees',
             [\App\Http\Controllers\PermanentMeetingOtherAttendeeController::class, 'store']
         )->name('permanent-meeting.other-attendees.store');
+
+        Route::delete(
+            '/sessions/{session}/permanent-meeting-other-attendees/{person}',
+            [\App\Http\Controllers\PermanentMeetingOtherAttendeeController::class, 'destroy']
+        )->name('permanent-meeting.other-attendees.destroy');
+
     });

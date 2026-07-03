@@ -13,6 +13,64 @@ use Illuminate\Support\Facades\DB;
 
 class PermanentMeetingOtherAttendeeController extends Controller
 {
+
+    public function destroy(AttendanceSession $session, Person $person): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canManageRecords(), 403);
+
+        $session->loadMissing('sheet');
+
+        abort_unless($session->sheet, 404);
+        abort_unless($session->sheet->is_active, 403);
+
+        abort_unless(
+            in_array($session->sheet->sheet_type, [
+                AttendanceSheet::TYPE_LORDS_TABLE,
+                AttendanceSheet::TYPE_PRAYER_MEETING,
+            ], true),
+            404,
+        );
+
+        $meetingDate = $session->session_date->format('Y-m-d');
+
+        DB::transaction(function () use ($session, $person, $meetingDate): void {
+            AttendanceRecord::query()
+                ->where('attendance_session_id', $session->id)
+                ->where('person_id', $person->id)
+                ->delete();
+
+            $participant = $session->sheet->participants()
+                ->where('person_id', $person->id)
+                ->first();
+
+            if ($participant) {
+                $startsOn = $participant->starts_on?->format('Y-m-d');
+                $endsOn = $participant->ends_on?->format('Y-m-d');
+
+                if ($startsOn === $meetingDate && $endsOn === $meetingDate) {
+                    $participant->delete();
+                }
+            }
+
+            ActivityLogger::log(
+                action: 'permanent_meeting_other_attendee.removed',
+                subject: $session->sheet,
+                description: 'Removed mistaken other locality attendee from permanent meeting.',
+                oldValues: [
+                    'sheet_title' => $session->sheet->title,
+                    'sheet_type' => $session->sheet->sheet_type,
+                    'sheet_locality' => $session->sheet->locality,
+                    'session_date' => $meetingDate,
+                    'person_id' => $person->id,
+                    'person_name' => $person->display_name ?? null,
+                    'person_locality' => $person->locality,
+                ],
+            );
+        });
+
+        return back()->with('other_locality_attendee_removed', true);
+    }
+
     public function store(Request $request, AttendanceSession $session): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
@@ -36,6 +94,16 @@ class PermanentMeetingOtherAttendeeController extends Controller
 
         $person = Person::query()->findOrFail($data['person_id']);
         $meetingDate = $session->session_date->format('Y-m-d');
+
+        $alreadyPresent = AttendanceRecord::query()
+            ->where('attendance_session_id', $session->id)
+            ->where('person_id', $person->id)
+            ->where('is_present', true)
+            ->exists();
+
+        if ($alreadyPresent) {
+            return back()->with('other_locality_attendee_exists', true);
+        }
 
         DB::transaction(function () use ($session, $person, $meetingDate): void {
             $participant = $session->sheet->participants()

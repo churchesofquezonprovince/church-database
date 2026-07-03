@@ -13,6 +13,18 @@
         $isSunday = $selectedDateObject->dayOfWeek === 0;
     @endphp
 
+        @if (session('other_locality_attendee_removed'))
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                Other locality attendee removed from this meeting date.
+            </div>
+        @endif
+
+        @if (session('other_locality_attendee_exists'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                This person is already marked present for this meeting date.
+            </div>
+        @endif
+
         @if (session('other_locality_attendee_added'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 Other locality attendee added and marked present.
@@ -22,6 +34,7 @@
         @if (isset($selectedSession) && $selectedSession)
             @php
                 $otherLocalityCandidates = $this->otherLocalityCandidates();
+                $otherLocalityPresentRecords = $this->otherLocalityPresentRecords();
             @endphp
 
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950">
@@ -75,6 +88,49 @@
                     <p class="mt-3 text-xs text-amber-700 dark:text-amber-200">
                         No other locality candidates available.
                     </p>
+                @endif
+
+                @if ($otherLocalityPresentRecords->isNotEmpty())
+                    <div class="mt-5 rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-900 dark:bg-gray-950">
+                        <p class="text-sm font-bold text-gray-900 dark:text-white">
+                            Current other-locality attendees
+                        </p>
+
+                        <div class="mt-3 space-y-2">
+                            @foreach ($otherLocalityPresentRecords as $record)
+                                <div class="flex flex-col gap-3 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <span class="font-bold text-gray-900 dark:text-white">
+                                            {{ $record->person?->display_name ?? 'Unknown person' }}
+                                        </span>
+
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $record->person?->locality ?: 'No Locality' }}
+                                            · marked {{ optional($record->marked_at)->format('M d, Y · g:i A') }}
+                                        </span>
+                                    </div>
+
+                                    @if ($record->person)
+                                        <form
+                                            method="POST"
+                                            action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button
+                                                type="submit"
+                                                onclick="return confirm('Remove this other locality attendee from this meeting date?')"
+                                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                            >
+                                                Remove
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
                 @endif
             </div>
         @else
