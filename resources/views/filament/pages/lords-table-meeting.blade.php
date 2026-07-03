@@ -5,6 +5,7 @@
         $selectedMeetingDate = $this->selectedMeetingDate();
         $selectedSheet = $this->selectedSheet();
         $selectedSession = $this->selectedSession();
+        $selectedMeetingTime = request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5));
         $people = $this->people();
         $presentPersonIds = $this->presentPersonIds();
         $counts = $this->counts();
@@ -121,7 +122,7 @@
         @endif
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <form method="GET" action="{{ \App\Filament\Pages\LordsTableMeeting::getUrl() }}" class="grid gap-4 md:grid-cols-3">
+            <form method="GET" action="{{ \App\Filament\Pages\LordsTableMeeting::getUrl() }}" class="grid gap-4 md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-end">
                 <div>
                     <label for="locality" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                         Locality
@@ -154,40 +155,28 @@
                         required
                         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                     >
-
-                    
-                            <div>
-                                <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    Time
-                                </label>
-
-                                <input
-                                    id="meeting_time"
-                                    name="meeting_time"
-                                    type="time"
-                                    value="{{ request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5)) }}"
-                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                >
-
-                                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    Optional meeting time.
-                                </p>
-                            </div>
-@if (! $isSunday)
-                        <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-300">
-                            Selected date is not Sunday. Saving will be blocked.
-                        </p>
-                    @endif
                 </div>
 
-                <div class="flex items-end">
-                    <button
-                        type="submit"
-                        class="inline-flex w-full justify-center rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500"
+                <div>
+                    <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Time
+                    </label>
+
+                    <input
+                        id="meeting_time"
+                        name="meeting_time"
+                        type="time"
+                        value="{{ $selectedMeetingTime }}"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                     >
-                        Load Locality
-                    </button>
                 </div>
+
+                <button
+                    type="submit"
+                    class="rounded-xl bg-amber-600 px-6 py-3 text-sm font-bold text-white hover:bg-amber-500"
+                >
+                    Load Locality
+                </button>
             </form>
         </div>
 
