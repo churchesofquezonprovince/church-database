@@ -3,6 +3,7 @@
 use App\Http\Controllers\AttendanceRecordController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceSheetController;
+use App\Http\Controllers\AttendanceSheetMaintenanceController;
 use App\Http\Controllers\LordsTableAttendanceController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
@@ -43,6 +44,13 @@ Route::middleware(['auth'])
     ->group(function (): void {
         Route::post('/sheets', [AttendanceSheetController::class, 'store'])->name('store');
         Route::post('/sheets/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])->name('participants.store');
+
+    Route::patch('/sheets/{sheet}', [AttendanceSheetMaintenanceController::class, 'update'])
+        ->name('sheets.update');
+
+    Route::post('/sheets/{sheet}/toggle-active', [AttendanceSheetMaintenanceController::class, 'toggleActive'])
+        ->name('sheets.toggle-active');
+
         Route::delete('/sheets/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])->name('participants.destroy');
         Route::post('/sessions/{session}/records', [AttendanceRecordController::class, 'store'])->name('records.store');
         Route::get('/reports/export', [AttendanceReportExportController::class, 'export'])->name('reports.export');
