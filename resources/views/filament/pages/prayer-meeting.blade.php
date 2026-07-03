@@ -363,6 +363,30 @@
                         <input type="hidden" name="meeting_day" value="{{ $selectedMeetingDay }}">
                         <input type="hidden" name="meeting_date" value="{{ $selectedMeetingDate }}">
 
+                        <div class="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                            <div>
+                                <label for="prayer_meeting_participant_search" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Search Participants
+                                </label>
+
+                                <input
+                                    id="prayer_meeting_participant_search"
+                                    type="search"
+                                    placeholder="Search name, category, or locality..."
+                                    oninput="const q = this.value.toLowerCase().trim(); this.closest('form').querySelectorAll('tbody tr').forEach((row) => { row.hidden = q !== '' && ! row.textContent.toLowerCase().includes(q); });"
+                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                >
+                            </div>
+
+                            <button
+                                type="button"
+                                onclick="const input = document.getElementById('prayer_meeting_participant_search'); input.value = ''; input.dispatchEvent(new Event('input')); input.focus();"
+                                class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Clear Search
+                            </button>
+                        </div>
+
                         <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                             <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
