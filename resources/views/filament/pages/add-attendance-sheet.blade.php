@@ -87,6 +87,42 @@
                             >
                         </div>
 
+                        <div class="md:col-span-2">
+                            <label class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                                <input
+                                    type="checkbox"
+                                    name="is_one_time"
+                                    value="1"
+                                    @checked(old('is_one_time'))
+                                    class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                >
+
+                                One-time attendance only
+                            </label>
+
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                If checked, only the Start Date will be used as the meeting date. End Date and Meeting Day will be ignored.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Time
+                            </label>
+
+                            <input
+                                id="meeting_time"
+                                name="meeting_time"
+                                type="time"
+                                value="{{ old('meeting_time') }}"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Optional. Example: 07:30 PM.
+                            </p>
+                        </div>
+
                         <div>
                             <label for="meeting_day" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                                 Meeting Day
@@ -120,7 +156,7 @@
 
                         <div>
                             <label for="start_date" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                Start Date
+                                Start Date / Meeting Date
                             </label>
 
                             <input
@@ -187,7 +223,8 @@
 
                     <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-gray-500 dark:text-gray-400">
                         <li>The attendance sheet is saved.</li>
-                        <li>Weekly session dates are generated automatically.</li>
+                        <li>Weekly meeting dates are generated automatically for recurring sheets.</li>
+                        <li>One-time sheets create only one meeting date.</li>
                         <li>Participants will be added in the next phase.</li>
                         <li>Checkbox attendance will be added after participants.</li>
                     </ul>

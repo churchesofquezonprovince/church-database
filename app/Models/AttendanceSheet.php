@@ -19,6 +19,8 @@ class AttendanceSheet extends Model
         'sheet_type',
         'locality',
         'meeting_day',
+        'meeting_time',
+        'is_one_time',
         'start_date',
         'end_date',
         'is_active',
@@ -29,6 +31,7 @@ class AttendanceSheet extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'is_one_time' => 'boolean',
         'is_active' => 'boolean',
     ];
 

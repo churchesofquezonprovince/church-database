@@ -11,6 +11,7 @@ class AttendanceSession extends Model
     protected $fillable = [
         'attendance_sheet_id',
         'session_date',
+        'session_time',
         'title',
         'remarks',
     ];
