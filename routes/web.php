@@ -48,6 +48,10 @@ Route::middleware(['auth'])
     Route::patch('/sheets/{sheet}', [AttendanceSheetMaintenanceController::class, 'update'])
         ->name('sheets.update');
 
+
+    Route::delete('/sheets/{sheet}', [AttendanceSheetMaintenanceController::class, 'destroy'])
+        ->name('sheets.destroy');
+
     Route::post('/sheets/{sheet}/toggle-active', [AttendanceSheetMaintenanceController::class, 'toggleActive'])
         ->name('sheets.toggle-active');
 

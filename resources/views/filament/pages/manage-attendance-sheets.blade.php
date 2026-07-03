@@ -36,6 +36,12 @@
             </div>
         @endif
 
+        @if (session('attendance_sheet_deleted'))
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                Attendance sheet deleted permanently.
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
@@ -99,20 +105,40 @@
                             </p>
                         </div>
 
-                        <form
-                            method="POST"
-                            action="{{ route('church-database.attendance-sheets.sheets.toggle-active', $sheet) }}"
-                        >
-                            @csrf
-
-                            <button
-                                type="submit"
-                                onclick="return confirm('{{ $sheet->is_active ? 'Archive this sheet?' : 'Restore this sheet?' }}')"
-                                class="rounded-xl px-4 py-2 text-sm font-bold text-white {{ $sheet->is_active ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500' }}"
+                        <div class="flex flex-wrap gap-2">
+                            <form
+                                method="POST"
+                                action="{{ route('church-database.attendance-sheets.sheets.toggle-active', $sheet) }}"
                             >
-                                {{ $sheet->is_active ? 'Archive' : 'Restore' }}
-                            </button>
-                        </form>
+                                @csrf
+
+                                <button
+                                    type="submit"
+                                    onclick="return confirm('{{ $sheet->is_active ? 'Archive this sheet?' : 'Restore this sheet?' }}')"
+                                    class="rounded-xl px-4 py-2 text-sm font-bold text-white {{ $sheet->is_active ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500' }}"
+                                >
+                                    {{ $sheet->is_active ? 'Archive' : 'Restore' }}
+                                </button>
+                            </form>
+
+                            @if (auth()->user()?->canDeleteRecords())
+                                <form
+                                    method="POST"
+                                    action="{{ route('church-database.attendance-sheets.sheets.destroy', $sheet) }}"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button
+                                        type="submit"
+                                        onclick="return confirm('Delete this attendance sheet permanently? This will also delete all meeting dates, participants, and attendance records under this sheet.')"
+                                        class="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500"
+                                    >
+                                        Delete
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
                     </div>
 
                     <details class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">

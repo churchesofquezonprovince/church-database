@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -58,6 +59,46 @@ class AttendanceSheetMaintenanceController extends Controller
         });
 
         return back()->with('attendance_sheet_updated', true);
+    }
+
+
+    public function destroy(AttendanceSheet $sheet): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canDeleteRecords(), 403);
+        abort_unless($sheet->sheet_type === AttendanceSheet::TYPE_CUSTOM, 404);
+
+        $oldValues = [
+            'id' => $sheet->id,
+            'title' => $sheet->title,
+            'locality' => $sheet->locality,
+            'meeting_time' => $sheet->meeting_time,
+            'is_one_time' => $sheet->is_one_time,
+            'start_date' => optional($sheet->start_date)->format('Y-m-d'),
+            'end_date' => optional($sheet->end_date)->format('Y-m-d'),
+            'sessions_count' => $sheet->sessions()->count(),
+            'participants_count' => $sheet->participants()->count(),
+        ];
+
+        DB::transaction(function () use ($sheet, $oldValues): void {
+            ActivityLogger::log(
+                action: 'attendance_sheet.deleted',
+                subject: $sheet,
+                description: 'Deleted attendance sheet and all related attendance data.',
+                oldValues: $oldValues,
+            );
+
+            $sessionIds = $sheet->sessions()->pluck('id');
+
+            AttendanceRecord::query()
+                ->whereIn('attendance_session_id', $sessionIds)
+                ->delete();
+
+            $sheet->participants()->delete();
+            $sheet->sessions()->delete();
+            $sheet->delete();
+        });
+
+        return back()->with('attendance_sheet_deleted', true);
     }
 
     public function toggleActive(AttendanceSheet $sheet): RedirectResponse
