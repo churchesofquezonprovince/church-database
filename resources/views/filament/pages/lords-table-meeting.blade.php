@@ -219,7 +219,7 @@
 
                 <div>
                     <label for="meeting_date" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        Sunday Date
+                        Lord's Day Date
                     </label>
 
                     <input
