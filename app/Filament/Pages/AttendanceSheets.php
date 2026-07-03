@@ -47,10 +47,47 @@ class AttendanceSheets extends Page
         return auth()->user()?->canManageRecords() ?? false;
     }
 
+    public function selectedMode(): string
+    {
+        $mode = request('mode', 'all');
+
+        return in_array($mode, ['all', 'recurring', 'one_time'], true)
+            ? $mode
+            : 'all';
+    }
+
+    public function modeOptions(): array
+    {
+        return [
+            'all' => 'All Sheets',
+            'recurring' => 'Recurring',
+            'one_time' => 'One-time',
+        ];
+    }
+
+    public function modeUrl(string $mode): string
+    {
+        $query = array_merge(request()->query(), [
+            'mode' => $mode,
+        ]);
+
+        if ($mode === 'all') {
+            unset($query['mode']);
+        }
+
+        return static::getUrl() . ($query ? ('?' . http_build_query($query)) : '');
+    }
+
     public function sheets(): Collection
     {
         return AttendanceSheet::query()
+            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+            ->when($this->selectedMode() === 'recurring', fn ($query) => $query->where('is_one_time', false))
+            ->when($this->selectedMode() === 'one_time', fn ($query) => $query->where('is_one_time', true))
             ->withCount(['sessions', 'participants'])
+            ->orderByDesc('is_active')
+            ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
+            ->orderBy('locality')
             ->latest()
             ->get();
     }

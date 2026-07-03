@@ -1,4 +1,25 @@
 <x-filament-panels::page>
+
+    <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p class="text-sm font-bold text-gray-900 dark:text-white">
+            Sheet Filter
+        </p>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+            @foreach ($this->modeOptions() as $modeValue => $modeLabel)
+                <a
+                    href="{{ $this->modeUrl($modeValue) }}"
+                    class="rounded-full px-4 py-2 text-sm font-bold transition
+                        {{ $this->selectedMode() === $modeValue
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' }}"
+                >
+                    {{ $modeLabel }}
+                </a>
+            @endforeach
+        </div>
+    </div>
+
     @php
         $sheets = $this->sheets();
         $selectedSheet = $this->selectedSheet();
@@ -106,7 +127,15 @@
                                         {{ $sheet->title }}
                                     </p>
                             <p class="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                {{ $sheet->attendanceModeLabel() }} · {{ $sheet->meetingTimeLabel() }}
+                                <span class="rounded-full px-2 py-1 text-xs font-bold {{ $sheet->attendanceModeBadgeClass() }}">
+                                    {{ $sheet->attendanceModeLabel() }}
+                                </span>
+                                <span>
+                                    {{ $sheet->meetingTimeLabel() }}
+                                </span>
+                                <span>
+                                    {{ $sheet->dateRangeLabel() }}
+                                </span>
                             </p>
 
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">

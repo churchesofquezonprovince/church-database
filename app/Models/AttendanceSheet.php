@@ -56,6 +56,26 @@ class AttendanceSheet extends Model
         return $this->is_one_time ? 'One-time' : 'Recurring';
     }
 
+
+    public function dateRangeLabel(): string
+    {
+        if ($this->is_one_time) {
+            return $this->start_date?->format('M d, Y') ?? 'No date';
+        }
+
+        $start = $this->start_date?->format('M d, Y') ?? 'No start date';
+        $end = $this->end_date?->format('M d, Y') ?? 'No end date';
+
+        return $start . ' to ' . $end;
+    }
+
+    public function attendanceModeBadgeClass(): string
+    {
+        return $this->is_one_time
+            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
+            : 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100';
+    }
+
     public function sessions(): HasMany
     {
         return $this->hasMany(AttendanceSession::class);
