@@ -190,6 +190,23 @@ class LordsTableMeeting extends Page
             ->all();
     }
 
+
+    public function absentPersonIds(): array
+    {
+        $session = $this->selectedSession();
+
+        if (! $session) {
+            return [];
+        }
+
+        return AttendanceRecord::query()
+            ->where('attendance_session_id', $session->id)
+            ->where('is_present', false)
+            ->pluck('person_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+    }
+
     public function counts(): array
     {
         $session = $this->selectedSession();

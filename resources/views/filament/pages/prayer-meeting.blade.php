@@ -17,6 +17,17 @@
 
         $hasNoCategory = $people->contains(fn ($person) => blank($person->churchProfile?->category));
         $presentPersonIds = $this->presentPersonIds();
+        $absentPersonIds = $this->absentPersonIds();
+
+        $presentRowCount = $people
+            ->filter(fn ($person) => in_array((int) $person->id, $presentPersonIds, true))
+            ->count();
+
+        $absentRowCount = $people
+            ->filter(fn ($person) => in_array((int) $person->id, $absentPersonIds, true))
+            ->count();
+
+        $unmarkedRowCount = max($people->count() - $presentRowCount - $absentRowCount, 0);
         $counts = $this->counts();
         $selectedDateObject = \Carbon\CarbonImmutable::parse($selectedMeetingDate);
         $isCorrectDay = $selectedDateObject->dayOfWeek === $selectedMeetingDay;
@@ -420,6 +431,46 @@
                             </button>
                         </div>
 
+                        <input type="hidden" data-attendance-status-filter value="all">
+
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'all')"
+                                class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 ring-2 ring-primary-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                All {{ $people->count() }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'present')"
+                                class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                            >
+                                Present {{ $presentRowCount }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'absent')"
+                                class="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                            >
+                                Absent {{ $absentRowCount }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'unmarked')"
+                                class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                            >
+                                Unmarked {{ $unmarkedRowCount }}
+                            </button>
+                        </div>
+
                         <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                             <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
@@ -433,13 +484,25 @@
 
                                 <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                     @foreach ($people as $person)
-                                        <tr data-category="{{ \Illuminate\Support\Str::lower($person->churchProfile?->category ?: '__no_category') }}">
+                                        @php
+                                            $attendanceStatus = in_array((int) $person->id, $presentPersonIds, true)
+                                                ? 'present'
+                                                : (in_array((int) $person->id, $absentPersonIds, true) ? 'absent' : 'unmarked');
+                                        @endphp
+
+                                        <tr
+                                            data-category="{{ \Illuminate\Support\Str::lower($person->churchProfile?->category ?: '__no_category') }}"
+                                            data-initial-attendance-status="{{ $attendanceStatus }}"
+                                            data-attendance-status="{{ $attendanceStatus }}"
+                                        >
                                             <td class="px-4 py-3 text-center">
                                                 <input
                                                     type="checkbox"
                                                     name="present_person_ids[]"
                                                     value="{{ $person->id }}"
                                                     @checked(in_array((int) $person->id, $presentPersonIds, true))
+                                                    data-attendance-checkbox
+                                                    onchange="updatePermanentMeetingRowStatus(this); filterPermanentMeetingChecklist(this.closest('form'))"
                                                     class="prayer-meeting-checkbox h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                                 >
                                             </td>
@@ -476,16 +539,52 @@
         function filterPermanentMeetingChecklist(form) {
             const searchInput = form.querySelector('[data-participant-search]');
             const categoryFilter = form.querySelector('[data-participant-category-filter]');
+            const statusFilter = form.querySelector('[data-attendance-status-filter]');
 
             const query = (searchInput?.value || '').toLowerCase().trim();
             const category = (categoryFilter?.value || '__all').toLowerCase();
+            const status = (statusFilter?.value || 'all').toLowerCase();
 
             form.querySelectorAll('tbody tr[data-category]').forEach((row) => {
                 const matchesSearch = query === '' || row.textContent.toLowerCase().includes(query);
                 const matchesCategory = category === '__all' || row.dataset.category === category;
+                const matchesStatus = status === 'all' || row.dataset.attendanceStatus === status;
 
-                row.hidden = ! (matchesSearch && matchesCategory);
+                row.hidden = ! (matchesSearch && matchesCategory && matchesStatus);
             });
+        }
+
+        function setPermanentMeetingStatusFilter(button, status) {
+            const form = button.closest('form');
+            const statusFilter = form.querySelector('[data-attendance-status-filter]');
+
+            statusFilter.value = status;
+
+            form.querySelectorAll('[data-attendance-status-button]').forEach((statusButton) => {
+                statusButton.classList.remove('ring-2', 'ring-primary-500');
+            });
+
+            button.classList.add('ring-2', 'ring-primary-500');
+
+            filterPermanentMeetingChecklist(form);
+        }
+
+        function updatePermanentMeetingRowStatus(checkbox) {
+            const row = checkbox.closest('tr[data-attendance-status]');
+
+            if (! row) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                row.dataset.attendanceStatus = 'present';
+
+                return;
+            }
+
+            row.dataset.attendanceStatus = row.dataset.initialAttendanceStatus === 'present'
+                ? 'absent'
+                : row.dataset.initialAttendanceStatus;
         }
     </script>
 
