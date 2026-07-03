@@ -12,115 +12,127 @@
     @endphp
 
     <div class="space-y-6">
-
         <div class="grid gap-6 xl:grid-cols-4">
-                <div class="space-y-4 xl:col-span-1">
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <h3 class="font-bold text-gray-900 dark:text-white">
-                            Sheets
-                        </h3>
+            <div class="space-y-4 xl:col-span-1">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <h3 class="font-bold text-gray-900 dark:text-white">
+                        Sheets
+                    </h3>
 
-                        <div class="mt-4 space-y-2">
-                            @foreach ($sheets as $sheet)
-                                <a
-                                    href="{{ $this->sheetUrl($sheet) }}"
-                                    @class([
-                                        'block rounded-xl border p-3 transition',
-                                        'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950' => $selectedSheet->id === $sheet->id,
-                                        'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800' => $selectedSheet->id !== $sheet->id,
-                                    ])
-                                >
-                                    <p class="font-bold text-gray-900 dark:text-white">
-                                        {{ $sheet->title }}
+                    <div class="mt-4 space-y-2">
+                        @foreach ($sheets as $sheet)
+                            <a
+                                href="{{ $this->sheetUrl($sheet) }}"
+                                @class([
+                                    'block rounded-xl border p-3 transition',
+                                    'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950' => $selectedSheet?->id === $sheet->id,
+                                    'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800' => $selectedSheet?->id !== $sheet->id,
+                                ])
+                            >
+                                <p class="font-bold text-gray-900 dark:text-white">
+                                    {{ $sheet->title }}
+                                </p>
+
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $sheet->locality ?: 'No locality' }}
+                                    · {{ $sheet->sessions_count }} date(s)
+                                    · {{ $sheet->participants_count }} participant(s)
+                                </p>
+                            </a>
+                        @endforeach
+
+                        <details class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                            <summary class="cursor-pointer font-bold text-amber-900 dark:text-amber-100">
+                                Lord's Table Meeting
+                            </summary>
+
+                            <div class="mt-3 space-y-2">
+                                @forelse ($lordsTableLocalities as $row)
+                                    <a
+                                        href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE, $row['locality'], $row['sheet']) }}"
+                                        class="block rounded-lg border border-amber-200 bg-white p-3 hover:bg-amber-100 dark:border-amber-900 dark:bg-gray-950 dark:hover:bg-amber-950"
+                                    >
+                                        <p class="font-bold text-gray-900 dark:text-white">
+                                            {{ $row['label'] }}
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $row['sessions_count'] }} date(s)
+                                            · {{ $row['participants_count'] }} participant(s)
+                                        </p>
+                                    </a>
+                                @empty
+                                    <p class="rounded-lg border border-dashed border-amber-300 p-3 text-xs text-amber-800 dark:border-amber-900 dark:text-amber-100">
+                                        No localities found.
                                     </p>
+                                @endforelse
+                            </div>
+                        </details>
 
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $sheet->locality ?: 'No locality' }}
-                                        · {{ $sheet->sessions_count }} date(s)
-                                        · {{ $sheet->participants_count }} participant(s)
+                        <details class="rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950">
+                            <summary class="cursor-pointer font-bold text-sky-900 dark:text-sky-100">
+                                Prayer Meeting
+                            </summary>
+
+                            <div class="mt-3 space-y-2">
+                                @forelse ($prayerMeetingLocalities as $row)
+                                    <a
+                                        href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING, $row['locality'], $row['sheet']) }}"
+                                        class="block rounded-lg border border-sky-200 bg-white p-3 hover:bg-sky-100 dark:border-sky-900 dark:bg-gray-950 dark:hover:bg-sky-950"
+                                    >
+                                        <p class="font-bold text-gray-900 dark:text-white">
+                                            {{ $row['label'] }}
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $row['sessions_count'] }} date(s)
+                                            · {{ $row['participants_count'] }} participant(s)
+                                        </p>
+                                    </a>
+                                @empty
+                                    <p class="rounded-lg border border-dashed border-sky-300 p-3 text-xs text-sky-800 dark:border-sky-900 dark:text-sky-100">
+                                        No localities found.
                                     </p>
-                                </a>
-                            @endforeach
-
-                            <details class="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
-                                <summary class="cursor-pointer font-bold text-amber-900 dark:text-amber-100">
-                                    Lord's Table Meeting
-                                </summary>
-
-                                <div class="mt-3 space-y-2">
-                                    @foreach ($lordsTableLocalities as $row)
-                                        <a
-                                            href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE, $row['locality'], $row['sheet']) }}"
-                                            class="block rounded-lg border border-amber-200 bg-white p-3 hover:bg-amber-100 dark:border-amber-900 dark:bg-gray-950 dark:hover:bg-amber-950"
-                                        >
-                                            <p class="font-bold text-gray-900 dark:text-white">
-                                                {{ $row['label'] }}
-                                            </p>
-
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $row['sessions_count'] }} date(s)
-                                                · {{ $row['participants_count'] }} participant(s)
-                                            </p>
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </details>
-
-                            <details class="rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950">
-                                <summary class="cursor-pointer font-bold text-sky-900 dark:text-sky-100">
-                                    Prayer Meeting
-                                </summary>
-
-                                <div class="mt-3 space-y-2">
-                                    @foreach ($prayerMeetingLocalities as $row)
-                                        <a
-                                            href="{{ $this->permanentMeetingUrl(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING, $row['locality'], $row['sheet']) }}"
-                                            class="block rounded-lg border border-sky-200 bg-white p-3 hover:bg-sky-100 dark:border-sky-900 dark:bg-gray-950 dark:hover:bg-sky-950"
-                                        >
-                                            <p class="font-bold text-gray-900 dark:text-white">
-                                                {{ $row['label'] }}
-                                            </p>
-
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $row['sessions_count'] }} date(s)
-                                                · {{ $row['participants_count'] }} participant(s)
-                                            </p>
-                                        </a>
-                                    @endforeach
-                                </div>
-                            </details>
-                        </div>
-                    </div>
-
-                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <h3 class="font-bold text-gray-900 dark:text-white">
-                            Meeting Dates
-                        </h3>
-
-                        <div class="mt-4 max-h-96 space-y-2 overflow-auto pr-1">
-                            @foreach ($sessions as $session)
-                                <a
-                                    href="{{ $this->sessionUrl($selectedSheet, $session) }}"
-                                    @class([
-                                        'block rounded-xl border p-3 text-sm transition',
-                                        'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100' => $selectedSession->id === $session->id,
-                                        'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800' => $selectedSession->id !== $session->id,
-                                    ])
-                                >
-                                    <span class="font-bold">
-                                        {{ $session->dateTimeLabel() }}
-                                    </span>
-
-                                    <span class="block text-xs opacity-75">
-                                        {{ $session->session_date->format('l') }}
-                                    </span>
-                                </a>
-                            @endforeach
-                        </div>
+                                @endforelse
+                            </div>
+                        </details>
                     </div>
                 </div>
 
-                <div class="space-y-6 xl:col-span-3">
+                <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <h3 class="font-bold text-gray-900 dark:text-white">
+                        Meeting Dates
+                    </h3>
+
+                    <div class="mt-4 max-h-96 space-y-2 overflow-auto pr-1">
+                        @foreach ($sessions as $session)
+                            <a
+                                href="{{ $this->sessionUrl($selectedSheet, $session) }}"
+                                @class([
+                                    'block rounded-xl border p-3 text-sm transition',
+                                    'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100' => $selectedSession?->id === $session->id,
+                                    'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800' => $selectedSession?->id !== $session->id,
+                                ])
+                            >
+                                <span class="font-bold">
+                                    {{ $session->dateTimeLabel() }}
+                                </span>
+
+                                <span class="block text-xs opacity-75">
+                                    {{ $session->session_date->format('l') }}
+                                </span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6 xl:col-span-3">
+                @if (! $selectedSheet || ! $selectedSession)
+                    <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                        Select an attendance sheet and meeting date.
+                    </div>
+                @else
                     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div>
@@ -130,7 +142,7 @@
 
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                     {{ $selectedSheet->locality ?: 'No locality' }}
-                                    · {{ $selectedSession->session_date->format('l, F d, Y') }}
+                                    · {{ $selectedSession->dateTimeLabel('l, F d, Y') }}
                                 </p>
                             </div>
 
@@ -264,7 +276,8 @@
                             </form>
                         @endif
                     </div>
-                </div>
+                @endif
             </div>
+        </div>
     </div>
 </x-filament-panels::page>

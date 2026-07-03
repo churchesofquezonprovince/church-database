@@ -6,12 +6,88 @@ use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
+use App\Models\Person;
+use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
 class CheckAttendance extends Page
 {
     protected string $view = 'filament.pages.check-attendance';
+
+    public function permanentMeetingLocalities(string $sheetType): Collection
+    {
+        $sheets = AttendanceSheet::query()
+            ->where('sheet_type', $sheetType)
+            ->where('is_active', true)
+            ->withCount(['sessions', 'participants'])
+            ->get()
+            ->keyBy(fn (AttendanceSheet $sheet): string => $sheet->locality ?: '__no_locality');
+
+        $localities = Person::query()
+            ->whereNotNull('locality')
+            ->where('locality', '!=', '')
+            ->distinct()
+            ->orderBy('locality')
+            ->pluck('locality')
+            ->values();
+
+        $hasNoLocality = Person::query()
+            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
+            ->exists();
+
+        if ($hasNoLocality) {
+            $localities->push('__no_locality');
+        }
+
+        return $localities
+            ->unique()
+            ->map(function (string $locality) use ($sheets): array {
+                $sheet = $sheets->get($locality);
+
+                return [
+                    'locality' => $locality,
+                    'label' => $this->localityLabel($locality),
+                    'sheet' => $sheet,
+                    'sessions_count' => $sheet?->sessions_count ?? 0,
+                    'participants_count' => $sheet?->participants_count ?? 0,
+                ];
+            })
+            ->values();
+    }
+
+    public function localityLabel(?string $locality): string
+    {
+        return $locality === '__no_locality'
+            ? 'No Locality'
+            : (string) $locality;
+    }
+
+    public function permanentMeetingUrl(string $sheetType, string $locality, ?AttendanceSheet $sheet = null): string
+    {
+        if ($sheetType === AttendanceSheet::TYPE_LORDS_TABLE) {
+            return LordsTableMeeting::getUrl() . '?' . http_build_query([
+                'locality' => $locality,
+                'meeting_date' => $this->nextDateForDay(0),
+            ]);
+        }
+
+        $meetingDay = $sheet?->meeting_day ?? 2;
+
+        return PrayerMeeting::getUrl() . '?' . http_build_query([
+            'locality' => $locality,
+            'meeting_day' => $meetingDay,
+            'meeting_date' => $this->nextDateForDay((int) $meetingDay),
+        ]);
+    }
+
+    private function nextDateForDay(int $day): string
+    {
+        $today = CarbonImmutable::today();
+        $diff = ($day - $today->dayOfWeek + 7) % 7;
+
+        return $today->addDays($diff)->toDateString();
+    }
 
     public function getTitle(): string
     {
@@ -51,8 +127,10 @@ class CheckAttendance extends Page
     public function sheets(): Collection
     {
         return AttendanceSheet::query()
+            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
             ->where('is_active', true)
             ->withCount(['sessions', 'participants'])
+            ->orderByDesc('is_active')
             ->latest()
             ->get();
     }
