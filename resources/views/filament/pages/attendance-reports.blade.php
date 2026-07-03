@@ -107,6 +107,91 @@
             </a>
         </div>
 
+        @if ($selectedReportType === \App\Models\AttendanceSheet::TYPE_LORDS_TABLE)
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900 dark:bg-amber-950">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            Lord's Table Filters
+                        </p>
+
+                        <h3 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                            Filter by date range and category
+                        </h3>
+                    </div>
+
+                    <a
+                        href="{{ $this->clearFiltersUrl() }}"
+                        class="inline-flex rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+                    >
+                        Clear Filters
+                    </a>
+                </div>
+
+                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-4">
+                    <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
+                    <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+
+                    <div>
+                        <label for="date_from" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                            Date From
+                        </label>
+
+                        <input
+                            id="date_from"
+                            name="date_from"
+                            type="date"
+                            value="{{ $this->selectedDateFrom() }}"
+                            class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="date_to" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                            Date To
+                        </label>
+
+                        <input
+                            id="date_to"
+                            name="date_to"
+                            type="date"
+                            value="{{ $this->selectedDateTo() }}"
+                            class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="category" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                            Category
+                        </label>
+
+                        <select
+                            id="category"
+                            name="category"
+                            class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                            <option value="">All Categories</option>
+
+                            @foreach ($this->categoryOptions() as $value => $label)
+                                <option value="{{ $value }}" @selected($this->selectedCategory() === $value)>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="flex items-end">
+                        <button
+                            type="submit"
+                            class="inline-flex w-full justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+        @endif
+
         @if (! $selectedSheet)
             <div class="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
