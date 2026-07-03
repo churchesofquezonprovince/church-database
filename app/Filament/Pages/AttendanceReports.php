@@ -394,6 +394,42 @@ class AttendanceReports extends Page
         return $sheet->locality ?: 'No Locality';
     }
 
+    public function printUrl(): string
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return '#';
+        }
+
+        return route('church-database.attendance-sheets.reports.print', [
+            'report_type' => $this->selectedReportType(),
+            'sheetId' => $sheet->id,
+            'date_from' => $this->selectedDateFrom(),
+            'date_to' => $this->selectedDateTo(),
+            'category' => $this->selectedCategory(),
+            'meeting_day' => $this->selectedMeetingDayFilter(),
+        ]);
+    }
+
+    public function exportUrl(): string
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return '#';
+        }
+
+        return route('church-database.attendance-sheets.reports.export', [
+            'report_type' => $this->selectedReportType(),
+            'sheetId' => $sheet->id,
+            'date_from' => $this->selectedDateFrom(),
+            'date_to' => $this->selectedDateTo(),
+            'category' => $this->selectedCategory(),
+            'meeting_day' => $this->selectedMeetingDayFilter(),
+        ]);
+    }
+
     public function clearFiltersUrl(): string
     {
         $sheet = $this->selectedSheet();

@@ -332,6 +332,21 @@
 
                     <div class="flex flex-wrap gap-2">
                         <a
+                            href="{{ $this->printUrl() }}"
+                            target="_blank"
+                            class="rounded-full bg-gray-700 px-3 py-1 text-xs font-bold text-white hover:bg-gray-600"
+                        >
+                            Print Report
+                        </a>
+
+                        <a
+                            href="{{ $this->exportUrl() }}"
+                            class="rounded-full bg-amber-600 px-3 py-1 text-xs font-bold text-white hover:bg-amber-500"
+                        >
+                            Export CSV
+                        </a>
+
+                        <a
                             href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?sheetId=' . $selectedSheet->id }}"
                             class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
                         >

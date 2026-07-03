@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AttendanceRecordController;
+use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\LordsTableAttendanceController;
+use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\ReportExportController;
@@ -43,5 +45,8 @@ Route::middleware(['auth'])
         Route::post('/sheets/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])->name('participants.store');
         Route::delete('/sheets/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])->name('participants.destroy');
         Route::post('/sessions/{session}/records', [AttendanceRecordController::class, 'store'])->name('records.store');
+        Route::get('/reports/export', [AttendanceReportExportController::class, 'export'])->name('reports.export');
+        Route::get('/reports/print', [AttendanceReportExportController::class, 'print'])->name('reports.print');
         Route::post('/lords-table', [LordsTableAttendanceController::class, 'store'])->name('lords-table.store');
+        Route::post('/prayer-meeting', [PrayerMeetingAttendanceController::class, 'store'])->name('prayer-meeting.store');
     });
