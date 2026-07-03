@@ -192,6 +192,112 @@
             </div>
         @endif
 
+
+        @if ($selectedReportType === \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING)
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-6 shadow-sm dark:border-sky-900 dark:bg-sky-950">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                            Prayer Meeting Filters
+                        </p>
+
+                        <h3 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                            Filter by date range, meeting day, and category
+                        </h3>
+                    </div>
+
+                    <a
+                        href="{{ $this->clearFiltersUrl() }}"
+                        class="inline-flex rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+                    >
+                        Clear Filters
+                    </a>
+                </div>
+
+                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
+                    <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
+                    <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+
+                    <div>
+                        <label for="date_from_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Date From
+                        </label>
+
+                        <input
+                            id="date_from_prayer"
+                            name="date_from"
+                            type="date"
+                            value="{{ $this->selectedDateFrom() }}"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="date_to_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Date To
+                        </label>
+
+                        <input
+                            id="date_to_prayer"
+                            name="date_to"
+                            type="date"
+                            value="{{ $this->selectedDateTo() }}"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
+
+                    <div>
+                        <label for="meeting_day_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Meeting Day
+                        </label>
+
+                        <select
+                            id="meeting_day_prayer"
+                            name="meeting_day"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                            <option value="">All Days</option>
+
+                            @foreach ($this->dayOptions() as $value => $label)
+                                <option value="{{ $value }}" @selected($this->selectedMeetingDayFilter() === $value)>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="category_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Category
+                        </label>
+
+                        <select
+                            id="category_prayer"
+                            name="category"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                            <option value="">All Categories</option>
+
+                            @foreach ($this->categoryOptions() as $value => $label)
+                                <option value="{{ $value }}" @selected($this->selectedCategory() === $value)>
+                                    {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="flex items-end">
+                        <button
+                            type="submit"
+                            class="inline-flex w-full justify-center rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
+                </form>
+            </div>
+        @endif
+
         @if (! $selectedSheet)
             <div class="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
@@ -216,8 +322,11 @@
 
                         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {{ $selectedSheet->locality ?: 'No locality' }}
-                            · {{ optional($selectedSheet->start_date)->format('M d, Y') ?: 'No start date' }}
-                            to {{ optional($selectedSheet->end_date)->format('M d, Y') ?: 'Present' }}
+                            · {{ $this->reportPeriodLabel($selectedSheet) }}
+                        </p>
+
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                            {{ $this->activeFilterLabel() }}
                         </p>
                     </div>
 
