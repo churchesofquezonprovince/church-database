@@ -128,9 +128,24 @@
                     </a>
                 </div>
 
-                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-4">
+                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-6">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+
+                    <div>
+                        <label for="report_month_lords" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                            Report Month
+                        </label>
+
+                        <input
+                            id="report_month_lords"
+                            name="report_month"
+                            type="month"
+                            value="{{ $this->selectedReportMonth() }}"
+                            onchange="setAttendanceReportMonthRange(this)"
+                            class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
 
                     <div>
                         <label for="date_from" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
@@ -217,6 +232,21 @@
                 <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+
+                    <div>
+                        <label for="report_month_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Report Month
+                        </label>
+
+                        <input
+                            id="report_month_prayer"
+                            name="report_month"
+                            type="month"
+                            value="{{ $this->selectedReportMonth() }}"
+                            onchange="setAttendanceReportMonthRange(this)"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
 
                     <div>
                         <label for="date_from_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
@@ -497,4 +527,37 @@
             </div>
         @endif
     </div>
+    <script>
+        function setAttendanceReportMonthRange(input) {
+            if (! input.value) {
+                return;
+            }
+
+            const form = input.closest('form');
+            const [year, month] = input.value.split('-').map(Number);
+
+            const firstDay = new Date(year, month - 1, 1);
+            const lastDay = new Date(year, month, 0);
+
+            const formatDate = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+
+                return `${y}-${m}-${d}`;
+            };
+
+            const dateFrom = form.querySelector('input[name="date_from"]');
+            const dateTo = form.querySelector('input[name="date_to"]');
+
+            if (dateFrom) {
+                dateFrom.value = formatDate(firstDay);
+            }
+
+            if (dateTo) {
+                dateTo.value = formatDate(lastDay);
+            }
+        }
+    </script>
+
 </x-filament-panels::page>

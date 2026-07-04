@@ -68,6 +68,13 @@ class AttendanceReports extends Page
             : AttendanceSheet::TYPE_CUSTOM;
     }
 
+    public function selectedReportMonth(): ?string
+    {
+        $value = request()->query('report_month');
+
+        return filled($value) ? (string) $value : null;
+    }
+
     public function selectedDateFrom(): ?string
     {
         $value = request()->query('date_from');
