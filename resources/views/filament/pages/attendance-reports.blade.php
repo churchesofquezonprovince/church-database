@@ -128,7 +128,7 @@
                     </a>
                 </div>
 
-                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-6">
+                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
 
