@@ -71,7 +71,7 @@ class PeopleTable
 
                 TextColumn::make('churchProfile.service')
                     ->label('Shepherding Groups')
-                    ->formatStateUsing(fn (?string $state): HtmlString => self::serviceColumn($state))
+                    ->formatStateUsing(fn (mixed $state): HtmlString => self::serviceColumn($state))
                     ->html()
                     ->searchable()
                     ->toggleable(),
