@@ -69,7 +69,7 @@ class PeopleTable
                     ->sortable(),
 
                 TextColumn::make('churchProfile.service')
-                    ->label('Shepherding Group')
+                    ->label('Shepherding Groups')
                     ->formatStateUsing(fn (?string $state): HtmlString => self::serviceColumn($state))
                     ->html()
                     ->searchable()
@@ -208,9 +208,9 @@ class PeopleTable
                     }),
 
                 SelectFilter::make('shepherding_group')
-                    ->label('Shepherding Group')
+                    ->label('Shepherding Groups')
                     ->options([
-                        '__none' => 'No Shepherding Group',
+                        '__none' => 'No Shepherding Groups',
                         ...ChurchProfileOptions::shepherdingServices(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -379,11 +379,11 @@ class PeopleTable
                         ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('assignShepherdingGroup')
-                        ->label('Assign Shepherding Group')
+                        ->label('Assign Shepherding Groups')
                         ->icon('heroicon-o-users')
                         ->schema([
                             Select::make('service')
-                                ->label('Shepherding Group')
+                                ->label('Shepherding Groups')
                                 ->options(ChurchProfileOptions::shepherdingServices())
                                 ->searchable()
                                 ->required()
@@ -430,7 +430,7 @@ class PeopleTable
                         ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('clearShepherdingGroup')
-                        ->label('Clear Shepherding Group')
+                        ->label('Clear Shepherding Groups')
                         ->icon('heroicon-o-x-circle')
                         ->color('warning')
                         ->requiresConfirmation()
@@ -533,7 +533,7 @@ class PeopleTable
     {
         if (blank($service)) {
             return new HtmlString(
-                '<span class="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">No Shepherding Group</span>'
+                '<span class="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">No Shepherding Groups</span>'
             );
         }
 

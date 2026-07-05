@@ -213,7 +213,7 @@ class PersonInfolist
                             ->html(),
 
                         TextEntry::make('churchProfile.service')
-                            ->label('Shepherding Group')
+                            ->label('Shepherding Groups')
                             ->state(fn (Person $record): HtmlString => self::value($record->churchProfile?->service))
                             ->html(),
 
@@ -290,7 +290,7 @@ class PersonInfolist
 
         $status = $record->churchProfile?->status ?? 'Unknown';
         $category = $record->churchProfile?->category ?? 'Unknown';
-        $service = $record->churchProfile?->service ?? 'No Shepherding Group';
+        $service = $record->churchProfile?->service ?? 'No Shepherding Groups';
         $locality = $record->locality ?: 'No Locality';
 
         $treeUrl = FamilyTree::getUrl([
@@ -317,7 +317,7 @@ class PersonInfolist
             . '<div class="mt-5 grid gap-3 md:grid-cols-3">'
             . self::summaryBox('Status', $status, self::statusTone($status))
             . self::summaryBox('Category', $category, 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200')
-            . self::summaryBox('Shepherding Group', $service, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
+            . self::summaryBox('Shepherding Groups', $service, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
             . '</div>'
             . '</div>'
         );

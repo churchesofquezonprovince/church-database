@@ -199,11 +199,39 @@ class PersonForm
                             ->label('Baptism Date'),
 
                         Select::make('service')
-                            ->label('Shepherding Group')
+                            ->label('Shepherding Groups')
                             ->options(ChurchProfileOptions::shepherdingServices())
+                            ->multiple()
                             ->searchable()
+                            ->preload()
                             ->native(false)
-                            ->placeholder('Select shepherding group'),
+                            ->placeholder('Select one or more shepherding groups')
+                            ->afterStateHydrated(function ($component, $state): void {
+                                if (blank($state)) {
+                                    $component->state([]);
+
+                                    return;
+                                }
+
+                                if (is_array($state)) {
+                                    $component->state($state);
+
+                                    return;
+                                }
+
+                                $component->state(
+                                    collect(explode(',', (string) $state))
+                                        ->map(fn (string $group): string => trim($group))
+                                        ->filter()
+                                        ->values()
+                                        ->all()
+                                );
+                            })
+                            ->dehydrateStateUsing(fn ($state): ?string => collect($state ?? [])
+                                ->map(fn ($group): string => trim((string) $group))
+                                ->filter()
+                                ->unique()
+                                ->implode(', ') ?: null),
 
                         Select::make('shepherd_id')
                             ->label('Shepherd')
