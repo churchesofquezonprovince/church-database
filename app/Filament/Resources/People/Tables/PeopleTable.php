@@ -25,7 +25,9 @@ class PeopleTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('lastname')
+            ->defaultSort('created_at', 'desc')
+            ->defaultPaginationPageOption(30)
+            ->paginated([10, 30, 50, 100])
             ->columns([
                 TextColumn::make('display_name')
                     ->label('Name')
