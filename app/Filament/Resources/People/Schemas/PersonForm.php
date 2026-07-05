@@ -199,8 +199,30 @@ class PersonForm
                             ->required()
                             ->native(false),
 
-                        DatePicker::make('baptism_date')
-                            ->label('Baptism Date'),
+                        Select::make('baptism_year')
+                            ->label('Baptism Year')
+                            ->options(self::yearOptions())
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Unknown year')
+                            ->helperText('Use this if the exact baptism date is not known.'),
+
+                        Select::make('baptism_month')
+                            ->label('Baptism Month')
+                            ->options(self::monthOptions())
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Unknown month')
+                            ->disabled(fn ($get): bool => blank($get('baptism_year'))),
+
+                        Select::make('baptism_day')
+                            ->label('Baptism Day')
+                            ->options(fn ($get): array => self::dayOptions($get('baptism_year'), $get('baptism_month')))
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Unknown day')
+                            ->disabled(fn ($get): bool => blank($get('baptism_year')) || blank($get('baptism_month')))
+                            ->helperText('Optional. Leave blank if only the month or year is known.'),
 
                         Select::make('service')
                             ->label('Shepherding Groups')
@@ -373,4 +395,52 @@ class PersonForm
             ])
             ->toArray();
     }
+    private static function yearOptions(): array
+    {
+        $currentYear = (int) now()->format('Y');
+
+        return collect(range($currentYear, 1900))
+            ->mapWithKeys(fn (int $year): array => [$year => (string) $year])
+            ->toArray();
+    }
+
+    private static function monthOptions(): array
+    {
+        return [
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
+        ];
+    }
+
+    private static function dayOptions(mixed $year, mixed $month): array
+    {
+        if (blank($year) || blank($month)) {
+            return [];
+        }
+
+        $year = (int) $year;
+        $month = (int) $month;
+
+        if ($year < 1900 || $month < 1 || $month > 12) {
+            return [];
+        }
+
+        $days = \Carbon\CarbonImmutable::create($year, $month, 1)->daysInMonth;
+
+        return collect(range(1, $days))
+            ->mapWithKeys(fn (int $day): array => [$day => (string) $day])
+            ->toArray();
+    }
+
+
 }

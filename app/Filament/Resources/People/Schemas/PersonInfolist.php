@@ -209,7 +209,7 @@ class PersonInfolist
 
                         TextEntry::make('churchProfile.baptism_date')
                             ->label('Baptism Date')
-                            ->state(fn (Person $record): HtmlString => self::dateValue($record->churchProfile?->baptism_date))
+                            ->state(fn (Person $record): HtmlString => self::baptismDateValue($record->churchProfile))
                             ->html(),
 
                         TextEntry::make('churchProfile.service')
@@ -323,6 +323,32 @@ class PersonInfolist
         );
     }
 
+
+
+    private static function baptismDateValue(?ChurchProfile $profile): HtmlString
+    {
+        if (! $profile || blank($profile->baptism_year)) {
+            return self::none();
+        }
+
+        $year = (int) $profile->baptism_year;
+        $month = filled($profile->baptism_month) ? (int) $profile->baptism_month : null;
+        $day = filled($profile->baptism_day) ? (int) $profile->baptism_day : null;
+
+        if ($month && $day) {
+            return self::value(
+                \Carbon\CarbonImmutable::create($year, $month, $day)->format('F j, Y')
+            );
+        }
+
+        if ($month) {
+            return self::value(
+                \Carbon\CarbonImmutable::create($year, $month, 1)->format('F Y')
+            );
+        }
+
+        return self::value((string) $year);
+    }
 
     private static function shepherdingGroupsText(mixed $groups): string
     {
