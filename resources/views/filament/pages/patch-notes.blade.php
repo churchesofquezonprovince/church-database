@@ -17,6 +17,21 @@
             <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
                 A simple history of system improvements based on Git commits. This page is written for non-coders so users can understand what changed.
             </p>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span class="rounded-full bg-white px-3 py-1 font-semibold text-gray-700 ring-1 ring-primary-200 dark:bg-gray-900 dark:text-gray-200 dark:ring-primary-900">
+                    Made with Laravel + Filament
+                </span>
+
+                <a
+                    href="https://filamentphp.com/docs/5.x/getting-started"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-full bg-primary-600 px-3 py-1 font-semibold text-white transition hover:bg-primary-500"
+                >
+                    Filament Documentation
+                </a>
+            </div>
         </div>
 
         @if ($patchNotes->isEmpty())
