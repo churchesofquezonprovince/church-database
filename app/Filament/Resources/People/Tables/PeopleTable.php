@@ -475,6 +475,24 @@ class PeopleTable
             ->toArray();
     }
 
+
+    private static function tableDisplayName(Person $record): string
+    {
+        $middleInitials = collect(preg_split('/\s+/', trim((string) $record->middlename)))
+            ->filter()
+            ->map(fn (string $part): string => strtoupper(mb_substr($part, 0, 1)) . '.')
+            ->implode(' ');
+
+        return collect([
+            filled($record->lastname) ? trim((string) $record->lastname) . ',' : null,
+            $record->firstname,
+            $middleInitials,
+            $record->suffix,
+        ])
+            ->filter(fn ($part): bool => filled($part))
+            ->implode(' ');
+    }
+
     private static function nameColumn(Person $person): HtmlString
     {
         $initials = collect([
