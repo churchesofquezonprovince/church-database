@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Households\Tables;
 
+use App\Support\LocalityOptions;
 use App\Filament\Pages\FamilyTree;
 use App\Models\Household;
 use Filament\Actions\Action;
@@ -67,13 +68,7 @@ class HouseholdsTable
             ->filters([
                 SelectFilter::make('locality')
                     ->label('Locality')
-                    ->options(fn (): array => Household::query()
-                        ->whereNotNull('locality')
-                        ->where('locality', '!=', '')
-                        ->distinct()
-                        ->orderBy('locality')
-                        ->pluck('locality', 'locality')
-                        ->toArray())
+                    ->options(LocalityOptions::quezonProvince())
                     ->searchable(),
 
                 SelectFilter::make('missing_data')

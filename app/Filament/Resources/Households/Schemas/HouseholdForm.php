@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
+use App\Support\LocalityOptions;
 use App\Models\Household;
 use App\Models\Person;
 use Filament\Forms\Components\Placeholder;
@@ -37,13 +38,13 @@ class HouseholdForm
                             ->placeholder('Select household head')
                             ->helperText('This person will be used for the household family tree shortcut.'),
 
-                        TextInput::make('locality')
+                        Select::make('locality')
                             ->label('Locality')
-                            ->required()
-                            ->live(onBlur: true)
-                            ->maxLength(150)
-                            ->helperText('Used together with household name to detect duplicate households.')
-                            ->placeholder('Lucena, Pagbilao, Tayabas'),
+                            ->options(LocalityOptions::quezonProvince())
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select locality'),
 
                         Placeholder::make('duplicate_household_warning')
                             ->label('')

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\People\Tables;
 use App\Filament\Pages\FamilyTree;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
+use App\Support\LocalityOptions;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -170,13 +171,7 @@ class PeopleTable
 
                 SelectFilter::make('locality')
                     ->label('Locality')
-                    ->options(fn (): array => Person::query()
-                        ->whereNotNull('locality')
-                        ->where('locality', '!=', '')
-                        ->distinct()
-                        ->orderBy('locality')
-                        ->pluck('locality', 'locality')
-                        ->toArray())
+                    ->options(LocalityOptions::quezonProvince())
                     ->searchable(),
 
                 SelectFilter::make('shepherd_status')

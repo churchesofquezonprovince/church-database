@@ -5,6 +5,7 @@ namespace App\Filament\Resources\People\Schemas;
 use App\Forms\Components\PersonSelect;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
+use App\Support\LocalityOptions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -155,11 +156,14 @@ class PersonForm
                 Section::make('Address')
                     ->description('Locality, home address, permanent address, and optional map coordinates.')
                     ->schema([
-                        TextInput::make('locality')
+                        Select::make('locality')
                             ->label('Locality')
+                            ->options(LocalityOptions::quezonProvince())
                             ->required()
-                            ->maxLength(150)
-                            ->placeholder('Lucena, Pagbilao, Tayabas'),
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select locality'),
 
                         TextInput::make('geocoordinates')
                             ->label('GPS Coordinates')
