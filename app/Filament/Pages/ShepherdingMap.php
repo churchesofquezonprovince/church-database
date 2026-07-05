@@ -90,11 +90,15 @@ class ShepherdingMap extends Page
             ->filter(fn (Household $household): bool => $this->householdMatchesFilters($household))
             ->filter(fn (Household $household): bool => $this->householdPoint($household) === null)
             ->map(function (Household $household): array {
+                $searchQuery = $this->householdSearchQuery($household);
+
                 return [
                     'type' => 'Household',
                     'name' => $household->display_name,
                     'locality' => $household->locality ?: 'No locality',
                     'reason' => 'No usable coordinates from household head or members',
+                    'search_query' => $searchQuery,
+                    'search_url' => $this->openStreetMapSearchUrl($searchQuery),
                     'url' => HouseholdResource::getUrl('edit', ['record' => $household->id]),
                 ];
             });
@@ -108,11 +112,15 @@ class ShepherdingMap extends Page
             ->filter(fn (Person $person): bool => $this->personMatchesFilters($person))
             ->filter(fn (Person $person): bool => $this->coordinatesFromPerson($person) === null)
             ->map(function (Person $person): array {
+                $searchQuery = $this->personSearchQuery($person);
+
                 return [
                     'type' => 'Person',
                     'name' => $person->display_name,
                     'locality' => $person->locality ?: 'No locality',
                     'reason' => 'No household and no usable coordinates',
+                    'search_query' => $searchQuery,
+                    'search_url' => $this->openStreetMapSearchUrl($searchQuery),
                     'url' => PersonResource::getUrl('edit', ['record' => $person->id]),
                 ];
             });
@@ -333,6 +341,42 @@ class ShepherdingMap extends Page
         ];
     }
 
+
+
+    private function householdSearchQuery(Household $household): string
+    {
+        return collect([
+            $household->address,
+            $household->locality,
+            'Quezon Province',
+            'Philippines',
+        ])
+            ->filter(fn ($value): bool => filled($value))
+            ->implode(', ');
+    }
+
+    private function personSearchQuery(Person $person): string
+    {
+        return collect([
+            $person->home_address,
+            $person->permanent_address,
+            $person->locality,
+            'Quezon Province',
+            'Philippines',
+        ])
+            ->filter(fn ($value): bool => filled($value))
+            ->unique()
+            ->implode(', ');
+    }
+
+    private function openStreetMapSearchUrl(?string $query): ?string
+    {
+        if (blank($query)) {
+            return null;
+        }
+
+        return 'https://www.openstreetmap.org/search?query=' . urlencode((string) $query);
+    }
 
     private function openStreetMapUrl(float $lat, float $lng): string
     {

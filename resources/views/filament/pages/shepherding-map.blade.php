@@ -323,6 +323,7 @@
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Reason</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Address Search</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Action</th>
                             </tr>
                         </thead>
@@ -334,6 +335,38 @@
                                     <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">{{ $row['name'] }}</td>
                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ $row['locality'] }}</td>
                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ $row['reason'] }}</td>
+
+                                    <td class="px-4 py-3">
+                                        @if (! empty($row['search_query']) && ! empty($row['search_url']))
+                                            <div class="max-w-sm text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $row['search_query'] }}
+                                            </div>
+
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                <a
+                                                    href="{{ $row['search_url'] }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+                                                >
+                                                    Search OSM
+                                                </a>
+
+                                                <button
+                                                    type="button"
+                                                    onclick="navigator.clipboard.writeText(@js($row['search_query']))"
+                                                    class="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                >
+                                                    Copy Text
+                                                </button>
+                                            </div>
+                                        @else
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">
+                                                No address available
+                                            </span>
+                                        @endif
+                                    </td>
+
                                     <td class="px-4 py-3 text-right">
                                         <a
                                             href="{{ $row['url'] }}"
