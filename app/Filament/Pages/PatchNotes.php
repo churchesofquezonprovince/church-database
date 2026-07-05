@@ -56,13 +56,19 @@ class PatchNotes extends Page
         return collect(explode("\n", trim($output)))
             ->filter()
             ->map(function (string $line): array {
-                [$hash, $date, $subject] = array_pad(explode('|', $line, 3), 3, '');
+                [$hash, $dateTime, $subject] = array_pad(explode('|', $line, 3), 3, '');
+
+                $dateTime = trim($dateTime);
+                $date = Str::before($dateTime, ' ');
+                $time = Str::after($dateTime, ' ');
 
                 $parsed = $this->parseSubject($subject);
 
                 return [
                     'hash' => $hash,
+                    'date_time' => $dateTime,
                     'date' => $date,
+                    'time' => $time,
                     'tag' => $parsed['tag'],
                     'type' => $parsed['type'],
                     'title' => $parsed['title'],
@@ -86,11 +92,11 @@ class PatchNotes extends Page
 
     private function gitLogOutput(): string
     {
-        $command = sprintf(
-            'git -C %s log --date=short --pretty=format:%s --reverse 2>/dev/null',
-            escapeshellarg(base_path()),
-            escapeshellarg('%h|%ad|%s')
-        );
+        $command = 'git -C '
+            . escapeshellarg(base_path())
+            . " log --date=format:'%Y-%m-%d %H:%M' --pretty=format:"
+            . escapeshellarg('%h|%cd|%s')
+            . ' --reverse 2>/dev/null';
 
         exec($command, $lines, $exitCode);
 

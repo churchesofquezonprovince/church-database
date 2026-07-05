@@ -38,12 +38,12 @@
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                     <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">First Update</p>
-                    <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{{ $patchNotes->first()['date'] }}</p>
+                    <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{{ \Carbon\CarbonImmutable::parse($patchNotes->first()['date_time'])->format('M d, Y h:i A') }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                     <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Latest Update</p>
-                    <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{{ $patchNotes->last()['date'] }}</p>
+                    <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{{ \Carbon\CarbonImmutable::parse($patchNotes->last()['date_time'])->format('M d, Y h:i A') }}</p>
                 </div>
             </div>
 
@@ -73,6 +73,10 @@
                                                 <div class="flex flex-wrap items-center gap-2">
                                                     <span class="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
                                                         {{ $note['tag'] }}
+                                                    </span>
+
+                                                    <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                                        {{ \Carbon\CarbonImmutable::parse($note['date_time'])->format('h:i A') }}
                                                     </span>
 
                                                     <span @class([
