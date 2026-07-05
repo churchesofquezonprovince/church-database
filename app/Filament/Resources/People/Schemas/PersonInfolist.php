@@ -214,7 +214,7 @@ class PersonInfolist
 
                         TextEntry::make('churchProfile.service')
                             ->label('Shepherding Groups')
-                            ->state(fn (Person $record): HtmlString => self::value($record->churchProfile?->service))
+                            ->state(fn (Person $record): HtmlString => self::shepherdingGroupsValue($record->churchProfile?->service))
                             ->html(),
 
                         TextEntry::make('church_shepherd')
@@ -290,7 +290,7 @@ class PersonInfolist
 
         $status = $record->churchProfile?->status ?? 'Unknown';
         $category = $record->churchProfile?->category ?? 'Unknown';
-        $service = $record->churchProfile?->service ?? 'No Shepherding Groups';
+        $service = self::shepherdingGroupsText($record->churchProfile?->service);
         $locality = $record->locality ?: 'No Locality';
 
         $treeUrl = FamilyTree::getUrl([
@@ -323,8 +323,67 @@ class PersonInfolist
         );
     }
 
-    private static function summaryBox(string $label, ?string $value, string $tone): string
+
+    private static function shepherdingGroupsText(mixed $groups): string
     {
+        if (blank($groups)) {
+            return 'No Shepherding Groups';
+        }
+
+        if (is_array($groups)) {
+            return collect($groups)
+                ->map(fn ($group): string => trim((string) $group))
+                ->filter()
+                ->unique()
+                ->implode(', ') ?: 'No Shepherding Groups';
+        }
+
+        $decoded = json_decode((string) $groups, true);
+
+        if (is_array($decoded)) {
+            return collect($decoded)
+                ->map(fn ($group): string => trim((string) $group))
+                ->filter()
+                ->unique()
+                ->implode(', ') ?: 'No Shepherding Groups';
+        }
+
+        return trim((string) $groups) ?: 'No Shepherding Groups';
+    }
+
+    private static function shepherdingGroupsValue(mixed $groups): HtmlString
+    {
+        $text = self::shepherdingGroupsText($groups);
+
+        if ($text === 'No Shepherding Groups') {
+            return self::none();
+        }
+
+        return self::value($text);
+    }
+
+    private static function summaryBox(string $label, mixed $value, string $tone): string
+    {
+        if (is_array($value)) {
+            $value = collect($value)
+                ->map(fn ($item): string => trim((string) $item))
+                ->filter()
+                ->unique()
+                ->implode(', ');
+        }
+
+        if (! blank($value) && is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            if (is_array($decoded)) {
+                $value = collect($decoded)
+                    ->map(fn ($item): string => trim((string) $item))
+                    ->filter()
+                    ->unique()
+                    ->implode(', ');
+            }
+        }
+
         return '<div class="rounded-xl border p-4 ' . e($tone) . '">'
             . '<p class="text-xs font-semibold uppercase tracking-wide opacity-75">' . e($label) . '</p>'
             . '<p class="mt-1 text-lg font-bold">' . e($value ?: 'Not recorded') . '</p>'
