@@ -306,6 +306,83 @@ class AttendanceReports extends Page
             });
     }
 
+
+    public function localitySummaryRows(): Collection
+    {
+        if ($this->hasInvalidDateRange()) {
+            return collect();
+        }
+
+        if (! in_array($this->selectedReportType(), [
+            AttendanceSheet::TYPE_LORDS_TABLE,
+            AttendanceSheet::TYPE_PRAYER_MEETING,
+        ], true)) {
+            return collect();
+        }
+
+        return AttendanceSheet::query()
+            ->where('sheet_type', $this->selectedReportType())
+            ->withCount(['participants'])
+            ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
+            ->orderBy('locality')
+            ->get()
+            ->map(function (AttendanceSheet $sheet): array {
+                $sessions = AttendanceSession::query()
+                    ->where('attendance_sheet_id', $sheet->id)
+                    ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
+                    ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
+                    ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
+                    ->withCount([
+                        'records as present_count' => fn ($query) => $query
+                            ->where('is_present', true)
+                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+
+                        'records as absent_count' => fn ($query) => $query
+                            ->where('is_present', false)
+                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+
+                        'records as marked_count' => fn ($query) => $query
+                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                    ])
+                    ->orderBy('session_date')
+                    ->get();
+
+                $participants = AttendanceParticipant::query()
+                    ->where('attendance_sheet_id', $sheet->id)
+                    ->where('is_active', true)
+                    ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)))
+                    ->count();
+
+                $expectedTotal = $sessions->sum(function (AttendanceSession $session) use ($sheet): int {
+                    $date = $session->session_date->format('Y-m-d');
+
+                    return $this->activeParticipantCountForDate(
+                        sheetId: $sheet->id,
+                        date: $date,
+                    );
+                });
+
+                $presentTotal = $sessions->sum('present_count');
+                $absentTotal = $sessions->sum('absent_count');
+                $markedTotal = $sessions->sum('marked_count');
+
+                return [
+                    'sheet' => $sheet,
+                    'locality' => $this->sheetLabel($sheet),
+                    'meetings' => $sessions->count(),
+                    'participants' => $participants,
+                    'expected' => $expectedTotal,
+                    'present' => $presentTotal,
+                    'absent' => $absentTotal,
+                    'unmarked' => max($expectedTotal - $markedTotal, 0),
+                    'rate' => $expectedTotal > 0
+                        ? round(($presentTotal / $expectedTotal) * 100, 1)
+                        : 0,
+                ];
+            })
+            ->values();
+    }
+
     public function summary(): array
     {
         $meetingRows = $this->meetingRows();
