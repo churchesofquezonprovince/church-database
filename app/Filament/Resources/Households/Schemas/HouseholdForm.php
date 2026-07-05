@@ -35,8 +35,27 @@ class HouseholdForm
                             ->searchable()
                             ->preload()
                             ->native(false)
+                            ->live()
                             ->placeholder('Select household head')
-                            ->helperText('This person will be used for the household family tree shortcut.'),
+                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically.')
+                            ->afterStateUpdated(function ($state, $set, $get): void {
+                                $suggestedMemberIds = self::suggestedMemberIdsForHead($state);
+
+                                if ($suggestedMemberIds === []) {
+                                    return;
+                                }
+
+                                $currentMemberIds = collect($get('member_ids') ?? [])
+                                    ->map(fn ($id): int => (int) $id)
+                                    ->filter(fn (int $id): bool => $id > 0);
+
+                                $set('member_ids', $currentMemberIds
+                                    ->merge($suggestedMemberIds)
+                                    ->unique()
+                                    ->values()
+                                    ->map(fn (int $id): string => (string) $id)
+                                    ->all());
+                            }),
 
                         Select::make('member_ids')
                             ->label('Household Members')
@@ -78,6 +97,43 @@ class HouseholdForm
             ]);
     }
 
+
+
+    private static function suggestedMemberIdsForHead(mixed $headId): array
+    {
+        if (blank($headId)) {
+            return [];
+        }
+
+        $headId = (int) $headId;
+
+        if ($headId <= 0) {
+            return [];
+        }
+
+        $head = Person::query()
+            ->with('spouse')
+            ->find($headId);
+
+        if (! $head) {
+            return [];
+        }
+
+        $childrenIds = Person::query()
+            ->whereHas('parentRelationships', fn ($query) => $query->where('parent_id', $headId))
+            ->pluck('id');
+
+        return collect([
+            $head->id,
+            $head->spouse_id,
+        ])
+            ->merge($childrenIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
 
     private static function duplicateHouseholdWarning($get, $livewire): HtmlString
     {
