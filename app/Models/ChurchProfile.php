@@ -25,6 +25,7 @@ class ChurchProfile extends Model
 
     protected $casts = [
         'baptism_date' => 'date',
+        'service' => 'array',
     ];
 
     protected static function booted(): void
