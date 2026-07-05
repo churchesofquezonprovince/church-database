@@ -195,6 +195,7 @@
         </div>
 
 
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -287,6 +288,15 @@
                                             >
                                                 OSM
                                             </a>
+
+                                            <a
+                                                href="{{ $point['google_maps_url'] }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-500"
+                                            >
+                                                Google
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>
@@ -351,6 +361,17 @@
                                                 >
                                                     Search OSM
                                                 </a>
+
+                                                @if (! empty($row['google_maps_search_url']))
+                                                    <a
+                                                        href="{{ $row['google_maps_search_url'] }}"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        class="rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-500"
+                                                    >
+                                                        Search Google
+                                                    </a>
+                                                @endif
 
                                                 <button
                                                     type="button"
@@ -422,6 +443,7 @@
                             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                                 <a href="${url}">Open record</a>
                                 <a href="${point.osm_url}" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
+                                <a href="${point.google_maps_url}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
                             </div>
                         </div>
                     `;
