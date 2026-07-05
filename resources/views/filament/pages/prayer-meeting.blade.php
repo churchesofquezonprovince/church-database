@@ -78,7 +78,7 @@
 
                 <form
                     method="POST"
-                    action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.store', $selectedSession) }}"
+                    action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.store', $selectedSession) }}"
                     class="mt-4 grid gap-3 md:grid-cols-[1fr_auto]"
                 >
                     @csrf
@@ -143,7 +143,7 @@
                                     @if ($record->person)
                                         <form
                                             method="POST"
-                                            action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
+                                            action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
                                         >
                                             @csrf
                                             @method('DELETE')
@@ -367,7 +367,7 @@
                 @else
                     <form
                         method="POST"
-                        action="{{ route('church-database.attendance-sheets.prayer-meeting.store') }}"
+                        action="{{ route('quezonprovinceactivities.attendance-sheets.prayer-meeting.store') }}"
                         class="mt-5"
                     >
                         @csrf
