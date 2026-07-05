@@ -307,6 +307,115 @@ class AttendanceReports extends Page
     }
 
 
+
+    public function categorySummaryRows(): Collection
+    {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet || $this->hasInvalidDateRange()) {
+            return collect();
+        }
+
+        $categories = AttendanceParticipant::query()
+            ->with('person.churchProfile')
+            ->where('attendance_sheet_id', $sheet->id)
+            ->get()
+            ->map(fn (AttendanceParticipant $participant): string => $participant->person?->churchProfile?->category ?: 'No category')
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $categories
+            ->map(function (string $category) use ($sheet): array {
+                $participantQuery = AttendanceParticipant::query()
+                    ->with('person.churchProfile')
+                    ->where('attendance_sheet_id', $sheet->id)
+                    ->where('is_active', true);
+
+                if ($category === 'No category') {
+                    $participantQuery->where(function ($query): void {
+                        $query->whereDoesntHave('person.churchProfile')
+                            ->orWhereHas('person.churchProfile', fn ($query) => $query->whereNull('category')->orWhere('category', ''));
+                    });
+                } else {
+                    $participantQuery->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
+                }
+
+                $participants = $participantQuery->count();
+
+                $sessions = AttendanceSession::query()
+                    ->where('attendance_sheet_id', $sheet->id)
+                    ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
+                    ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
+                    ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
+                    ->get();
+
+                $sessionIds = $sessions->pluck('id');
+
+                $expectedTotal = $sessions->sum(function (AttendanceSession $session) use ($sheet, $category): int {
+                    $date = $session->session_date->format('Y-m-d');
+
+                    $query = AttendanceParticipant::query()
+                        ->where('attendance_sheet_id', $sheet->id)
+                        ->where('is_active', true)
+                        ->where(function ($query) use ($date): void {
+                            $query->whereNull('starts_on')
+                                ->orWhere('starts_on', '<=', $date);
+                        })
+                        ->where(function ($query) use ($date): void {
+                            $query->whereNull('ends_on')
+                                ->orWhere('ends_on', '>=', $date);
+                        });
+
+                    if ($category === 'No category') {
+                        $query->where(function ($query): void {
+                            $query->whereDoesntHave('person.churchProfile')
+                                ->orWhereHas('person.churchProfile', fn ($query) => $query->whereNull('category')->orWhere('category', ''));
+                        });
+                    } else {
+                        $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
+                    }
+
+                    return $query->count();
+                });
+
+                $recordQuery = AttendanceRecord::query()
+                    ->whereIn('attendance_session_id', $sessionIds);
+
+                if ($category === 'No category') {
+                    $recordQuery->where(function ($query): void {
+                        $query->whereDoesntHave('person.churchProfile')
+                            ->orWhereHas('person.churchProfile', fn ($query) => $query->whereNull('category')->orWhere('category', ''));
+                    });
+                } else {
+                    $recordQuery->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
+                }
+
+                $presentTotal = (clone $recordQuery)
+                    ->where('is_present', true)
+                    ->count();
+
+                $absentTotal = (clone $recordQuery)
+                    ->where('is_present', false)
+                    ->count();
+
+                $markedTotal = $presentTotal + $absentTotal;
+
+                return [
+                    'category' => $category,
+                    'participants' => $participants,
+                    'expected' => $expectedTotal,
+                    'present' => $presentTotal,
+                    'absent' => $absentTotal,
+                    'unmarked' => max($expectedTotal - $markedTotal, 0),
+                    'rate' => $expectedTotal > 0
+                        ? round(($presentTotal / $expectedTotal) * 100, 1)
+                        : 0,
+                ];
+            })
+            ->values();
+    }
+
     public function localitySummaryRows(): Collection
     {
         if ($this->hasInvalidDateRange()) {

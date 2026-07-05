@@ -8,6 +8,7 @@
         $personRows = $this->personRows();
         $summary = $this->summary();
         $localitySummaryRows = $this->localitySummaryRows();
+        $categorySummaryRows = $this->categorySummaryRows();
 
         $customSheets = $this->customSheets();
         $lordsTableSheets = $this->lordsTableSheets();
@@ -330,6 +331,59 @@
         @endif
 
 
+
+
+            @if ($selectedSheet)
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Category Summary
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Summary by church category using the current sheet and report filters.
+                        </p>
+                    </div>
+
+                    @if ($categorySummaryRows->isEmpty())
+                        <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            No category summary rows found for the selected filters.
+                        </div>
+                    @else
+                        <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="min-w-[760px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-950">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                    @foreach ($categorySummaryRows as $row)
+                                        <tr>
+                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                                {{ $row['category'] }}
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['expected'] }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
+                                            <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
             @if (in_array($selectedReportType, [
                 \App\Models\AttendanceSheet::TYPE_LORDS_TABLE,
