@@ -24,7 +24,7 @@ class LocalityOptions
             'Jomalig' => 'Jomalig',
             'Lopez' => 'Lopez',
             'Lucban' => 'Lucban',
-            'Lucena' => 'Lucena',
+            'Lucena City' => 'Lucena City',
             'Macalelon' => 'Macalelon',
             'Mauban' => 'Mauban',
             'Mulanay' => 'Mulanay',
