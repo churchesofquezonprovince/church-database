@@ -194,6 +194,91 @@
             @endif
         </div>
 
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                        Map Pin Directory
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        List of all household and individual pins currently shown on the map.
+                    </p>
+                </div>
+            </div>
+
+            @if ($mapPoints->isEmpty())
+                <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                    No map pins found for the selected filters.
+                </div>
+            @else
+                <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                    <table class="min-w-[980px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-950">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Type</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
+                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Members</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Pin Source</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Coordinates</th>
+                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                            @foreach ($mapPoints as $point)
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <span @class([
+                                            'rounded-full px-2.5 py-1 text-xs font-bold',
+                                            'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200' => $point['type'] === 'household',
+                                            'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' => $point['type'] === 'person',
+                                        ])>
+                                            {{ $point['type'] === 'household' ? 'Household' : 'Person' }}
+                                        </span>
+                                    </td>
+
+                                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                        {{ $point['title'] }}
+                                        <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">
+                                            {{ $point['subtitle'] }}
+                                        </span>
+                                    </td>
+
+                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                        {{ $point['locality'] }}
+                                    </td>
+
+                                    <td class="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">
+                                        {{ $point['members_count'] }}
+                                    </td>
+
+                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                        {{ $point['coordinate_source'] ?: 'Not recorded' }}
+                                    </td>
+
+                                    <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $point['lat'] }}, {{ $point['lng'] }}
+                                    </td>
+
+                                    <td class="px-4 py-3 text-right">
+                                        <a
+                                            href="{{ $point['url'] }}"
+                                            class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
+                                        >
+                                            Open
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
