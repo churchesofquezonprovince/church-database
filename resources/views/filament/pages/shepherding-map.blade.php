@@ -260,16 +260,34 @@
                                     </td>
 
                                     <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $point['lat'] }}, {{ $point['lng'] }}
+                                        <button
+                                            type="button"
+                                            onclick="navigator.clipboard.writeText('{{ $point['coordinates'] }}')"
+                                            class="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 font-mono text-xs font-semibold text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-800"
+                                            title="Copy coordinates"
+                                        >
+                                            {{ $point['coordinates'] }}
+                                        </button>
                                     </td>
 
                                     <td class="px-4 py-3 text-right">
-                                        <a
-                                            href="{{ $point['url'] }}"
-                                            class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
-                                        >
-                                            Open
-                                        </a>
+                                        <div class="flex justify-end gap-2">
+                                            <a
+                                                href="{{ $point['url'] }}"
+                                                class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
+                                            >
+                                                Open
+                                            </a>
+
+                                            <a
+                                                href="{{ $point['osm_url'] }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+                                            >
+                                                OSM
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -368,8 +386,9 @@
                             ${head ? `<div>Head: <strong>${head}</strong></div>` : ''}
                             <div>Members: <strong>${point.members_count}</strong></div>
                             ${source ? `<div>Pin source: <strong>${source}</strong></div>` : ''}
-                            <div style="margin-top: 10px">
+                            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                                 <a href="${url}">Open record</a>
+                                <a href="${point.osm_url}" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
                             </div>
                         </div>
                     `;

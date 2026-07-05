@@ -303,7 +303,9 @@ class ShepherdingMap extends Page
             'head' => $head?->display_name ?: 'No household head',
             'members_count' => $members->count(),
             'coordinate_source' => $coordinatePerson?->display_name,
+            'coordinates' => $coordinates['lat'] . ', ' . $coordinates['lng'],
             'url' => HouseholdResource::getUrl('view', ['record' => $household->id]),
+            'osm_url' => $this->openStreetMapUrl($coordinates['lat'], $coordinates['lng']),
         ];
     }
 
@@ -325,8 +327,23 @@ class ShepherdingMap extends Page
             'head' => null,
             'members_count' => 1,
             'coordinate_source' => $person->display_name,
+            'coordinates' => $coordinates['lat'] . ', ' . $coordinates['lng'],
             'url' => PersonResource::getUrl('view', ['record' => $person->id]),
+            'osm_url' => $this->openStreetMapUrl($coordinates['lat'], $coordinates['lng']),
         ];
+    }
+
+
+    private function openStreetMapUrl(float $lat, float $lng): string
+    {
+        return 'https://www.openstreetmap.org/?mlat='
+            . $lat
+            . '&mlon='
+            . $lng
+            . '#map=18/'
+            . $lat
+            . '/'
+            . $lng;
     }
 
     private function coordinatesFromPerson(?Person $person): ?array
