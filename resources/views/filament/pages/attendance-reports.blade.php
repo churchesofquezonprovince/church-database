@@ -9,6 +9,8 @@
         $summary = $this->summary();
         $localitySummaryRows = $this->localitySummaryRows();
         $categorySummaryRows = $this->categorySummaryRows();
+        $attendanceTrendRows = $this->attendanceTrendRows();
+        $selectedTrendPeriod = $this->selectedTrendPeriod();
 
         $customSheets = $this->customSheets();
         $lordsTableSheets = $this->lordsTableSheets();
@@ -33,6 +35,7 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}">
                 <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
+                <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
 
                 <label for="sheetId" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                     @if ($selectedReportType === \App\Models\AttendanceSheet::TYPE_CUSTOM)
@@ -133,6 +136,7 @@
                 <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+                    <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
 
                     <div>
                         <label for="report_month_lords" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
@@ -234,6 +238,7 @@
                 <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+                    <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
 
                     <div>
                         <label for="report_month_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
@@ -545,6 +550,89 @@
                     <p class="text-sm font-semibold opacity-75">Overall Rate</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['overall_rate'] }}%</p>
                 </div>
+            </div>
+
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Attendance Trend
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Shows the attendance percentage increase or decrease compared with the previous {{ $selectedTrendPeriod === 'monthly' ? 'month' : 'week' }}.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($this->trendPeriodOptions() as $value => $label)
+                            <a
+                                href="{{ $this->trendPeriodUrl($value) }}"
+                                @class([
+                                    'rounded-full px-3 py-1 text-xs font-bold transition',
+                                    'bg-primary-600 text-white' => $selectedTrendPeriod === $value,
+                                    'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' => $selectedTrendPeriod !== $value,
+                                ])
+                            >
+                                {{ $label }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
+                @if ($attendanceTrendRows->isEmpty())
+                    <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                        No attendance trend available for the selected filters.
+                    </div>
+                @else
+                    <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                        <table class="min-w-[860px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-950">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                        {{ $selectedTrendPeriod === 'monthly' ? 'Month' : 'Week' }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Attendance %</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Increase / Decrease</th>
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                @foreach ($attendanceTrendRows as $row)
+                                    <tr>
+                                        <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                            {{ $row['label'] }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['expected'] }}</td>
+                                        <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
+                                        <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
+                                        <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
+                                            {{ $this->formatPercent($row['rate']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <span @class([
+                                                'rounded-full px-2.5 py-1 text-xs font-bold',
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' => $row['change'] === null || $row['change'] == 0,
+                                                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' => $row['change'] !== null && $row['change'] > 0,
+                                                'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' => $row['change'] !== null && $row['change'] < 0,
+                                            ])>
+                                                {{ $this->formatChangePercent($row['change']) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">

@@ -113,6 +113,23 @@ class AttendanceReports extends Page
         return $day >= 0 && $day <= 6 ? $day : null;
     }
 
+    public function trendPeriodOptions(): array
+    {
+        return [
+            'weekly' => 'Weekly',
+            'monthly' => 'Monthly',
+        ];
+    }
+
+    public function selectedTrendPeriod(): string
+    {
+        $value = request()->query('trend_period', 'weekly');
+
+        return array_key_exists((string) $value, $this->trendPeriodOptions())
+            ? (string) $value
+            : 'weekly';
+    }
+
     public function dayOptions(): array
     {
         return [
@@ -246,6 +263,69 @@ class AttendanceReports extends Page
                     'rate' => $rate,
                 ];
             });
+    }
+
+    public function attendanceTrendRows(): Collection
+    {
+        $meetingRows = $this->meetingRows();
+
+        if ($meetingRows->isEmpty()) {
+            return collect();
+        }
+
+        $period = $this->selectedTrendPeriod();
+
+        $groups = $meetingRows
+            ->groupBy(function (array $row) use ($period): string {
+                $date = CarbonImmutable::parse($row['session']->session_date);
+
+                return $period === 'monthly'
+                    ? $date->format('Y-m')
+                    : $date->startOfWeek(\Carbon\CarbonInterface::SUNDAY)->format('Y-m-d');
+            })
+            ->sortKeys();
+
+        $previousRate = null;
+
+        return $groups
+            ->map(function (Collection $rows, string $key) use ($period, &$previousRate): array {
+                if ($period === 'monthly') {
+                    $periodStart = CarbonImmutable::parse($key . '-01');
+                    $label = $periodStart->format('F Y');
+                } else {
+                    $periodStart = CarbonImmutable::parse($key);
+                    $periodEnd = $periodStart->addDays(6);
+                    $label = $periodStart->format('M d') . ' - ' . $periodEnd->format('M d, Y');
+                }
+
+                $expected = (int) $rows->sum('active_participants');
+                $present = (int) $rows->sum('present');
+                $absent = (int) $rows->sum('absent');
+                $unmarked = (int) $rows->sum('unmarked');
+
+                $rate = $expected > 0
+                    ? round(($present / $expected) * 100, 1)
+                    : 0;
+
+                $change = $previousRate === null
+                    ? null
+                    : round($rate - $previousRate, 1);
+
+                $previousRate = $rate;
+
+                return [
+                    'period' => $key,
+                    'label' => $label,
+                    'meetings' => $rows->count(),
+                    'expected' => $expected,
+                    'present' => $present,
+                    'absent' => $absent,
+                    'unmarked' => $unmarked,
+                    'rate' => $rate,
+                    'change' => $change,
+                ];
+            })
+            ->values();
     }
 
     public function personRows(): Collection
@@ -511,6 +591,43 @@ class AttendanceReports extends Page
                 ? round(($presentTotal / $expectedTotal) * 100, 1)
                 : 0,
         ];
+    }
+
+    public function formatPercent(null|int|float $value): string
+    {
+        if ($value === null) {
+            return '—';
+        }
+
+        $text = number_format((float) $value, 1);
+        $text = rtrim(rtrim($text, '0'), '.');
+
+        return $text . '%';
+    }
+
+    public function formatChangePercent(null|int|float $value): string
+    {
+        if ($value === null) {
+            return '—';
+        }
+
+        $prefix = $value > 0 ? '+' : '';
+
+        return $prefix . $this->formatPercent($value);
+    }
+
+    public function trendPeriodUrl(string $period): string
+    {
+        return self::getUrl() . '?' . http_build_query(array_filter([
+            'report_type' => $this->selectedReportType(),
+            'sheetId' => $this->selectedSheet()?->id,
+            'report_month' => $this->selectedReportMonth(),
+            'date_from' => $this->selectedDateFrom(),
+            'date_to' => $this->selectedDateTo(),
+            'category' => $this->selectedCategory(),
+            'meeting_day' => $this->selectedMeetingDayFilter(),
+            'trend_period' => $period,
+        ], fn ($value): bool => $value !== null && $value !== ''));
     }
 
     public function sheetUrl(AttendanceSheet $sheet): string
