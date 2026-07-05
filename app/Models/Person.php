@@ -107,25 +107,19 @@ class Person extends Model
     {
         return Attribute::make(
             get: function (): string {
-                $parts = [];
+                $middleInitials = collect(preg_split('/\s+/', trim((string) $this->middlename)))
+                    ->filter()
+                    ->map(fn (string $part): string => strtoupper(mb_substr($part, 0, 1)) . '.')
+                    ->implode(' ');
 
-                if (! empty($this->lastname)) {
-                    $parts[] = $this->lastname . ',';
-                }
-
-                if (! empty($this->firstname)) {
-                    $parts[] = $this->firstname;
-                }
-
-                if (! empty($this->middlename)) {
-                    $parts[] = $this->middlename;
-                }
-
-                if (! empty($this->suffix)) {
-                    $parts[] = $this->suffix;
-                }
-
-                return trim(implode(' ', $parts));
+                return collect([
+                    filled($this->lastname) ? trim((string) $this->lastname) . ',' : null,
+                    $this->firstname,
+                    $middleInitials,
+                    $this->suffix,
+                ])
+                    ->filter(fn ($part): bool => filled($part))
+                    ->implode(' ');
             }
         );
     }
