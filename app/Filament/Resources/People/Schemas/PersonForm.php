@@ -136,7 +136,9 @@ class PersonForm
                                     relationship: 'parent',
                                     label: 'Existing Person',
                                 )
-                                    ->helperText('Use this if the parent or guardian is already encoded.'),
+                                    ->preload(false)
+                                    ->placeholder('Search existing parent / guardian')
+                                    ->helperText('Search only if the parent or guardian is already encoded. Leave blank if not applicable.'),
 
                                 TextInput::make('parent_name')
                                     ->label('Parent / Guardian Name')
@@ -144,6 +146,7 @@ class PersonForm
                                     ->helperText('Use this if the parent or guardian is not yet encoded.'),
                             ])
                             ->columns(3)
+                            ->default([])
                             ->defaultItems(0)
                             ->addActionLabel('Add Parent / Guardian')
                             ->reorderable(false)
