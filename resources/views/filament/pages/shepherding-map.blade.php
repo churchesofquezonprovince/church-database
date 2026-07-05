@@ -2,6 +2,11 @@
     @php
         $mapPoints = $this->mapPoints();
         $needsMapLocation = $this->needsMapLocation();
+        $selectedLocality = $this->selectedLocality();
+        $selectedStatus = $this->selectedStatus();
+        $selectedCategory = $this->selectedCategory();
+        $selectedShepherdingGroup = $this->selectedShepherdingGroup();
+        $selectedNeedsOnly = $this->selectedNeedsOnly();
         $defaultLat = 13.9414;
         $defaultLng = 121.6236;
     @endphp
@@ -28,6 +33,135 @@
             </p>
         </div>
 
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                        Map Filters
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Filter household and individual pins by locality, church status, category, and shepherding group.
+                    </p>
+                </div>
+
+                @if ($this->hasActiveFilters())
+                    <a
+                        href="{{ $this->clearFiltersUrl() }}"
+                        class="inline-flex rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                    >
+                        Clear Filters
+                    </a>
+                @endif
+            </div>
+
+            <form method="GET" action="{{ \App\Filament\Pages\ShepherdingMap::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
+                <div>
+                    <label for="map_locality" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Locality
+                    </label>
+
+                    <select
+                        id="map_locality"
+                        name="locality"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        <option value="">All Localities</option>
+
+                        @foreach ($this->localityOptions() as $value => $label)
+                            <option value="{{ $value }}" @selected($selectedLocality === $value)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label for="map_status" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Status
+                    </label>
+
+                    <select
+                        id="map_status"
+                        name="status"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        <option value="">All Statuses</option>
+
+                        @foreach ($this->statusOptions() as $value => $label)
+                            @php $optionValue = is_int($value) ? $label : $value; @endphp
+                            <option value="{{ $optionValue }}" @selected($selectedStatus === $optionValue)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label for="map_category" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Category
+                    </label>
+
+                    <select
+                        id="map_category"
+                        name="category"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        <option value="">All Categories</option>
+
+                        @foreach ($this->categoryOptions() as $value => $label)
+                            @php $optionValue = is_int($value) ? $label : $value; @endphp
+                            <option value="{{ $optionValue }}" @selected($selectedCategory === $optionValue)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label for="map_shepherding_group" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Shepherding Group
+                    </label>
+
+                    <select
+                        id="map_shepherding_group"
+                        name="shepherding_group"
+                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                    >
+                        <option value="">All Groups</option>
+
+                        @foreach ($this->shepherdingGroupOptions() as $value => $label)
+                            @php $optionValue = is_int($value) ? $label : $value; @endphp
+                            <option value="{{ $optionValue }}" @selected($selectedShepherdingGroup === $optionValue)>
+                                {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="flex flex-col justify-end gap-3">
+                    <label class="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
+                        <input
+                            type="checkbox"
+                            name="needs_only"
+                            value="1"
+                            @checked($selectedNeedsOnly)
+                            class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500"
+                        >
+                        Needs location only
+                    </label>
+
+                    <button
+                        type="submit"
+                        class="inline-flex w-full justify-center rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500"
+                    >
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <div class="grid gap-4 md:grid-cols-3">
             <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Map Pins</p>
@@ -50,7 +184,7 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             @if ($mapPoints->isEmpty())
                 <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    No map pins yet. Add geocoordinates to people first using this format: <strong>14.0642, 121.5540</strong>
+                    {{ $selectedNeedsOnly ? 'Needs Map Location only is enabled. Use the list below to update records without coordinates.' : 'No map pins yet. Add geocoordinates to people first using this format: 14.0642, 121.5540' }}
                 </div>
             @else
                 <div
