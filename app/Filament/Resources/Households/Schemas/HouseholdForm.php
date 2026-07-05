@@ -20,7 +20,7 @@ class HouseholdForm
         return $schema
             ->components([
                 Section::make('Household Information')
-                    ->description('Create or update a household record. Members are linked from each person profile.')
+                    ->description('Create or update a household record. Select the household head and all household members below.')
                     ->schema([
                         TextInput::make('household_name')
                             ->label('Household Name')
@@ -37,6 +37,17 @@ class HouseholdForm
                             ->native(false)
                             ->placeholder('Select household head')
                             ->helperText('This person will be used for the household family tree shortcut.'),
+
+                        Select::make('member_ids')
+                            ->label('Household Members')
+                            ->options(fn (): array => self::personOptions())
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select household members')
+                            ->helperText('Select all people who belong to this household. The household head is included automatically after saving.')
+                            ->columnSpanFull(),
 
                         Select::make('locality')
                             ->label('Locality')
