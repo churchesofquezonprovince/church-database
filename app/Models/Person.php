@@ -15,6 +15,10 @@ class Person extends Model
 {
     use HasFactory;
 
+    protected static bool $syncingSpouse = false;
+
+    protected static array $previousSpouseIds = [];
+
     protected $table = 'persons';
 
     protected $fillable = [
@@ -54,8 +58,13 @@ class Person extends Model
             $person->validateBeforeSave();
         });
 
+        static::updating(function (Person $person): void {
+            static::$previousSpouseIds[$person->id] = $person->getOriginal('spouse_id');
+        });
+
         static::saved(function (Person $person): void {
             $person->syncChurchProfile();
+            $person->syncReciprocalSpouse();
         });
     }
 
@@ -208,6 +217,69 @@ class Person extends Model
 
         $profile->save();
     }
+
+    private function syncReciprocalSpouse(): void
+    {
+        if (static::$syncingSpouse || ! $this->exists) {
+            return;
+        }
+
+        $oldSpouseId = static::$previousSpouseIds[$this->id] ?? null;
+        unset(static::$previousSpouseIds[$this->id]);
+
+        $newSpouseId = $this->spouse_id ? (int) $this->spouse_id : null;
+
+        static::$syncingSpouse = true;
+
+        try {
+            // If spouse was removed, clear anyone still pointing to this person.
+            if (! $newSpouseId) {
+                static::query()
+                    ->where('spouse_id', $this->id)
+                    ->update(['spouse_id' => null]);
+
+                return;
+            }
+
+            // Remove this person from the old spouse if the old spouse still points back.
+            if ($oldSpouseId && (int) $oldSpouseId !== $newSpouseId) {
+                static::query()
+                    ->whereKey($oldSpouseId)
+                    ->where('spouse_id', $this->id)
+                    ->update(['spouse_id' => null]);
+            }
+
+            // Clear any other person who still points to this person as spouse.
+            static::query()
+                ->where('spouse_id', $this->id)
+                ->whereKeyNot($newSpouseId)
+                ->update(['spouse_id' => null]);
+
+            $newSpouse = static::query()->find($newSpouseId);
+
+            if (! $newSpouse) {
+                return;
+            }
+
+            $newSpouseOldSpouseId = $newSpouse->spouse_id ? (int) $newSpouse->spouse_id : null;
+
+            // If the new spouse had another spouse, clear that old partner too.
+            if ($newSpouseOldSpouseId && $newSpouseOldSpouseId !== (int) $this->id) {
+                static::query()
+                    ->whereKey($newSpouseOldSpouseId)
+                    ->where('spouse_id', $newSpouseId)
+                    ->update(['spouse_id' => null]);
+            }
+
+            // Finally, make the new spouse point back to this person.
+            static::query()
+                ->whereKey($newSpouseId)
+                ->update(['spouse_id' => $this->id]);
+        } finally {
+            static::$syncingSpouse = false;
+        }
+    }
+
 
     private function validateBeforeSave(): void
     {
