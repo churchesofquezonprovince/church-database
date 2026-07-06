@@ -132,7 +132,7 @@
                     <p class="font-bold">Important</p>
                     <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
                         <li>Required: firstname and lastname.</li>
-                        <li>Dates must be YYYY-MM-DD.</li>
+                        <li>Birthdate must be YYYY-MM-DD. Baptism date may be YYYY, YYYY-MM, or YYYY-MM-DD.</li>
                         <li>Use Validate Only first.</li>
                         <li>Backup before real import.</li>
                         <li>Shepherd and emergency contact names must already exist in People records.</li>

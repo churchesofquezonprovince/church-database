@@ -79,7 +79,7 @@ Route::middleware(['web', 'auth'])
                     'juan@example.com',
                     '09171234567',
                     'Student',
-                    '2024-01-01',
+                    '2024-01',
                     'Young People',
                     'Active',
                 ]);

@@ -180,12 +180,16 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: sex must be Male, Female, or blank.";
             }
 
-            foreach (['birthdate', 'baptism_date'] as $dateField) {
-                $value = $row[$dateField] ?? '';
+            $birthdate = $row['birthdate'] ?? '';
 
-                if (filled($value) && ! $this->isValidDate($value)) {
-                    $errors[] = "Line {$line}: {$dateField} must use YYYY-MM-DD format.";
-                }
+            if (filled($birthdate) && ! $this->isValidDate($birthdate)) {
+                $errors[] = "Line {$line}: birthdate must use YYYY-MM-DD format.";
+            }
+
+            $baptismDate = $row['baptism_date'] ?? '';
+
+            if (filled($baptismDate) && ! $this->isValidPartialBaptismDate($baptismDate)) {
+                $errors[] = "Line {$line}: baptism_date must use YYYY, YYYY-MM, or YYYY-MM-DD format.";
             }
 
             $status = $row['church_status'] ?? '';
@@ -316,8 +320,12 @@ class PeopleImportController extends Controller
         $person->save();
 
         $profile = $person->churchProfile()->firstOrNew([]);
+        $baptismParts = $this->parsePartialBaptismDate($row['baptism_date'] ?? null);
+
         $profile->status = $this->nullable($row['church_status'] ?? null) ?: 'Unknown';
-        $profile->baptism_date = $this->nullable($row['baptism_date'] ?? null);
+        $profile->baptism_year = $baptismParts['year'];
+        $profile->baptism_month = $baptismParts['month'];
+        $profile->baptism_day = $baptismParts['day'];
         $profile->service = $this->nullable($row['shepherding_group'] ?? null);
         $profile->shepherd_id = filled($row['shepherd_full_name'] ?? null)
             ? $this->findPersonByFullName($row['shepherd_full_name'])?->id
@@ -402,6 +410,87 @@ class PeopleImportController extends Controller
         }
 
         return true;
+    }
+
+
+    private function isValidPartialBaptismDate(string $value): bool
+    {
+        return $this->parsePartialBaptismDate($value) !== [
+            'year' => null,
+            'month' => null,
+            'day' => null,
+        ];
+    }
+
+    private function parsePartialBaptismDate(?string $value): array
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return [
+                'year' => null,
+                'month' => null,
+                'day' => null,
+            ];
+        }
+
+        if (preg_match('/^\d{4}$/', $value)) {
+            $year = (int) $value;
+
+            return $this->validYear($year)
+                ? ['year' => $year, 'month' => null, 'day' => null]
+                : ['year' => null, 'month' => null, 'day' => null];
+        }
+
+        if (preg_match('/^(\d{4})-(\d{1,2})$/', $value, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+
+            if (! $this->validYear($year) || $month < 1 || $month > 12) {
+                return [
+                    'year' => null,
+                    'month' => null,
+                    'day' => null,
+                ];
+            }
+
+            return [
+                'year' => $year,
+                'month' => $month,
+                'day' => null,
+            ];
+        }
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $value, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            if (! $this->validYear($year) || ! checkdate($month, $day, $year)) {
+                return [
+                    'year' => null,
+                    'month' => null,
+                    'day' => null,
+                ];
+            }
+
+            return [
+                'year' => $year,
+                'month' => $month,
+                'day' => $day,
+            ];
+        }
+
+        return [
+            'year' => null,
+            'month' => null,
+            'day' => null,
+        ];
+    }
+
+    private function validYear(int $year): bool
+    {
+        return $year >= 1800 && $year <= ((int) date('Y') + 1);
     }
 
     private function isValidDate(string $value): bool
