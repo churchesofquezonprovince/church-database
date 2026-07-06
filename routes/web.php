@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
@@ -18,5 +19,73 @@ Route::middleware(['web', 'auth'])
 
         Route::post('/prayer-meeting', [PrayerMeetingAttendanceController::class, 'store'])
             ->name('prayer-meeting.store');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/imports')
+    ->name('quezonprovinceactivities.imports.')
+    ->group(function (): void {
+        Route::post('/people', [PeopleImportController::class, 'store'])
+            ->name('people');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/exports')
+    ->name('quezonprovinceactivities.exports.')
+    ->group(function (): void {
+        Route::get('/people-import-template', function () {
+            $headers = [
+                'firstname',
+                'middlename',
+                'lastname',
+                'suffix',
+                'sex',
+                'nickname',
+                'birthdate',
+                'birthplace',
+                'locality',
+                'permanent_address',
+                'home_address',
+                'geocoordinates',
+                'email',
+                'contact_number',
+                'category',
+                'baptism_date',
+                'service',
+                'status',
+            ];
+
+            return response()->streamDownload(function () use ($headers): void {
+                $handle = fopen('php://output', 'w');
+
+                fputcsv($handle, $headers);
+                fputcsv($handle, [
+                    'Juan',
+                    'Reyes',
+                    'Santos',
+                    '',
+                    'Male',
+                    'Juan',
+                    '2000-01-31',
+                    'Lucena City',
+                    'Lucena City',
+                    'Sample permanent address',
+                    'Sample home address',
+                    '13.9414, 121.6236',
+                    'juan@example.com',
+                    '09171234567',
+                    'Student',
+                    '2024-01-01',
+                    'Young People',
+                    'Active',
+                ]);
+
+                fclose($handle);
+            }, 'people-import-template.csv', [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        })->name('people-import-template');
     });
 

@@ -71,7 +71,7 @@
 
                 <form
                     method="POST"
-                    action="{{ route('church-database.imports.people') }}"
+                    action="{{ route('quezonprovinceactivities.imports.people') }}"
                     enctype="multipart/form-data"
                     class="mt-6 space-y-5"
                 >
@@ -121,7 +121,7 @@
                     <p class="mt-1 text-sm">Download the template, open it in Excel, then save as CSV UTF-8.</p>
 
                     <a
-                        href="{{ route('church-database.exports.people-import-template') }}"
+                        href="{{ route('quezonprovinceactivities.exports.people-import-template') }}"
                         class="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
                     >
                         Download Template
