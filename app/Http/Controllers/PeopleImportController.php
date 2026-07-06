@@ -417,4 +417,15 @@ class PeopleImportController extends Controller
 
         return $value === '' ? null : $value;
     }
+
+    public function store(\Illuminate\Http\Request $request)
+    {
+        return match ((string) $request->input('action', 'validate')) {
+            'validate' => $this->import($request),
+            'import' => $this->import($request),
+            default => $this->import($request),
+        };
+    }
+
+
 }
