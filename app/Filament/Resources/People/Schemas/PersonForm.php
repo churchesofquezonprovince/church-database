@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
-use App\Forms\Components\PersonSelect;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
 use App\Support\LocalityOptions;
@@ -131,14 +130,16 @@ class PersonForm
                                     ->required()
                                     ->native(false),
 
-                                PersonSelect::relationship(
-                                    field: 'parent_id',
-                                    relationship: 'parent',
-                                    label: 'Existing Person',
-                                )
-                                    ->preload(false)
-                                    ->placeholder('Search existing parent / guardian')
-                                    ->helperText('Search only if the parent or guardian is already encoded. Leave blank if not applicable.'),
+                                Select::make('parent_id')
+                                    ->label('Existing Person')
+                                    ->options(fn (): array => self::parentPersonSearchOptions())
+                                    ->getSearchResultsUsing(fn (string $search): array => self::parentPersonSearchOptions($search))
+                                    ->getOptionLabelUsing(fn ($value): ?string => self::parentPersonLabel($value))
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->placeholder('Search name, nickname, locality, or contact number')
+                                    ->helperText('Search any part of the name, nickname, locality, or contact number.'),
 
                                 TextInput::make('parent_name')
                                     ->label('Parent / Guardian Name')
@@ -308,6 +309,65 @@ class PersonForm
             ]);
     }
 
+
+
+    private static function parentPersonSearchOptions(?string $search = ''): array
+    {
+        $search = trim((string) $search);
+
+        return Person::query()
+            ->when(filled($search), function ($query) use ($search): void {
+                collect(preg_split('/\s+/', $search))
+                    ->filter()
+                    ->each(function (string $term) use ($query): void {
+                        $like = '%' . $term . '%';
+
+                        $query->where(function ($query) use ($like): void {
+                            $query
+                                ->where('firstname', 'like', $like)
+                                ->orWhere('middlename', 'like', $like)
+                                ->orWhere('lastname', 'like', $like)
+                                ->orWhere('suffix', 'like', $like)
+                                ->orWhere('nickname', 'like', $like)
+                                ->orWhere('locality', 'like', $like)
+                                ->orWhere('contact_number', 'like', $like);
+                        });
+                    });
+            })
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(75)
+            ->get()
+            ->mapWithKeys(fn (Person $person): array => [
+                $person->id => self::parentPersonOptionLabel($person),
+            ])
+            ->all();
+    }
+
+    private static function parentPersonLabel(mixed $id): ?string
+    {
+        if (blank($id)) {
+            return null;
+        }
+
+        $person = Person::query()->find($id);
+
+        return $person
+            ? self::parentPersonOptionLabel($person)
+            : null;
+    }
+
+    private static function parentPersonOptionLabel(Person $person): string
+    {
+        return collect([
+            $person->display_name,
+            filled($person->nickname) ? 'Nickname: ' . $person->nickname : null,
+            $person->locality,
+            $person->contact_number,
+        ])
+            ->filter(fn ($value): bool => filled($value))
+            ->implode(' — ');
+    }
 
     private static function duplicatePersonWarning($get, $livewire): HtmlString
     {
