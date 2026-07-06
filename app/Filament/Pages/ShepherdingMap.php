@@ -99,6 +99,7 @@ class ShepherdingMap extends Page
                     'reason' => 'No usable coordinates from household head or members',
                     'search_query' => $searchQuery,
                     'search_url' => $this->openStreetMapSearchUrl($searchQuery),
+                    'google_maps_search_url' => $this->googleMapsSearchUrl($searchQuery),
                     'url' => HouseholdResource::getUrl('edit', ['record' => $household->id]),
                 ];
             });
@@ -121,6 +122,7 @@ class ShepherdingMap extends Page
                     'reason' => 'No household and no usable coordinates',
                     'search_query' => $searchQuery,
                     'search_url' => $this->openStreetMapSearchUrl($searchQuery),
+                    'google_maps_search_url' => $this->googleMapsSearchUrl($searchQuery),
                     'url' => PersonResource::getUrl('edit', ['record' => $person->id]),
                 ];
             });
@@ -314,6 +316,7 @@ class ShepherdingMap extends Page
             'coordinates' => $coordinates['lat'] . ', ' . $coordinates['lng'],
             'url' => HouseholdResource::getUrl('view', ['record' => $household->id]),
             'osm_url' => $this->openStreetMapUrl($coordinates['lat'], $coordinates['lng']),
+            'google_maps_url' => $this->googleMapsUrl($coordinates['lat'], $coordinates['lng']),
         ];
     }
 
@@ -338,6 +341,7 @@ class ShepherdingMap extends Page
             'coordinates' => $coordinates['lat'] . ', ' . $coordinates['lng'],
             'url' => PersonResource::getUrl('view', ['record' => $person->id]),
             'osm_url' => $this->openStreetMapUrl($coordinates['lat'], $coordinates['lng']),
+            'google_maps_url' => $this->googleMapsUrl($coordinates['lat'], $coordinates['lng']),
         ];
     }
 
@@ -376,6 +380,22 @@ class ShepherdingMap extends Page
         }
 
         return 'https://www.openstreetmap.org/search?query=' . urlencode((string) $query);
+    }
+
+
+    private function googleMapsUrl(float $lat, float $lng): string
+    {
+        return 'https://www.google.com/maps/search/?api=1&query='
+            . urlencode($lat . ',' . $lng);
+    }
+
+    private function googleMapsSearchUrl(?string $query): ?string
+    {
+        if (blank($query)) {
+            return null;
+        }
+
+        return 'https://www.google.com/maps/search/?api=1&query=' . urlencode((string) $query);
     }
 
     private function openStreetMapUrl(float $lat, float $lng): string
