@@ -144,10 +144,14 @@ class PeopleImportController extends Controller
         $headers = $parsed['headers'] ?? [];
         $rows = $parsed['rows'] ?? [];
 
-        foreach (['firstname', 'lastname'] as $requiredHeader) {
+        foreach (['firstname', 'lastname', 'sex', 'locality'] as $requiredHeader) {
             if (! in_array($requiredHeader, $headers, true)) {
                 $errors[] = "Missing required header: {$requiredHeader}";
             }
+        }
+
+        if (! in_array('status', $headers, true) && ! in_array('church_status', $headers, true)) {
+            $errors[] = 'Missing required header: status';
         }
 
         if (count($rows) > 500) {
@@ -177,8 +181,16 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: lastname is required.";
             }
 
+            if (blank($row['sex'] ?? null)) {
+                $errors[] = "Line {$line}: sex is required.";
+            }
+
+            if (blank($row['locality'] ?? null)) {
+                $errors[] = "Line {$line}: locality is required.";
+            }
+
             if (! in_array($row['sex'] ?? '', $allowedSex, true)) {
-                $errors[] = "Line {$line}: sex must be Male, Female, or blank.";
+                $errors[] = "Line {$line}: sex must be Male or Female.";
             }
 
             $birthdate = $row['birthdate'] ?? '';
@@ -194,6 +206,10 @@ class PeopleImportController extends Controller
             }
 
             $status = $this->importValue($row, 'church_status', 'status');
+
+            if (blank($status)) {
+                $errors[] = "Line {$line}: status is required.";
+            }
 
             if (filled($status) && ! in_array($status, $allowedStatuses, true)) {
                 $errors[] = "Line {$line}: status is invalid.";

@@ -131,7 +131,7 @@
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                     <p class="font-bold">Important</p>
                     <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                        <li>Required: firstname and lastname.</li>
+                        <li>Required: First Name, Last Name, Sex, Locality, and Status.</li>
                         <li>Birthdate must be YYYY-MM-DD. Baptism date may be YYYY, YYYY-MM, or YYYY-MM-DD.</li>
                         <li>Use Validate Only first.</li>
                         <li>Backup before real import.</li>
