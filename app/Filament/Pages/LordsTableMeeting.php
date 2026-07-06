@@ -12,6 +12,8 @@ use Illuminate\Support\Collection;
 
 class LordsTableMeeting extends Page
 {
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+
     protected string $view = 'filament.pages.lords-table-meeting';
 
     public function otherLocalityCandidates(): \Illuminate\Support\Collection
@@ -22,20 +24,19 @@ class LordsTableMeeting extends Page
             return collect();
         }
 
-        $participantIds = $sheet->participants()
-            ->pluck('person_id')
+        $visiblePersonIds = $this->people()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
             ->all();
 
+        $alreadyPresentPersonIds = $this->presentPersonIds();
+
         return Person::query()
-            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('id', $participantIds))
-            ->when(! blank($sheet->locality), function ($query) use ($sheet): void {
-                $query->where(function ($query) use ($sheet): void {
-                    $query->whereNull('locality')
-                        ->orWhere('locality', '')
-                        ->orWhereRaw('LOWER(locality) != ?', [strtolower(trim((string) $sheet->locality))]);
-                });
-            })
-            ->orderBy('id')
+            ->with(['churchProfile'])
+            ->when($visiblePersonIds !== [], fn ($query) => $query->whereNotIn('id', $visiblePersonIds))
+            ->when($alreadyPresentPersonIds !== [], fn ($query) => $query->whereNotIn('id', $alreadyPresentPersonIds))
+            ->orderBy('lastname')
+            ->orderBy('firstname')
             ->get();
     }
 
@@ -130,6 +131,10 @@ class LordsTableMeeting extends Page
 
         return Person::query()
             ->with(['churchProfile'])
+            ->whereHas(
+                'churchProfile',
+                fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
+            )
             ->when(
                 $locality === '__no_locality',
                 fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
@@ -244,16 +249,17 @@ class LordsTableMeeting extends Page
             return collect();
         }
 
-        $participantIds = $sheet->participants()
-            ->pluck('person_id')
+        $visiblePersonIds = $this->people()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
             ->all();
 
         return AttendanceRecord::query()
-            ->with('person')
+            ->with('person.churchProfile')
             ->where('attendance_session_id', $session->id)
             ->where('is_present', true)
             ->whereNotNull('person_id')
-            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('person_id', $participantIds))
+            ->when($visiblePersonIds !== [], fn ($query) => $query->whereNotIn('person_id', $visiblePersonIds))
             ->orderBy('marked_at')
             ->get();
     }
