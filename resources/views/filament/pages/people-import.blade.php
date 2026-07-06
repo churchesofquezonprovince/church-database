@@ -118,7 +118,7 @@
             <div class="space-y-4">
                 <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-800 shadow-sm dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-100">
                     <p class="font-bold">Step 1</p>
-                    <p class="mt-1 text-sm">Download the template, open it in Excel, then save as CSV UTF-8.</p>
+                    <p class="mt-1 text-sm">Download the template, open it in Excel, then save as CSV UTF-8 or CSV (Delimited).</p>
 
                     <a
                         href="{{ route('quezonprovinceactivities.exports.people-import-template') }}"
