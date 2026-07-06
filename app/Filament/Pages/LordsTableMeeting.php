@@ -145,6 +145,34 @@ class LordsTableMeeting extends Page
             ->get();
     }
 
+    public function hiddenStatusPeople(): Collection
+    {
+        $locality = $this->selectedLocality();
+
+        if (! $locality) {
+            return collect();
+        }
+
+        return Person::query()
+            ->with(['churchProfile'])
+            ->where(function ($query): void {
+                $query
+                    ->whereDoesntHave('churchProfile')
+                    ->orWhereHas(
+                        'churchProfile',
+                        fn ($query) => $query->whereNotIn('status', self::MAIN_ATTENDANCE_STATUSES)
+                    );
+            })
+            ->when(
+                $locality === '__no_locality',
+                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
+                fn ($query) => $query->where('locality', $locality),
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+    }
+
     public function selectedSheet(): ?AttendanceSheet
     {
         $locality = $this->selectedLocality();
@@ -214,28 +242,39 @@ class LordsTableMeeting extends Page
 
     public function counts(): array
     {
+        $people = $this->people();
+
+        $visiblePersonIds = $people
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
         $session = $this->selectedSession();
 
-        if (! $session) {
+        if (! $session || $visiblePersonIds === []) {
             return [
                 'present' => 0,
                 'absent' => 0,
-                'people' => $this->people()->count(),
+                'people' => $people->count(),
+                'other_status' => $this->hiddenStatusPeople()->count(),
             ];
         }
 
         return [
             'present' => AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
+                ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', true)
                 ->count(),
 
             'absent' => AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
+                ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', false)
                 ->count(),
 
-            'people' => $this->people()->count(),
+            'people' => $people->count(),
+            'other_status' => $this->hiddenStatusPeople()->count(),
         ];
     }
 

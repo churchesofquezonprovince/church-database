@@ -267,7 +267,7 @@
                 </p>
             </div>
         @else
-            <div class="grid gap-4 md:grid-cols-3">
+            <div class="grid gap-4 md:grid-cols-4">
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                     <p class="text-sm font-semibold opacity-75">Locality</p>
                     <p class="mt-3 text-2xl font-bold">{{ $this->localityLabel() }}</p>
@@ -282,6 +282,11 @@
                     <p class="text-sm font-semibold opacity-75">Absent</p>
                     <p class="mt-3 text-2xl font-bold">{{ $counts['absent'] }}</p>
                 </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-100 shadow-sm">
+                <p class="text-sm font-semibold text-slate-200">Other Status</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] }}</p>
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
