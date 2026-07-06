@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
@@ -112,5 +113,14 @@ Route::middleware(['web', 'auth'])
 
         Route::get('/missing-households', [ReportExportController::class, 'missingHouseholds'])
             ->name('missing-households');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets')
+    ->name('quezonprovinceactivities.attendance-sheets.')
+    ->group(function (): void {
+        Route::post('/', [AttendanceSheetController::class, 'store'])
+            ->name('store');
     });
 

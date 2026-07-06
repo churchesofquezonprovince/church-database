@@ -721,7 +721,7 @@ class AttendanceReports extends Page
             return '#';
         }
 
-        return route('church-database.attendance-sheets.reports.print', [
+        return route('quezonprovinceactivities.attendance-sheets.reports.print', [
             'report_type' => $this->selectedReportType(),
             'sheetId' => $sheet->id,
             'date_from' => $this->selectedDateFrom(),
@@ -786,7 +786,7 @@ class AttendanceReports extends Page
             return '#';
         }
 
-        return route('church-database.attendance-sheets.reports.export', [
+        return route('quezonprovinceactivities.attendance-sheets.reports.export', [
             'report_type' => $this->selectedReportType(),
             'sheetId' => $sheet->id,
             'date_from' => $this->selectedDateFrom(),

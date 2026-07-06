@@ -207,7 +207,7 @@
 
                         <form
                             method="POST"
-                            action="{{ route('church-database.attendance-sheets.participants.store', ['sheet' => $selectedSheet]) }}"
+                            action="{{ route('quezonprovinceactivities.attendance-sheets.participants.store', ['sheet' => $selectedSheet]) }}"
                             class="mt-5 space-y-4"
                         >
                             @csrf
@@ -314,7 +314,7 @@
                                             <td class="px-4 py-3 text-right">
                                                 <form
                                                     method="POST"
-                                                    action="{{ route('church-database.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
+                                                    action="{{ route('quezonprovinceactivities.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
                                                     onsubmit="return confirm('Remove this person from the attendance sheet?');"
                                                 >
                                                     @csrf

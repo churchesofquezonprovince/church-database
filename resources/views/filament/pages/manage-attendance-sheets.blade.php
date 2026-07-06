@@ -108,7 +108,7 @@
                         <div class="flex flex-wrap gap-2">
                             <form
                                 method="POST"
-                                action="{{ route('church-database.attendance-sheets.sheets.toggle-active', $sheet) }}"
+                                action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.toggle-active', $sheet) }}"
                             >
                                 @csrf
 
@@ -124,7 +124,7 @@
                             @if (auth()->user()?->canDeleteRecords())
                                 <form
                                     method="POST"
-                                    action="{{ route('church-database.attendance-sheets.sheets.destroy', $sheet) }}"
+                                    action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.destroy', $sheet) }}"
                                 >
                                     @csrf
                                     @method('DELETE')
@@ -148,7 +148,7 @@
 
                         <form
                             method="POST"
-                            action="{{ route('church-database.attendance-sheets.sheets.update', $sheet) }}"
+                            action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.update', $sheet) }}"
                             class="mt-5 grid gap-4 md:grid-cols-2"
                         >
                             @csrf

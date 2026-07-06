@@ -216,7 +216,7 @@
                         @else
                             <form
                                 method="POST"
-                                action="{{ route('church-database.attendance-sheets.records.store', ['session' => $selectedSession]) }}"
+                                action="{{ route('quezonprovinceactivities.attendance-sheets.records.store', ['session' => $selectedSession]) }}"
                                 class="mt-5"
                             >
                                 @csrf
