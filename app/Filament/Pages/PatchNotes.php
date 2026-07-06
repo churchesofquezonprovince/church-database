@@ -96,7 +96,7 @@ class PatchNotes extends Page
             . escapeshellarg(base_path())
             . " log --date=format:'%Y-%m-%d %H:%M' --pretty=format:"
             . escapeshellarg('%h|%cd|%s')
-            . ' --reverse 2>/dev/null';
+            . ' 2>/dev/null';
 
         exec($command, $lines, $exitCode);
 

@@ -68,7 +68,7 @@
                 </h3>
 
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Listed from the beginning of the project up to the latest commit.
+                    Listed from the latest commit down to the beginning of the project.
                 </p>
 
                 <div class="mt-6 space-y-8">
