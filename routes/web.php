@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 
@@ -87,5 +88,29 @@ Route::middleware(['web', 'auth'])
                 'Content-Type' => 'text/csv; charset=UTF-8',
             ]);
         })->name('people-import-template');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/exports')
+    ->name('quezonprovinceactivities.exports.')
+    ->group(function (): void {
+        Route::get('/people', [ReportExportController::class, 'people'])
+            ->name('people');
+
+        Route::get('/households', [ReportExportController::class, 'households'])
+            ->name('households');
+
+        Route::get('/locality-summary', [ReportExportController::class, 'localitySummary'])
+            ->name('locality-summary');
+
+        Route::get('/shepherding', [ReportExportController::class, 'shepherding'])
+            ->name('shepherding');
+
+        Route::get('/missing-people', [ReportExportController::class, 'missingPeople'])
+            ->name('missing-people');
+
+        Route::get('/missing-households', [ReportExportController::class, 'missingHouseholds'])
+            ->name('missing-households');
     });
 
