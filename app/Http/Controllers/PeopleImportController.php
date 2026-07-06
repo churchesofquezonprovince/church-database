@@ -160,6 +160,7 @@ class PeopleImportController extends Controller
 
         $allowedSex = ['', 'Male', 'Female'];
         $allowedStatuses = array_keys(ChurchProfileOptions::statuses());
+        $allowedCategories = array_keys(ChurchProfileOptions::categories());
         $allowedGroups = array_keys(ChurchProfileOptions::shepherdingServices());
 
         $seenPersonIdentities = [];
@@ -192,16 +193,22 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: baptism_date must use YYYY, YYYY-MM, or YYYY-MM-DD format.";
             }
 
-            $status = $row['church_status'] ?? '';
+            $status = $this->importValue($row, 'church_status', 'status');
 
             if (filled($status) && ! in_array($status, $allowedStatuses, true)) {
-                $errors[] = "Line {$line}: church_status is invalid.";
+                $errors[] = "Line {$line}: status is invalid.";
             }
 
-            $group = $row['shepherding_group'] ?? '';
+            $category = $this->importValue($row, 'category');
+
+            if (filled($category) && ! in_array($category, $allowedCategories, true)) {
+                $errors[] = "Line {$line}: category is invalid.";
+            }
+
+            $group = $this->importValue($row, 'shepherding_group', 'service');
 
             if (filled($group) && ! in_array($group, $allowedGroups, true)) {
-                $errors[] = "Line {$line}: shepherding_group is invalid.";
+                $errors[] = "Line {$line}: service is invalid.";
             }
 
             if (filled($row['email'] ?? '') && ! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
@@ -322,11 +329,12 @@ class PeopleImportController extends Controller
         $profile = $person->churchProfile()->firstOrNew([]);
         $baptismParts = $this->parsePartialBaptismDate($row['baptism_date'] ?? null);
 
-        $profile->status = $this->nullable($row['church_status'] ?? null) ?: 'Unknown';
+        $profile->status = $this->nullable($this->importValue($row, 'church_status', 'status')) ?: 'Unknown';
+        $profile->category = $this->nullable($this->importValue($row, 'category'));
         $profile->baptism_year = $baptismParts['year'];
         $profile->baptism_month = $baptismParts['month'];
         $profile->baptism_day = $baptismParts['day'];
-        $profile->service = $this->nullable($row['shepherding_group'] ?? null);
+        $profile->service = $this->nullable($this->importValue($row, 'shepherding_group', 'service'));
         $profile->shepherd_id = filled($row['shepherd_full_name'] ?? null)
             ? $this->findPersonByFullName($row['shepherd_full_name'])?->id
             : null;
@@ -394,6 +402,18 @@ class PeopleImportController extends Controller
         $this->personNameCache[$key] = $person;
 
         return $person;
+    }
+
+
+    private function importValue(array $row, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $row) && filled($row[$key])) {
+                return trim((string) $row[$key]);
+            }
+        }
+
+        return null;
     }
 
     private function normalizeHeader(mixed $header): string
