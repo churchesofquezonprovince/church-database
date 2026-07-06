@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AttendanceReportExportController;
+use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
 use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
@@ -122,5 +124,32 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::post('/', [AttendanceSheetController::class, 'store'])
             ->name('store');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/permanent-meeting')
+    ->name('quezonprovinceactivities.attendance-sheets.permanent-meeting.')
+    ->group(function (): void {
+        Route::post('/{attendanceSession}/other-attendees', [PermanentMeetingOtherAttendeeController::class, 'store'])
+            ->name('other-attendees.store');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/reports')
+    ->name('quezonprovinceactivities.attendance-sheets.reports.')
+    ->group(function (): void {
+        Route::get('/print', [AttendanceReportExportController::class, 'print'])
+            ->name('print');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/reports')
+    ->name('quezonprovinceactivities.attendance-sheets.reports.')
+    ->group(function (): void {
+        Route::get('/export', [AttendanceReportExportController::class, 'export'])
+            ->name('export');
     });
 
