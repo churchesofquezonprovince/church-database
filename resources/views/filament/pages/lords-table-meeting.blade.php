@@ -267,29 +267,29 @@
                 </p>
             </div>
         @else
-            <div class="grid gap-4 md:grid-cols-4">
-                <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                    <p class="text-sm font-semibold opacity-75">Locality</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $this->localityLabel() }}</p>
-                </div>
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border border-amber-700 bg-amber-950 p-5 text-amber-100 shadow-sm">
+                <p class="text-sm font-semibold text-amber-200">Locality</p>
+                <p class="mt-4 text-3xl font-bold">{{ $selectedLocality === '__no_locality' ? 'No Locality' : $selectedLocality }}</p>
+            </div>
 
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-                    <p class="text-sm font-semibold opacity-75">Present</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['present'] }}</p>
-                </div>
+            <div class="rounded-2xl border border-emerald-700 bg-emerald-950 p-5 text-emerald-100 shadow-sm">
+                <p class="text-sm font-semibold text-emerald-200">Present</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['present'] }}</p>
+            </div>
 
-                <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                    <p class="text-sm font-semibold opacity-75">Absent</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['absent'] }}</p>
-                </div>
+            <div class="rounded-2xl border border-red-700 bg-red-950 p-5 text-red-100 shadow-sm">
+                <p class="text-sm font-semibold text-red-200">Absent</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['absent'] }}</p>
             </div>
 
             <div class="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-100 shadow-sm">
                 <p class="text-sm font-semibold text-slate-200">Other Status</p>
-                <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] }}</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] ?? 0 }}</p>
             </div>
+        </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">
