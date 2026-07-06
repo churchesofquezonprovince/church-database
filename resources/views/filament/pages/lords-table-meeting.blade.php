@@ -62,7 +62,7 @@
                 </h3>
 
                 <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                    Use this if someone from another locality attended, or if someone hidden from the main list attended. Dormant, Deceased, Moved, Gospel Friend, Unknown, and other non-main statuses can be added here.
+                    Use this if someone from another locality attended, or if someone hidden from the main list attended. Dormant, Moved, Gospel Friend, Unknown, and other non-main statuses can be added here.
                 </p>
 
                 <form
