@@ -275,8 +275,8 @@ class AttendanceReports extends Page
                     'absent' => $absent,
                     'marked' => $marked,
                     'unmarked' => max($expected - $marked, 0),
-                    'rate' => $expected > 0
-                        ? round(($present / $expected) * 100, 1)
+                    'rate' => $marked > 0
+                        ? round(($present / $marked) * 100, 1)
                         : 0,
                 ];
             });
@@ -320,8 +320,10 @@ class AttendanceReports extends Page
                 $absent = (int) $rows->sum('absent');
                 $unmarked = (int) $rows->sum('unmarked');
 
-                $rate = $expected > 0
-                    ? round(($present / $expected) * 100, 1)
+                $marked = $present + $absent;
+
+                $rate = $marked > 0
+                    ? round(($present / $marked) * 100, 1)
                     : 0;
 
                 $change = $previousRate === null
@@ -407,8 +409,8 @@ class AttendanceReports extends Page
                     'absent' => $absent,
                     'marked' => $marked,
                     'unmarked' => max($expected - $marked, 0),
-                    'rate' => $expected > 0
-                        ? round(($present / $expected) * 100, 1)
+                    'rate' => $marked > 0
+                        ? round(($present / $marked) * 100, 1)
                         : 0,
                 ];
             });
@@ -518,8 +520,8 @@ class AttendanceReports extends Page
                     'present' => $presentTotal,
                     'absent' => $absentTotal,
                     'unmarked' => max($expectedTotal - $markedTotal, 0),
-                    'rate' => $expectedTotal > 0
-                        ? round(($presentTotal / $expectedTotal) * 100, 1)
+                    'rate' => $markedTotal > 0
+                        ? round(($presentTotal / $markedTotal) * 100, 1)
                         : 0,
                 ];
             })
@@ -604,8 +606,8 @@ class AttendanceReports extends Page
                     'present' => $presentTotal,
                     'absent' => $absentTotal,
                     'unmarked' => max($expectedTotal - $markedTotal, 0),
-                    'rate' => $expectedTotal > 0
-                        ? round(($presentTotal / $expectedTotal) * 100, 1)
+                    'rate' => $markedTotal > 0
+                        ? round(($presentTotal / $markedTotal) * 100, 1)
                         : 0,
                 ];
             })
@@ -629,8 +631,8 @@ class AttendanceReports extends Page
             'present_total' => $presentTotal,
             'absent_total' => $absentTotal,
             'unmarked_total' => $unmarkedTotal,
-            'overall_rate' => $expectedTotal > 0
-                ? round(($presentTotal / $expectedTotal) * 100, 1)
+            'overall_rate' => ($presentTotal + $absentTotal) > 0
+                ? round(($presentTotal / ($presentTotal + $absentTotal)) * 100, 1)
                 : 0,
         ];
     }
