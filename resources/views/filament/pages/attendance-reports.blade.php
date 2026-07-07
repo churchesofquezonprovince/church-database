@@ -17,6 +17,15 @@
         $prayerMeetingSheets = $this->prayerMeetingSheets();
     @endphp
 
+    @if (session('attendance_session_deleted'))
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <p class="font-bold">Attendance session deleted.</p>
+            <p class="mt-1 text-sm">
+                Deleted {{ session('attendance_session_deleted_date') }} and removed {{ session('attendance_session_deleted_records') }} attendance record(s).
+            </p>
+        </div>
+    @endif
+
     <div class="space-y-6">
         <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
             <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
@@ -491,14 +500,7 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <a
-                            href="{{ request()->fullUrlWithQuery(['refresh' => now()->timestamp]) }}"
-                            class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
-                        >
-                            Refresh Report
-                        </a>
-
-                        <a
+<a
                             href="{{ $this->printUrl() }}"
                             target="_blank"
                             class="rounded-full bg-gray-700 px-3 py-1 text-xs font-bold text-white hover:bg-gray-600"
@@ -657,7 +659,8 @@
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
-                            </tr>
+                            
+                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th></tr>
                         </thead>
 
                         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -675,7 +678,24 @@
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
                                     <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
-                                </tr>
+                                
+                                    <td class="px-4 py-3 text-right">
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.attendance-sheets.reports.sessions.destroy', $row['session']) }}"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button
+                                                type="submit"
+                                                onclick="return confirm('Delete this attendance session and all attendance records for this meeting date? This cannot be undone.')"
+                                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                            >
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </td></tr>
                             @empty
                                 <tr>
                                     <td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">

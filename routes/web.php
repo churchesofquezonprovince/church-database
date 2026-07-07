@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AttendanceReportExportController;
+use App\Http\Controllers\AttendanceReportSessionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
 use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
@@ -151,5 +152,14 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::get('/export', [AttendanceReportExportController::class, 'export'])
             ->name('export');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/reports')
+    ->name('quezonprovinceactivities.attendance-sheets.reports.')
+    ->group(function (): void {
+        Route::delete('/sessions/{attendanceSession}', [AttendanceReportSessionController::class, 'destroy'])
+            ->name('sessions.destroy');
     });
 
