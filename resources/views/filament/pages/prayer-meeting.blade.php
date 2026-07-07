@@ -69,11 +69,11 @@
 
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950">
                 <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100">
-                    Other Locality Attendee
+                    Other Locality / Hidden Status Attendee
                 </h3>
 
                 <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                    Use this if someone from another locality attended this meeting. The person will be added to this meeting date and marked Present.
+                    Use this if someone from another locality attended, or if someone hidden from the main list attended. Dormant, Moved, Gospel Friend, Unknown, and other non-main statuses can be added here.
                 </p>
 
                 <form
@@ -86,7 +86,7 @@
                     <div class="space-y-2">
                         <input
                             type="search"
-                            placeholder="Search name or locality..."
+                            placeholder="Search name, locality, or status..."
                             oninput="const q = this.value.toLowerCase(); this.closest('form').querySelectorAll('select[name=person_id] option').forEach((option, index) => { if (index === 0) return; option.hidden = ! option.textContent.toLowerCase().includes(q); });"
                             class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
                         >
@@ -96,11 +96,11 @@
                             required
                             class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
                         >
-                        <option value="">Select person from other locality</option>
+                        <option value="">Select person</option>
 
                         @foreach ($otherLocalityCandidates as $person)
                             <option value="{{ $person->id }}">
-                                {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }}
+                                {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }} — {{ $person->churchProfile?->status ?: 'No Status' }}
                             </option>
                         @endforeach
                         </select>
@@ -116,14 +116,14 @@
 
                 @if ($otherLocalityCandidates->isEmpty())
                     <p class="mt-3 text-xs text-amber-700 dark:text-amber-200">
-                        No other locality candidates available.
+                        No other locality or hidden status candidates available.
                     </p>
                 @endif
 
                 @if ($otherLocalityPresentRecords->isNotEmpty())
                     <div class="mt-5 rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-900 dark:bg-gray-950">
                         <p class="text-sm font-bold text-gray-900 dark:text-white">
-                            Current other-locality attendees
+                            Current other-locality / hidden-status attendees
                         </p>
 
                         <div class="mt-3 space-y-2">
@@ -136,6 +136,7 @@
 
                                         <span class="block text-xs text-gray-500 dark:text-gray-400">
                                             {{ $record->person?->locality ?: 'No Locality' }}
+                                            · {{ $record->person?->churchProfile?->status ?: 'No Status' }}
                                             · marked {{ optional($record->marked_at)->format('M d, Y · g:i A') }}
                                         </span>
                                     </div>
@@ -165,7 +166,7 @@
             </div>
         @else
             <div class="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                Select a locality and meeting date first to add other locality attendees.
+                Select a locality and meeting date first to add other locality or hidden-status attendees.
             </div>
         @endif
 
@@ -307,29 +308,31 @@
                 </p>
             </div>
         @else
-            <div class="grid gap-4 md:grid-cols-4">
-                <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-800 shadow-sm dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
-                    <p class="text-sm font-semibold opacity-75">Locality</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $this->localityLabel() }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
-                    <p class="text-sm font-semibold opacity-75">Meeting Day</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $this->dayLabel($selectedMeetingDay) }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-                    <p class="text-sm font-semibold opacity-75">Present</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['present'] }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                    <p class="text-sm font-semibold opacity-75">Absent</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['absent'] }}</p>
-                </div>
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border border-amber-700 bg-amber-950 p-5 text-amber-100 shadow-sm">
+                <p class="text-sm font-semibold text-amber-200">Locality</p>
+                <p class="mt-4 text-3xl font-bold">{{ $selectedLocality === '__no_locality' ? 'No Locality' : $selectedLocality }}</p>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="rounded-2xl border border-emerald-700 bg-emerald-950 p-5 text-emerald-100 shadow-sm">
+                <p class="text-sm font-semibold text-emerald-200">
+                    Present on {{ $days[$selectedMeetingDay] ?? $this->dayLabel($selectedMeetingDay) }}
+                </p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['present'] }}</p>
+            </div>
+
+            <div class="rounded-2xl border border-red-700 bg-red-950 p-5 text-red-100 shadow-sm">
+                <p class="text-sm font-semibold text-red-200">Absent</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['absent'] }}</p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-100 shadow-sm">
+                <p class="text-sm font-semibold text-slate-200">Other Status</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] ?? 0 }}</p>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">

@@ -12,6 +12,8 @@ use Illuminate\Support\Collection;
 
 class PrayerMeeting extends Page
 {
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+
     protected string $view = 'filament.pages.prayer-meeting';
 
     public function otherLocalityCandidates(): \Illuminate\Support\Collection
@@ -22,20 +24,19 @@ class PrayerMeeting extends Page
             return collect();
         }
 
-        $participantIds = $sheet->participants()
-            ->pluck('person_id')
+        $visiblePersonIds = $this->people()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
             ->all();
 
+        $alreadyPresentPersonIds = $this->presentPersonIds();
+
         return Person::query()
-            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('id', $participantIds))
-            ->when(! blank($sheet->locality), function ($query) use ($sheet): void {
-                $query->where(function ($query) use ($sheet): void {
-                    $query->whereNull('locality')
-                        ->orWhere('locality', '')
-                        ->orWhereRaw('LOWER(locality) != ?', [strtolower(trim((string) $sheet->locality))]);
-                });
-            })
-            ->orderBy('id')
+            ->with(['churchProfile'])
+            ->when($visiblePersonIds !== [], fn ($query) => $query->whereNotIn('id', $visiblePersonIds))
+            ->when($alreadyPresentPersonIds !== [], fn ($query) => $query->whereNotIn('id', $alreadyPresentPersonIds))
+            ->orderBy('lastname')
+            ->orderBy('firstname')
             ->get();
     }
 
@@ -162,6 +163,38 @@ class PrayerMeeting extends Page
 
         return Person::query()
             ->with(['churchProfile'])
+            ->whereHas(
+                'churchProfile',
+                fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
+            )
+            ->when(
+                $locality === '__no_locality',
+                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
+                fn ($query) => $query->where('locality', $locality),
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+    }
+
+    public function hiddenStatusPeople(): Collection
+    {
+        $locality = $this->selectedLocality();
+
+        if (! $locality) {
+            return collect();
+        }
+
+        return Person::query()
+            ->with(['churchProfile'])
+            ->where(function ($query): void {
+                $query
+                    ->whereDoesntHave('churchProfile')
+                    ->orWhereHas(
+                        'churchProfile',
+                        fn ($query) => $query->whereNotIn('status', self::MAIN_ATTENDANCE_STATUSES)
+                    );
+            })
             ->when(
                 $locality === '__no_locality',
                 fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
@@ -221,28 +254,39 @@ class PrayerMeeting extends Page
 
     public function counts(): array
     {
+        $people = $this->people();
+
+        $visiblePersonIds = $people
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
         $session = $this->selectedSession();
 
-        if (! $session) {
+        if (! $session || $visiblePersonIds === []) {
             return [
                 'present' => 0,
                 'absent' => 0,
-                'people' => $this->people()->count(),
+                'people' => $people->count(),
+                'other_status' => $this->hiddenStatusPeople()->count(),
             ];
         }
 
         return [
             'present' => AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
+                ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', true)
                 ->count(),
 
             'absent' => AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
+                ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', false)
                 ->count(),
 
-            'people' => $this->people()->count(),
+            'people' => $people->count(),
+            'other_status' => $this->hiddenStatusPeople()->count(),
         ];
     }
 
@@ -256,16 +300,17 @@ class PrayerMeeting extends Page
             return collect();
         }
 
-        $participantIds = $sheet->participants()
-            ->pluck('person_id')
+        $visiblePersonIds = $this->people()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
             ->all();
 
         return AttendanceRecord::query()
-            ->with('person')
+            ->with('person.churchProfile')
             ->where('attendance_session_id', $session->id)
             ->where('is_present', true)
             ->whereNotNull('person_id')
-            ->when($participantIds !== [], fn ($query) => $query->whereNotIn('person_id', $participantIds))
+            ->when($visiblePersonIds !== [], fn ($query) => $query->whereNotIn('person_id', $visiblePersonIds))
             ->orderBy('marked_at')
             ->get();
     }
