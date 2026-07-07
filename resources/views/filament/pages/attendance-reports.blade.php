@@ -492,6 +492,13 @@
 
                     <div class="flex flex-wrap gap-2">
                         <a
+                            href="{{ request()->fullUrlWithQuery(['refresh' => now()->timestamp]) }}"
+                            class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
+                        >
+                            Refresh Report
+                        </a>
+
+                        <a
                             href="{{ $this->printUrl() }}"
                             target="_blank"
                             class="rounded-full bg-gray-700 px-3 py-1 text-xs font-bold text-white hover:bg-gray-600"
