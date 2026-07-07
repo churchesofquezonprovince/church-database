@@ -69,7 +69,7 @@
 
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950">
                 <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100">
-                    Other Locality / Hidden Status Attendee
+                    Other Locality / Unmarked Attendee
                 </h3>
 
                 <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
@@ -116,14 +116,14 @@
 
                 @if ($otherLocalityCandidates->isEmpty())
                     <p class="mt-3 text-xs text-amber-700 dark:text-amber-200">
-                        No other locality or hidden status candidates available.
+                        No other locality or unmarked candidates available.
                     </p>
                 @endif
 
                 @if ($otherLocalityPresentRecords->isNotEmpty())
                     <div class="mt-5 rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-900 dark:bg-gray-950">
                         <p class="text-sm font-bold text-gray-900 dark:text-white">
-                            Current other-locality / hidden-status attendees
+                            Current other-locality / unmarked attendees
                         </p>
 
                         <div class="mt-3 space-y-2">
@@ -166,7 +166,7 @@
             </div>
         @else
             <div class="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                Select a locality and meeting date first to add other locality or hidden-status attendees.
+                Select a locality and meeting date first to add other locality or unmarked attendees.
             </div>
         @endif
 
@@ -327,7 +327,7 @@
             </div>
 
             <div class="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-100 shadow-sm">
-                <p class="text-sm font-semibold text-slate-200">Other Status</p>
+                <p class="text-sm font-semibold text-slate-200">Unmarked</p>
                 <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] ?? 0 }}</p>
             </div>
         </div>
