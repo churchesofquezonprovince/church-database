@@ -6,6 +6,7 @@ use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
+use App\Models\Person;
 use App\Support\ChurchProfileOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
@@ -13,6 +14,8 @@ use Illuminate\Support\Collection;
 
 class AttendanceReports extends Page
 {
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+
     protected string $view = 'filament.pages.attendance-reports';
 
     public function getTitle(): string
@@ -230,37 +233,51 @@ class AttendanceReports extends Page
             ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
             ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
             ->withCount([
-                'records as present_count' => fn ($query) => $query
-                    ->where('is_present', true)
-                    ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                'records as present_count' => function ($query): void {
+                    $query
+                        ->where('is_present', true)
+                        ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
 
-                'records as absent_count' => fn ($query) => $query
-                    ->where('is_present', false)
-                    ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                    $this->applyMainAttendanceStatusFilter($query);
+                },
 
-                'records as marked_count' => fn ($query) => $query
-                    ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                'records as absent_count' => function ($query): void {
+                    $query
+                        ->where('is_present', false)
+                        ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
+
+                    $this->applyMainAttendanceStatusFilter($query);
+                },
+
+                'records as marked_count' => function ($query): void {
+                    $query
+                        ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
+
+                    $this->applyMainAttendanceStatusFilter($query);
+                },
             ])
             ->orderBy('session_date')
             ->get()
             ->map(function (AttendanceSession $session) use ($sheet): array {
-                $activeParticipants = $this->activeParticipantCountForDate(
+                $expected = $this->activeParticipantCountForDate(
                     sheetId: $sheet->id,
                     date: $session->session_date->format('Y-m-d'),
                 );
 
-                $rate = $activeParticipants > 0
-                    ? round(($session->present_count / $activeParticipants) * 100, 1)
-                    : 0;
+                $present = (int) $session->present_count;
+                $absent = (int) $session->absent_count;
+                $marked = (int) $session->marked_count;
 
                 return [
                     'session' => $session,
-                    'active_participants' => $activeParticipants,
-                    'present' => $session->present_count,
-                    'absent' => $session->absent_count,
-                    'marked' => $session->marked_count,
-                    'unmarked' => max($activeParticipants - $session->marked_count, 0),
-                    'rate' => $rate,
+                    'active_participants' => $expected,
+                    'present' => $present,
+                    'absent' => $absent,
+                    'marked' => $marked,
+                    'unmarked' => max($expected - $marked, 0),
+                    'rate' => $expected > 0
+                        ? round(($present / $expected) * 100, 1)
+                        : 0,
                 ];
             });
     }
@@ -355,6 +372,19 @@ class AttendanceReports extends Page
 
                 $expected = $sessionIds->count();
 
+                if (! $this->hasMainAttendanceStatus($participant->person)) {
+                    return [
+                        'participant' => $participant,
+                        'person' => $participant->person,
+                        'expected' => $expected,
+                        'present' => 0,
+                        'absent' => 0,
+                        'marked' => 0,
+                        'unmarked' => $expected,
+                        'rate' => 0,
+                    ];
+                }
+
                 $present = AttendanceRecord::query()
                     ->whereIn('attendance_session_id', $sessionIds)
                     ->where('person_id', $participant->person_id)
@@ -369,10 +399,6 @@ class AttendanceReports extends Page
 
                 $marked = $present + $absent;
 
-                $rate = $expected > 0
-                    ? round(($present / $expected) * 100, 1)
-                    : 0;
-
                 return [
                     'participant' => $participant,
                     'person' => $participant->person,
@@ -381,7 +407,9 @@ class AttendanceReports extends Page
                     'absent' => $absent,
                     'marked' => $marked,
                     'unmarked' => max($expected - $marked, 0),
-                    'rate' => $rate,
+                    'rate' => $expected > 0
+                        ? round(($present / $expected) * 100, 1)
+                        : 0,
                 ];
             });
     }
@@ -471,6 +499,8 @@ class AttendanceReports extends Page
                     $recordQuery->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
                 }
 
+                $this->applyMainAttendanceStatusFilter($recordQuery);
+
                 $presentTotal = (clone $recordQuery)
                     ->where('is_present', true)
                     ->count();
@@ -522,16 +552,28 @@ class AttendanceReports extends Page
                     ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
                     ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
                     ->withCount([
-                        'records as present_count' => fn ($query) => $query
-                            ->where('is_present', true)
-                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                        'records as present_count' => function ($query): void {
+                            $query
+                                ->where('is_present', true)
+                                ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
 
-                        'records as absent_count' => fn ($query) => $query
-                            ->where('is_present', false)
-                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                            $this->applyMainAttendanceStatusFilter($query);
+                        },
 
-                        'records as marked_count' => fn ($query) => $query
-                            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category))),
+                        'records as absent_count' => function ($query): void {
+                            $query
+                                ->where('is_present', false)
+                                ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
+
+                            $this->applyMainAttendanceStatusFilter($query);
+                        },
+
+                        'records as marked_count' => function ($query): void {
+                            $query
+                                ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)));
+
+                            $this->applyMainAttendanceStatusFilter($query);
+                        },
                     ])
                     ->orderBy('session_date')
                     ->get();
@@ -543,17 +585,15 @@ class AttendanceReports extends Page
                     ->count();
 
                 $expectedTotal = $sessions->sum(function (AttendanceSession $session) use ($sheet): int {
-                    $date = $session->session_date->format('Y-m-d');
-
                     return $this->activeParticipantCountForDate(
                         sheetId: $sheet->id,
-                        date: $date,
+                        date: $session->session_date->format('Y-m-d'),
                     );
                 });
 
-                $presentTotal = $sessions->sum('present_count');
-                $absentTotal = $sessions->sum('absent_count');
-                $markedTotal = $sessions->sum('marked_count');
+                $presentTotal = (int) $sessions->sum('present_count');
+                $absentTotal = (int) $sessions->sum('absent_count');
+                $markedTotal = (int) $sessions->sum('marked_count');
 
                 return [
                     'sheet' => $sheet,
@@ -580,6 +620,7 @@ class AttendanceReports extends Page
         $expectedTotal = $personRows->sum('expected');
         $presentTotal = $personRows->sum('present');
         $absentTotal = $personRows->sum('absent');
+        $unmarkedTotal = $personRows->sum('unmarked');
 
         return [
             'meetings' => $meetingRows->count(),
@@ -587,6 +628,7 @@ class AttendanceReports extends Page
             'expected_total' => $expectedTotal,
             'present_total' => $presentTotal,
             'absent_total' => $absentTotal,
+            'unmarked_total' => $unmarkedTotal,
             'overall_rate' => $expectedTotal > 0
                 ? round(($presentTotal / $expectedTotal) * 100, 1)
                 : 0,
@@ -804,6 +846,35 @@ class AttendanceReports extends Page
             'report_type' => $this->selectedReportType(),
             'sheetId' => $sheet?->id,
         ]);
+    }
+
+    private function separatesUnmarkedStatuses(): bool
+    {
+        return in_array($this->selectedReportType(), [
+            AttendanceSheet::TYPE_LORDS_TABLE,
+            AttendanceSheet::TYPE_PRAYER_MEETING,
+        ], true);
+    }
+
+    private function applyMainAttendanceStatusFilter($query): void
+    {
+        if (! $this->separatesUnmarkedStatuses()) {
+            return;
+        }
+
+        $query->whereHas(
+            'person.churchProfile',
+            fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES),
+        );
+    }
+
+    private function hasMainAttendanceStatus(?Person $person): bool
+    {
+        if (! $this->separatesUnmarkedStatuses()) {
+            return true;
+        }
+
+        return in_array($person?->churchProfile?->status, self::MAIN_ATTENDANCE_STATUSES, true);
     }
 
     private function activeParticipantCountForDate(int $sheetId, string $date): int
