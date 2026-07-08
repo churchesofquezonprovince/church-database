@@ -132,7 +132,7 @@ Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/attendance-sheets/permanent-meeting')
     ->name('quezonprovinceactivities.attendance-sheets.permanent-meeting.')
     ->group(function (): void {
-        Route::post('/{attendanceSession}/other-attendees', [PermanentMeetingOtherAttendeeController::class, 'store'])
+        Route::post('/{session}/other-attendees', [PermanentMeetingOtherAttendeeController::class, 'store'])
             ->name('other-attendees.store');
     });
 
@@ -161,5 +161,14 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::delete('/sessions/{attendanceSession}', [AttendanceReportSessionController::class, 'destroy'])
             ->name('sessions.destroy');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/permanent-meeting')
+    ->name('quezonprovinceactivities.attendance-sheets.permanent-meeting.')
+    ->group(function (): void {
+        Route::delete('/{session}/other-attendees/{person}', [PermanentMeetingOtherAttendeeController::class, 'destroy'])
+            ->name('other-attendees.destroy');
     });
 
