@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceSheetRecordController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
@@ -211,5 +212,14 @@ Route::middleware(['web', 'auth'])
 
         Route::delete('/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])
             ->name('participants.destroy');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/records')
+    ->name('quezonprovinceactivities.attendance-sheets.records.')
+    ->group(function (): void {
+        Route::post('/{session}', [AttendanceSheetRecordController::class, 'store'])
+            ->name('store');
     });
 
