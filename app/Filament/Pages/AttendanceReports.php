@@ -346,35 +346,98 @@ class AttendanceReports extends Page
             return collect();
         }
 
-        return AttendanceParticipant::query()
-            ->with(['person.churchProfile'])
+        $sessions = AttendanceSession::query()
+            ->where('attendance_sheet_id', $sheet->id)
+            ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
+            ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
+            ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
+            ->orderBy('session_date')
+            ->get();
+
+        $allSessionIds = $sessions->pluck('id')->values();
+
+        if ($allSessionIds->isEmpty()) {
+            return collect();
+        }
+
+        $participantPersonIds = AttendanceParticipant::query()
             ->where('attendance_sheet_id', $sheet->id)
             ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)))
+            ->pluck('person_id');
+
+        $recordPersonIds = AttendanceRecord::query()
+            ->whereIn('attendance_session_id', $allSessionIds)
+            ->whereNotNull('person_id')
+            ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)))
+            ->pluck('person_id');
+
+        $personIds = $participantPersonIds
+            ->merge($recordPersonIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($personIds->isEmpty()) {
+            return collect();
+        }
+
+        $participants = AttendanceParticipant::query()
+            ->where('attendance_sheet_id', $sheet->id)
+            ->whereIn('person_id', $personIds)
             ->get()
-            ->sortBy(fn (AttendanceParticipant $participant): string => $participant->person?->display_name ?? '')
-            ->values()
-            ->map(function (AttendanceParticipant $participant) use ($sheet): array {
-                $sessionIds = AttendanceSession::query()
-                    ->where('attendance_sheet_id', $sheet->id)
-                    ->when($participant->starts_on, fn ($query) => $query->whereDate('session_date', '>=', $participant->starts_on))
-                    ->when($participant->ends_on, fn ($query) => $query->whereDate('session_date', '<=', $participant->ends_on))
-                    ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
-                    ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
-                    ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
-                    ->pluck('id');
+            ->keyBy('person_id');
+
+        $people = Person::query()
+            ->with(['churchProfile'])
+            ->whereIn('id', $personIds)
+            ->get()
+            ->keyBy('id');
+
+        return $personIds
+            ->map(function (int $personId) use ($sheet, $allSessionIds, $participants, $people): ?array {
+                $person = $people->get($personId);
+
+                if (! $person) {
+                    return null;
+                }
+
+                $participant = $participants->get($personId);
+
+                if ($this->separatesUnmarkedStatuses()) {
+                    // For Lord's Table and Prayer Meeting, every visible meeting in the filter
+                    // should count as one data point per person.
+                    $sessionIds = $allSessionIds;
+                } elseif ($participant) {
+                    $sessionIds = AttendanceSession::query()
+                        ->where('attendance_sheet_id', $sheet->id)
+                        ->when($participant->starts_on, fn ($query) => $query->whereDate('session_date', '>=', $participant->starts_on))
+                        ->when($participant->ends_on, fn ($query) => $query->whereDate('session_date', '<=', $participant->ends_on))
+                        ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
+                        ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
+                        ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
+                        ->pluck('id');
+                } else {
+                    $sessionIds = AttendanceRecord::query()
+                        ->whereIn('attendance_session_id', $allSessionIds)
+                        ->where('person_id', $personId)
+                        ->pluck('attendance_session_id')
+                        ->unique()
+                        ->values();
+                }
 
                 $expected = $sessionIds->count();
 
                 $present = AttendanceRecord::query()
                     ->whereIn('attendance_session_id', $sessionIds)
-                    ->where('person_id', $participant->person_id)
+                    ->where('person_id', $personId)
                     ->where('is_present', true)
                     ->count();
 
-                $absent = $this->hasMainAttendanceStatus($participant->person)
+                $absent = $this->hasMainAttendanceStatus($person)
                     ? AttendanceRecord::query()
                         ->whereIn('attendance_session_id', $sessionIds)
-                        ->where('person_id', $participant->person_id)
+                        ->where('person_id', $personId)
                         ->where('is_present', false)
                         ->count()
                     : 0;
@@ -383,7 +446,7 @@ class AttendanceReports extends Page
 
                 return [
                     'participant' => $participant,
-                    'person' => $participant->person,
+                    'person' => $person,
                     'expected' => $expected,
                     'present' => $present,
                     'absent' => $absent,
@@ -393,7 +456,10 @@ class AttendanceReports extends Page
                         ? round(($present / $marked) * 100, 1)
                         : 0,
                 ];
-            });
+            })
+            ->filter()
+            ->sortBy(fn (array $row): string => $row['person']?->display_name ?? '')
+            ->values();
     }
 
 
