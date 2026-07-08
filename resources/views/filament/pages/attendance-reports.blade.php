@@ -365,12 +365,11 @@
                         </div>
                     @else
                         <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="min-w-[760px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <table class="min-w-[680px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
                                         <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
-                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -385,7 +384,6 @@
                                                 {{ $row['category'] }}
                                             </td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
-                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['expected'] }}</td>
                                             <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                             <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
@@ -422,13 +420,12 @@
                         </div>
                     @else
                         <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="min-w-[820px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <table class="min-w-[740px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
                                         <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
-                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -444,7 +441,6 @@
                                             </td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
-                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['expected'] }}</td>
                                             <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                             <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
@@ -596,14 +592,13 @@
                     </div>
                 @else
                     <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                        <table class="min-w-[860px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <table class="min-w-[780px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-950">
                                 <tr>
                                     <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
                                         {{ $selectedTrendPeriod === 'monthly' ? 'Month' : 'Week' }}
                                     </th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
-                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                     <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -619,7 +614,6 @@
                                             {{ $row['label'] }}
                                         </td>
                                         <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
-                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['expected'] }}</td>
                                         <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                         <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                         <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
@@ -654,7 +648,6 @@
                         <thead class="bg-gray-50 dark:bg-gray-950">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Meeting Date</th>
-                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -719,7 +712,6 @@
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
-                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -737,8 +729,6 @@
                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
                                         {{ $row['person']?->locality ?: 'No locality' }}
                                     </td>
-
-                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{{ $row['expected'] }}</td>
                                     <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
