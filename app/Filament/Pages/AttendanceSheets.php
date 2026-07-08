@@ -137,6 +137,7 @@ class AttendanceSheets extends Page
             ->pluck('person_id');
 
         return Person::query()
+            ->with(['churchProfile'])
             ->whereNotIn('id', $existingPersonIds)
             ->when(
                 filled($sheet->locality),

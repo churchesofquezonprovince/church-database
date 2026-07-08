@@ -53,7 +53,10 @@ class AttendanceSheetParticipantController extends Controller
             ],
         );
 
-        return back()->with('attendance_participants_added', true);
+        return back()
+            ->with('attendance_participants_saved', true)
+            ->with('attendance_participants_added', $personIds->count())
+            ->with('attendance_participants_updated', 0);
     }
 
     public function destroy(AttendanceSheet $sheet, AttendanceParticipant $participant): RedirectResponse
