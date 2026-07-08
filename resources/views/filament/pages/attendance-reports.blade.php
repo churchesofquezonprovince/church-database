@@ -530,29 +530,34 @@
                 </div>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
                     <p class="text-sm font-semibold opacity-75">Meetings</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['meetings'] }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-800 shadow-sm dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
-                    <p class="text-sm font-semibold opacity-75">Participants</p>
+                    <p class="text-sm font-semibold opacity-75">People in Report</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['participants'] }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-                    <p class="text-sm font-semibold opacity-75">Present Total</p>
-                    <p class="mt-3 text-3xl font-bold">{{ $summary['present_total'] }}</p>
+                    <p class="text-sm font-semibold opacity-75">Average Present Attendees</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_present']) }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                    <p class="text-sm font-semibold opacity-75">Absent Total</p>
-                    <p class="mt-3 text-3xl font-bold">{{ $summary['absent_total'] }}</p>
+                    <p class="text-sm font-semibold opacity-75">Average Absent Attendees</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_absent']) }}</p>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                    <p class="text-sm font-semibold opacity-75">Average Unmarked</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_unmarked']) }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                    <p class="text-sm font-semibold opacity-75">Overall Rate</p>
+                    <p class="text-sm font-semibold opacity-75">Marked Attendance Rate</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['overall_rate'] }}%</p>
                 </div>
             </div>

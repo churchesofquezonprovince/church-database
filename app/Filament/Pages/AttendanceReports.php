@@ -657,22 +657,41 @@ class AttendanceReports extends Page
         $meetingRows = $this->meetingRows();
         $personRows = $this->personRows();
 
-        $expectedTotal = $personRows->sum('expected');
-        $presentTotal = $personRows->sum('present');
-        $absentTotal = $personRows->sum('absent');
-        $unmarkedTotal = $personRows->sum('unmarked');
+        $meetings = $meetingRows->count();
+        $presentTotal = (int) $meetingRows->sum('present');
+        $absentTotal = (int) $meetingRows->sum('absent');
+        $unmarkedTotal = (int) $meetingRows->sum('unmarked');
+        $markedTotal = $presentTotal + $absentTotal;
 
         return [
-            'meetings' => $meetingRows->count(),
+            'meetings' => $meetings,
             'participants' => $personRows->count(),
-            'expected_total' => $expectedTotal,
             'present_total' => $presentTotal,
             'absent_total' => $absentTotal,
             'unmarked_total' => $unmarkedTotal,
-            'overall_rate' => ($presentTotal + $absentTotal) > 0
-                ? round(($presentTotal / ($presentTotal + $absentTotal)) * 100, 1)
+            'average_present' => $meetings > 0
+                ? round($presentTotal / $meetings, 1)
+                : 0,
+            'average_absent' => $meetings > 0
+                ? round($absentTotal / $meetings, 1)
+                : 0,
+            'average_unmarked' => $meetings > 0
+                ? round($unmarkedTotal / $meetings, 1)
+                : 0,
+            'overall_rate' => $markedTotal > 0
+                ? round(($presentTotal / $markedTotal) * 100, 1)
                 : 0,
         ];
+    }
+
+    public function formatNumber(null|int|float $value): string
+    {
+        if ($value === null) {
+            return '—';
+        }
+
+        $text = number_format((float) $value, 1);
+        return rtrim(rtrim($text, '0'), '.');
     }
 
     public function formatPercent(null|int|float $value): string
