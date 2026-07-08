@@ -341,6 +341,15 @@
                         <input type="hidden" name="locality" value="{{ $selectedLocality }}">
                         <input type="hidden" name="meeting_date" value="{{ $selectedMeetingDate }}">
 
+                        @if ($selectedSession)
+                            @foreach ($this->otherLocalityPresentRecords() as $otherRecord)
+                                @if ($otherRecord->person_id)
+                                    <input type="hidden" name="other_present_person_ids[]" value="{{ $otherRecord->person_id }}">
+                                @endif
+                            @endforeach
+                        @endif
+
+
                         <div class="mb-4 grid gap-3 lg:grid-cols-[1fr_240px_auto] lg:items-end">
                             <div>
                                 <label for="lords_table_participant_search" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">

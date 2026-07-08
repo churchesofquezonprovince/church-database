@@ -254,6 +254,7 @@ class PrayerMeeting extends Page
 
     public function counts(): array
     {
+        $session = $this->selectedSession();
         $people = $this->people();
 
         $visiblePersonIds = $people
@@ -261,32 +262,40 @@ class PrayerMeeting extends Page
             ->map(fn ($id): int => (int) $id)
             ->all();
 
-        $session = $this->selectedSession();
-
-        if (! $session || $visiblePersonIds === []) {
+        if (! $session) {
             return [
                 'present' => 0,
                 'absent' => 0,
                 'people' => $people->count(),
-                'other_status' => $this->hiddenStatusPeople()->count(),
+                'other_status' => method_exists($this, 'hiddenStatusPeople')
+                    ? $this->hiddenStatusPeople()->count()
+                    : 0,
             ];
         }
 
-        return [
-            'present' => AttendanceRecord::query()
+        $visiblePresent = $visiblePersonIds === []
+            ? 0
+            : AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
                 ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', true)
-                ->count(),
+                ->count();
 
-            'absent' => AttendanceRecord::query()
+        $visibleAbsent = $visiblePersonIds === []
+            ? 0
+            : AttendanceRecord::query()
                 ->where('attendance_session_id', $session->id)
                 ->whereIn('person_id', $visiblePersonIds)
                 ->where('is_present', false)
-                ->count(),
+                ->count();
 
+        return [
+            'present' => $visiblePresent + $this->otherLocalityPresentRecords()->count(),
+            'absent' => $visibleAbsent,
             'people' => $people->count(),
-            'other_status' => $this->hiddenStatusPeople()->count(),
+            'other_status' => method_exists($this, 'hiddenStatusPeople')
+                ? $this->hiddenStatusPeople()->count()
+                : 0,
         ];
     }
 
