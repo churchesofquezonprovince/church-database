@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
@@ -198,5 +199,17 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::patch('/{sheet}', [AttendanceSheetStatusController::class, 'update'])
             ->name('update');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets')
+    ->name('quezonprovinceactivities.attendance-sheets.')
+    ->group(function (): void {
+        Route::post('/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])
+            ->name('participants.store');
+
+        Route::delete('/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])
+            ->name('participants.destroy');
     });
 
