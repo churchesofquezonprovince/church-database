@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
@@ -170,5 +171,32 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::delete('/{session}/other-attendees/{person}', [PermanentMeetingOtherAttendeeController::class, 'destroy'])
             ->name('other-attendees.destroy');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/sheets')
+    ->name('quezonprovinceactivities.attendance-sheets.sheets.')
+    ->group(function (): void {
+        Route::post('/{sheet}/toggle-active', [AttendanceSheetStatusController::class, 'toggleActive'])
+            ->name('toggle-active');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/sheets')
+    ->name('quezonprovinceactivities.attendance-sheets.sheets.')
+    ->group(function (): void {
+        Route::delete('/{sheet}', [AttendanceSheetStatusController::class, 'destroy'])
+            ->name('destroy');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/attendance-sheets/sheets')
+    ->name('quezonprovinceactivities.attendance-sheets.sheets.')
+    ->group(function (): void {
+        Route::patch('/{sheet}', [AttendanceSheetStatusController::class, 'update'])
+            ->name('update');
     });
 
