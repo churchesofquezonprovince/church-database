@@ -252,36 +252,60 @@ class AttendanceReports extends Page
                 $sessionDate = $session->session_date->format('Y-m-d');
 
                 /*
-                 * Expected participants for this specific meeting date.
-                 *
-                 * This respects:
-                 * - is_active
-                 * - starts_on
-                 * - ends_on
-                 * - selected category filter
+                 * Expected people for this particular meeting date.
                  */
-                $expected = $this->activeParticipantCountForDate(
+                /*
+                 * Expected participants for this meeting.
+                 *
+                 * Use the normal active-participant count, but never allow
+                 * Expected to be lower than the number of distinct people
+                 * who already have attendance records for this session.
+                 */
+                $activeParticipants = $this->activeParticipantCountForDate(
                     sheetId: $sheet->id,
                     date: $sessionDate,
                 );
 
+                $recordedPeopleQuery = AttendanceRecord::query()
+                    ->where('attendance_session_id', $session->id)
+                    ->whereNotNull('person_id');
+
+                if ($this->selectedCategory()) {
+                    $recordedPeopleQuery->whereHas(
+                        'person.churchProfile',
+                        fn ($query) => $query->where(
+                            'category',
+                            $this->selectedCategory()
+                        )
+                    );
+                }
+
+                $recordedPeople = $recordedPeopleQuery
+                    ->distinct()
+                    ->count('person_id');
+
+                $expected = max($activeParticipants, $recordedPeople);
+
                 /*
                  * PRESENT
                  *
-                 * Count every person actually marked present.
-                 * This includes Other Locality / Unmarked attendees who
-                 * were legitimately added as present.
+                 * Count every actual present attendance record.
+                 * This includes Active, New One, and additional attendees
+                 * who were explicitly marked present.
                  */
                 $presentQuery = AttendanceRecord::query()
                     ->where('attendance_session_id', $session->id)
-                    ->where('is_present', true)
-                    ->when(
-                        $this->selectedCategory(),
-                        fn ($query, $category) => $query->whereHas(
-                            'person.churchProfile',
-                            fn ($query) => $query->where('category', $category)
+                    ->where('is_present', true);
+
+                if ($this->selectedCategory()) {
+                    $presentQuery->whereHas(
+                        'person.churchProfile',
+                        fn ($query) => $query->where(
+                            'category',
+                            $this->selectedCategory()
                         )
                     );
+                }
 
                 $present = $presentQuery->count();
 
@@ -289,51 +313,49 @@ class AttendanceReports extends Page
                  * ABSENT
                  *
                  * For Lord's Table and Prayer Meeting:
-                 * only Active and New One are counted as absent.
+                 * only Active and New One can be counted absent.
                  *
-                 * For custom attendance sheets:
-                 * all explicitly absent participants are counted.
+                 * For custom sheets:
+                 * count all explicitly absent records.
                  */
                 $absentQuery = AttendanceRecord::query()
                     ->where('attendance_session_id', $session->id)
-                    ->where('is_present', false)
-                    ->when(
-                        $this->selectedCategory(),
-                        fn ($query, $category) => $query->whereHas(
-                            'person.churchProfile',
-                            fn ($query) => $query->where('category', $category)
-                        )
-                    );
+                    ->where('is_present', false);
 
-                if (in_array($sheet->sheet_type, [
-                    AttendanceSheet::TYPE_LORDS_TABLE,
-                    AttendanceSheet::TYPE_PRAYER_MEETING,
-                ], true)) {
+                if ($this->selectedCategory()) {
                     $absentQuery->whereHas(
                         'person.churchProfile',
-                        fn ($query) => $query->whereIn('status', [
-                            'Active',
-                            'New One',
-                        ])
+                        fn ($query) => $query->where(
+                            'category',
+                            $this->selectedCategory()
+                        )
+                    );
+                }
+
+                if ($this->separatesUnmarkedStatuses()) {
+                    $absentQuery->whereHas(
+                        'person.churchProfile',
+                        fn ($query) => $query->whereIn(
+                            'status',
+                            self::MAIN_ATTENDANCE_STATUSES
+                        )
                     );
                 }
 
                 $absent = $absentQuery->count();
 
                 /*
-                 * Only Present + Absent are considered marked for the
-                 * attendance rate.
+                 * Marked means attendance was decided as Present or Absent.
                  */
                 $marked = $present + $absent;
 
                 /*
-                 * Hidden statuses that were not present remain Unmarked.
+                 * Remaining expected people are Unmarked.
                  */
                 $unmarked = max($expected - $marked, 0);
 
                 /*
-                 * Attendance rate is based only on people whose attendance
-                 * was actually decided: Present or Absent.
+                 * Rate excludes Unmarked.
                  */
                 $rate = $marked > 0
                     ? round(($present / $marked) * 100, 1)
@@ -342,6 +364,7 @@ class AttendanceReports extends Page
                 return [
                     'session' => $session,
                     'active_participants' => $expected,
+                    'expected' => $expected,
                     'present' => $present,
                     'absent' => $absent,
                     'marked' => $marked,
