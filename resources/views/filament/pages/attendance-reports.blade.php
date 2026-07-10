@@ -670,8 +670,6 @@
                                             {{ $row['session']->session_date->format('l') }}
                                         </span>
                                     </td>
-
-                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{{ $row['active_participants'] }}</td>
                                     <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
