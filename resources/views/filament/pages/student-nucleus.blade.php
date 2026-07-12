@@ -241,79 +241,6 @@
             </form>
         </div>
 
-        {{-- Academic Year and Semester --}}
-        <div class="min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950 sm:p-6">
-            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div class="min-w-0">
-                    <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                        Academic Term
-                    </p>
-
-                    @if ($selectedTerm)
-                        <h3 class="mt-1 break-words text-xl font-bold text-gray-900 dark:text-white">
-                            AY {{ $selectedTerm->academic_year }}
-                            · {{ $selectedTerm->semester }}
-                        </h3>
-
-                        @if ($selectedTerm->is_active)
-                            <span class="mt-2 inline-flex rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">
-                                Active Term
-                            </span>
-                        @else
-                            <span class="mt-2 inline-flex rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
-                                Historical Term
-                            </span>
-                        @endif
-                    @else
-                        <h3 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
-                            No academic term available
-                        </h3>
-                    @endif
-                </div>
-
-                @if ($terms->isNotEmpty())
-                    <div class="flex min-w-0 flex-col items-start gap-2 lg:items-end">
-                        <div class="flex min-w-0 flex-wrap gap-2 lg:justify-end">
-                            @foreach ($terms as $term)
-                                <a
-                                    href="{{ $this->termUrl($term) }}"
-                                    @class([
-                                        'rounded-full px-4 py-2 text-sm font-bold transition',
-                                        'bg-amber-600 text-white' => $selectedTerm?->id === $term->id,
-                                        'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950' => $selectedTerm?->id !== $term->id,
-                                    ])
-                                >
-                                    AY {{ $term->academic_year }}
-                                    · {{ $term->semester }}
-
-                                    @if ($term->is_active)
-                                        · Active
-                                    @endif
-                                </a>
-                            @endforeach
-                        </div>
-
-                        @if ($selectedTerm)
-                            <a
-                                href="{{ route(
-                                    'quezonprovinceactivities.campus-work.student-nucleus.print',
-                                    $selectedTerm
-                                ) }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-                            >
-                                Print Student Nucleus
-                            </a>
-                        @endif
-                    </div>
-                @endif
-            </div>
-        </div>
-
-
-
-
         {{-- Academic Term Management --}}
         <details class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <summary class="cursor-pointer px-5 py-4 text-base font-bold text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800">
@@ -560,6 +487,79 @@
                 @endif
             </div>
         </details>
+
+        {{-- Academic Year and Semester --}}
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950 sm:p-6">
+            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Academic Term
+                    </p>
+
+                    @if ($selectedTerm)
+                        <h3 class="mt-1 break-words text-xl font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
+
+                        @if ($selectedTerm->is_active)
+                            <span class="mt-2 inline-flex rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">
+                                Active Term
+                            </span>
+                        @else
+                            <span class="mt-2 inline-flex rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
+                                Historical Term
+                            </span>
+                        @endif
+                    @else
+                        <h3 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                            No academic term available
+                        </h3>
+                    @endif
+                </div>
+
+                @if ($terms->isNotEmpty())
+                    <div class="flex min-w-0 flex-col items-start gap-2 lg:items-end">
+                        <div class="flex min-w-0 flex-wrap gap-2 lg:justify-end">
+                            @foreach ($terms as $term)
+                                <a
+                                    href="{{ $this->termUrl($term) }}"
+                                    @class([
+                                        'rounded-full px-4 py-2 text-sm font-bold transition',
+                                        'bg-amber-600 text-white' => $selectedTerm?->id === $term->id,
+                                        'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950' => $selectedTerm?->id !== $term->id,
+                                    ])
+                                >
+                                    AY {{ $term->academic_year }}
+                                    · {{ $term->semester }}
+
+                                    @if ($term->is_active)
+                                        · Active
+                                    @endif
+                                </a>
+                            @endforeach
+                        </div>
+
+                        @if ($selectedTerm)
+                            <a
+                                href="{{ route(
+                                    'quezonprovinceactivities.campus-work.student-nucleus.print',
+                                    $selectedTerm
+                                ) }}"
+                                target="_blank"
+                                rel="noopener"
+                                class="inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                            >
+                                Print Student Nucleus
+                            </a>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        </div>
+
+
+
 
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)
