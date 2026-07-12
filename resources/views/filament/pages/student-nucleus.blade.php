@@ -1,4 +1,9 @@
 <x-filament-panels::page>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
     @php
         $groupedMembers = $this->groupedMembers();
         $availablePeople = $this->availablePeople();
@@ -284,27 +289,175 @@
                                     </td>
 
                                     <td class="px-3 py-3">
-                                        <form
-                                            method="POST"
-                                            action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.update', $membership) }}"
+                                        <div
+                                            x-data="{
+                                                viewOpen: false,
+                                                editOpen: false
+                                            }"
+                                            class="flex flex-wrap gap-2"
                                         >
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <textarea
-                                                name="spiritual_condition"
-                                                rows="3"
-                                                placeholder="Enter spiritual condition..."
-                                                class="block w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                                            >{{ $membership->spiritual_condition }}</textarea>
-
+                                            {{-- View button --}}
                                             <button
-                                                type="submit"
-                                                class="mt-2 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-500"
+                                                type="button"
+                                                @click="viewOpen = true"
+                                                class="rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
                                             >
-                                                Save
+                                                View
                                             </button>
-                                        </form>
+
+                                            {{-- Edit button --}}
+                                            <button
+                                                type="button"
+                                                @click="editOpen = true"
+                                                class="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-500"
+                                            >
+                                                Edit
+                                            </button>
+
+                                            {{-- View Spiritual Condition Modal --}}
+                                            <template x-teleport="body">
+                                            <div
+                                                x-cloak
+                                                x-show="viewOpen"
+                                                x-transition.opacity
+                                                @keydown.escape.window="viewOpen = false"
+                                                class="fixed inset-0 flex items-center justify-center bg-black/70 p-4" style="z-index: 9999;"
+                                                role="dialog"
+                                                aria-modal="true"
+                                            >
+                                                <div
+                                                    x-show="viewOpen"
+                                                    x-transition
+                                                    @click.outside="viewOpen = false"
+                                                    class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+                                                >
+                                                    <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                                                        <div class="min-w-0">
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                                Spiritual Condition
+                                                            </p>
+
+                                                            <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                                                                {{ $person?->display_name ?? 'Unknown person' }}
+                                                            </h3>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            @click="viewOpen = false"
+                                                            class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="p-5">
+                                                        @if (filled($membership->spiritual_condition))
+                                                            <div class="whitespace-pre-wrap break-words rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-800 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
+                                                                {{ $membership->spiritual_condition }}
+                                                            </div>
+                                                        @else
+                                                            <div class="rounded-xl border border-dashed border-gray-300 p-5 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                                No spiritual condition recorded yet.
+                                                            </div>
+                                                        @endif
+                                                    </div>
+
+                                                    <div class="flex justify-end border-t border-gray-200 px-5 py-4 dark:border-gray-700">
+                                                        <button
+                                                            type="button"
+                                                            @click="viewOpen = false"
+                                                            class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-bold text-white hover:bg-gray-600"
+                                                        >
+                                                            Close
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            </template>
+
+                                            {{-- Edit Spiritual Condition Modal --}}
+                                            <template x-teleport="body">
+                                            <div
+                                                x-cloak
+                                                x-show="editOpen"
+                                                x-transition.opacity
+                                                @keydown.escape.window="editOpen = false"
+                                                class="fixed inset-0 flex items-center justify-center bg-black/70 p-4" style="z-index: 9999;"
+                                                role="dialog"
+                                                aria-modal="true"
+                                            >
+                                                <div
+                                                    x-show="editOpen"
+                                                    x-transition
+                                                    @click.outside="editOpen = false"
+                                                    class="w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+                                                >
+                                                    <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                                                        <div class="min-w-0">
+                                                            <p class="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                                                                Edit Spiritual Condition
+                                                            </p>
+
+                                                            <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                                                                {{ $person?->display_name ?? 'Unknown person' }}
+                                                            </h3>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            @click="editOpen = false"
+                                                            class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+
+                                                    <form
+                                                        method="POST"
+                                                        action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.update', $membership) }}"
+                                                    >
+                                                        @csrf
+                                                        @method('PATCH')
+
+                                                        <div class="p-5">
+                                                            <label
+                                                                for="spiritual_condition_{{ $membership->id }}"
+                                                                class="block text-sm font-bold text-gray-700 dark:text-gray-200"
+                                                            >
+                                                                Spiritual Condition
+                                                            </label>
+
+                                                            <textarea
+                                                                id="spiritual_condition_{{ $membership->id }}"
+                                                                name="spiritual_condition"
+                                                                rows="7"
+                                                                placeholder="Enter spiritual condition..."
+                                                                class="mt-2 block w-full min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                                            >{{ $membership->spiritual_condition }}</textarea>
+                                                        </div>
+
+                                                        <div class="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-700 sm:flex-row sm:justify-end">
+                                                            <button
+                                                                type="button"
+                                                                @click="editOpen = false"
+                                                                class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            >
+                                                                Cancel
+                                                            </button>
+
+                                                            <button
+                                                                type="submit"
+                                                                class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-500"
+                                                            >
+                                                                Save Spiritual Condition
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                            </template>
+                                        </div>
                                     </td>
 
                                     <td class="px-3 py-3 text-right">
