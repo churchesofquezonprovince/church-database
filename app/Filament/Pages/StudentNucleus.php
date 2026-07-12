@@ -51,7 +51,34 @@ class StudentNucleus extends Page
     public function terms(): Collection
     {
         return CampusWorkTerm::query()
+            ->where('is_archived', false)
             ->orderByDesc('is_active')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function archivedTerms(): Collection
+    {
+        return CampusWorkTerm::query()
+            ->where('is_archived', true)
+            ->withCount('studentNucleusMemberships')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function copySourceTerms(): Collection
+    {
+        $selectedTerm = $this->selectedTerm();
+
+        if (! $selectedTerm) {
+            return collect();
+        }
+
+        return CampusWorkTerm::query()
+            ->whereKeyNot($selectedTerm->id)
+            ->withCount('studentNucleusMemberships')
             ->orderByDesc('academic_year')
             ->orderByDesc('id')
             ->get();
@@ -71,8 +98,13 @@ class StudentNucleus extends Page
 
         return CampusWorkTerm::query()
             ->where('is_active', true)
+            ->where('is_archived', false)
             ->latest('id')
             ->first()
+            ?? CampusWorkTerm::query()
+                ->where('is_archived', false)
+                ->latest('id')
+                ->first()
             ?? CampusWorkTerm::query()
                 ->latest('id')
                 ->first();
@@ -84,6 +116,7 @@ class StudentNucleus extends Page
             'termId' => $term->id,
         ]);
     }
+
 
     public function members(): Collection
     {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CampusWorkTermController;
 use App\Http\Controllers\StudentNucleusPrintController;
 use App\Http\Controllers\StudentNucleusController;
 use App\Http\Controllers\AttendanceSheetRecordController;
@@ -247,4 +248,24 @@ Route::middleware(['web', 'auth'])
         StudentNucleusPrintController::class
     )
     ->name('quezonprovinceactivities.campus-work.student-nucleus.print');
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/terms')
+    ->name('quezonprovinceactivities.campus-work.terms.')
+    ->group(function (): void {
+        Route::post('/', [CampusWorkTermController::class, 'store'])
+            ->name('store');
+
+        Route::post('/{term}/activate', [CampusWorkTermController::class, 'activate'])
+            ->name('activate');
+
+        Route::post('/{term}/copy-members', [CampusWorkTermController::class, 'copyMembers'])
+            ->name('copy-members');
+
+        Route::post('/{term}/archive', [CampusWorkTermController::class, 'archive'])
+            ->name('archive');
+
+        Route::post('/{term}/restore', [CampusWorkTermController::class, 'restore'])
+            ->name('restore');
+    });
 

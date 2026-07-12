@@ -14,12 +14,14 @@ class CampusWorkTerm extends Model
         'academic_year',
         'semester',
         'is_active',
+        'is_archived',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_archived' => 'boolean',
         ];
     }
 

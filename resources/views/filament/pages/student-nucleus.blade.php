@@ -6,7 +6,9 @@
     </style>
     @php
         $terms = $this->terms();
+        $archivedTerms = $this->archivedTerms();
         $selectedTerm = $this->selectedTerm();
+        $copySourceTerms = $this->copySourceTerms();
         $groupedMembers = $this->groupedMembers();
         $availablePeople = $this->availablePeople();
     @endphp
@@ -32,6 +34,43 @@
 
 
         {{-- Success messages --}}
+
+        @if (session('campus_work_term_created'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Academic term created successfully.</p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_activated'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Active academic term updated.</p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_members_copied'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    {{ session('campus_work_term_members_added', 0) }} student(s) copied into this term.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    Spiritual Condition records were not copied.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_archived'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">Academic term archived.</p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_restored'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Academic term restored.</p>
+            </div>
+        @endif
+
         @if (session('student_nucleus_members_saved'))
             <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
@@ -273,6 +312,254 @@
         </div>
 
 
+
+
+        {{-- Academic Term Management --}}
+        <details class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <summary class="cursor-pointer px-5 py-4 text-base font-bold text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800">
+                Manage Academic Terms
+            </summary>
+
+            <div class="space-y-6 border-t border-gray-200 p-5 dark:border-gray-700">
+
+                {{-- Create new term --}}
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                    <h3 class="font-bold text-emerald-900 dark:text-emerald-100">
+                        Create New Academic Term
+                    </h3>
+
+                    <form
+                        method="POST"
+                        action="{{ route('quezonprovinceactivities.campus-work.terms.store') }}"
+                        class="mt-4 grid gap-4 md:grid-cols-2"
+                    >
+                        @csrf
+
+                        <div>
+                            <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                                Academic Year
+                            </label>
+
+                            <input
+                                type="text"
+                                name="academic_year"
+                                placeholder="2026-2027"
+                                pattern="\d{4}-\d{4}"
+                                required
+                                class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                                Semester
+                            </label>
+
+                            <select
+                                name="semester"
+                                required
+                                class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
+                            >
+                                <option value="1st Semester">1st Semester</option>
+                                <option value="2nd Semester">2nd Semester</option>
+                                <option value="Summer Term">Summer Term</option>
+                            </select>
+                        </div>
+
+                        <label class="flex items-center gap-3 md:col-span-2">
+                            <input
+                                type="checkbox"
+                                name="set_active"
+                                value="1"
+                                class="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            >
+
+                            <span class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                Set this as the active academic term immediately
+                            </span>
+                        </label>
+
+                        <div class="md:col-span-2">
+                            <button
+                                type="submit"
+                                class="w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-500 sm:w-auto"
+                            >
+                                Create Academic Term
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                @if ($selectedTerm)
+                    {{-- Current selected term actions --}}
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            Selected Academic Term
+                        </p>
+
+                        <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @if (! $selectedTerm->is_active && ! $selectedTerm->is_archived)
+                                <form
+                                    method="POST"
+                                    action="{{ route('quezonprovinceactivities.campus-work.terms.activate', $selectedTerm) }}"
+                                    onsubmit="return confirm('Set this as the active academic term?');"
+                                >
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-500"
+                                    >
+                                        Set as Active Term
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if (! $selectedTerm->is_active && ! $selectedTerm->is_archived)
+                                <form
+                                    method="POST"
+                                    action="{{ route('quezonprovinceactivities.campus-work.terms.archive', $selectedTerm) }}"
+                                    onsubmit="return confirm('Archive this academic term? Historical Student Nucleus data will be preserved.');"
+                                >
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500"
+                                    >
+                                        Archive Term
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if ($selectedTerm->is_archived)
+                                <form
+                                    method="POST"
+                                    action="{{ route('quezonprovinceactivities.campus-work.terms.restore', $selectedTerm) }}"
+                                >
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500"
+                                    >
+                                        Restore Term
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Copy student allocations --}}
+                    @if (! $selectedTerm->is_archived && $copySourceTerms->isNotEmpty())
+                        <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950">
+                            <h3 class="font-bold text-sky-900 dark:text-sky-100">
+                                Copy Students from Another Term
+                            </h3>
+
+                            <p class="mt-1 text-sm text-sky-700 dark:text-sky-200">
+                                Copies only Student Nucleus membership. Spiritual Condition records will remain blank.
+                            </p>
+
+                            <form
+                                method="POST"
+                                action="{{ route('quezonprovinceactivities.campus-work.terms.copy-members', $selectedTerm) }}"
+                                class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+                                onsubmit="return confirm('Copy students into the selected academic term? Existing students will not be duplicated.');"
+                            >
+                                @csrf
+
+                                <div class="min-w-0 flex-1">
+                                    <label class="block text-sm font-bold text-sky-900 dark:text-sky-100">
+                                        Copy from
+                                    </label>
+
+                                    <select
+                                        name="source_term_id"
+                                        required
+                                        class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-white"
+                                    >
+                                        <option value="">Choose academic term...</option>
+
+                                        @foreach ($copySourceTerms as $sourceTerm)
+                                            <option value="{{ $sourceTerm->id }}">
+                                                AY {{ $sourceTerm->academic_year }}
+                                                · {{ $sourceTerm->semester }}
+                                                · {{ $sourceTerm->student_nucleus_memberships_count }} student(s)
+                                                @if ($sourceTerm->is_archived)
+                                                    · Archived
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="rounded-xl bg-sky-600 px-5 py-3 text-sm font-bold text-white hover:bg-sky-500"
+                                >
+                                    Copy Students
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                @endif
+
+                {{-- Archived terms --}}
+                @if ($archivedTerms->isNotEmpty())
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                        <h3 class="font-bold text-gray-900 dark:text-white">
+                            Archived Academic Terms
+                        </h3>
+
+                        <div class="mt-4 space-y-2">
+                            @foreach ($archivedTerms as $term)
+                                <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="break-words font-bold text-gray-900 dark:text-white">
+                                            AY {{ $term->academic_year }}
+                                            · {{ $term->semester }}
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $term->student_nucleus_memberships_count }} Student Nucleus member(s)
+                                        </p>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <a
+                                            href="{{ $this->termUrl($term) }}"
+                                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                        >
+                                            View
+                                        </a>
+
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.campus-work.terms.restore', $term) }}"
+                                        >
+                                            @csrf
+
+                                            <button
+                                                type="submit"
+                                                class="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                                            >
+                                                Restore
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </details>
 
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)
