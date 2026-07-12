@@ -1,0 +1,444 @@
+<x-filament-panels::page>
+    @php
+        $groupedMembers = $this->groupedMembers();
+        $availablePeople = $this->availablePeople();
+    @endphp
+
+    <div class="min-w-0 space-y-6">
+
+        {{-- Header --}}
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-primary-200 bg-primary-50 p-5 shadow-sm dark:border-primary-900 dark:bg-primary-950 sm:p-6">
+            <p class="text-sm font-bold uppercase tracking-wide text-primary-600 dark:text-primary-300">
+                Campus Work
+            </p>
+
+            <h2 class="mt-2 break-words text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                Student Nucleus
+            </h2>
+
+            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
+                Students are manually assigned to the nucleus. School, locality, course,
+                grade or year level, and contact information are automatically taken from
+                the People Database.
+            </p>
+        </div>
+
+        {{-- Success messages --}}
+        @if (session('student_nucleus_members_saved'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    {{ session('student_nucleus_members_added', 0) }} student(s) added to the Student Nucleus.
+                </p>
+            </div>
+        @endif
+
+        @if (session('student_nucleus_spiritual_condition_saved'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Spiritual condition updated.</p>
+            </div>
+        @endif
+
+        @if (session('student_nucleus_member_removed'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">Student removed from the Student Nucleus.</p>
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <p class="font-bold">Please fix the following:</p>
+
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- Manual student allocation --}}
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 sm:p-6">
+            <h3 class="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                Add Students to the Nucleus
+            </h3>
+
+            <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-200">
+                Search and select only the students who are actually part of the Student Nucleus.
+            </p>
+
+            <form
+                method="POST"
+                action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.store') }}"
+                class="mt-5 min-w-0 space-y-4"
+            >
+                @csrf
+
+                <div class="min-w-0">
+                    <label
+                        for="student_nucleus_search"
+                        class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100"
+                    >
+                        Search people
+                    </label>
+
+                    <input
+                        id="student_nucleus_search"
+                        type="search"
+                        placeholder="Search name, school, locality, course, or year level..."
+                        oninput="
+                            const q = this.value.toLowerCase();
+
+                            this.closest('form')
+                                .querySelectorAll('[data-student-option]')
+                                .forEach((card) => {
+                                    card.hidden = ! card.dataset.searchText.includes(q);
+                                });
+                        "
+                        class="mt-2 block w-full min-w-0 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-base text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
+                    >
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onclick="
+                                this.closest('form')
+                                    .querySelectorAll('[data-student-option]:not([hidden]) input[type=checkbox]')
+                                    .forEach((box) => box.checked = true)
+                            "
+                            class="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600"
+                        >
+                            Select visible
+                        </button>
+
+                        <button
+                            type="button"
+                            onclick="
+                                this.closest('form')
+                                    .querySelectorAll('input[name=&quot;person_ids[]&quot;]')
+                                    .forEach((box) => box.checked = false)
+                            "
+                            class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100"
+                        >
+                            Clear selected
+                        </button>
+                    </div>
+
+                    <div
+                        class="mt-3 min-w-0 space-y-2 rounded-xl border border-emerald-200 bg-white p-2 dark:border-emerald-900 dark:bg-gray-950"
+                        style="max-height: 24rem; overflow-y: auto; overflow-x: hidden;"
+                    >
+                        @forelse ($availablePeople as $person)
+                            @php
+                                $education = $person->educationProfile;
+
+                                $searchText = \Illuminate\Support\Str::lower(
+                                    collect([
+                                        $person->display_name,
+                                        $person->locality,
+                                        $person->contact_number,
+                                        $person->email,
+                                        $education?->school_workplace,
+                                        $education?->course_strand,
+                                        $education?->grade_level,
+                                    ])->filter()->implode(' ')
+                                );
+                            @endphp
+
+                            <label
+                                data-student-option
+                                data-search-text="{{ $searchText }}"
+                                class="flex w-full min-w-0 cursor-pointer items-start gap-3 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-3 hover:bg-emerald-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-emerald-950"
+                            >
+                                <input
+                                    type="checkbox"
+                                    name="person_ids[]"
+                                    value="{{ $person->id }}"
+                                    class="mt-1 h-5 w-5 shrink-0 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                >
+
+                                <span class="min-w-0 flex-1 overflow-hidden">
+                                    <span class="block break-words font-bold text-gray-900 dark:text-white">
+                                        {{ $person->display_name }}
+                                    </span>
+
+                                    <span class="mt-1 block break-words text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $education?->school_workplace ?: 'School not recorded' }}
+                                        · {{ $person->locality ?: 'No locality' }}
+                                        · {{ $education?->course_strand ?: 'No course recorded' }}
+                                        · {{ $education?->grade_level ?: 'No year level recorded' }}
+                                    </span>
+                                </span>
+                            </label>
+                        @empty
+                            <p class="rounded-xl border border-dashed border-emerald-300 p-5 text-center text-sm text-emerald-700 dark:border-emerald-800 dark:text-emerald-200">
+                                Everyone in the People Database is already allocated to the Student Nucleus.
+                            </p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    class="flex w-full justify-center rounded-xl bg-emerald-600 px-5 py-3 text-base font-bold text-white hover:bg-emerald-500 sm:w-auto"
+                >
+                    Add Selected Students
+                </button>
+            </form>
+        </div>
+
+        {{-- Student Nucleus grouped by school --}}
+        @forelse ($groupedMembers as $school => $members)
+            <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+
+                <div class="border-b border-sky-200 bg-sky-100 px-4 py-3 dark:border-sky-900 dark:bg-sky-950">
+                    <h3 class="break-words text-center text-base font-bold text-gray-900 dark:text-white">
+                        {{ $school }}
+                    </h3>
+                </div>
+
+                {{-- Mobile cards --}}
+                <div class="space-y-3 p-3 lg:hidden">
+                    @foreach ($members as $membership)
+                        @php
+                            $person = $membership->person;
+                            $education = $person?->educationProfile;
+                        @endphp
+
+                        <div class="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                            <div class="flex min-w-0 items-start gap-3">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white">
+                                    {{ $loop->iteration }}
+                                </span>
+
+                                <div class="min-w-0 flex-1">
+                                    @if ($person)
+                                        <a
+                                            href="{{ $this->personUrl($person) }}"
+                                            class="block break-words font-bold text-primary-600 hover:underline dark:text-primary-400"
+                                        >
+                                            {{ $person->display_name }}
+                                        </a>
+                                    @else
+                                        <p class="font-bold text-gray-900 dark:text-white">
+                                            Unknown person
+                                        </p>
+                                    @endif
+
+                                    <div class="mt-3 grid gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                        <p><strong>Locality:</strong> {{ $person?->locality ?: 'Not recorded' }}</p>
+                                        <p><strong>Course:</strong> {{ $education?->course_strand ?: 'Not recorded' }}</p>
+                                        <p><strong>Grade/Year:</strong> {{ $education?->grade_level ?: 'Not recorded' }}</p>
+
+                                        <div>
+                                            <strong>Contact:</strong>
+
+                                            <div class="mt-1 break-words">
+                                                {{ $person?->contact_number ?: 'No phone recorded' }}
+
+                                                @if ($person?->email)
+                                                    <br>{{ $person->email }}
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.update', $membership) }}"
+                                        class="mt-4"
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <label class="block text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                            Spiritual Condition
+                                        </label>
+
+                                        <textarea
+                                            name="spiritual_condition"
+                                            rows="3"
+                                            placeholder="Enter spiritual condition..."
+                                            class="mt-2 block w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                        >{{ $membership->spiritual_condition }}</textarea>
+
+                                        <button
+                                            type="submit"
+                                            class="mt-2 w-full rounded-lg bg-primary-600 px-3 py-2 text-sm font-bold text-white hover:bg-primary-500"
+                                        >
+                                            Save Spiritual Condition
+                                        </button>
+                                    </form>
+
+                                    @if (auth()->user()?->canDeleteRecords())
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.destroy', $membership) }}"
+                                            class="mt-2"
+                                            onsubmit="return confirm('Remove this student from the Student Nucleus?');"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button
+                                                type="submit"
+                                                class="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                                            >
+                                                Remove from Student Nucleus
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Desktop table --}}
+                <div class="hidden overflow-x-auto lg:block">
+                    <table class="w-full min-w-[1100px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-950">
+                            <tr>
+                                <th class="w-14 px-3 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">
+                                    No.
+                                </th>
+
+                                <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Name of Student
+                                </th>
+
+                                <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Locality
+                                </th>
+
+                                <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Course
+                                </th>
+
+                                <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Grade/Year Level
+                                </th>
+
+                                <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Contact Information
+                                </th>
+
+                                <th class="min-w-[260px] px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                    Spiritual Condition
+                                </th>
+
+                                <th class="w-24 px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
+                                    Action
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                            @foreach ($members as $membership)
+                                @php
+                                    $person = $membership->person;
+                                    $education = $person?->educationProfile;
+                                @endphp
+
+                                <tr class="align-top">
+                                    <td class="px-3 py-3 text-center text-gray-500 dark:text-gray-400">
+                                        {{ $loop->iteration }}
+                                    </td>
+
+                                    <td class="max-w-[240px] break-words px-3 py-3 font-semibold">
+                                        @if ($person)
+                                            <a
+                                                href="{{ $this->personUrl($person) }}"
+                                                class="text-primary-600 hover:underline dark:text-primary-400"
+                                            >
+                                                {{ $person->display_name }}
+                                            </a>
+                                        @else
+                                            Unknown person
+                                        @endif
+                                    </td>
+
+                                    <td class="break-words px-3 py-3 text-gray-600 dark:text-gray-300">
+                                        {{ $person?->locality ?: 'Not recorded' }}
+                                    </td>
+
+                                    <td class="break-words px-3 py-3 text-gray-600 dark:text-gray-300">
+                                        {{ $education?->course_strand ?: 'Not recorded' }}
+                                    </td>
+
+                                    <td class="break-words px-3 py-3 text-gray-600 dark:text-gray-300">
+                                        {{ $education?->grade_level ?: 'Not recorded' }}
+                                    </td>
+
+                                    <td class="break-words px-3 py-3 text-gray-600 dark:text-gray-300">
+                                        {{ $person?->contact_number ?: 'No phone recorded' }}
+
+                                        @if ($person?->email)
+                                            <br>
+                                            <span class="text-xs">
+                                                {{ $person->email }}
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-3 py-3">
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.update', $membership) }}"
+                                        >
+                                            @csrf
+                                            @method('PATCH')
+
+                                            <textarea
+                                                name="spiritual_condition"
+                                                rows="3"
+                                                placeholder="Enter spiritual condition..."
+                                                class="block w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                            >{{ $membership->spiritual_condition }}</textarea>
+
+                                            <button
+                                                type="submit"
+                                                class="mt-2 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-500"
+                                            >
+                                                Save
+                                            </button>
+                                        </form>
+                                    </td>
+
+                                    <td class="px-3 py-3 text-right">
+                                        @if (auth()->user()?->canDeleteRecords())
+                                            <form
+                                                method="POST"
+                                                action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.destroy', $membership) }}"
+                                                onsubmit="return confirm('Remove this student from the Student Nucleus?');"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button
+                                                    type="submit"
+                                                    class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @empty
+            <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                    No Student Nucleus members yet.
+                </h3>
+
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Use the Add Students section above to manually allocate students.
+                </p>
+            </div>
+        @endforelse
+    </div>
+</x-filament-panels::page>

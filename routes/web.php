@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StudentNucleusController;
 use App\Http\Controllers\AttendanceSheetRecordController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
@@ -221,5 +222,20 @@ Route::middleware(['web', 'auth'])
     ->group(function (): void {
         Route::post('/{session}', [AttendanceSheetRecordController::class, 'store'])
             ->name('store');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/student-nucleus')
+    ->name('quezonprovinceactivities.campus-work.student-nucleus.')
+    ->group(function (): void {
+        Route::post('/', [StudentNucleusController::class, 'store'])
+            ->name('store');
+
+        Route::patch('/{membership}', [StudentNucleusController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{membership}', [StudentNucleusController::class, 'destroy'])
+            ->name('destroy');
     });
 
