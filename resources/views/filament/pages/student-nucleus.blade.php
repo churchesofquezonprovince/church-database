@@ -257,6 +257,23 @@
         </div>
 
 
+
+        @if ($selectedTerm)
+            <div class="flex justify-end">
+                <a
+                    href="{{ route(
+                        'quezonprovinceactivities.campus-work.student-nucleus.print',
+                        $selectedTerm
+                    ) }}"
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex items-center justify-center rounded-xl bg-gray-800 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                >
+                    Print Student Nucleus
+                </a>
+            </div>
+        @endif
+
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)
             <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">

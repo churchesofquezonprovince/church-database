@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StudentNucleusPrintController;
 use App\Http\Controllers\StudentNucleusController;
 use App\Http\Controllers\AttendanceSheetRecordController;
 use App\Http\Controllers\AttendanceSheetParticipantController;
@@ -238,4 +239,12 @@ Route::middleware(['web', 'auth'])
         Route::delete('/{membership}', [StudentNucleusController::class, 'destroy'])
             ->name('destroy');
     });
+
+
+Route::middleware(['web', 'auth'])
+    ->get(
+        'quezonprovinceactivities/campus-work/student-nucleus/print/{term}',
+        StudentNucleusPrintController::class
+    )
+    ->name('quezonprovinceactivities.campus-work.student-nucleus.print');
 
