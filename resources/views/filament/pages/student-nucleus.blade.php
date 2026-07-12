@@ -233,46 +233,46 @@
                 </div>
 
                 @if ($terms->isNotEmpty())
-                    <div class="flex min-w-0 flex-wrap gap-2">
-                        @foreach ($terms as $term)
-                            <a
-                                href="{{ $this->termUrl($term) }}"
-                                @class([
-                                    'rounded-full px-4 py-2 text-sm font-bold transition',
-                                    'bg-amber-600 text-white' => $selectedTerm?->id === $term->id,
-                                    'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950' => $selectedTerm?->id !== $term->id,
-                                ])
-                            >
-                                AY {{ $term->academic_year }}
-                                · {{ $term->semester }}
+                    <div class="flex min-w-0 flex-col items-start gap-2 lg:items-end">
+                        <div class="flex min-w-0 flex-wrap gap-2 lg:justify-end">
+                            @foreach ($terms as $term)
+                                <a
+                                    href="{{ $this->termUrl($term) }}"
+                                    @class([
+                                        'rounded-full px-4 py-2 text-sm font-bold transition',
+                                        'bg-amber-600 text-white' => $selectedTerm?->id === $term->id,
+                                        'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950' => $selectedTerm?->id !== $term->id,
+                                    ])
+                                >
+                                    AY {{ $term->academic_year }}
+                                    · {{ $term->semester }}
 
-                                @if ($term->is_active)
-                                    · Active
-                                @endif
+                                    @if ($term->is_active)
+                                        · Active
+                                    @endif
+                                </a>
+                            @endforeach
+                        </div>
+
+                        @if ($selectedTerm)
+                            <a
+                                href="{{ route(
+                                    'quezonprovinceactivities.campus-work.student-nucleus.print',
+                                    $selectedTerm
+                                ) }}"
+                                target="_blank"
+                                rel="noopener"
+                                class="inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                            >
+                                Print Student Nucleus
                             </a>
-                        @endforeach
+                        @endif
                     </div>
                 @endif
             </div>
         </div>
 
 
-
-        @if ($selectedTerm)
-            <div class="flex justify-end">
-                <a
-                    href="{{ route(
-                        'quezonprovinceactivities.campus-work.student-nucleus.print',
-                        $selectedTerm
-                    ) }}"
-                    target="_blank"
-                    rel="noopener"
-                    class="inline-flex items-center justify-center rounded-xl bg-gray-800 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-                >
-                    Print Student Nucleus
-                </a>
-            </div>
-        @endif
 
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)
