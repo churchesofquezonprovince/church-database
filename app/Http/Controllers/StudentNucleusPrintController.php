@@ -35,7 +35,17 @@ class StudentNucleusPrintController extends Controller
                     $membership->person?->educationProfile?->school_workplace
                     ?: 'School not recorded'
             )
-            ->sortKeys();
+            ->sortKeysUsing(function (string $a, string $b): int {
+                if ($a === 'School not recorded') {
+                    return -1;
+                }
+
+                if ($b === 'School not recorded') {
+                    return 1;
+                }
+
+                return strcasecmp($a, $b);
+            });
 
         return view('reports.student-nucleus-print', [
             'term' => $term,

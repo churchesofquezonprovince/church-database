@@ -81,7 +81,17 @@ class StudentNucleusExportController extends Controller
                             $membership->person?->educationProfile?->school_workplace
                             ?: 'School not recorded'
                     )
-                    ->sortKeys();
+                    ->sortKeysUsing(function (string $a, string $b): int {
+                if ($a === 'School not recorded') {
+                    return -1;
+                }
+
+                if ($b === 'School not recorded') {
+                    return 1;
+                }
+
+                return strcasecmp($a, $b);
+            });
 
                 foreach ($groupedMembers as $school => $schoolMembers) {
                     foreach ($schoolMembers->values() as $index => $membership) {
