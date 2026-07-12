@@ -663,19 +663,6 @@
                             @endforeach
                         </div>
 
-                        @if ($selectedTerm)
-                            <a
-                                href="{{ route(
-                                    'quezonprovinceactivities.campus-work.student-nucleus.print',
-                                    $selectedTerm
-                                ) }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-                            >
-                                Print Student Nucleus
-                            </a>
-                        @endif
                     </div>
                 @endif
             </div>
