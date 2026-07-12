@@ -11,6 +11,7 @@
         $copySourceTerms = $this->copySourceTerms();
         $groupedMembers = $this->groupedMembers();
         $availablePeople = $this->availablePeople();
+        $summary = $this->summary();
     @endphp
 
     <div class="min-w-0 space-y-6">
@@ -560,6 +561,129 @@
 
 
 
+
+
+        {{-- Student Nucleus Report Summary --}}
+        @if ($selectedTerm)
+            <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                            Student Nucleus Report Summary
+                        </p>
+
+                        <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <a
+                            href="{{ route(
+                                'quezonprovinceactivities.campus-work.student-nucleus.print',
+                                $selectedTerm
+                            ) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="inline-flex items-center justify-center rounded-lg bg-gray-800 px-4 py-2 text-sm font-bold text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                        >
+                            Print
+                        </a>
+
+                        <a
+                            href="{{ route(
+                                'quezonprovinceactivities.campus-work.student-nucleus.export',
+                                $selectedTerm
+                            ) }}"
+                            class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500"
+                        >
+                            Export CSV
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-900 dark:bg-primary-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-300">
+                            Students
+                        </p>
+
+                        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                            {{ $summary['students'] }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                            Schools
+                        </p>
+
+                        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                            {{ $summary['schools'] }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                            Localities
+                        </p>
+
+                        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                            {{ $summary['localities'] }}
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                            With Spiritual Condition
+                        </p>
+
+                        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                            {{ $summary['with_spiritual_condition'] }}
+                        </p>
+                    </div>
+                </div>
+
+                <details class="mt-4 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-950">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 dark:text-white">
+                        Data Completeness
+                    </summary>
+
+                    <div class="grid gap-3 border-t border-gray-200 p-4 dark:border-gray-700 sm:grid-cols-3">
+                        <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Missing Course
+                            </p>
+
+                            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                                {{ $summary['missing_course'] }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Missing Year Level
+                            </p>
+
+                            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                                {{ $summary['missing_year_level'] }}
+                            </p>
+                        </div>
+
+                        <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                Missing Contact
+                            </p>
+
+                            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                                {{ $summary['missing_contact'] }}
+                            </p>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        @endif
 
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)

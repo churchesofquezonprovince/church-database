@@ -145,6 +145,67 @@ class StudentNucleus extends Page
             ->values();
     }
 
+    public function summary(): array
+    {
+        $members = $this->members();
+
+        $schoolCount = $members
+            ->map(
+                fn (StudentNucleusMembership $membership): ?string =>
+                    $membership->person?->educationProfile?->school_workplace
+            )
+            ->filter()
+            ->unique()
+            ->count();
+
+        $localityCount = $members
+            ->map(
+                fn (StudentNucleusMembership $membership): ?string =>
+                    $membership->person?->locality
+            )
+            ->filter()
+            ->unique()
+            ->count();
+
+        return [
+            'students' => $members->count(),
+
+            'schools' => $schoolCount,
+
+            'localities' => $localityCount,
+
+            'with_spiritual_condition' => $members
+                ->filter(
+                    fn (StudentNucleusMembership $membership): bool =>
+                        filled($membership->spiritual_condition)
+                )
+                ->count(),
+
+            'missing_course' => $members
+                ->filter(
+                    fn (StudentNucleusMembership $membership): bool =>
+                        blank($membership->person?->educationProfile?->course_strand)
+                )
+                ->count(),
+
+            'missing_year_level' => $members
+                ->filter(
+                    fn (StudentNucleusMembership $membership): bool =>
+                        blank($membership->person?->educationProfile?->grade_level)
+                )
+                ->count(),
+
+            'missing_contact' => $members
+                ->filter(
+                    fn (StudentNucleusMembership $membership): bool =>
+                        blank($membership->person?->contact_number)
+                        && blank($membership->person?->email)
+                )
+                ->count(),
+        ];
+    }
+
+
     public function groupedMembers(): Collection
     {
         return $this->members()

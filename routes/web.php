@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StudentNucleusExportController;
 use App\Http\Controllers\CampusWorkTermController;
 use App\Http\Controllers\StudentNucleusPrintController;
 use App\Http\Controllers\StudentNucleusController;
@@ -268,4 +269,12 @@ Route::middleware(['web', 'auth'])
         Route::post('/{term}/restore', [CampusWorkTermController::class, 'restore'])
             ->name('restore');
     });
+
+
+Route::middleware(['web', 'auth'])
+    ->get(
+        'quezonprovinceactivities/campus-work/student-nucleus/export/{term}',
+        StudentNucleusExportController::class
+    )
+    ->name('quezonprovinceactivities.campus-work.student-nucleus.export');
 
