@@ -13,9 +13,23 @@ class StudentNucleusController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
         $data = $request->validate([
-            'person_ids' => ['required', 'array', 'min:1'],
-            'person_ids.*' => ['integer', 'exists:persons,id'],
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
+            'person_ids' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'person_ids.*' => [
+                'integer',
+                'exists:persons,id',
+            ],
         ]);
+
+        $termId = (int) $data['campus_work_term_id'];
 
         $personIds = collect($data['person_ids'])
             ->map(fn ($id): int => (int) $id)
@@ -26,6 +40,7 @@ class StudentNucleusController extends Controller
 
         foreach ($personIds as $personId) {
             $membership = StudentNucleusMembership::query()->firstOrCreate([
+                'campus_work_term_id' => $termId,
                 'person_id' => $personId,
             ]);
 
@@ -46,7 +61,11 @@ class StudentNucleusController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
         $data = $request->validate([
-            'spiritual_condition' => ['nullable', 'string', 'max:2000'],
+            'spiritual_condition' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
         ]);
 
         $membership->update([
@@ -55,7 +74,10 @@ class StudentNucleusController extends Controller
                 : null,
         ]);
 
-        return back()->with('student_nucleus_spiritual_condition_saved', true);
+        return back()->with(
+            'student_nucleus_spiritual_condition_saved',
+            true
+        );
     }
 
     public function destroy(
@@ -65,6 +87,9 @@ class StudentNucleusController extends Controller
 
         $membership->delete();
 
-        return back()->with('student_nucleus_member_removed', true);
+        return back()->with(
+            'student_nucleus_member_removed',
+            true
+        );
     }
 }

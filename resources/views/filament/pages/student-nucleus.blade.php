@@ -5,6 +5,8 @@
         }
     </style>
     @php
+        $terms = $this->terms();
+        $selectedTerm = $this->selectedTerm();
         $groupedMembers = $this->groupedMembers();
         $availablePeople = $this->availablePeople();
     @endphp
@@ -27,6 +29,7 @@
                 the People Database.
             </p>
         </div>
+
 
         {{-- Success messages --}}
         @if (session('student_nucleus_members_saved'))
@@ -77,6 +80,14 @@
                 class="mt-5 min-w-0 space-y-4"
             >
                 @csrf
+
+                @if ($selectedTerm)
+                    <input
+                        type="hidden"
+                        name="campus_work_term_id"
+                        value="{{ $selectedTerm->id }}"
+                    >
+                @endif
 
                 <div class="min-w-0">
                     <label
@@ -190,6 +201,61 @@
                 </button>
             </form>
         </div>
+
+        {{-- Academic Year and Semester --}}
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950 sm:p-6">
+            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Academic Term
+                    </p>
+
+                    @if ($selectedTerm)
+                        <h3 class="mt-1 break-words text-xl font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
+
+                        @if ($selectedTerm->is_active)
+                            <span class="mt-2 inline-flex rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">
+                                Active Term
+                            </span>
+                        @else
+                            <span class="mt-2 inline-flex rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
+                                Historical Term
+                            </span>
+                        @endif
+                    @else
+                        <h3 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                            No academic term available
+                        </h3>
+                    @endif
+                </div>
+
+                @if ($terms->isNotEmpty())
+                    <div class="flex min-w-0 flex-wrap gap-2">
+                        @foreach ($terms as $term)
+                            <a
+                                href="{{ $this->termUrl($term) }}"
+                                @class([
+                                    'rounded-full px-4 py-2 text-sm font-bold transition',
+                                    'bg-amber-600 text-white' => $selectedTerm?->id === $term->id,
+                                    'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950' => $selectedTerm?->id !== $term->id,
+                                ])
+                            >
+                                AY {{ $term->academic_year }}
+                                · {{ $term->semester }}
+
+                                @if ($term->is_active)
+                                    · Active
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+
 
         {{-- Student Nucleus grouped by school --}}
         @forelse ($groupedMembers as $school => $members)

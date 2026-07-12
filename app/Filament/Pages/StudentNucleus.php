@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\People\PersonResource;
+use App\Models\CampusWorkTerm;
 use App\Models\Person;
 use App\Models\StudentNucleusMembership;
 use Filament\Pages\Page;
@@ -47,11 +48,56 @@ class StudentNucleus extends Page
         return auth()->user()?->canManageRecords() ?? false;
     }
 
+    public function terms(): Collection
+    {
+        return CampusWorkTerm::query()
+            ->orderByDesc('is_active')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function selectedTerm(): ?CampusWorkTerm
+    {
+        $termId = request()->integer('termId');
+
+        if ($termId) {
+            $selectedTerm = CampusWorkTerm::query()->find($termId);
+
+            if ($selectedTerm) {
+                return $selectedTerm;
+            }
+        }
+
+        return CampusWorkTerm::query()
+            ->where('is_active', true)
+            ->latest('id')
+            ->first()
+            ?? CampusWorkTerm::query()
+                ->latest('id')
+                ->first();
+    }
+
+    public function termUrl(CampusWorkTerm $term): string
+    {
+        return static::getUrl() . '?' . http_build_query([
+            'termId' => $term->id,
+        ]);
+    }
+
     public function members(): Collection
     {
+        $term = $this->selectedTerm();
+
+        if (! $term) {
+            return collect();
+        }
+
         return StudentNucleusMembership::query()
+            ->where('campus_work_term_id', $term->id)
             ->with([
                 'person.educationProfile',
+                'term',
             ])
             ->get()
             ->sortBy(function (StudentNucleusMembership $membership): string {
@@ -79,7 +125,14 @@ class StudentNucleus extends Page
 
     public function availablePeople(): Collection
     {
+        $term = $this->selectedTerm();
+
+        if (! $term) {
+            return collect();
+        }
+
         $existingPersonIds = StudentNucleusMembership::query()
+            ->where('campus_work_term_id', $term->id)
             ->pluck('person_id');
 
         return Person::query()
