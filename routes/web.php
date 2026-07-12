@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CampusWorkActivityController;
 use App\Http\Controllers\StudentNucleusExportController;
 use App\Http\Controllers\CampusWorkTermController;
 use App\Http\Controllers\StudentNucleusPrintController;
@@ -277,4 +278,19 @@ Route::middleware(['web', 'auth'])
         StudentNucleusExportController::class
     )
     ->name('quezonprovinceactivities.campus-work.student-nucleus.export');
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/activities')
+    ->name('quezonprovinceactivities.campus-work.activities.')
+    ->group(function (): void {
+        Route::post('/', [CampusWorkActivityController::class, 'store'])
+            ->name('store');
+
+        Route::patch('/{activity}', [CampusWorkActivityController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{activity}', [CampusWorkActivityController::class, 'destroy'])
+            ->name('destroy');
+    });
 

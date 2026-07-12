@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class CampusWorkActivity extends Model
+{
+    use HasFactory;
+
+    public const TYPE_CAMPUS_VISITATION = 'Campus Visitation';
+
+    public const TYPE_CAMPUS_MEETING_SCHEDULE = 'Campus Meeting Schedule';
+
+    public const TYPE_BIBLE_PURSUIT = 'Bible Pursuit';
+
+    public const TYPE_OTHER_ACTIVITY = 'Other Activity';
+
+    protected $fillable = [
+        'campus_work_term_id',
+        'activity_type',
+        'other_activity_name',
+        'title',
+        'activity_date',
+        'start_time',
+        'end_time',
+        'school_campus',
+        'venue',
+        'locality',
+        'description',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'activity_date' => 'date',
+        ];
+    }
+
+    public static function typeOptions(): array
+    {
+        return [
+            self::TYPE_CAMPUS_VISITATION => self::TYPE_CAMPUS_VISITATION,
+            self::TYPE_CAMPUS_MEETING_SCHEDULE => self::TYPE_CAMPUS_MEETING_SCHEDULE,
+            self::TYPE_BIBLE_PURSUIT => self::TYPE_BIBLE_PURSUIT,
+            self::TYPE_OTHER_ACTIVITY => self::TYPE_OTHER_ACTIVITY,
+        ];
+    }
+
+    public function term(): BelongsTo
+    {
+        return $this->belongsTo(
+            CampusWorkTerm::class,
+            'campus_work_term_id'
+        );
+    }
+
+    public function getDisplayTitleAttribute(): string
+    {
+        if (filled($this->title)) {
+            return $this->title;
+        }
+
+        if (
+            $this->activity_type === self::TYPE_OTHER_ACTIVITY
+            && filled($this->other_activity_name)
+        ) {
+            return $this->other_activity_name;
+        }
+
+        return $this->activity_type;
+    }
+
+    public function getActivityTypeLabelAttribute(): string
+    {
+        if (
+            $this->activity_type === self::TYPE_OTHER_ACTIVITY
+            && filled($this->other_activity_name)
+        ) {
+            return $this->other_activity_name;
+        }
+
+        return $this->activity_type;
+    }
+
+    public function getTimeLabelAttribute(): string
+    {
+        $formatTime = function (?string $time): ?string {
+            if (blank($time)) {
+                return null;
+            }
+
+            return date('g:i A', strtotime($time));
+        };
+
+        $start = $formatTime($this->start_time);
+        $end = $formatTime($this->end_time);
+
+        if ($start && $end) {
+            return $start . ' – ' . $end;
+        }
+
+        return $start ?: $end ?: 'Time not specified';
+    }
+}
