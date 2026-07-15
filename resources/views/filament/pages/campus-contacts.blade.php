@@ -596,23 +596,33 @@
                                     </td>
 
                                     <td class="px-4 py-3 text-right">
-                                        @if (auth()->user()?->canDeleteRecords())
-                                            <form
-                                                method="POST"
-                                                action="{{ route('quezonprovinceactivities.campus-work.contacts.destroy', $contact) }}"
-                                                onsubmit="return confirm('Delete this Campus Contact? Linked People records will not be deleted.');"
+                                        <div class="flex justify-end gap-2">
+                                            <button
+                                                type="button"
+                                                onclick="document.getElementById('edit-campus-contact-{{ $contact->id }}').showModal()"
+                                                class="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-500"
                                             >
-                                                @csrf
-                                                @method('DELETE')
+                                                Edit
+                                            </button>
 
-                                                <button
-                                                    type="submit"
-                                                    class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                            @if (auth()->user()?->canDeleteRecords())
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route('quezonprovinceactivities.campus-work.contacts.destroy', $contact) }}"
+                                                    onsubmit="return confirm('Delete this Campus Contact? Linked People records will not be deleted.');"
                                                 >
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        @endif
+                                                    @csrf
+                                                    @method('DELETE')
+
+                                                    <button
+                                                        type="submit"
+                                                        class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -627,6 +637,256 @@
                 </h3>
             </div>
         @endforelse
+
+        {{-- Edit Campus Contact dialogs --}}
+        @foreach ($groupedContacts->flatten(1) as $contact)
+            <dialog
+                id="edit-campus-contact-{{ $contact->id }}"
+                class="m-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-gray-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-black/70 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                style="z-index: 9999; position: fixed; inset: 0; margin: auto;"
+            >
+                <form
+                    method="POST"
+                    action="{{ route('quezonprovinceactivities.campus-work.contacts.update', $contact) }}"
+                    class="min-w-0"
+                >
+                    @csrf
+                    @method('PATCH')
+
+                    {{-- Modal Header --}}
+                    <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">
+                                Edit Campus Contact
+                            </p>
+
+                            <h3 class="mt-1 break-words text-lg font-bold">
+                                {{ $contact->display_name }}
+                            </h3>
+
+                            @if ($contact->person_id)
+                                <p class="mt-1 text-xs font-semibold text-green-600 dark:text-green-400">
+                                    Already linked to People Database
+                                </p>
+                            @endif
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="this.closest('dialog').close()"
+                            class="shrink-0 rounded-lg px-3 py-1.5 font-bold text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    {{-- Modal Body --}}
+                    <div class="grid max-h-[70vh] gap-4 overflow-y-auto p-5 md:grid-cols-2">
+
+                        {{-- First Name --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                First Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="firstname"
+                                value="{{ $contact->firstname }}"
+                                maxlength="100"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Last Name --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Last Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="lastname"
+                                value="{{ $contact->lastname }}"
+                                maxlength="100"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Sex --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Sex
+                            </label>
+
+                            <select
+                                name="sex"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                                <option value="">
+                                    Not recorded
+                                </option>
+
+                                <option
+                                    value="Male"
+                                    @selected($contact->sex === 'Male')
+                                >
+                                    Male
+                                </option>
+
+                                <option
+                                    value="Female"
+                                    @selected($contact->sex === 'Female')
+                                >
+                                    Female
+                                </option>
+                            </select>
+                        </div>
+
+                        {{-- Locality --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Locality
+                            </label>
+
+                            <input
+                                type="text"
+                                name="locality"
+                                value="{{ $contact->locality }}"
+                                list="campus-contact-localities"
+                                maxlength="150"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- School / Campus --}}
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold">
+                                School / Campus
+                            </label>
+
+                            <input
+                                type="text"
+                                name="school_campus"
+                                value="{{ $contact->school_campus }}"
+                                list="campus-contact-schools"
+                                maxlength="255"
+                                placeholder="Enter or select school..."
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Course / Strand --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Course / Strand
+                            </label>
+
+                            <input
+                                type="text"
+                                name="course_strand"
+                                value="{{ $contact->course_strand }}"
+                                maxlength="255"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Grade / Year Level --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Grade / Year Level
+                            </label>
+
+                            <input
+                                type="text"
+                                name="grade_level"
+                                value="{{ $contact->grade_level }}"
+                                maxlength="100"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Contact Number --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Contact Number
+                            </label>
+
+                            <input
+                                type="text"
+                                name="contact_number"
+                                value="{{ $contact->contact_number }}"
+                                maxlength="20"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Email --}}
+                        <div>
+                            <label class="block text-sm font-bold">
+                                Email
+                            </label>
+
+                            <input
+                                type="email"
+                                name="email"
+                                value="{{ $contact->email }}"
+                                maxlength="255"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Facebook Account --}}
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold">
+                                Facebook Account
+                            </label>
+
+                            <input
+                                type="text"
+                                name="facebook_account"
+                                value="{{ $contact->facebook_account }}"
+                                maxlength="255"
+                                placeholder="Profile URL, username, or Facebook name"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        {{-- Notes --}}
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-bold">
+                                Notes
+                            </label>
+
+                            <textarea
+                                name="notes"
+                                rows="5"
+                                maxlength="5000"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            >{{ $contact->notes }}</textarea>
+                        </div>
+                    </div>
+
+                    {{-- Modal Footer --}}
+                    <div class="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-700 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onclick="this.closest('dialog').close()"
+                            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-500"
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </dialog>
+        @endforeach
 
     </div>
 </x-filament-panels::page>
