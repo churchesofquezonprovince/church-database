@@ -117,6 +117,13 @@ class PeopleTable
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('facebook_account')
+                    ->label('Facebook Account')
+                    ->searchable()
+                    ->copyable()
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('churchProfile.introducedBy.display_name')
                     ->label('Introduced By')
                     ->placeholder('Not recorded')

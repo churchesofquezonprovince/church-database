@@ -91,6 +91,12 @@ class PersonForm
                             ->email()
                             ->maxLength(255)
                             ->placeholder('name@example.com'),
+
+                        TextInput::make('facebook_account')
+                            ->label('Facebook Account')
+                            ->maxLength(255)
+                            ->placeholder('Profile URL, username, or Facebook name')
+                            ->helperText('Examples: facebook.com/juan.santos, @juan.santos, or Juan Santos'),
                     ])
                     ->columns(2),
 

@@ -231,6 +231,11 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: email is invalid.";
             }
 
+
+            if (mb_strlen((string) ($row['facebook_account'] ?? '')) > 255) {
+                $errors[] = "Line {$line}: facebook_account must not exceed 255 characters.";
+            }
+
             if (filled($row['shepherd_full_name'] ?? '') && ! $this->findPersonByFullName($row['shepherd_full_name'])) {
                 $errors[] = "Line {$line}: shepherd_full_name was not found in existing People records.";
             }
@@ -333,6 +338,7 @@ class PeopleImportController extends Controller
         $person->locality = $this->nullable($row['locality'] ?? null);
         $person->contact_number = $this->nullable($row['contact_number'] ?? null);
         $person->email = $this->nullable($row['email'] ?? null);
+        $person->facebook_account = $this->nullable($row['facebook_account'] ?? null);
         $person->home_address = $this->nullable($row['home_address'] ?? null);
         $person->permanent_address = $this->nullable($row['permanent_address'] ?? null);
         $person->geocoordinates = $this->nullable($row['geocoordinates'] ?? null);

@@ -37,6 +37,7 @@ class Person extends Model
         'home_address',
         'geocoordinates',
         'email',
+        'facebook_account',
         'contact_number',
         'emergency_contact_id',
         'emergency_contact_relationship',

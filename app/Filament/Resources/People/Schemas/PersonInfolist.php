@@ -63,6 +63,11 @@ class PersonInfolist
                             ->label('Email')
                             ->state(fn (Person $record): HtmlString => self::emailValue($record->email))
                             ->html(),
+
+                        TextEntry::make('facebook_account')
+                            ->label('Facebook Account')
+                            ->state(fn (Person $record): HtmlString => self::facebookValue($record->facebook_account))
+                            ->html(),
                     ])
                     ->columns(2),
 
@@ -472,6 +477,56 @@ class PersonInfolist
             . '</a>'
         );
     }
+
+    private static function facebookValue(?string $facebook): HtmlString
+    {
+        if (blank($facebook)) {
+            return self::none();
+        }
+
+        $value = trim((string) $facebook);
+        $url = null;
+
+        if (
+            filter_var($value, FILTER_VALIDATE_URL)
+            && in_array(
+                strtolower((string) parse_url($value, PHP_URL_SCHEME)),
+                ['http', 'https'],
+                true
+            )
+        ) {
+            $url = $value;
+        } elseif (
+            preg_match(
+                '/^(?:www\.)?facebook\.com\//i',
+                $value
+            )
+        ) {
+            $url = 'https://' . $value;
+        } elseif (
+            preg_match(
+                '/^@?([A-Za-z0-9.]+)$/',
+                $value,
+                $matches
+            )
+        ) {
+            $url = 'https://www.facebook.com/' . $matches[1];
+        }
+
+        if (! $url) {
+            return self::value($value);
+        }
+
+        return new HtmlString(
+            '<a href="' . e($url) . '"'
+            . ' target="_blank"'
+            . ' rel="noopener noreferrer"'
+            . ' class="block rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">'
+            . e($value)
+            . '</a>'
+        );
+    }
+
 
     private static function emailValue(?string $email): HtmlString
     {
