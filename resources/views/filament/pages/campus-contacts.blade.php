@@ -66,6 +66,121 @@
             </div>
         @endif
 
+        {{-- Campus Contact Import Results --}}
+        @if (
+            session('campus_contact_import_status')
+            === 'validated'
+        )
+            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                <p class="font-bold">
+                    CSV validation successful.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    {{ session('campus_contact_import_summary.rows_found', 0) }}
+                    contact row(s) are ready to import.
+                </p>
+            </div>
+        @endif
+
+        @if (
+            session('campus_contact_import_status')
+            === 'imported'
+        )
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Campus Contacts imported successfully.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    {{ session('campus_contact_import_summary.rows_imported', 0) }}
+                    contact(s) imported.
+                </p>
+            </div>
+        @endif
+
+        @if (
+            session('campus_contact_import_status')
+            === 'failed'
+        )
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <p class="font-bold">
+                    Campus Contact CSV validation failed.
+                </p>
+
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    @foreach (
+                        session(
+                            'campus_contact_import_errors',
+                            []
+                        ) as $error
+                    )
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- Import Campus Contacts --}}
+        <details class="min-w-0 overflow-hidden rounded-2xl border border-blue-200 bg-blue-50 shadow-sm dark:border-blue-900 dark:bg-blue-950">
+            <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-blue-900 hover:bg-blue-100 dark:text-blue-100 dark:hover:bg-blue-900">
+                Import Campus Contacts
+            </summary>
+
+            <form
+                method="POST"
+                action="{{ route('quezonprovinceactivities.campus-work.contacts.import') }}"
+                enctype="multipart/form-data"
+                class="border-t border-blue-200 p-5 dark:border-blue-900"
+            >
+                @csrf
+
+                <p class="text-sm text-blue-800 dark:text-blue-200">
+                    Upload a CSV file containing Campus Contacts.
+                    Incomplete contacts are allowed. The four People
+                    fields are required only when adding a contact
+                    to the People Database.
+                </p>
+
+                <div class="mt-4">
+                    <input
+                        type="file"
+                        name="csv_file"
+                        accept=".csv,text/csv"
+                        required
+                        class="block w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-blue-900 dark:bg-gray-950 dark:text-white"
+                    >
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button
+                        type="submit"
+                        name="action"
+                        value="validate"
+                        class="rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-gray-950 dark:text-blue-200"
+                    >
+                        Validate CSV
+                    </button>
+
+                    <button
+                        type="submit"
+                        name="action"
+                        value="import"
+                        class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+                    >
+                        Import Contacts
+                    </button>
+
+                    <a
+                        href="{{ route('quezonprovinceactivities.campus-work.contacts.import-template') }}"
+                        class="rounded-xl border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                        Download CSV Template
+                    </a>
+                </div>
+            </form>
+        </details>
+
         {{-- Add Campus Contact --}}
         <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
             <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900">
@@ -81,40 +196,37 @@
 
                 <div>
                     <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                        First Name *
+                        First Name
                     </label>
 
                     <input
                         type="text"
                         name="firstname"
                         value="{{ old('firstname') }}"
-                        required
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                        Last Name *
+                        Last Name
                     </label>
 
                     <input
                         type="text"
                         name="lastname"
                         value="{{ old('lastname') }}"
-                        required
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                        Sex *
+                        Sex
                     </label>
 
                     <select
                         name="sex"
-                        required
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
                         <option value="">Choose...</option>
@@ -129,7 +241,7 @@
 
                 <div>
                     <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                        Locality *
+                        Locality
                     </label>
 
                     <input
@@ -137,7 +249,6 @@
                         name="locality"
                         value="{{ old('locality') }}"
                         list="campus-contact-localities"
-                        required
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
                 </div>
@@ -400,10 +511,6 @@
                                 </th>
 
                                 <th class="px-4 py-3 text-left font-semibold">
-                                    Sex
-                                </th>
-
-                                <th class="px-4 py-3 text-left font-semibold">
                                     Locality
                                 </th>
 
@@ -436,10 +543,6 @@
                                                 {{ $contact->facebook_account }}
                                             </p>
                                         @endif
-                                    </td>
-
-                                    <td class="px-4 py-3">
-                                        {{ $contact->sex }}
                                     </td>
 
                                     <td class="px-4 py-3">

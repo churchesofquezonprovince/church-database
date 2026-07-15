@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CampusContactImportController;
 use App\Http\Controllers\CampusContactController;
 use App\Http\Controllers\CampusWorkActivityController;
 use App\Http\Controllers\StudentNucleusExportController;
@@ -302,6 +303,15 @@ Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/campus-work/contacts')
     ->name('quezonprovinceactivities.campus-work.contacts.')
     ->group(function (): void {
+        Route::post(
+            '/import',
+            [CampusContactImportController::class, 'import']
+        )->name('import');
+
+        Route::get(
+            '/import-template',
+            [CampusContactImportController::class, 'template']
+        )->name('import-template');
         Route::post('/', [CampusContactController::class, 'store'])
             ->name('store');
 

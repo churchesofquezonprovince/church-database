@@ -38,14 +38,20 @@ class CampusContact extends Model
     protected function displayName(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => collect([
-                filled($this->lastname)
-                    ? trim((string) $this->lastname) . ','
-                    : null,
-                $this->firstname,
-            ])
-                ->filter()
-                ->implode(' ')
+            get: function (): string {
+                $name = collect([
+                    filled($this->lastname)
+                        ? trim((string) $this->lastname) . ','
+                        : null,
+                    $this->firstname,
+                ])
+                    ->filter()
+                    ->implode(' ');
+
+                return filled($name)
+                    ? $name
+                    : 'Unnamed contact';
+            }
         );
     }
 

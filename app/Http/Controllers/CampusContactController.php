@@ -64,6 +64,30 @@ class CampusContactController extends Controller
             ]);
         }
 
+        $requiredForPeople = [
+            'firstname' => 'First Name',
+            'lastname' => 'Last Name',
+            'sex' => 'Sex',
+            'locality' => 'Locality',
+        ];
+
+        $missingFields = collect($requiredForPeople)
+            ->filter(
+                fn (string $label, string $field): bool =>
+                    blank($contact->{$field})
+            )
+            ->values();
+
+        if ($missingFields->isNotEmpty()) {
+            return back()->withErrors([
+                'contact' =>
+                    'Cannot add this Campus Contact to the People Database. '
+                    . 'Please complete: '
+                    . $missingFields->implode(', ')
+                    . '.',
+            ]);
+        }
+
         $person = DB::transaction(function () use ($contact): Person {
             $person = new Person();
 
@@ -136,19 +160,19 @@ class CampusContactController extends Controller
     {
         return $request->validate([
             'firstname' => [
-                'required',
+                'nullable',
                 'string',
                 'max:100',
             ],
 
             'lastname' => [
-                'required',
+                'nullable',
                 'string',
                 'max:100',
             ],
 
             'sex' => [
-                'required',
+                'nullable',
                 Rule::in([
                     'Male',
                     'Female',
@@ -156,7 +180,7 @@ class CampusContactController extends Controller
             ],
 
             'locality' => [
-                'required',
+                'nullable',
                 'string',
                 'max:150',
             ],
@@ -208,10 +232,21 @@ class CampusContactController extends Controller
     private function normalizedData(array $data): array
     {
         return [
-            'firstname' => trim((string) $data['firstname']),
-            'lastname' => trim((string) $data['lastname']),
-            'sex' => $data['sex'],
-            'locality' => trim((string) $data['locality']),
+            'firstname' => $this->nullIfBlank(
+                $data['firstname'] ?? null
+            ),
+
+            'lastname' => $this->nullIfBlank(
+                $data['lastname'] ?? null
+            ),
+
+            'sex' => $this->nullIfBlank(
+                $data['sex'] ?? null
+            ),
+
+            'locality' => $this->nullIfBlank(
+                $data['locality'] ?? null
+            ),
 
             'school_campus' => $this->nullIfBlank(
                 $data['school_campus'] ?? null
