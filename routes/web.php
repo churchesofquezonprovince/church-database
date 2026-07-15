@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CampusContactController;
 use App\Http\Controllers\CampusWorkActivityController;
 use App\Http\Controllers\StudentNucleusExportController;
 use App\Http\Controllers\CampusWorkTermController;
@@ -294,5 +295,41 @@ Route::middleware(['web', 'auth'])
 
         Route::delete('/{activity}', [CampusWorkActivityController::class, 'destroy'])
             ->name('destroy');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/contacts')
+    ->name('quezonprovinceactivities.campus-work.contacts.')
+    ->group(function (): void {
+        Route::post('/', [CampusContactController::class, 'store'])
+            ->name('store');
+
+        Route::patch('/{contact}', [CampusContactController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{contact}', [CampusContactController::class, 'destroy'])
+            ->name('destroy');
+
+        Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
+            ->name('add-to-people');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/contacts')
+    ->name('quezonprovinceactivities.campus-work.contacts.')
+    ->group(function (): void {
+        Route::post('/', [CampusContactController::class, 'store'])
+            ->name('store');
+
+        Route::patch('/{contact}', [CampusContactController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{contact}', [CampusContactController::class, 'destroy'])
+            ->name('destroy');
+
+        Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
+            ->name('add-to-people');
     });
 
