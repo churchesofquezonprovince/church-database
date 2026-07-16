@@ -50,55 +50,202 @@ class CampusContacts extends Page
     public function contacts(): Collection
     {
         $search = trim((string) request('q', ''));
-        $school = trim((string) request('school', ''));
-        $peopleStatus = trim((string) request('peopleStatus', ''));
 
-        return CampusContact::query()
-            ->with(['person'])
+        $school = trim(
+            (string) request('school', '')
+        );
+
+        $peopleStatus = trim(
+            (string) request('peopleStatus', '')
+        );
+
+        $contacts = CampusContact::query()
+            ->with([
+                'person.churchProfile',
+                'person.educationProfile',
+            ])
             ->when(
                 $search !== '',
                 function ($query) use ($search): void {
                     $like = '%' . $search . '%';
 
-                    $query->where(function ($query) use ($like): void {
-                        $query
-                            ->where('firstname', 'like', $like)
-                            ->orWhere('lastname', 'like', $like)
-                            ->orWhere('locality', 'like', $like)
-                            ->orWhere('school_campus', 'like', $like)
-                            ->orWhere('course_strand', 'like', $like)
-                            ->orWhere('grade_level', 'like', $like)
-                            ->orWhere('contact_number', 'like', $like)
-                            ->orWhere('email', 'like', $like)
-                            ->orWhere('facebook_account', 'like', $like);
-                    });
+                    $query->where(
+                        function ($query) use ($like): void {
+                            /*
+                             * Search the Campus Contact mirror.
+                             */
+                            $query
+                                ->where(
+                                    'firstname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'lastname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'locality',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'school_campus',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'course_strand',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'grade_level',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'contact_number',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'email',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'facebook_account',
+                                    'like',
+                                    $like
+                                )
+
+                                /*
+                                 * Also search the linked Person,
+                                 * because Person is the source of truth
+                                 * after linking.
+                                 */
+                                ->orWhereHas(
+                                    'person',
+                                    function ($personQuery) use (
+                                        $like
+                                    ): void {
+                                        $personQuery
+                                            ->where(
+                                                'firstname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lastname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'locality',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'contact_number',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'email',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'facebook_account',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                )
+
+                                /*
+                                 * Also search linked Education Profile.
+                                 */
+                                ->orWhereHas(
+                                    'person.educationProfile',
+                                    function (
+                                        $educationQuery
+                                    ) use ($like): void {
+                                        $educationQuery
+                                            ->where(
+                                                'school_workplace',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'course_strand',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'grade_level',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                        }
+                    );
                 }
             )
             ->when(
-                $school === '__no_school',
-                fn ($query) =>
-                    $query->where(
-                        fn ($query) =>
-                            $query
-                                ->whereNull('school_campus')
-                                ->orWhere('school_campus', '')
-                    )
-            )
-            ->when(
-                $school !== '' && $school !== '__no_school',
-                fn ($query) => $query->where('school_campus', $school)
-            )
-            ->when(
                 $peopleStatus === 'linked',
-                fn ($query) => $query->whereNotNull('person_id')
+                fn ($query) =>
+                    $query->whereNotNull('person_id')
             )
             ->when(
                 $peopleStatus === 'unlinked',
-                fn ($query) => $query->whereNull('person_id')
+                fn ($query) =>
+                    $query->whereNull('person_id')
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->get();
+
+        /*
+         * Filter using effective school value:
+         *
+         * Linked contact:
+         * Person Education Profile is source of truth.
+         *
+         * Unlinked contact:
+         * Campus Contact school_campus is used.
+         */
+        if ($school === '__no_school') {
+            return $contacts
+                ->filter(
+                    fn (CampusContact $contact): bool =>
+                        blank(
+                            $contact->effective_school_campus
+                        )
+                )
+                ->values();
+        }
+
+        if ($school !== '') {
+            return $contacts
+                ->filter(
+                    fn (CampusContact $contact): bool =>
+                        strcasecmp(
+                            trim(
+                                (string)
+                                $contact
+                                    ->effective_school_campus
+                            ),
+                            $school
+                        ) === 0
+                )
+                ->values();
+        }
+
+        return $contacts;
     }
 
     public function groupedContacts(): Collection
@@ -106,45 +253,225 @@ class CampusContacts extends Page
         return $this->contacts()
             ->groupBy(
                 fn (CampusContact $contact): string =>
-                    filled($contact->school_campus)
-                        ? $contact->school_campus
+                    filled(
+                        $contact->effective_school_campus
+                    )
+                        ? $contact->effective_school_campus
                         : 'School not recorded'
             )
-            ->sortKeysUsing(function (string $a, string $b): int {
-                if ($a === 'School not recorded') {
-                    return -1;
-                }
+            ->sortKeysUsing(
+                function (
+                    string $a,
+                    string $b
+                ): int {
+                    if (
+                        $a === 'School not recorded'
+                    ) {
+                        return -1;
+                    }
 
-                if ($b === 'School not recorded') {
-                    return 1;
-                }
+                    if (
+                        $b === 'School not recorded'
+                    ) {
+                        return 1;
+                    }
 
-                return strcasecmp($a, $b);
-            });
+                    return strcasecmp($a, $b);
+                }
+            );
     }
 
     public function summary(): array
     {
-        $contacts = CampusContact::query()->get();
+        $contacts = CampusContact::query()
+            ->with([
+                'person.educationProfile',
+            ])
+            ->get();
 
         return [
-            'total' => $contacts->count(),
+            'total' =>
+                $contacts->count(),
 
-            'not_in_people' => $contacts
-                ->whereNull('person_id')
-                ->count(),
+            'not_in_people' =>
+                $contacts
+                    ->whereNull('person_id')
+                    ->count(),
 
-            'added_to_people' => $contacts
-                ->whereNotNull('person_id')
-                ->count(),
+            'added_to_people' =>
+                $contacts
+                    ->whereNotNull('person_id')
+                    ->count(),
 
-            'schools' => $contacts
-                ->pluck('school_campus')
-                ->filter()
-                ->unique()
-                ->count(),
+            'schools' =>
+                $contacts
+                    ->map(
+                        fn (
+                            CampusContact $contact
+                        ): ?string =>
+                            $contact
+                                ->effective_school_campus
+                    )
+                    ->filter()
+                    ->unique(
+                        fn (string $school): string =>
+                            mb_strtolower(
+                                trim($school)
+                            )
+                    )
+                    ->count(),
         ];
     }
+
+
+    public function existingPeopleSearch(): string
+    {
+        return trim(
+            (string) request(
+                'existingPeopleQ',
+                ''
+            )
+        );
+    }
+
+    public function availableExistingPeople(): Collection
+    {
+        $search = $this->existingPeopleSearch();
+
+        return Person::query()
+            ->with([
+                'churchProfile',
+                'educationProfile',
+            ])
+
+            /*
+             * Do not show People already linked
+             * to a Campus Contact.
+             */
+            ->whereDoesntHave('campusContact')
+
+            ->when(
+                $search !== '',
+                function ($query) use ($search): void {
+                    $like = '%' . $search . '%';
+
+                    $query->where(
+                        function ($query) use (
+                            $like
+                        ): void {
+                            $query
+                                ->where(
+                                    'firstname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'middlename',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'lastname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'nickname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'locality',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'contact_number',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'email',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'facebook_account',
+                                    'like',
+                                    $like
+                                )
+
+                                ->orWhereHas(
+                                    'churchProfile',
+                                    function (
+                                        $profileQuery
+                                    ) use ($like): void {
+                                        $profileQuery
+                                            ->where(
+                                                'status',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                )
+
+                                ->orWhereHas(
+                                    'educationProfile',
+                                    function (
+                                        $educationQuery
+                                    ) use ($like): void {
+                                        $educationQuery
+                                            ->where(
+                                                'school_workplace',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'course_strand',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'grade_level',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                        }
+                    );
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+
+            /*
+             * Keep the page responsive.
+             * User can search when there are many People.
+             */
+            ->limit(100)
+            ->get();
+    }
+
+    public function linkablePeople(): Collection
+    {
+        return Person::query()
+            ->with([
+                'churchProfile',
+                'educationProfile',
+            ])
+
+            /*
+             * A Person may belong to only one
+             * Campus Contact.
+             */
+            ->whereDoesntHave('campusContact')
+
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+    }
+
 
     public function schoolOptions(): Collection
     {

@@ -312,6 +312,9 @@ Route::middleware(['web', 'auth'])
             '/import-template',
             [CampusContactImportController::class, 'template']
         )->name('import-template');
+        Route::post('/existing-people', [CampusContactController::class, 'addExistingPeople'])
+            ->name('existing-people.store');
+
         Route::post('/', [CampusContactController::class, 'store'])
             ->name('store');
 
@@ -323,6 +326,13 @@ Route::middleware(['web', 'auth'])
 
         Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
             ->name('add-to-people');
+
+        Route::post('/{contact}/link-existing-person', [CampusContactController::class, 'linkExistingPerson'])
+            ->name('link-existing-person');
+
+        Route::post('/{contact}/create-new-person-anyway', [CampusContactController::class, 'createNewPersonAnyway'])
+            ->name('create-new-person-anyway');
+
     });
 
 

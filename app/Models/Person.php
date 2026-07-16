@@ -94,6 +94,11 @@ class Person extends Model
         return $this->hasOne(EducationProfile::class, 'person_id');
     }
 
+    public function campusContact(): HasOne
+    {
+        return $this->hasOne(CampusContact::class, 'person_id');
+    }
+
     public function parentRelationships(): HasMany
     {
         return $this->hasMany(ParentRelationship::class, 'person_id');
