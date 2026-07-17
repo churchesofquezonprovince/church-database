@@ -19,10 +19,75 @@ class CampusContactController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
         $data = $this->validatedData($request);
+        $normalized = $this->normalizedData($data);
 
-        CampusContact::query()->create(
-            $this->normalizedData($data)
-        );
+        /*
+         * Campus Contact duplicate detector:
+         * Before creating a new Campus Contact, warn if another
+         * Campus Contact already has the same first name.
+         */
+        if (! $request->boolean('create_anyway')) {
+            $matches = $this->possibleCampusContactMatches(
+                $normalized
+            );
+
+            if ($matches->isNotEmpty()) {
+                return back()
+                    ->withInput()
+                    ->with(
+                        'campus_contact_possible_duplicates',
+                        $matches
+                            ->map(
+                                fn (
+                                    CampusContact $contact
+                                ): array => [
+                                    'id' => $contact->id,
+                                    'name' => $contact->display_name,
+                                    'firstname' =>
+                                        $contact->effective_firstname,
+                                    'lastname' =>
+                                        $contact->effective_lastname,
+                                    'sex' =>
+                                        $contact->effective_sex,
+                                    'locality' =>
+                                        $contact->effective_locality,
+                                    'school' =>
+                                        $contact
+                                            ->effective_school_campus,
+                                    'course' =>
+                                        $contact
+                                            ->effective_course_strand,
+                                    'year_level' =>
+                                        $contact
+                                            ->effective_grade_level,
+                                    'people_status' =>
+                                        $contact->person_id
+                                            ? 'Linked to People'
+                                            : 'Not linked',
+                                    'reason' =>
+                                        filled($normalized['lastname'])
+                                        && strcasecmp(
+                                            (string)
+                                            $contact
+                                                ->effective_lastname,
+                                            (string)
+                                            $normalized['lastname']
+                                        ) === 0
+                                            ? 'Same first and last name'
+                                            : 'Same first name',
+                                ]
+                            )
+                            ->values()
+                            ->all()
+                    )
+                    ->with(
+                        'campus_contact_possible_duplicate_input',
+                        $normalized
+                    );
+            }
+        }
+
+        CampusContact::query()->create($normalized);
 
         return back()->with('campus_contact_created', true);
     }
@@ -444,6 +509,53 @@ class CampusContactController extends Controller
                 $added
             );
     }
+
+    private function possibleCampusContactMatches(
+        array $data
+    ) {
+        $firstname = $this->nullIfBlank(
+            $data['firstname'] ?? null
+        );
+
+        if (blank($firstname)) {
+            return collect();
+        }
+
+        $firstnameKey = mb_strtolower(
+            trim((string) $firstname)
+        );
+
+        return CampusContact::query()
+            ->with([
+                'person.churchProfile',
+                'person.educationProfile',
+            ])
+            ->where(function ($query) use (
+                $firstnameKey
+            ): void {
+                $query
+                    ->whereRaw(
+                        'LOWER(firstname) = ?',
+                        [$firstnameKey]
+                    )
+                    ->orWhereHas(
+                        'person',
+                        function ($personQuery) use (
+                            $firstnameKey
+                        ): void {
+                            $personQuery->whereRaw(
+                                'LOWER(firstname) = ?',
+                                [$firstnameKey]
+                            );
+                        }
+                    );
+            })
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(10)
+            ->get();
+    }
+
 
     private function createNewPersonFromContact(
         CampusContact $contact

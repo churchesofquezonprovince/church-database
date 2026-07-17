@@ -23,6 +23,18 @@
                 []
             )
         );
+
+        $possibleCampusContactDuplicates = collect(
+            session(
+                'campus_contact_possible_duplicates',
+                []
+            )
+        );
+
+        $campusContactDuplicateInput = session(
+            'campus_contact_possible_duplicate_input',
+            []
+        );
     @endphp
 
     <div class="min-w-0 space-y-6">
@@ -107,7 +119,10 @@
         @endif
 
         {{-- Add Campus Contact --}}
-        <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
+        <details
+            class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950"
+            @if ($possibleCampusContactDuplicates->isNotEmpty()) open @endif
+        >
             <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900">
                 Add Campus Contact
             </summary>
@@ -867,6 +882,156 @@
                 </h3>
             </div>
         @endforelse
+
+        {{-- Possible Campus Contact duplicate warning --}}
+        @if ($possibleCampusContactDuplicates->isNotEmpty())
+            <dialog
+                id="possible-campus-contact-duplicate-dialog"
+                class="m-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-amber-200 bg-white p-0 text-gray-900 shadow-2xl backdrop:bg-black/70 dark:border-amber-900 dark:bg-gray-900 dark:text-white"
+                style="z-index: 10000; position: fixed; inset: 0; margin: auto;"
+            >
+                <div class="min-w-0">
+                    <div class="flex items-start justify-between gap-4 border-b border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-900 dark:bg-amber-950">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                                Possible Campus Contact Duplicate
+                            </p>
+
+                            <h3 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                                A similar Campus Contact already exists.
+                            </h3>
+
+                            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                Review the existing contact before creating another one.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="this.closest('dialog').close()"
+                            class="shrink-0 rounded-lg px-3 py-1.5 font-bold text-gray-500 hover:bg-amber-100 dark:text-gray-300 dark:hover:bg-amber-900"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="max-h-[65vh] space-y-3 overflow-y-auto p-5">
+                        @foreach ($possibleCampusContactDuplicates as $match)
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="break-words text-lg font-bold text-gray-900 dark:text-white">
+                                            {{ $match['name'] }}
+                                        </p>
+
+                                        <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                            <span class="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                                                {{ $match['reason'] }}
+                                            </span>
+
+                                            <span class="rounded-full bg-gray-200 px-2.5 py-1 font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                                {{ $match['sex'] ?: 'Sex not recorded' }}
+                                            </span>
+
+                                            <span class="rounded-full bg-gray-200 px-2.5 py-1 font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                                {{ $match['locality'] ?: 'Locality not recorded' }}
+                                            </span>
+
+                                            <span class="rounded-full bg-sky-100 px-2.5 py-1 font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-200">
+                                                {{ $match['school'] ?: 'School not recorded' }}
+                                            </span>
+
+                                            <span class="rounded-full bg-violet-100 px-2.5 py-1 font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-200">
+                                                {{ $match['people_status'] }}
+                                            </span>
+                                        </div>
+
+                                        @if ($match['course'] || $match['year_level'])
+                                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $match['course'] ?: 'Course not recorded' }}
+                                                @if ($match['year_level'])
+                                                    · {{ $match['year_level'] }}
+                                                @endif
+                                            </p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-4 dark:border-gray-700 sm:flex-row sm:justify-between">
+                        <a
+                            href="{{ \App\Filament\Pages\CampusContacts::getUrl([
+                                'q' => $campusContactDuplicateInput['firstname'] ?? '',
+                            ]) }}"
+                            class="rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                            Review Existing Contacts
+                        </a>
+
+                        <div class="flex flex-col gap-2 sm:flex-row">
+                            <button
+                                type="button"
+                                onclick="this.closest('dialog').close()"
+                                class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+
+                            <form
+                                method="POST"
+                                action="{{ route('quezonprovinceactivities.campus-work.contacts.store') }}"
+                                onsubmit="return confirm('Create this Campus Contact anyway even though a similar contact exists?');"
+                            >
+                                @csrf
+
+                                <input type="hidden" name="create_anyway" value="1">
+
+                                @foreach ([
+                                    'firstname',
+                                    'lastname',
+                                    'sex',
+                                    'locality',
+                                    'school_campus',
+                                    'course_strand',
+                                    'grade_level',
+                                    'contact_number',
+                                    'email',
+                                    'facebook_account',
+                                    'notes',
+                                ] as $field)
+                                    <input
+                                        type="hidden"
+                                        name="{{ $field }}"
+                                        value="{{ old($field, $campusContactDuplicateInput[$field] ?? '') }}"
+                                    >
+                                @endforeach
+
+                                <button
+                                    type="submit"
+                                    class="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500"
+                                >
+                                    Create Campus Contact Anyway
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </dialog>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const dialog = document.getElementById(
+                        'possible-campus-contact-duplicate-dialog'
+                    );
+
+                    if (dialog && !dialog.open) {
+                        dialog.showModal();
+                    }
+                });
+            </script>
+        @endif
 
         {{-- Possible Existing Person duplicate warning --}}
         @if ($possibleMatchContactId && $possibleMatches->isNotEmpty())
