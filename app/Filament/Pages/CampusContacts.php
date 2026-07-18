@@ -475,49 +475,98 @@ class CampusContacts extends Page
 
     public function schoolOptions(): Collection
     {
-        $excludedSchools = [
-            'cefi',
-            'city government of lucena',
-            'house of representatives',
-            'lac / fast',
-            'lgu-pagbilao',
-            'lgu pagbilao',
-            'slsu-lubcan',
-        ];
+        $officialSchools = collect([
+            'Southern Luzon State University',
+            'Southern Luzon State University, Alabat Campus',
+            'Southern Luzon State University, Catanauan Campus',
+            'Southern Luzon State University, Gumaca Campus',
+            'Southern Luzon State University, Infanta Campus',
+            'Southern Luzon State University, Lucena Campus',
+            'Southern Luzon State University, Polillo Campus',
+            'Southern Luzon State University, Tagkawayan Campus',
+            'Southern Luzon State University, Tayabas Campus',
+            'Southern Luzon State University, Tiaong Campus',
 
-        $personSchools = Person::query()
-            ->whereHas(
-                'educationProfile',
-                fn ($query) =>
-                    $query
-                        ->whereNotNull('school_workplace')
-                        ->where('school_workplace', '!=', '')
+            'Polytechnic University of the Philippines, Lopez Branch',
+            'Polytechnic University of the Philippines, General Luna Campus',
+            'Polytechnic University of the Philippines, Mulanay Campus',
+            'Polytechnic University of the Philippines, Unisan Campus',
+
+            'Dalubhasaan ng Lungsod ng Lucena',
+
+            'Manuel S. Enverga University Foundation',
+            'Manuel S. Enverga University Foundation, Inc. – Candelaria',
+            'Manuel S. Enverga University Foundation, Inc. – Calauag',
+            'Manuel S. Enverga University Foundation, Inc. – Catanauan',
+            'Manuel S. Enverga Academy Foundation, Inc. – Sampaloc',
+            'Manuel S. Enverga Institute Foundation, Inc. – San Antonio',
+
+            'Sacred Heart College of Lucena City, Inc.',
+            'Maryhill College',
+            'Calayan Educational Foundation, Inc.',
+            'St. Anne College Lucena, Inc.',
+            'College of Sciences, Technology and Communications, Inc.',
+
+            'Paaralang Sekundarya ng Lucban',
+            'Nagsinamo National High School',
+            'Luis Palad Integrated High School',
+            'Quezon Science High School',
+            'Quezon National High School',
+            'Manuel S. Enverga Memorial School of Arts and Trades',
+            'Dr. Maria D. Pastrana National High School',
+            'Pagbilao National High School',
+            'Talipan National High School',
+            'Dr. Panfilo Castro National High School',
+            'Bukal Sur National High School',
+            'Sta. Catalina National High School',
+            'Sariaya National High School',
+            'Lutucan National High School',
+            'Canda National High School',
+            'Recto Memorial National High School',
+            'Lusacan National High School',
+            'San Antonio National High School',
+            'Infanta National High School',
+            'Polillo National High School',
+            'Sampaloc National High School',
+            'Alabat Island National High School',
+            'Atimonan National Comprehensive High School',
+            'Calauag National High School',
+            'Guinayangan National High School',
+            'Gumaca National High School',
+            'Lopez National Comprehensive High School',
+            'Tagkawayan National High School',
+            'Catanauan National High School',
+            'Bondoc Peninsula Agricultural High School',
+            'Pitogo Community High School',
+            'Unisan National High School',
+        ]);
+
+        $existingSchools = collect()
+            ->merge(
+                CampusContact::query()
+                    ->whereNotNull('school_campus')
+                    ->pluck('school_campus')
             )
-            ->with(['educationProfile'])
-            ->get()
-            ->map(
-                fn (Person $person): ?string =>
-                    $person->educationProfile?->school_workplace
+            ->merge(
+                Person::query()
+                    ->whereHas('educationProfile')
+                    ->with('educationProfile')
+                    ->get()
+                    ->pluck('educationProfile.school_workplace')
             );
 
-        $contactSchools = CampusContact::query()
-            ->whereNotNull('school_campus')
-            ->where('school_campus', '!=', '')
-            ->pluck('school_campus');
-
-        return $personSchools
-            ->merge($contactSchools)
-            ->filter()
-            ->reject(
-                fn (string $school): bool =>
-                    in_array(
-                        mb_strtolower(trim($school)),
-                        $excludedSchools,
-                        true
-                    )
+        return $officialSchools
+            ->merge($existingSchools)
+            ->filter(fn ($school): bool => filled($school))
+            ->map(fn ($school): string => trim((string) $school))
+            ->unique(
+                fn (string $school): string =>
+                    mb_strtolower($school)
             )
-            ->unique()
-            ->sort()
+            ->sort(
+                fn (string $a, string $b): int =>
+                    strcasecmp($a, $b)
+            )
             ->values();
     }
 
