@@ -299,16 +299,15 @@
 
         {{-- Add Existing Person from People Database --}}
         <details
-            class="min-w-0 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950"
+            class="min-w-0 rounded-2xl border border-gray-300 bg-gray-50 shadow-sm dark:border-gray-700 dark:bg-gray-900"
             @if ($existingPeopleSearch !== '') open @endif
         >
-            <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-violet-900 hover:bg-violet-100 dark:text-violet-100 dark:hover:bg-violet-900">
+            <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800">
                 Add Existing Person from People Database
             </summary>
 
-            <div class="border-t border-violet-200 p-5 dark:border-violet-900">
-
-                <p class="text-sm text-violet-800 dark:text-violet-200">
+            <div class="border-t border-gray-300 p-5 dark:border-gray-700">
+                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Search the People Database and add one or multiple existing
                     people directly as linked Campus Contacts. Their existing
                     church status will not be changed.
@@ -348,12 +347,12 @@
                         name="existingPeopleQ"
                         value="{{ $existingPeopleSearch }}"
                         placeholder="Search name, locality, school, course, status, Facebook..."
-                        class="min-w-0 flex-1 rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-violet-900 dark:bg-gray-950 dark:text-white"
+                        class="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                     >
 
                     <button
                         type="submit"
-                        class="rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-500"
+                        class="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                     >
                         Search People
                     </button>
@@ -361,7 +360,7 @@
                     @if ($existingPeopleSearch !== '')
                         <a
                             href="{{ \App\Filament\Pages\CampusContacts::getUrl() }}"
-                            class="rounded-xl border border-violet-300 bg-white px-5 py-3 text-center text-sm font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-gray-950 dark:text-violet-200"
+                            class="rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             Clear
                         </a>
@@ -376,7 +375,10 @@
                 >
                     @csrf
 
-                    <div class="max-h-[480px] space-y-2 overflow-y-auto rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-900 dark:bg-gray-950">
+                    <div
+                        class="space-y-2 rounded-xl border border-gray-300 bg-white p-3 pr-2 dark:border-gray-700 dark:bg-gray-950"
+                        style="height: 360px; max-height: 360px; overflow-y: scroll; overflow-x: hidden; overscroll-behavior: contain;"
+                    >
                         @forelse ($availableExistingPeople as $person)
                             @php
                                 $personSchool = $person
@@ -394,52 +396,43 @@
                                 $personStatus = $person
                                     ->churchProfile
                                     ?->status;
+
+                                $personDetails = collect([
+                                    $person->locality ?: 'Locality not recorded',
+                                    $personSchool ?: 'School not recorded',
+                                    $personCourse,
+                                    $personYear,
+                                ])
+                                    ->filter()
+                                    ->implode(' · ');
                             @endphp
 
-                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 transition hover:border-violet-400 hover:bg-violet-50 dark:border-gray-700 dark:hover:border-violet-700 dark:hover:bg-violet-950">
+                            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-300 bg-gray-50 p-3 transition hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-indigo-500 dark:hover:bg-gray-800">
                                 <input
                                     type="checkbox"
                                     name="person_ids[]"
                                     value="{{ $person->id }}"
-                                    class="mt-1 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                    class="mt-1 rounded border-gray-400 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-950"
                                 >
 
                                 <div class="min-w-0 flex-1">
-                                    <p class="break-words font-bold text-gray-900 dark:text-white">
+                                    <p class="break-words font-bold text-gray-900 dark:text-gray-100">
                                         {{ $person->display_name }}
                                     </p>
 
-                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-300">
-                                        <span>
-                                            {{ $person->locality ?: 'Locality not recorded' }}
-                                        </span>
-
-                                        <span>
-                                            {{ $personSchool ?: 'School not recorded' }}
-                                        </span>
-
-                                        @if ($personCourse)
-                                            <span>
-                                                {{ $personCourse }}
-                                            </span>
-                                        @endif
-
-                                        @if ($personYear)
-                                            <span>
-                                                {{ $personYear }}
-                                            </span>
-                                        @endif
-                                    </div>
+                                    <p class="mt-1 break-words text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                                        {{ $personDetails }}
+                                    </p>
 
                                     <div class="mt-2">
-                                        <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                        <span class="inline-flex rounded-full bg-gray-200 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-100">
                                             {{ $personStatus ?: 'Unknown status' }}
                                         </span>
                                     </div>
                                 </div>
                             </label>
                         @empty
-                            <div class="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                            <div class="p-6 text-center text-sm text-gray-600 dark:text-gray-400">
                                 No available People records found.
 
                                 @if ($existingPeopleSearch !== '')
@@ -452,10 +445,14 @@
                     </div>
 
                     @if ($availableExistingPeople->isNotEmpty())
+                        <p class="mt-3 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                            Showing around 5 people at a time. Scroll inside the box to view more results.
+                        </p>
+
                         <div class="mt-4">
                             <button
                                 type="submit"
-                                class="w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-500 sm:w-auto"
+                                class="w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 sm:w-auto"
                             >
                                 Add Selected to Campus Contacts
                             </button>

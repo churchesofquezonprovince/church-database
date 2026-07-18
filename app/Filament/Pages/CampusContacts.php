@@ -446,8 +446,8 @@ class CampusContacts extends Page
             ->orderBy('firstname')
 
             /*
-             * Keep the page responsive.
-             * User can search when there are many People.
+             * Keep the result set controlled, but allow the UI
+             * box to scroll. The Blade controls the visible height.
              */
             ->limit(100)
             ->get();
