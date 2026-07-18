@@ -44,10 +44,10 @@
         @endif
 
         {{-- Future Immich Gallery --}}
-        <section class="rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm dark:border-sky-900 dark:bg-sky-950/40">
+        <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <p class="text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                    <p class="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
                         Future Roadmap
                     </p>
 
@@ -63,7 +63,7 @@
 
                 <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     @foreach (range(1, 5) as $index)
-                        <div class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-sky-300 bg-white text-xs font-bold text-sky-700 dark:border-sky-800 dark:bg-gray-950 dark:text-sky-300">
+                        <div class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-xs font-bold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
                             Album {{ $index }}
                         </div>
                     @endforeach
@@ -153,15 +153,15 @@
                     </p>
                 </div>
 
-                <details class="rounded-xl border border-indigo-200 bg-indigo-50 dark:border-indigo-900 dark:bg-indigo-950/40">
-                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-indigo-800 dark:text-indigo-200">
+                <details class="rounded-xl border border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-950">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800">
                         Add Reading Material
                     </summary>
 
                     <form
                         method="POST"
                         action="{{ route('quezonprovinceactivities.campus-work.dashboard.readings.store') }}"
-                        class="space-y-3 border-t border-indigo-200 p-4 dark:border-indigo-900"
+                        class="space-y-3 border-t border-gray-300 p-4 dark:border-gray-700"
                     >
                         @csrf
 
@@ -171,14 +171,14 @@
                             required
                             maxlength="255"
                             placeholder="Reading title"
-                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                         >
 
                         <textarea
                             name="description"
                             rows="3"
                             placeholder="Notes or description"
-                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                         ></textarea>
 
                         <input
@@ -186,7 +186,7 @@
                             name="link"
                             maxlength="500"
                             placeholder="Optional link"
-                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                         >
 
                         <button
@@ -309,7 +309,7 @@
                                 required
                                 maxlength="255"
                                 value="{{ $bookDialog['item']->title }}"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >
                         </div>
 
@@ -318,7 +318,7 @@
                             <textarea
                                 name="description"
                                 rows="4"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >{{ $bookDialog['item']->description }}</textarea>
                         </div>
 
@@ -329,7 +329,7 @@
                                 name="link"
                                 maxlength="500"
                                 value="{{ $bookDialog['item']->link }}"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >
                         </div>
                     </div>
@@ -383,7 +383,7 @@
                                 required
                                 maxlength="255"
                                 value="{{ $reading->title }}"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >
                         </div>
 
@@ -392,7 +392,7 @@
                             <textarea
                                 name="description"
                                 rows="4"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >{{ $reading->description }}</textarea>
                         </div>
 
@@ -403,7 +403,7 @@
                                 name="link"
                                 maxlength="500"
                                 value="{{ $reading->link }}"
-                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                                class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                             >
                         </div>
                     </div>
