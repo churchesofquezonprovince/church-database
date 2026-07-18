@@ -17,6 +17,7 @@ use HasFactory;
         'course_strand',
         'occupation',
         'school_workplace',
+        'workplace',
     ];
 
     public function person(): BelongsTo

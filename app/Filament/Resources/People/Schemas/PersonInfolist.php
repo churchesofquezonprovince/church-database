@@ -252,8 +252,13 @@ class PersonInfolist
                             ->html(),
 
                         TextEntry::make('education_school_workplace')
-                            ->label('School / Workplace')
+                            ->label('School')
                             ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->school_workplace))
+                            ->html(),
+
+                        TextEntry::make('education_workplace')
+                            ->label('Workplace')
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->workplace))
                             ->html(),
                     ])
                     ->columns(2),

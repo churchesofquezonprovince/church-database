@@ -368,12 +368,14 @@ class PeopleImportController extends Controller
         if (
             filled($row['occupation'] ?? null)
             || filled($row['school_workplace'] ?? null)
+            || filled($row['workplace'] ?? null)
             || filled($row['grade_level'] ?? null)
             || filled($row['course_strand'] ?? null)
         ) {
             $education = $person->educationProfile()->firstOrNew([]);
             $education->occupation = $this->nullable($row['occupation'] ?? null);
             $education->school_workplace = $this->nullable($row['school_workplace'] ?? null);
+            $education->workplace = $this->nullable($row['workplace'] ?? null);
             $education->grade_level = $this->nullable($row['grade_level'] ?? null);
             $education->course_strand = $this->nullable($row['course_strand'] ?? null);
             $education->save();
