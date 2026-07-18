@@ -10,6 +10,8 @@ use Illuminate\Support\Collection;
 
 class CampusContacts extends Page
 {
+    protected static ?int $navigationSort = 4;
+
     protected string $view = 'filament.pages.campus-contacts';
 
     public function getTitle(): string

@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 
 class StudentNucleus extends Page
 {
+    protected static ?int $navigationSort = 2;
+
     protected string $view = 'filament.pages.student-nucleus';
 
     public function getTitle(): string

@@ -10,6 +10,8 @@ use Illuminate\Support\Collection;
 
 class CampusActivities extends Page
 {
+    protected static ?int $navigationSort = 3;
+
     protected string $view = 'filament.pages.campus-activities';
 
     public function getTitle(): string

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CampusContactImportController;
 use App\Http\Controllers\CampusContactController;
+use App\Http\Controllers\CampusWorkDashboardController;
 use App\Http\Controllers\CampusWorkActivityController;
 use App\Http\Controllers\StudentNucleusExportController;
 use App\Http\Controllers\CampusWorkTermController;
@@ -302,6 +303,24 @@ Route::middleware(['web', 'auth'])
             ->name('destroy');
     });
 
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/dashboard')
+    ->name('quezonprovinceactivities.campus-work.dashboard.')
+    ->group(function (): void {
+        Route::patch('/main-book', [CampusWorkDashboardController::class, 'updateMainBook'])
+            ->name('main-book.update');
+
+        Route::post('/readings', [CampusWorkDashboardController::class, 'storeReading'])
+            ->name('readings.store');
+
+        Route::patch('/readings/{item}', [CampusWorkDashboardController::class, 'updateReading'])
+            ->name('readings.update');
+
+        Route::delete('/readings/{item}', [CampusWorkDashboardController::class, 'destroyReading'])
+            ->name('readings.destroy');
+    });
 
 Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/campus-work/contacts')
