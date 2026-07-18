@@ -118,6 +118,16 @@
             </div>
         @endif
 
+        {{-- Campus Contact Actions folder --}}
+        <details
+            class="min-w-0 rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            @if ($errors->any() || $existingPeopleSearch !== '' || $possibleCampusContactDuplicates->isNotEmpty()) open @endif
+        >
+            <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800">
+                Campus Contact Actions
+            </summary>
+
+            <div class="space-y-5 border-t border-gray-300 p-5 dark:border-gray-700">
         {{-- Add Campus Contact --}}
         <details
             class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950"
@@ -575,6 +585,9 @@
                     </a>
                 </div>
             </form>
+        </details>
+
+            </div>
         </details>
 
         <datalist id="campus-contact-schools">
