@@ -187,14 +187,8 @@
 
                     <div class="mt-8 space-y-1 text-sm leading-snug">
                         @forelse ($lines as $line)
-                            <div class="{{ $this->lineClass($line->line_type) }} grid grid-cols-[34px_1fr] gap-x-2">
-                                <span class="font-bold">
-                                    {{ $line->marker }}
-                                </span>
-
-                                <span class="whitespace-pre-line">
-                                    {{ $line->content }}
-                                </span>
+                            <div class="{{ $this->lineClass($line->line_type) }} grid grid-cols-[34px_1fr] gap-x-1">
+                                <span class="font-bold">{{ $line->marker }}</span><span class="whitespace-pre-line">{{ $line->content }}</span>
                             </div>
                         @empty
                             <p class="text-center text-gray-500">

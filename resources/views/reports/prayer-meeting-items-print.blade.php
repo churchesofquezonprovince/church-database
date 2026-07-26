@@ -51,9 +51,9 @@
         .line {
             display: grid;
             grid-template-columns: 34px 1fr;
-            column-gap: 6px;
+            column-gap: 4px;
             align-items: start;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             white-space: normal;
             page-break-inside: avoid;
         }
@@ -120,13 +120,7 @@
 
     @forelse ($lines as $line)
         <div class="line {{ $line->line_type }}">
-            <span class="marker">
-                {{ $line->marker }}
-            </span>
-
-            <span class="content">
-                {{ $line->content }}
-            </span>
+            <span class="marker">{{ $line->marker }}</span><span class="content">{{ $line->content }}</span>
         </div>
     @empty
         <p style="text-align: center; color: #777;">
