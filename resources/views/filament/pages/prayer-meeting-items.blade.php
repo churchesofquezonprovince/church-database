@@ -124,7 +124,7 @@
             @endif
         </section>
 
-        @if (! $selectedSheet || ! $item)
+        @if (! $item)
             <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">No Prayer Meeting attendance sheet found.</p>
 
@@ -133,6 +133,15 @@
                 </p>
             </section>
         @else
+            @if (! $selectedSheet)
+                <section class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                    <p class="font-bold">No Attendance → Prayer Meeting sheet found for this locality.</p>
+                    <p class="mt-1 text-sm">
+                        The prayer items can still be viewed and edited, but the meeting day/time is not auto-linked yet.
+                    </p>
+                </section>
+            @endif
+
             {{-- Sub Header --}}
             <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

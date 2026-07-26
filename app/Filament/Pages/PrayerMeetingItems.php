@@ -27,16 +27,47 @@ class PrayerMeetingItems extends Page
 
     public function localities(): Collection
     {
-        return AttendanceSheet::query()
+        $rows = collect();
+
+        AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
             ->orderBy('locality')
             ->get()
-            ->map(fn (AttendanceSheet $sheet): array => [
-                'value' => $sheet->locality ?: '__no_locality',
-                'label' => $sheet->locality ?: 'No Locality',
-                'sheet' => $sheet,
-            ]);
+            ->each(function (AttendanceSheet $sheet) use ($rows): void {
+                $value = $sheet->locality ?: '__no_locality';
+
+                $rows->put($value, [
+                    'value' => $value,
+                    'label' => $sheet->locality ?: 'No Locality',
+                    'source' => 'attendance',
+                    'sheet' => $sheet,
+                ]);
+            });
+
+        PrayerMeetingItem::query()
+            ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
+            ->orderBy('locality')
+            ->get()
+            ->each(function (PrayerMeetingItem $item) use ($rows): void {
+                $value = $item->locality ?: '__no_locality';
+
+                if ($rows->has($value)) {
+                    return;
+                }
+
+                $rows->put($value, [
+                    'value' => $value,
+                    'label' => $item->locality ?: 'No Locality',
+                    'source' => 'prayer_items',
+                    'sheet' => null,
+                ]);
+            });
+
+        return $rows
+            ->values()
+            ->sortBy(fn (array $row): string => $row['label'])
+            ->values();
     }
 
     public function selectedLocality(): ?string
@@ -73,10 +104,29 @@ class PrayerMeetingItems extends Page
 
     public function prayerItem(): ?PrayerMeetingItem
     {
+        $locality = $this->selectedLocality();
+
+        if (! $locality) {
+            return null;
+        }
+
+        $storedLocality = $locality === '__no_locality'
+            ? null
+            : $locality;
+
         $sheet = $this->selectedSheet();
 
         if (! $sheet) {
-            return null;
+            return PrayerMeetingItem::query()
+                ->where(function ($query) use ($storedLocality): void {
+                    if ($storedLocality === null) {
+                        $query->whereNull('locality')
+                            ->orWhere('locality', '');
+                    } else {
+                        $query->where('locality', $storedLocality);
+                    }
+                })
+                ->first();
         }
 
         $item = PrayerMeetingItem::query()
