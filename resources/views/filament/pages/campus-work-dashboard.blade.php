@@ -100,7 +100,7 @@
                         <button
                             type="button"
                             onclick="document.getElementById('edit-main-book-{{ $bookCard['section'] }}').showModal()"
-                            class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500"
+                            class="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                         >
                             Edit
                         </button>
@@ -191,7 +191,7 @@
 
                         <button
                             type="submit"
-                            class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500"
+                            class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                         >
                             Add Reading
                         </button>
@@ -345,7 +345,7 @@
 
                         <button
                             type="submit"
-                            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500"
+                            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                         >
                             Save
                         </button>
@@ -419,7 +419,7 @@
 
                         <button
                             type="submit"
-                            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500"
+                            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                         >
                             Save
                         </button>
