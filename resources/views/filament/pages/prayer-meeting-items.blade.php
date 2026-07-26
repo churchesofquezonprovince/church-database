@@ -34,6 +34,12 @@
             </div>
         @endif
 
+        @if (session('prayer_meeting_item_snapshot_deleted'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Prayer item snapshot deleted.</p>
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please check the following:</p>
@@ -228,14 +234,32 @@
                                     </p>
                                 </div>
 
-                                <a
-                                    href="{{ $this->snapshotPrintUrl($snapshot) }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-                                >
-                                    View Snapshot
-                                </a>
+                                <div class="flex flex-col gap-2 sm:flex-row">
+                                    <a
+                                        href="{{ $this->snapshotPrintUrl($snapshot) }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    >
+                                        View Snapshot
+                                    </a>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route('quezonprovinceactivities.posts.prayer-meeting-items.snapshots.destroy', $snapshot) }}"
+                                        onsubmit="return confirm('Delete this snapshot permanently?');"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button
+                                            type="submit"
+                                            class="w-full rounded-xl bg-red-600 px-4 py-2 text-center text-sm font-bold text-white hover:bg-red-500 sm:w-auto"
+                                        >
+                                            Delete Snapshot
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     @empty

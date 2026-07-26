@@ -66,6 +66,10 @@ Route::middleware(['web', 'auth'])
         Route::get('/snapshots/{snapshot}', [PrayerMeetingItemController::class, 'printSnapshot'])
             ->name('snapshots.print');
 
+        Route::delete('/snapshots/{snapshot}', [PrayerMeetingItemController::class, 'destroySnapshot'])
+            ->name('snapshots.destroy');
+
+
         Route::get('/print', [PrayerMeetingItemController::class, 'print'])
             ->name('print');
     });

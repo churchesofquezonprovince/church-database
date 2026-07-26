@@ -169,6 +169,16 @@ class PrayerMeetingItemController extends Controller
         return back()->with('prayer_meeting_item_snapshot_created', true);
     }
 
+    public function destroySnapshot(
+        PrayerMeetingItemSnapshot $snapshot
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->canDeleteRecords(), 403);
+
+        $snapshot->delete();
+
+        return back()->with('prayer_meeting_item_snapshot_deleted', true);
+    }
+
     public function printSnapshot(
         PrayerMeetingItemSnapshot $snapshot
     ): View {
