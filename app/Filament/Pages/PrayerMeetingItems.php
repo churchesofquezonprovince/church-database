@@ -74,7 +74,11 @@ class PrayerMeetingItems extends Page
             ->orderBy('locality')
             ->get()
             ->each(function (PrayerMeetingItem $item) use ($rows): void {
-                $value = $item->locality ?: '__no_locality';
+                if (blank($item->locality)) {
+                    return;
+                }
+
+                $value = $item->locality;
 
                 if ($rows->has($value)) {
                     return;
@@ -82,7 +86,7 @@ class PrayerMeetingItems extends Page
 
                 $rows->put($value, [
                     'value' => $value,
-                    'label' => $item->locality ?: 'No Locality',
+                    'label' => $item->locality,
                     'source' => 'prayer_items',
                     'sheet' => null,
                 ]);
