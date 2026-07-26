@@ -54,35 +54,8 @@
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
                         Load prayer items by locality. Meeting day and time are automatically read from Attendance → Prayer Meeting.
                     </p>
-                </div>
 
-                <form
-                    method="GET"
-                    class="min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950 lg:w-[420px]"
-                >
-                    <label
-                        for="locality"
-                        class="block text-sm font-bold text-gray-900 dark:text-white"
-                    >
-                        Locality
-                    </label>
-
-                    <select
-                        id="locality"
-                        name="locality"
-                        class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                    >
-                        @foreach ($localities as $row)
-                            <option
-                                value="{{ $row['value'] }}"
-                                @selected($selectedLocality === $row['value'])
-                            >
-                                {{ $row['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <div class="mt-4 rounded-xl border border-gray-300 bg-gray-100 p-3 text-sm dark:border-gray-700 dark:bg-gray-900">
+                    <div class="mt-4 rounded-xl border border-gray-300 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-950">
                         <p class="font-bold text-gray-900 dark:text-white">
                             Meeting Day and Time
                         </p>
@@ -90,16 +63,10 @@
                         <p class="mt-1 text-gray-700 dark:text-gray-200">
                             {{ $this->meetingScheduleLabel() }}
                         </p>
-
                     </div>
+                </div>
 
-                    <button
-                        type="submit"
-                        class="mt-4 w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                    >
-                        Load Locality
-                    </button>
-                </form>
+                
             </div>
 
             @if ($localities->isNotEmpty())
