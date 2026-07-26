@@ -18,6 +18,7 @@ use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
+use App\Http\Controllers\PrayerMeetingItemController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
 
@@ -44,6 +45,24 @@ Route::middleware(['web', 'auth'])
             ->name('prayer-meeting.store');
     });
 
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/posts/prayer-meeting-items')
+    ->name('quezonprovinceactivities.posts.prayer-meeting-items.')
+    ->group(function (): void {
+        Route::post('/lines', [PrayerMeetingItemController::class, 'storeLine'])
+            ->name('lines.store');
+
+        Route::patch('/lines/{line}', [PrayerMeetingItemController::class, 'updateLine'])
+            ->name('lines.update');
+
+        Route::delete('/lines/{line}', [PrayerMeetingItemController::class, 'destroyLine'])
+            ->name('lines.destroy');
+
+        Route::get('/print', [PrayerMeetingItemController::class, 'print'])
+            ->name('print');
+    });
 
 Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/imports')
