@@ -59,37 +59,70 @@ class PrayerMeetingItemController extends Controller
 
     public function print(Request $request): View
     {
-        $locality = $request->query('locality');
+        $requestedLocality = $request->query('locality');
 
-        $sheet = $this->sheetForLocality($locality);
+        if (blank($requestedLocality)) {
+            $requestedLocality = PrayerMeetingItem::query()
+                ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
+                ->orderBy('locality')
+                ->value('locality');
+        }
+
+        $storedLocality = $requestedLocality === '__no_locality'
+            ? null
+            : $requestedLocality;
+
+        $sheet = $this->sheetForLocality($requestedLocality);
 
         $item = PrayerMeetingItem::query()
             ->with(['lines' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
-            ->firstOrCreate(
-                ['locality' => $sheet?->locality],
-                [
-                    'attendance_sheet_id' => $sheet?->id,
-                    'title' => 'Prayer Meeting Items',
-                    'meeting_date' => $sheet?->sessions()
-                        ->latest('session_date')
-                        ->first()
-                        ?->session_date,
-                ],
-            );
+            ->where(function ($query) use ($storedLocality): void {
+                if (blank($storedLocality)) {
+                    $query->whereNull('locality')
+                        ->orWhere('locality', '');
+                } else {
+                    $query->where('locality', $storedLocality);
+                }
+            })
+            ->first();
 
-        if ($sheet && $item->attendance_sheet_id !== $sheet->id) {
+        if (! $item && $sheet) {
+            $item = PrayerMeetingItem::query()
+                ->with(['lines' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
+                ->firstOrCreate(
+                    ['locality' => $sheet->locality],
+                    [
+                        'attendance_sheet_id' => $sheet->id,
+                        'title' => 'Prayer Meeting Items',
+                        'meeting_date' => $sheet->sessions()
+                            ->latest('session_date')
+                            ->first()
+                            ?->session_date,
+                    ],
+                );
+        }
+
+        if ($sheet && $item && $item->attendance_sheet_id !== $sheet->id) {
             $item->forceFill([
                 'attendance_sheet_id' => $sheet->id,
             ])->save();
         }
 
+        $lines = $item
+            ? $item->lines()->orderBy('sort_order')->orderBy('id')->get()
+            : collect();
+
+        $localityLabel = $item?->locality
+            ?: $sheet?->locality
+            ?: ($requestedLocality === '__no_locality' ? 'No Locality' : (string) $requestedLocality);
+
         return view('reports.prayer-meeting-items-print', [
             'item' => $item,
             'sheet' => $sheet,
-            'lines' => $item->lines,
-            'localityLabel' => $sheet?->locality ?: 'No Locality',
+            'lines' => $lines,
+            'localityLabel' => $localityLabel ?: 'No Locality',
             'meetingSchedule' => $this->meetingScheduleLabel($sheet),
-            'latestMeetingDate' => $this->latestMeetingDateLabel($sheet),
+            'latestMeetingDate' => $this->latestMeetingDateLabel($sheet, $item),
         ]);
     }
 
@@ -123,16 +156,19 @@ class PrayerMeetingItemController extends Controller
     private function sheetForLocality(?string $locality): ?AttendanceSheet
     {
         if (blank($locality)) {
-            return AttendanceSheet::query()
-                ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-                ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
-                ->orderBy('locality')
-                ->first();
+            return null;
         }
 
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->where('locality', $locality)
+            ->where(function ($query) use ($locality): void {
+                if ($locality === '__no_locality') {
+                    $query->whereNull('locality')
+                        ->orWhere('locality', '');
+                } else {
+                    $query->where('locality', $locality);
+                }
+            })
             ->first();
     }
 
@@ -161,19 +197,25 @@ class PrayerMeetingItemController extends Controller
         return $day . ' · ' . $time;
     }
 
-    private function latestMeetingDateLabel(?AttendanceSheet $sheet): string
-    {
-        if (! $sheet) {
-            return 'No meeting date found';
+    private function latestMeetingDateLabel(
+        ?AttendanceSheet $sheet,
+        ?PrayerMeetingItem $item = null
+    ): string {
+        if ($sheet) {
+            $latest = $sheet->sessions()
+                ->latest('session_date')
+                ->first();
+
+            if ($latest?->session_date) {
+                return $latest->session_date->format('F d, Y');
+            }
         }
 
-        $latest = $sheet->sessions()
-            ->latest('session_date')
-            ->first();
+        if ($item?->meeting_date) {
+            return $item->meeting_date->format('F d, Y');
+        }
 
-        return $latest?->session_date
-            ? $latest->session_date->format('F d, Y')
-            : 'No attendance date recorded yet';
+        return 'No meeting date found';
     }
 
     private function nullIfBlank(mixed $value): ?string
