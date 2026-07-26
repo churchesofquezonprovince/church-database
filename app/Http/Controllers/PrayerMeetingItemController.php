@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceSheet;
 use App\Models\PrayerMeetingItem;
 use App\Models\PrayerMeetingItemLine;
+use App\Models\PrayerMeetingItemSnapshot;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Fluent;
 use Illuminate\View\View;
 
 class PrayerMeetingItemController extends Controller
@@ -123,6 +125,67 @@ class PrayerMeetingItemController extends Controller
             'localityLabel' => $localityLabel ?: 'No Locality',
             'meetingSchedule' => $this->meetingScheduleLabel($sheet),
             'latestMeetingDate' => $this->latestMeetingDateLabel($sheet, $item),
+        ]);
+    }
+
+    public function storeSnapshot(
+        Request $request,
+        PrayerMeetingItem $item
+    ): RedirectResponse {
+        abort_unless(auth()->user()?->canManageRecords(), 403);
+
+        $item->load([
+            'lines' => fn ($query) => $query->orderBy('sort_order')->orderBy('id'),
+            'attendanceSheet',
+        ]);
+
+        $sheet = $item->attendanceSheet
+            ?: $this->sheetForLocality($item->locality);
+
+        $lines = $item->lines
+            ->map(fn (PrayerMeetingItemLine $line): array => [
+                'line_type' => $line->line_type,
+                'marker' => $line->marker,
+                'content' => $line->content,
+                'sort_order' => $line->sort_order,
+            ])
+            ->values()
+            ->all();
+
+        $user = auth()->user();
+
+        PrayerMeetingItemSnapshot::query()->create([
+            'prayer_meeting_item_id' => $item->id,
+            'locality' => $item->locality,
+            'title' => $item->title,
+            'meeting_date' => $item->meeting_date,
+            'meeting_schedule_snapshot' => $this->meetingScheduleLabel($sheet),
+            'content_json' => $lines,
+            'created_by_name' => filled($user?->name ?? null)
+                ? $user?->name
+                : ($user?->email ?? null),
+        ]);
+
+        return back()->with('prayer_meeting_item_snapshot_created', true);
+    }
+
+    public function printSnapshot(
+        PrayerMeetingItemSnapshot $snapshot
+    ): View {
+        $snapshot->load('item.attendanceSheet');
+
+        $lines = collect($snapshot->content_json ?? [])
+            ->map(fn (array $line): Fluent => new Fluent($line));
+
+        return view('reports.prayer-meeting-items-print', [
+            'item' => $snapshot->item,
+            'sheet' => $snapshot->item?->attendanceSheet,
+            'lines' => $lines,
+            'localityLabel' => $snapshot->locality ?: 'No Locality',
+            'meetingSchedule' => $snapshot->meeting_schedule_snapshot ?: 'No Prayer Meeting attendance sheet found.',
+            'latestMeetingDate' => $snapshot->meeting_date
+                ? $snapshot->meeting_date->format('F d, Y')
+                : 'No meeting date found',
         ]);
     }
 

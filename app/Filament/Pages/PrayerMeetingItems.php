@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\AttendanceSheet;
 use App\Models\PrayerMeetingItem;
 use App\Models\PrayerMeetingItemLine;
+use App\Models\PrayerMeetingItemSnapshot;
 use App\Models\Person;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -251,6 +252,29 @@ class PrayerMeetingItems extends Page
         return route('quezonprovinceactivities.posts.prayer-meeting-items.print', [
             'locality' => $this->selectedLocality(),
         ]);
+    }
+
+    public function snapshots(): Collection
+    {
+        $item = $this->prayerItem();
+
+        if (! $item) {
+            return collect();
+        }
+
+        return $item->snapshots()
+            ->latest()
+            ->limit(20)
+            ->get();
+    }
+
+    public function snapshotPrintUrl(
+        PrayerMeetingItemSnapshot $snapshot
+    ): string {
+        return route(
+            'quezonprovinceactivities.posts.prayer-meeting-items.snapshots.print',
+            $snapshot
+        );
     }
 
     public function lineTypeOptions(): array

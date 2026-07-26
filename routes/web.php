@@ -60,6 +60,12 @@ Route::middleware(['web', 'auth'])
         Route::delete('/lines/{line}', [PrayerMeetingItemController::class, 'destroyLine'])
             ->name('lines.destroy');
 
+        Route::post('/{item}/snapshots', [PrayerMeetingItemController::class, 'storeSnapshot'])
+            ->name('snapshots.store');
+
+        Route::get('/snapshots/{snapshot}', [PrayerMeetingItemController::class, 'printSnapshot'])
+            ->name('snapshots.print');
+
         Route::get('/print', [PrayerMeetingItemController::class, 'print'])
             ->name('print');
     });

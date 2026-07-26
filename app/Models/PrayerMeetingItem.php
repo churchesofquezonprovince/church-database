@@ -28,4 +28,9 @@ class PrayerMeetingItem extends Model
     {
         return $this->hasMany(PrayerMeetingItemLine::class);
     }
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(PrayerMeetingItemSnapshot::class);
+    }
+
 }

@@ -6,6 +6,7 @@
         $item = $this->prayerItem();
         $lines = $this->lines();
         $lineTypeOptions = $this->lineTypeOptions();
+        $snapshots = $this->snapshots();
     @endphp
 
     <div class="space-y-6">
@@ -24,6 +25,12 @@
         @if (session('prayer_meeting_item_line_deleted'))
             <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item line removed.</p>
+            </div>
+        @endif
+
+        @if (session('prayer_meeting_item_snapshot_created'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">Prayer item snapshot saved.</p>
             </div>
         @endif
 
@@ -126,6 +133,21 @@
                             Edit Content
                         </a>
 
+                        <form
+                            method="POST"
+                            action="{{ route('quezonprovinceactivities.posts.prayer-meeting-items.snapshots.store', $item) }}"
+                            onsubmit="return confirm('Save a snapshot of the current prayer items?');"
+                        >
+                            @csrf
+
+                            <button
+                                type="submit"
+                                class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm font-bold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900 sm:w-auto"
+                            >
+                                Save Snapshot
+                            </button>
+                        </form>
+
                         <a
                             href="{{ $this->printUrl() }}"
                             target="_blank"
@@ -164,6 +186,63 @@
                             </p>
                         @endforelse
                     </div>
+                </div>
+            </section>
+
+            {{-- Snapshot History --}}
+            <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                            History
+                        </p>
+
+                        <h2 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                            Prayer Item Snapshots
+                        </h2>
+
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            Saved copies of previous prayer item versions.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    @forelse ($snapshots as $snapshot)
+                        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="font-bold text-gray-900 dark:text-white">
+                                        Snapshot #{{ $snapshot->id }}
+                                    </p>
+
+                                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                        Saved {{ $snapshot->created_at?->format('M d, Y g:i A') }}
+                                        @if ($snapshot->created_by_name)
+                                            by {{ $snapshot->created_by_name }}
+                                        @endif
+                                    </p>
+
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ count($snapshot->content_json ?? []) }} line(s)
+                                    </p>
+                                </div>
+
+                                <a
+                                    href="{{ $this->snapshotPrintUrl($snapshot) }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="rounded-xl border border-gray-300 px-4 py-2 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                >
+                                    View Snapshot
+                                </a>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-gray-300 p-5 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            No snapshots saved yet.
+                        </div>
+                    @endforelse
                 </div>
             </section>
 
