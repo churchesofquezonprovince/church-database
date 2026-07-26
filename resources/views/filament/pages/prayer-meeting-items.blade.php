@@ -217,7 +217,7 @@
                                     </p>
 
                                     <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                        Saved {{ $snapshot->created_at?->format('M d, Y g:i A') }}
+                                        Saved {{ $snapshot->created_at?->timezone('Asia/Manila')->format('M d, Y g:i A') }} PHT
                                         @if ($snapshot->created_by_name)
                                             by {{ $snapshot->created_by_name }}
                                         @endif
