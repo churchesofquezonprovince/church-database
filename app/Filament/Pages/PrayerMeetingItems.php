@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\AttendanceSheet;
 use App\Models\PrayerMeetingItem;
 use App\Models\PrayerMeetingItemLine;
+use App\Models\Person;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
@@ -29,21 +30,43 @@ class PrayerMeetingItems extends Page
     {
         $rows = collect();
 
-        AttendanceSheet::query()
-            ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
+        Person::query()
+            ->whereNotNull('locality')
+            ->where('locality', '!=', '')
+            ->distinct()
             ->orderBy('locality')
-            ->get()
-            ->each(function (AttendanceSheet $sheet) use ($rows): void {
-                $value = $sheet->locality ?: '__no_locality';
+            ->pluck('locality')
+            ->each(function (string $locality) use ($rows): void {
+                $sheet = AttendanceSheet::query()
+                    ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
+                    ->where('locality', $locality)
+                    ->first();
 
-                $rows->put($value, [
-                    'value' => $value,
-                    'label' => $sheet->locality ?: 'No Locality',
-                    'source' => 'attendance',
+                $rows->put($locality, [
+                    'value' => $locality,
+                    'label' => $locality,
+                    'source' => 'people',
                     'sheet' => $sheet,
                 ]);
             });
+
+        $hasNoLocality = Person::query()
+            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
+            ->exists();
+
+        if ($hasNoLocality) {
+            $sheet = AttendanceSheet::query()
+                ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
+                ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
+                ->first();
+
+            $rows->put('__no_locality', [
+                'value' => '__no_locality',
+                'label' => 'No Locality',
+                'source' => 'people',
+                'sheet' => $sheet,
+            ]);
+        }
 
         PrayerMeetingItem::query()
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
