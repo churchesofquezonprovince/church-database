@@ -200,7 +200,7 @@ class StudentNucleus extends Page
             'missing_contact' => $members
                 ->filter(
                     fn (StudentNucleusMembership $membership): bool =>
-                        blank($membership->person?->contact_number)
+                        blank($membership->person?->facebook_account)
                         && blank($membership->person?->email)
                 )
                 ->count(),

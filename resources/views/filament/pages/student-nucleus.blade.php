@@ -601,7 +601,7 @@
 
                         <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
                             <p class="text-xs text-gray-500 dark:text-gray-400">
-                                Missing Contact
+                                Missing Facebook Link
                             </p>
 
                             <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
