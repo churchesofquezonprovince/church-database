@@ -152,11 +152,12 @@
 
                     </div>
 
-                    <div class="mt-8 space-y-1 text-sm leading-snug">
+                    <div class="mt-8 text-sm leading-snug">
                         @forelse ($lines as $line)
-                            <div class="{{ $this->lineClass($line->line_type) }} grid grid-cols-[34px_1fr] gap-x-1">
-                                <span class="font-bold">{{ $line->marker }}</span><span class="whitespace-pre-line">{{ $line->content }}</span>
-                            </div>
+                            <div
+                                class="{{ $this->lineClass($line->line_type) }}"
+                                style="display: grid; grid-template-columns: 42px minmax(0, 1fr); column-gap: 4px; align-items: start; margin-bottom: 3px;"
+                            ><span style="font-weight: 700; white-space: nowrap;">{{ $line->marker }}</span><span style="white-space: pre-line;">{{ $line->content }}</span></div>
                         @empty
                             <p class="text-center text-gray-500">
                                 No prayer items encoded yet. Click Edit Content to add lines.
