@@ -82,16 +82,16 @@
                         @endforeach
                     </select>
 
-                    <div class="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm dark:border-indigo-900 dark:bg-indigo-950/40">
-                        <p class="font-bold text-indigo-900 dark:text-indigo-100">
+                    <div class="mt-4 rounded-xl border border-gray-300 bg-gray-100 p-3 text-sm dark:border-gray-700 dark:bg-gray-900">
+                        <p class="font-bold text-gray-900 dark:text-white">
                             Meeting Day and Time
                         </p>
 
-                        <p class="mt-1 text-indigo-800 dark:text-indigo-200">
+                        <p class="mt-1 text-gray-700 dark:text-gray-200">
                             {{ $this->meetingScheduleLabel() }}
                         </p>
 
-                        <p class="mt-2 text-xs text-indigo-700 dark:text-indigo-300">
+                        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
                             Latest attendance date:
                             {{ $this->latestMeetingDateLabel() }}
                         </p>
@@ -168,7 +168,7 @@
 
             {{-- Main PDF Preview --}}
             <section class="rounded-2xl border border-gray-200 bg-gray-100 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-950">
-                <div class="mx-auto max-w-4xl bg-white p-8 text-black shadow-xl">
+                <div class="mx-auto max-w-4xl bg-white p-8 text-black shadow-xl" style="color: #000;">
                     <div class="text-center">
                         <p class="text-sm font-bold uppercase">
                             {{ $this->localityLabel() }}

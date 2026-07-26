@@ -196,17 +196,17 @@ class PrayerMeetingItems extends Page
     {
         return match ($type) {
             PrayerMeetingItemLine::TYPE_ROMAN =>
-                'font-bold uppercase text-gray-950 dark:text-white',
+                'font-bold uppercase text-black',
             PrayerMeetingItemLine::TYPE_LETTER =>
-                'ml-4 font-semibold text-gray-900 dark:text-gray-100',
+                'ml-4 font-semibold text-black',
             PrayerMeetingItemLine::TYPE_NUMBER =>
-                'ml-8 text-gray-800 dark:text-gray-200',
+                'ml-8 text-black',
             PrayerMeetingItemLine::TYPE_LOWER_ROMAN =>
-                'ml-12 text-gray-800 dark:text-gray-200',
+                'ml-12 text-black',
             PrayerMeetingItemLine::TYPE_BULLET =>
-                'ml-8 text-gray-800 dark:text-gray-200',
+                'ml-8 text-black',
             default =>
-                'text-gray-800 dark:text-gray-200',
+                'text-black',
         };
     }
 }
