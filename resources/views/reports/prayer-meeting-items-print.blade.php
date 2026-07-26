@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4;
-            margin: 18mm;
+            margin: 0.5in;
         }
 
         body {
