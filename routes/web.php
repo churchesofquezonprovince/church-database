@@ -23,6 +23,13 @@ use App\Http\Controllers\LordsTableAttendanceController;
 
 use Illuminate\Support\Facades\Route;
 
+Route::middleware(['web'])
+    ->get('/quezonprovinceactivities/test-site', function () {
+        return view('test-site.manila-clock');
+    })
+    ->name('quezonprovinceactivities.test-site');
+
+
 Route::redirect('/', '/quezonprovinceactivities');
 
 
