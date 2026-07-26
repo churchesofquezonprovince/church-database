@@ -91,10 +91,6 @@
                             {{ $this->meetingScheduleLabel() }}
                         </p>
 
-                        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                            Latest attendance date:
-                            {{ $this->latestMeetingDateLabel() }}
-                        </p>
                     </div>
 
                     <button
@@ -187,9 +183,6 @@
                             Prayer Meeting Items
                         </h1>
 
-                        <p class="mt-1 text-sm">
-                            {{ $this->latestMeetingDateLabel() }}
-                        </p>
                     </div>
 
                     <div class="mt-8 space-y-3 text-sm leading-relaxed">

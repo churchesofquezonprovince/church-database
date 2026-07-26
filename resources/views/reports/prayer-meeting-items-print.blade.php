@@ -103,7 +103,7 @@
         </h1>
 
         <div class="meta">
-            {{ $latestMeetingDate }} · {{ $meetingSchedule }}
+            {{ $meetingSchedule }}
         </div>
     </div>
 
