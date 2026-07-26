@@ -105,16 +105,17 @@
         @endif
 
         {{-- Manual student allocation --}}
-        <div class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 sm:p-6">
-            <h3 class="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+        <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
+            <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
                 Add Students to the Nucleus
-            </h3>
+            </summary>
 
-            <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-200">
-                Search and select only the students who are actually part of the Student Nucleus.
-            </p>
+            <div class="border-t border-emerald-200 p-4 dark:border-emerald-900 sm:p-6">
+                <p class="text-sm text-emerald-700 dark:text-emerald-200">
+                    Search and select only the students who are actually part of the Student Nucleus.
+                </p>
 
-            <form
+                <form
                 method="POST"
                 action="{{ route('quezonprovinceactivities.campus-work.student-nucleus.store') }}"
                 class="mt-5 min-w-0 space-y-4"
@@ -240,7 +241,8 @@
                     Add Selected Students
                 </button>
             </form>
-        </div>
+            </div>
+        </details>
 
         {{-- Academic Term Management --}}
         <details class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -708,7 +710,7 @@
                                 </th>
 
                                 <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-                                    Contact Information
+                                    Facebook Link
                                 </th>
 
                                 <th class="min-w-[260px] px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
@@ -759,12 +761,36 @@
                                     </td>
 
                                     <td class="break-words px-3 py-3 text-gray-600 dark:text-gray-300">
-                                        {{ $person?->contact_number ?: 'No phone recorded' }}
+                                        @php
+                                            $facebookValue = trim((string) ($person?->facebook_account ?? ''));
 
-                                        @if ($person?->email)
-                                            <br>
-                                            <span class="text-xs">
-                                                {{ $person->email }}
+                                            $facebookUrl = null;
+
+                                            if ($facebookValue !== '') {
+                                                if (\Illuminate\Support\Str::startsWith($facebookValue, ['http://', 'https://'])) {
+                                                    $facebookUrl = $facebookValue;
+                                                } elseif (\Illuminate\Support\Str::startsWith($facebookValue, ['facebook.com/', 'www.facebook.com/'])) {
+                                                    $facebookUrl = 'https://' . $facebookValue;
+                                                } elseif (\Illuminate\Support\Str::startsWith($facebookValue, '@')) {
+                                                    $facebookUrl = 'https://facebook.com/' . ltrim($facebookValue, '@');
+                                                } else {
+                                                    $facebookUrl = 'https://facebook.com/' . $facebookValue;
+                                                }
+                                            }
+                                        @endphp
+
+                                        @if ($facebookUrl)
+                                            <a
+                                                href="{{ $facebookUrl }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="break-all text-primary-600 hover:underline dark:text-primary-400"
+                                            >
+                                                {{ $facebookValue }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-500 dark:text-gray-400">
+                                                Not recorded
                                             </span>
                                         @endif
                                     </td>
