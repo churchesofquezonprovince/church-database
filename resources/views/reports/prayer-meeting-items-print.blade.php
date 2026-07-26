@@ -49,40 +49,51 @@
         }
 
         .line {
-            margin-bottom: 8px;
-            white-space: pre-line;
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            column-gap: 6px;
+            align-items: start;
+            margin-bottom: 5px;
+            white-space: normal;
+            page-break-inside: avoid;
         }
 
         .marker {
             font-weight: 700;
-            margin-right: 6px;
+            margin-right: 0;
+            white-space: nowrap;
+        }
+
+        .content {
+            white-space: pre-line;
         }
 
         .roman {
-            margin-top: 14px;
+            margin-top: 10px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .letter {
-            margin-left: 20px;
+            margin-left: 16px;
             font-weight: 600;
         }
 
         .number {
-            margin-left: 40px;
+            margin-left: 32px;
         }
 
         .lower_roman {
-            margin-left: 60px;
+            margin-left: 48px;
         }
 
         .bullet {
-            margin-left: 40px;
+            margin-left: 32px;
         }
 
         .plain {
-            margin-left: 0;
+            margin-left: 34px;
+            grid-template-columns: 0 1fr;
         }
     </style>
 </head>
@@ -109,11 +120,13 @@
 
     @forelse ($lines as $line)
         <div class="line {{ $line->line_type }}">
-            @if ($line->marker)
-                <span class="marker">{{ $line->marker }}</span>
-            @endif
+            <span class="marker">
+                {{ $line->marker }}
+            </span>
 
-            {{ $line->content }}
+            <span class="content">
+                {{ $line->content }}
+            </span>
         </div>
     @empty
         <p style="text-align: center; color: #777;">
