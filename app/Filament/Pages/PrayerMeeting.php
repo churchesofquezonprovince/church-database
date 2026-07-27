@@ -12,6 +12,8 @@ use Illuminate\Support\Collection;
 
 class PrayerMeeting extends Page
 {
+    protected static bool $shouldRegisterNavigation = false;
+
     private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
 
     protected string $view = 'filament.pages.prayer-meeting';
@@ -67,7 +69,7 @@ class PrayerMeeting extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->canManageRecords() ?? false;
+        return false;
     }
 
     public static function canAccess(): bool
