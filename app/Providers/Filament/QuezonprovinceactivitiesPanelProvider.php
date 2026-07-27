@@ -34,10 +34,12 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Church Database'),
-                NavigationGroup::make('Posts'),
-                NavigationGroup::make('Shepherding'),
-                NavigationGroup::make('Administration'),
+                'Attendance',
+                'Campus Work',
+                'Church Database',
+                'Posts',
+                'Shepherding',
+                'Administration',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
