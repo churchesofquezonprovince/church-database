@@ -247,16 +247,17 @@
                     </div>
 
 
-                    <div class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 sm:p-6">
-                        <h3 class="break-words text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                    <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
+                        <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
                             Add Participants
-                        </h3>
+                        </summary>
 
-                        <p class="mt-1 break-words text-sm text-emerald-700 dark:text-emerald-200">
-                            Search and tap people to add them. Counting dates are optional.
-                        </p>
+                        <div class="border-t border-emerald-200 p-4 dark:border-emerald-900 sm:p-6">
+                            <p class="break-words text-sm text-emerald-700 dark:text-emerald-200">
+                                Search and tap people to add them. Counting dates are optional.
+                            </p>
 
-                        <form
+                            <form
                             method="POST"
                             action="{{ route('quezonprovinceactivities.attendance-sheets.participants.store', ['sheet' => $selectedSheet]) }}"
                             class="mt-5 min-w-0 space-y-4"
@@ -395,8 +396,9 @@
                             >
                                 Add Selected People
                             </button>
-                        </form>
-                    </div>
+                            </form>
+                        </div>
+                    </details>
 
 
                     <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
