@@ -37,7 +37,7 @@ class AttendanceDashboard extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 0;
+        return 10;
     }
 
     public static function shouldRegisterNavigation(): bool
