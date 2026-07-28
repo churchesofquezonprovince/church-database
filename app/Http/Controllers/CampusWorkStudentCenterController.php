@@ -86,9 +86,8 @@ class CampusWorkStudentCenterController extends Controller
     protected function validatedCenterData(Request $request): array
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
             'school_campus' => ['nullable', 'string', 'max:255'],
-            'locality' => ['nullable', 'string', 'max:150'],
+            'locality' => ['required', 'string', 'max:150'],
             'place' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
@@ -98,6 +97,8 @@ class CampusWorkStudentCenterController extends Controller
                 $validated[$key] = trim($value) === '' ? null : trim($value);
             }
         }
+
+        $validated['name'] = 'Student Center - ' . $validated['locality'];
 
         return $validated;
     }

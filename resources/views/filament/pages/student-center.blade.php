@@ -78,21 +78,6 @@
 
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
-                        <label for="name" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                            Student Center Name
-                        </label>
-
-                        <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            required
-                            placeholder="Example: SLSU Lucban Student Center"
-                            class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
-                        >
-                    </div>
-
-                    <div>
                         <label for="school_campus" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                             School
                         </label>
@@ -117,9 +102,14 @@
                             name="locality"
                             type="text"
                             list="student_center_localities"
+                            required
                             placeholder="Example: Lucban"
                             class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
                         >
+
+                        <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-200">
+                            Name will be created automatically, for example: Student Center - Lucban.
+                        </p>
                     </div>
 
                     <div>
@@ -299,20 +289,6 @@
                                 <div class="grid gap-4 md:grid-cols-2">
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-800 dark:text-gray-100">
-                                            Student Center Name
-                                        </label>
-
-                                        <input
-                                            name="name"
-                                            type="text"
-                                            required
-                                            value="{{ $center->name }}"
-                                            class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                                        >
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-800 dark:text-gray-100">
                                             School
                                         </label>
 
@@ -334,6 +310,7 @@
                                             name="locality"
                                             type="text"
                                             list="student_center_localities"
+                                            required
                                             value="{{ $center->locality }}"
                                             class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                         >
