@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\CampusWorkStudentCenterController;
+
 use App\Http\Controllers\CampusContactImportController;
 use App\Http\Controllers\CampusContactController;
 use App\Http\Controllers\CampusWorkDashboardController;
@@ -410,5 +412,26 @@ Route::middleware(['web', 'auth'])
 
         Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
             ->name('add-to-people');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/campus-work/student-center')
+    ->name('quezonprovinceactivities.campus-work.student-center.')
+    ->group(function (): void {
+        Route::post('/', [CampusWorkStudentCenterController::class, 'store'])
+            ->name('store');
+
+        Route::patch('/{studentCenter}', [CampusWorkStudentCenterController::class, 'update'])
+            ->name('update');
+
+        Route::delete('/{studentCenter}', [CampusWorkStudentCenterController::class, 'destroy'])
+            ->name('destroy');
+
+        Route::post('/{studentCenter}/members', [CampusWorkStudentCenterController::class, 'storeMembers'])
+            ->name('members.store');
+
+        Route::delete('/{studentCenter}/members/{member}', [CampusWorkStudentCenterController::class, 'destroyMember'])
+            ->name('members.destroy');
     });
 
