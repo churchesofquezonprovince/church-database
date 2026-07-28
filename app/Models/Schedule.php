@@ -48,13 +48,49 @@ class Schedule extends Model implements Eventable
             ->title($this->title)
             ->start($this->starts_at)
             ->end($this->ends_at ?? $this->starts_at?->copy()->addHour())
-            ->action('view');
+            ->backgroundColor($this->calendarColor())
+            ->textColor($this->calendarTextColor())
+            ->action('edit');
 
         if ($this->is_all_day) {
             $event->allDay();
         }
 
         return $event;
+    }
+
+
+    public function calendarColor(): string
+    {
+        $calendarId = trim((string) $this->google_calendar_id);
+
+        foreach ((array) config('services.google_calendar.calendars', []) as $calendar) {
+            if (
+                $calendarId !== ''
+                && trim((string) ($calendar['id'] ?? '')) === $calendarId
+            ) {
+                return (string) ($calendar['color'] ?? '#3b82f6');
+            }
+        }
+
+        return '#3b82f6';
+    }
+
+    public function calendarTextColor(): string
+    {
+        $hex = ltrim($this->calendarColor(), '#');
+
+        if (strlen($hex) !== 6) {
+            return '#ffffff';
+        }
+
+        $red = hexdec(substr($hex, 0, 2));
+        $green = hexdec(substr($hex, 2, 2));
+        $blue = hexdec(substr($hex, 4, 2));
+
+        $brightness = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
+
+        return $brightness > 150 ? '#111827' : '#ffffff';
     }
 
     public function createdBy(): BelongsTo
