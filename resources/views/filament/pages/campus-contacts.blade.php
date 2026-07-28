@@ -9,7 +9,7 @@
         $selectedPeopleStatus = request('peopleStatus', '');
         $search = request('q', '');
 
-        $existingPeopleSearch = $this->existingPeopleSearch();
+        $existingPeopleSearch = trim($this->existingPeopleSearch);
         $availableExistingPeople = $this->availableExistingPeople();
         $linkablePeople = $this->linkablePeople();
 
@@ -323,49 +323,24 @@
                     church status will not be changed.
                 </p>
 
-                {{-- Search Existing People --}}
-                <form
-                    method="GET"
-                    class="mt-4 flex flex-col gap-2 sm:flex-row"
-                >
-                    @if (request('q'))
-                        <input
-                            type="hidden"
-                            name="q"
-                            value="{{ request('q') }}"
-                        >
-                    @endif
-
-                    @if (request('school'))
-                        <input
-                            type="hidden"
-                            name="school"
-                            value="{{ request('school') }}"
-                        >
-                    @endif
-
-                    @if (request('peopleStatus'))
-                        <input
-                            type="hidden"
-                            name="peopleStatus"
-                            value="{{ request('peopleStatus') }}"
-                        >
-                    @endif
-
+                                {{-- Search Existing People --}}
+                <div class="mt-4 flex flex-col gap-2 sm:flex-row">
                     <input
                         type="search"
-                        name="existingPeopleQ"
-                        value="{{ $existingPeopleSearch }}"
+                        wire:model.live.debounce.500ms="existingPeopleSearch"
                         placeholder="Search name, locality, school, course, status, Facebook..."
                         class="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                     >
 
-                    @if ($existingPeopleSearch !== '')
-                        <button type="button" wire:click="$set(\'existingPeopleSearch\', \'\')" 
-                            class="rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >Clear</button>
-                    @endif
-                </form>
+                    <button
+                        type="button"
+                        wire:click="$set('existingPeopleSearch', '')"
+                        class="rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                        Clear
+                    </button>
+                </div>
+
 
                 {{-- Available Existing People --}}
                 <form

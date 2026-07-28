@@ -341,7 +341,7 @@ class CampusContacts extends Page
 
     public function availableExistingPeople(): Collection
     {
-        $search = $this->existingPeopleSearch();
+        $search = trim($this->existingPeopleSearch);
 
         return Person::query()
             ->with([
