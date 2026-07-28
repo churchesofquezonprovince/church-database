@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Schedule;
+use Carbon\CarbonImmutable;
 use Google\Client;
 use Google\Service\Calendar as CalendarService;
 use Google\Service\Calendar\Event as GoogleCalendarEvent;
@@ -75,6 +76,127 @@ class GoogleCalendarService
         }
     }
 
+    public function pull(): array
+    {
+        if (! $this->enabled()) {
+            return [
+                'enabled' => false,
+                'created' => 0,
+                'updated' => 0,
+                'deleted' => 0,
+                'skipped' => 0,
+            ];
+        }
+
+        $calendarId = $this->calendarId();
+        $service = $this->calendarService();
+
+        $stats = [
+            'enabled' => true,
+            'created' => 0,
+            'updated' => 0,
+            'deleted' => 0,
+            'skipped' => 0,
+        ];
+
+        $pageToken = null;
+
+        do {
+            $params = [
+                'timeMin' => now()->subMonths(3)->startOfDay()->toRfc3339String(),
+                'timeMax' => now()->addYear()->endOfDay()->toRfc3339String(),
+                'singleEvents' => true,
+                'showDeleted' => true,
+                'maxResults' => 2500,
+            ];
+
+            if ($pageToken) {
+                $params['pageToken'] = $pageToken;
+            }
+
+            $events = $service->events->listEvents($calendarId, $params);
+
+            foreach ($events->getItems() ?? [] as $googleEvent) {
+                $result = $this->pullGoogleEvent($googleEvent, $calendarId);
+
+                if (array_key_exists($result, $stats)) {
+                    $stats[$result]++;
+                } else {
+                    $stats['skipped']++;
+                }
+            }
+
+            $pageToken = $events->getNextPageToken();
+        } while ($pageToken);
+
+        return $stats;
+    }
+
+    private function pullGoogleEvent(GoogleCalendarEvent $googleEvent, string $calendarId): string
+    {
+        $googleEventId = $googleEvent->getId();
+
+        if (blank($googleEventId)) {
+            return 'skipped';
+        }
+
+        $schedule = Schedule::query()
+            ->where('google_event_id', $googleEventId)
+            ->first();
+
+        if ($googleEvent->getStatus() === 'cancelled') {
+            if (! $schedule) {
+                return 'skipped';
+            }
+
+            Schedule::withoutEvents(function () use ($schedule): void {
+                $schedule->delete();
+            });
+
+            return 'deleted';
+        }
+
+        $startsAt = $this->dateTimeFromGoogleDateTime($googleEvent->getStart());
+
+        if (! $startsAt) {
+            return 'skipped';
+        }
+
+        $isNew = false;
+
+        if (! $schedule) {
+            $schedule = new Schedule();
+            $isNew = true;
+        }
+
+        $isAllDay = filled($googleEvent->getStart()?->getDate())
+            && blank($googleEvent->getStart()?->getDateTime());
+
+        $endsAt = $this->dateTimeFromGoogleDateTime($googleEvent->getEnd());
+
+        if ($isAllDay && $endsAt) {
+            $endsAt = $endsAt->subDay()->startOfDay();
+        }
+
+        $schedule->forceFill([
+            'title' => $googleEvent->getSummary() ?: '(No title)',
+            'description' => $this->cleanGoogleDescription($googleEvent->getDescription()),
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'is_all_day' => $isAllDay,
+            'location' => $googleEvent->getLocation(),
+            'source' => $schedule->exists ? $schedule->source : 'google',
+            'google_calendar_id' => $calendarId,
+            'google_event_id' => $googleEventId,
+            'google_etag' => $googleEvent->getEtag(),
+            'google_sync_status' => 'synced',
+            'google_sync_error' => null,
+            'synced_at' => now(),
+        ])->saveQuietly();
+
+        return $isNew ? 'created' : 'updated';
+    }
+
     private function googleEventFromSchedule(Schedule $schedule): GoogleCalendarEvent
     {
         $event = new GoogleCalendarEvent();
@@ -133,6 +255,35 @@ class GoogleCalendarService
         ])
             ->filter()
             ->implode("\n\n");
+    }
+
+    private function cleanGoogleDescription(?string $description): ?string
+    {
+        if (blank($description)) {
+            return null;
+        }
+
+        return trim((string) preg_replace(
+            "/\n{0,2}Source: COQP Database Schedule #\d+/i",
+            '',
+            $description
+        ));
+    }
+
+    private function dateTimeFromGoogleDateTime(?EventDateTime $dateTime): ?CarbonImmutable
+    {
+        if (! $dateTime) {
+            return null;
+        }
+
+        $value = $dateTime->getDateTime() ?: $dateTime->getDate();
+
+        if (blank($value)) {
+            return null;
+        }
+
+        return CarbonImmutable::parse($value, config('app.timezone', 'UTC'))
+            ->timezone(config('app.timezone', 'UTC'));
     }
 
     private function calendarService(): CalendarService
