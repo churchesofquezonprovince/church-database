@@ -50,7 +50,7 @@ class Schedule extends Model implements Eventable
             ->end($this->ends_at ?? $this->starts_at?->copy()->addHour())
             ->backgroundColor($this->calendarColor())
             ->textColor($this->calendarTextColor())
-            ->action('edit');
+            ->action('editSchedule');
 
         if ($this->is_all_day) {
             $event->allDay();
