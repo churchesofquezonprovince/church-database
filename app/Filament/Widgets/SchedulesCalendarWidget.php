@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Schedule;
 use App\Services\GoogleCalendarService;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 use Guava\Calendar\Filament\Actions\CreateAction;
+use Guava\Calendar\Filament\Actions\EditAction;
 use Guava\Calendar\Filament\CalendarWidget;
 use Guava\Calendar\ValueObjects\FetchInfo;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +26,28 @@ class SchedulesCalendarWidget extends CalendarWidget
 
     protected bool $eventClickEnabled = true;
 
-    protected ?string $defaultEventClickAction = 'edit';
+    protected ?string $defaultEventClickAction = 'editSchedule';
+
+    public function editScheduleAction(): EditAction
+    {
+        return $this
+            ->editAction()
+            ->modalHeading('Edit Schedule')
+            ->extraModalFooterActions([
+                Action::make('deleteSchedule')
+                    ->label('Delete')
+                    ->color('danger')
+                    ->icon('heroicon-o-trash')
+                    ->requiresConfirmation()
+                    ->modalHeading('Delete Schedule')
+                    ->modalDescription('Are you sure you want to delete this schedule? This cannot be undone.')
+                    ->action(function ($record): void {
+                        $record->delete();
+
+                        $this->refreshRecords();
+                    }),
+            ]);
+    }
 
     public function createScheduleAction(): CreateAction
     {
@@ -113,21 +136,10 @@ class SchedulesCalendarWidget extends CalendarWidget
         ];
     }
 
-    protected function getEventClickContextMenuActions(): array
-    {
-        return [
-            $this->viewAction(),
-            $this->editAction(),
-            $this->deleteAction(),
-        ];
-    }
+
 
     protected function getEventClickContextMenuActions(): array
     {
-        /*
-         * Keep this empty so Guava will use the default event click action.
-         * If this returns View/Edit/Delete, the floating context menu appears.
-         */
         return [];
     }
 
