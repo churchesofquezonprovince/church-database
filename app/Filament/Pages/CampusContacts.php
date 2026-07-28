@@ -14,6 +14,9 @@ class CampusContacts extends Page
 
     protected string $view = 'filament.pages.campus-contacts';
 
+
+    public string $existingPeopleSearch = '';
+
     public function getTitle(): string
     {
         return 'Campus Contacts';

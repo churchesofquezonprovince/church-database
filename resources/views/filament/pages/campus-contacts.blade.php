@@ -360,20 +360,10 @@
                         class="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                     >
 
-                    <button
-                        type="submit"
-                        class="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                    >
-                        Search People
-                    </button>
-
                     @if ($existingPeopleSearch !== '')
-                        <a
-                            href="{{ \App\Filament\Pages\CampusContacts::getUrl() }}"
+                        <button type="button" wire:click="$set(\'existingPeopleSearch\', \'\')" 
                             class="rounded-xl border border-gray-300 bg-white px-5 py-3 text-center text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >
-                            Clear
-                        </a>
+                        >Clear</button>
                     @endif
                 </form>
 
