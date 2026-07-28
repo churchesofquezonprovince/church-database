@@ -659,7 +659,7 @@
                         document.getElementById('campus_contact_people_status_filter').value = '';
                         filterCampusContacts();
                     "
-                    class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                    class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
                     Clear
                 </button>
@@ -788,7 +788,7 @@
                                                 View Person
                                             </a>
                                         @else
-                                            <div class="flex flex-col items-start gap-2">
+                                            <div class="flex flex-wrap items-center gap-2">
                                                 <form
                                                     method="POST"
                                                     action="{{ route('quezonprovinceactivities.campus-work.contacts.add-to-people', $contact) }}"
@@ -821,7 +821,7 @@
                                                     "
                                                     class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200"
                                                 >
-                                                    Link Existing Person
+                                                    Link
                                                 </button>
                                             </div>
                                         @endif
