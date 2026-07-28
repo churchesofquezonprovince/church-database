@@ -690,7 +690,7 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1050px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <table class="w-full min-w-[900px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-950">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold">
@@ -703,10 +703,6 @@
 
                                 <th class="px-4 py-3 text-left font-semibold">
                                     Course / Year
-                                </th>
-
-                                <th class="px-4 py-3 text-left font-semibold">
-                                    Contact
                                 </th>
 
                                 <th class="px-4 py-3 text-left font-semibold">
@@ -737,6 +733,21 @@
                                         $contact->person?->churchProfile?->status,
                                         $contact->person?->churchProfile?->category,
                                     ])->filter()->implode(' '));
+
+                                    $facebookAccount = trim((string) $contact->effective_facebook_account);
+                                    $facebookUrl = '';
+
+                                    if ($facebookAccount !== '') {
+                                        if (\Illuminate\Support\Str::startsWith($facebookAccount, ['http://', 'https://'])) {
+                                            $facebookUrl = $facebookAccount;
+                                        } elseif (\Illuminate\Support\Str::startsWith($facebookAccount, ['facebook.com/', 'www.facebook.com/'])) {
+                                            $facebookUrl = 'https://' . $facebookAccount;
+                                        } elseif (\Illuminate\Support\Str::startsWith($facebookAccount, '@')) {
+                                            $facebookUrl = 'https://facebook.com/' . \Illuminate\Support\Str::after($facebookAccount, '@');
+                                        } else {
+                                            $facebookUrl = 'https://facebook.com/' . $facebookAccount;
+                                        }
+                                    }
                                 @endphp
 
                                 <tr
@@ -748,10 +759,15 @@
                                     <td class="max-w-[230px] break-words px-4 py-3 font-bold text-gray-900 dark:text-white">
                                         {{ $contact->display_name }}
 
-                                        @if ($contact->effective_facebook_account)
-                                            <p class="mt-1 break-words text-xs font-normal text-blue-600 dark:text-blue-400">
-                                                {{ $contact->effective_facebook_account }}
-                                            </p>
+                                        @if ($facebookUrl !== '')
+                                            <a
+                                                href="{{ $facebookUrl }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="mt-1 block break-words text-xs font-normal text-blue-600 underline hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                                            >
+                                                {{ $facebookAccount }}
+                                            </a>
                                         @endif
                                     </td>
 
@@ -765,16 +781,6 @@
                                         @if ($contact->effective_grade_level)
                                             <div class="mt-1 text-xs text-gray-500">
                                                 {{ $contact->effective_grade_level }}
-                                            </div>
-                                        @endif
-                                    </td>
-
-                                    <td class="max-w-[220px] break-words px-4 py-3">
-                                        {{ $contact->effective_contact_number ?: 'No phone' }}
-
-                                        @if ($contact->effective_email)
-                                            <div class="mt-1 text-xs text-gray-500">
-                                                {{ $contact->effective_email }}
                                             </div>
                                         @endif
                                     </td>
