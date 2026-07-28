@@ -10,7 +10,7 @@
             </h2>
 
             <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Phase 20D: Google Calendar events can now be pulled into local schedules hourly or through the manual Sync Now button. Website reload still uses the local database only.
+                Phase 20E: Multiple Google Calendars are supported. Add/Edit can choose the target calendar, and Sync Now pulls from all configured calendars.
             </p>
 
             <div class="mt-4">

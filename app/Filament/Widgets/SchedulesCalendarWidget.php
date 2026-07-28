@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Schedule;
+use App\Services\GoogleCalendarService;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -48,6 +49,14 @@ class SchedulesCalendarWidget extends CalendarWidget
                     ->label('Title')
                     ->required()
                     ->maxLength(255),
+
+                Select::make('google_calendar_id')
+                    ->label('Google Calendar')
+                    ->options(fn (): array => app(GoogleCalendarService::class)->calendarOptions())
+                    ->placeholder('Use first configured calendar')
+                    ->searchable()
+                    ->native(false)
+                    ->helperText('Used when Google Calendar sync is enabled.'),
 
                 Select::make('category')
                     ->label('Category')

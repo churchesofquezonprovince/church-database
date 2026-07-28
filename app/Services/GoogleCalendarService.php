@@ -16,8 +16,48 @@ class GoogleCalendarService
     public function enabled(): bool
     {
         return (bool) config('services.google_calendar.enabled')
-            && filled(config('services.google_calendar.calendar_id'))
-            && filled(config('services.google_calendar.credentials_path'));
+            && filled(config('services.google_calendar.credentials_path'))
+            && $this->configuredCalendars() !== [];
+    }
+
+    public function configuredCalendars(): array
+    {
+        $calendars = [];
+
+        foreach ((array) config('services.google_calendar.calendars', []) as $key => $calendar) {
+            $id = trim((string) ($calendar['id'] ?? ''));
+
+            if ($id === '') {
+                continue;
+            }
+
+            $calendars[(string) $key] = [
+                'key' => (string) $key,
+                'name' => (string) ($calendar['name'] ?? $key),
+                'id' => $id,
+            ];
+        }
+
+        $legacyId = trim((string) config('services.google_calendar.calendar_id'));
+
+        if ($legacyId !== '' && ! collect($calendars)->contains(fn (array $calendar): bool => $calendar['id'] === $legacyId)) {
+            $calendars['default'] = [
+                'key' => 'default',
+                'name' => 'Default Calendar',
+                'id' => $legacyId,
+            ];
+        }
+
+        return $calendars;
+    }
+
+    public function calendarOptions(): array
+    {
+        return collect($this->configuredCalendars())
+            ->mapWithKeys(fn (array $calendar): array => [
+                $calendar['id'] => $calendar['name'],
+            ])
+            ->all();
     }
 
     public function upsert(Schedule $schedule): void
@@ -26,7 +66,7 @@ class GoogleCalendarService
             return;
         }
 
-        $calendarId = $this->calendarId();
+        $calendarId = $this->calendarIdForSchedule($schedule);
         $service = $this->calendarService();
         $event = $this->googleEventFromSchedule($schedule);
 
@@ -66,7 +106,7 @@ class GoogleCalendarService
 
         try {
             $this->calendarService()->events->delete(
-                $this->calendarId(),
+                $this->calendarIdForSchedule($schedule),
                 $schedule->google_event_id
             );
         } catch (GoogleServiceException $exception) {
@@ -81,6 +121,7 @@ class GoogleCalendarService
         if (! $this->enabled()) {
             return [
                 'enabled' => false,
+                'calendars' => 0,
                 'created' => 0,
                 'updated' => 0,
                 'deleted' => 0,
@@ -88,46 +129,50 @@ class GoogleCalendarService
             ];
         }
 
-        $calendarId = $this->calendarId();
         $service = $this->calendarService();
 
         $stats = [
             'enabled' => true,
+            'calendars' => 0,
             'created' => 0,
             'updated' => 0,
             'deleted' => 0,
             'skipped' => 0,
         ];
 
-        $pageToken = null;
+        foreach ($this->configuredCalendars() as $calendar) {
+            $stats['calendars']++;
 
-        do {
-            $params = [
-                'timeMin' => now()->subMonths(3)->startOfDay()->toRfc3339String(),
-                'timeMax' => now()->addYear()->endOfDay()->toRfc3339String(),
-                'singleEvents' => true,
-                'showDeleted' => true,
-                'maxResults' => 2500,
-            ];
+            $pageToken = null;
 
-            if ($pageToken) {
-                $params['pageToken'] = $pageToken;
-            }
+            do {
+                $params = [
+                    'timeMin' => now()->subMonths(3)->startOfDay()->toRfc3339String(),
+                    'timeMax' => now()->addYear()->endOfDay()->toRfc3339String(),
+                    'singleEvents' => true,
+                    'showDeleted' => true,
+                    'maxResults' => 2500,
+                ];
 
-            $events = $service->events->listEvents($calendarId, $params);
-
-            foreach ($events->getItems() ?? [] as $googleEvent) {
-                $result = $this->pullGoogleEvent($googleEvent, $calendarId);
-
-                if (array_key_exists($result, $stats)) {
-                    $stats[$result]++;
-                } else {
-                    $stats['skipped']++;
+                if ($pageToken) {
+                    $params['pageToken'] = $pageToken;
                 }
-            }
 
-            $pageToken = $events->getNextPageToken();
-        } while ($pageToken);
+                $events = $service->events->listEvents($calendar['id'], $params);
+
+                foreach ($events->getItems() ?? [] as $googleEvent) {
+                    $result = $this->pullGoogleEvent($googleEvent, $calendar['id']);
+
+                    if (array_key_exists($result, $stats)) {
+                        $stats[$result]++;
+                    } else {
+                        $stats['skipped']++;
+                    }
+                }
+
+                $pageToken = $events->getNextPageToken();
+            } while ($pageToken);
+        }
 
         return $stats;
     }
@@ -141,6 +186,7 @@ class GoogleCalendarService
         }
 
         $schedule = Schedule::query()
+            ->where('google_calendar_id', $calendarId)
             ->where('google_event_id', $googleEventId)
             ->first();
 
@@ -286,6 +332,23 @@ class GoogleCalendarService
             ->timezone(config('app.timezone', 'UTC'));
     }
 
+    private function calendarIdForSchedule(Schedule $schedule): string
+    {
+        $calendarId = trim((string) $schedule->google_calendar_id);
+
+        if ($calendarId !== '') {
+            return $calendarId;
+        }
+
+        $firstCalendar = collect($this->configuredCalendars())->first();
+
+        if (! $firstCalendar) {
+            throw new RuntimeException('No Google Calendar IDs are configured.');
+        }
+
+        return $firstCalendar['id'];
+    }
+
     private function calendarService(): CalendarService
     {
         $client = new Client();
@@ -294,17 +357,6 @@ class GoogleCalendarService
         $client->addScope(CalendarService::CALENDAR);
 
         return new CalendarService($client);
-    }
-
-    private function calendarId(): string
-    {
-        $calendarId = (string) config('services.google_calendar.calendar_id');
-
-        if ($calendarId === '') {
-            throw new RuntimeException('GOOGLE_CALENDAR_ID is not configured.');
-        }
-
-        return $calendarId;
     }
 
     private function credentialsPath(): string
