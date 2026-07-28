@@ -5,10 +5,6 @@
         $schoolOptions = $this->schoolOptions();
         $localityOptions = $this->localityOptions();
 
-        $selectedSchool = request('school', '');
-        $selectedPeopleStatus = request('peopleStatus', '');
-        $search = request('q', '');
-
         $existingPeopleSearch = trim($this->existingPeopleSearch);
         $availableExistingPeople = $this->availableExistingPeople();
         $linkablePeople = $this->linkablePeople();
@@ -620,82 +616,63 @@
         </div>
 
         {{-- Filters --}}
-        <form
-            method="GET"
-            class="grid gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 lg:grid-cols-4"
-        >
+        <div class="grid gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 lg:grid-cols-4">
             <input
+                id="campus_contact_search"
                 type="search"
-                name="q"
-                value="{{ $search }}"
                 placeholder="Search contacts..."
+                oninput="filterCampusContacts()"
                 class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
 
             <select
-                name="school"
+                id="campus_contact_school_filter"
+                onchange="filterCampusContacts()"
                 class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
                 <option value="">All Schools</option>
-
-                <option
-                    value="__no_school"
-                    @selected($selectedSchool === '__no_school')
-                >
-                    School not recorded
-                </option>
+                <option value="school not recorded">School not recorded</option>
 
                 @foreach ($schoolOptions as $school)
-                    <option
-                        value="{{ $school }}"
-                        @selected($selectedSchool === $school)
-                    >
+                    <option value="{{ \Illuminate\Support\Str::lower($school) }}">
                         {{ $school }}
                     </option>
                 @endforeach
             </select>
 
             <select
-                name="peopleStatus"
+                id="campus_contact_people_status_filter"
+                onchange="filterCampusContacts()"
                 class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             >
                 <option value="">All People Statuses</option>
-
-                <option
-                    value="unlinked"
-                    @selected($selectedPeopleStatus === 'unlinked')
-                >
-                    Not yet in People Database
-                </option>
-
-                <option
-                    value="linked"
-                    @selected($selectedPeopleStatus === 'linked')
-                >
-                    Added to People Database
-                </option>
+                <option value="unlinked">Not yet in People Database</option>
+                <option value="linked">Added to People Database</option>
             </select>
 
             <div class="flex gap-2">
                 <button
-                    type="submit"
-                    class="flex-1 rounded-xl bg-primary-600 px-4 py-3 text-sm font-bold text-white hover:bg-primary-500"
-                >
-                    Apply
-                </button>
-
-                <a
-                    href="{{ \App\Filament\Pages\CampusContacts::getUrl() }}"
-                    class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                    type="button"
+                    onclick="
+                        document.getElementById('campus_contact_search').value = '';
+                        document.getElementById('campus_contact_school_filter').value = '';
+                        document.getElementById('campus_contact_people_status_filter').value = '';
+                        filterCampusContacts();
+                    "
+                    class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
                     Clear
-                </a>
+                </button>
             </div>
-        </form>
+        </div>
 
         {{-- Contacts grouped by School --}}
         @forelse ($groupedContacts as $school => $contacts)
-            <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div
+                data-campus-contact-group
+                data-school="{{ \Illuminate\Support\Str::lower($school) }}"
+                class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            >
 
                 <div class="border-b border-sky-200 bg-sky-100 px-4 py-3 dark:border-sky-900 dark:bg-sky-950">
                     <div class="flex items-center justify-between gap-3">
@@ -703,7 +680,10 @@
                             {{ $school }}
                         </h3>
 
-                        <span class="shrink-0 rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white">
+                        <span
+                            data-campus-contact-group-count
+                            class="shrink-0 rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white"
+                        >
                             {{ $contacts->count() }}
                         </span>
                     </div>
@@ -741,7 +721,30 @@
 
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             @foreach ($contacts as $contact)
-                                <tr>
+                                @php
+                                    $contactSearchText = \Illuminate\Support\Str::lower(collect([
+                                        $contact->display_name,
+                                        $contact->effective_firstname,
+                                        $contact->effective_lastname,
+                                        $contact->effective_locality,
+                                        $contact->effective_school_campus,
+                                        $contact->effective_course_strand,
+                                        $contact->effective_grade_level,
+                                        $contact->effective_contact_number,
+                                        $contact->effective_email,
+                                        $contact->effective_facebook_account,
+                                        $contact->person?->display_name,
+                                        $contact->person?->churchProfile?->status,
+                                        $contact->person?->churchProfile?->category,
+                                    ])->filter()->implode(' '));
+                                @endphp
+
+                                <tr
+                                    data-campus-contact-row
+                                    data-search-text="{{ $contactSearchText }}"
+                                    data-school="{{ \Illuminate\Support\Str::lower($school) }}"
+                                    data-people-status="{{ $contact->person_id ? 'linked' : 'unlinked' }}"
+                                >
                                     <td class="max-w-[230px] break-words px-4 py-3 font-bold text-gray-900 dark:text-white">
                                         {{ $contact->display_name }}
 
@@ -1499,4 +1502,50 @@
         @endforeach
 
     </div>
+
+    <script>
+        function filterCampusContacts() {
+            const searchInput = document.getElementById('campus_contact_search');
+            const schoolFilter = document.getElementById('campus_contact_school_filter');
+            const statusFilter = document.getElementById('campus_contact_people_status_filter');
+
+            const query = (searchInput?.value || '').toLowerCase().trim();
+            const selectedSchool = (schoolFilter?.value || '').toLowerCase().trim();
+            const selectedStatus = statusFilter?.value || '';
+
+            document.querySelectorAll('[data-campus-contact-group]').forEach((group) => {
+                let visibleCount = 0;
+
+                group.querySelectorAll('[data-campus-contact-row]').forEach((row) => {
+                    const rowText = row.dataset.searchText || '';
+                    const rowSchool = row.dataset.school || '';
+                    const rowStatus = row.dataset.peopleStatus || '';
+
+                    const matchesSearch = query === '' || rowText.includes(query);
+                    const matchesSchool = selectedSchool === '' || rowSchool === selectedSchool;
+                    const matchesStatus = selectedStatus === '' || rowStatus === selectedStatus;
+
+                    const shouldShow = matchesSearch && matchesSchool && matchesStatus;
+
+                    row.hidden = ! shouldShow;
+
+                    if (shouldShow) {
+                        visibleCount++;
+                    }
+                });
+
+                group.hidden = visibleCount === 0;
+
+                const countBadge = group.querySelector('[data-campus-contact-group-count]');
+
+                if (countBadge) {
+                    countBadge.textContent = visibleCount;
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', filterCampusContacts);
+        document.addEventListener('livewire:navigated', filterCampusContacts);
+    </script>
+
 </x-filament-panels::page>
