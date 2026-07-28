@@ -329,134 +329,70 @@ class CampusContacts extends Page
     }
 
 
-    public function existingPeopleSearch(): string
-    {
-        return trim(
-            (string) request(
-                'existingPeopleQ',
-                ''
-            )
-        );
-    }
+
+
 
     public function availableExistingPeople(): Collection
     {
         $search = trim($this->existingPeopleSearch);
 
+        /*
+         * Future-proof People Database search:
+         * - Do not load thousands of people when the search box is empty.
+         * - Start searching only after 2 characters.
+         * - Limit results so Livewire remains fast even with 5,000+ People.
+         */
+        if (mb_strlen($search) < 2) {
+            return collect();
+        }
+
+        $like = '%' . $search . '%';
+
         return Person::query()
-            ->with([
-                'churchProfile',
-                'educationProfile',
+            ->select([
+                'id',
+                'firstname',
+                'middlename',
+                'lastname',
+                'nickname',
+                'locality',
+                'contact_number',
+                'email',
+                'facebook_account',
             ])
-
-            /*
-             * Do not show People already linked
-             * to a Campus Contact.
-             */
+            ->with([
+                'churchProfile:id,person_id,status,category',
+                'educationProfile:id,person_id,school_workplace,course_strand,grade_level',
+            ])
             ->whereDoesntHave('campusContact')
-
-            ->when(
-                $search !== '',
-                function ($query) use ($search): void {
-                    $like = '%' . $search . '%';
-
-                    $query->where(
-                        function ($query) use (
-                            $like
-                        ): void {
-                            $query
-                                ->where(
-                                    'firstname',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'middlename',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'lastname',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'nickname',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'locality',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'contact_number',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'email',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'facebook_account',
-                                    'like',
-                                    $like
-                                )
-
-                                ->orWhereHas(
-                                    'churchProfile',
-                                    function (
-                                        $profileQuery
-                                    ) use ($like): void {
-                                        $profileQuery
-                                            ->where(
-                                                'status',
-                                                'like',
-                                                $like
-                                            );
-                                    }
-                                )
-
-                                ->orWhereHas(
-                                    'educationProfile',
-                                    function (
-                                        $educationQuery
-                                    ) use ($like): void {
-                                        $educationQuery
-                                            ->where(
-                                                'school_workplace',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'course_strand',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'grade_level',
-                                                'like',
-                                                $like
-                                            );
-                                    }
-                                );
-                        }
-                    );
-                }
-            )
+            ->where(function ($query) use ($like): void {
+                $query
+                    ->where('firstname', 'like', $like)
+                    ->orWhere('middlename', 'like', $like)
+                    ->orWhere('lastname', 'like', $like)
+                    ->orWhere('nickname', 'like', $like)
+                    ->orWhere('locality', 'like', $like)
+                    ->orWhere('contact_number', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('facebook_account', 'like', $like)
+                    ->orWhereHas('churchProfile', function ($profileQuery) use ($like): void {
+                        $profileQuery
+                            ->where('status', 'like', $like)
+                            ->orWhere('category', 'like', $like);
+                    })
+                    ->orWhereHas('educationProfile', function ($educationQuery) use ($like): void {
+                        $educationQuery
+                            ->where('school_workplace', 'like', $like)
+                            ->orWhere('course_strand', 'like', $like)
+                            ->orWhere('grade_level', 'like', $like);
+                    });
+            })
             ->orderBy('lastname')
             ->orderBy('firstname')
-
-            /*
-             * Keep the result set controlled, but allow the UI
-             * box to scroll. The Blade controls the visible height.
-             */
-            ->limit(100)
+            ->limit(50)
             ->get();
     }
+
 
     public function linkablePeople(): Collection
     {

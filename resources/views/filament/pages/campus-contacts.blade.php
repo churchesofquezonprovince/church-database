@@ -328,7 +328,7 @@
                     <input
                         type="search"
                         wire:model.live.debounce.500ms="existingPeopleSearch"
-                        placeholder="Search name, locality, school, course, status, Facebook..."
+                        placeholder="Type at least 2 characters to search People Database..."
                         class="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-400"
                     >
 
@@ -341,6 +341,13 @@
                     </button>
                 </div>
 
+                <div
+                    wire:loading.delay
+                    wire:target="existingPeopleSearch"
+                    class="mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400"
+                >
+                    Searching People Database...
+                </div>
 
                 {{-- Available Existing People --}}
                 <form
@@ -408,20 +415,22 @@
                             </label>
                         @empty
                             <div class="p-6 text-center text-sm text-gray-600 dark:text-gray-400">
-                                No available People records found.
-
-                                @if ($existingPeopleSearch !== '')
-                                    Try a different search.
+                                @if (\Illuminate\Support\Str::length($existingPeopleSearch) < 2)
+                                    Type at least 2 characters to search the People Database.
                                 @else
-                                    People already linked to Campus Contacts are excluded automatically.
+                                    No matching People records found. Try a different search.
                                 @endif
+
+                                <p class="mt-2 text-xs">
+                                    People already linked to Campus Contacts are excluded automatically.
+                                </p>
                             </div>
                         @endforelse
                     </div>
 
                     @if ($availableExistingPeople->isNotEmpty())
                         <p class="mt-3 text-xs font-semibold text-gray-600 dark:text-gray-400">
-                            Showing around 5 people at a time. Scroll inside the box to view more results.
+                            Showing up to 50 matching People records. Type more specific words to narrow the results.
                         </p>
 
                         <div class="mt-4">
