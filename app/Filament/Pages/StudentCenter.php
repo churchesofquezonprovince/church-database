@@ -130,14 +130,10 @@ class StudentCenter extends Page
 
         return CampusContact::query()
             ->whereNotIn('id', $addedContactIds)
-            ->when(
-                filled($center->school_campus),
-                fn ($query) => $query->where('school_campus', $center->school_campus)
-            )
             ->orderBy('school_campus')
             ->orderBy('lastname')
             ->orderBy('firstname')
-            ->limit(200)
+            ->limit(300)
             ->get();
     }
 
