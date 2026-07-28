@@ -122,6 +122,15 @@ class SchedulesCalendarWidget extends CalendarWidget
         ];
     }
 
+    protected function getEventClickContextMenuActions(): array
+    {
+        /*
+         * Keep this empty so Guava will use the default event click action.
+         * If this returns View/Edit/Delete, the floating context menu appears.
+         */
+        return [];
+    }
+
     protected function getEvents(FetchInfo $info): Collection|array|Builder
     {
         return Schedule::query()
