@@ -10,7 +10,7 @@
             </h2>
 
             <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Phase 20B: Local schedule calendar with Add, View, Edit, and Delete actions. Google Calendar sync will be added in the next phases.
+                Phase 20C: Local Add, Edit, and Delete now push to Google Calendar when Google sync is enabled. Hourly pull sync will be added in the next phase.
             </p>
         </div>
 

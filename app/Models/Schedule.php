@@ -27,6 +27,8 @@ class Schedule extends Model implements Eventable
         'google_etag',
         'synced_at',
         'created_by',
+        'google_sync_status',
+        'google_sync_error',
         'updated_by',
     ];
 
