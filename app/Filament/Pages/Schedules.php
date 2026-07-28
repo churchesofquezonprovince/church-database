@@ -6,31 +6,21 @@ use Filament\Pages\Page;
 
 class Schedules extends Page
 {
+    protected static ?string $slug = 'schedules';
+
     protected string $view = 'filament.pages.schedules';
 
-    public function getTitle(): string
-    {
-        return 'Schedules';
-    }
+    protected static string | \UnitEnum | null $navigationGroup = 'Posts';
 
-    public static function getNavigationLabel(): string
-    {
-        return 'Schedules';
-    }
+    protected static ?string $navigationLabel = 'Schedules';
 
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Posts';
-    }
+    protected static ?string $title = 'Schedules';
+
+    protected static ?int $navigationSort = 10;
 
     public static function getNavigationIcon(): ?string
     {
         return 'heroicon-o-calendar-days';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 4;
     }
 
     public static function shouldRegisterNavigation(): bool
