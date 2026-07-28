@@ -63,12 +63,14 @@ class PeopleTable
                     ->label('Status')
                     ->badge()
                     ->color(fn (?string $state): string => ChurchProfileOptions::statusColor($state))
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('churchProfile.category')
                     ->label('Category')
                     ->badge()
                     ->color(fn (?string $state): string => ChurchProfileOptions::categoryColor($state))
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('churchProfile.service')
@@ -82,6 +84,12 @@ class PeopleTable
                     ->label('Shepherd')
                     ->placeholder('No shepherd')
                     ->limit(30)
+                    ->searchable([
+                        'firstname',
+                        'middlename',
+                        'lastname',
+                        'nickname',
+                    ])
                     ->toggleable(),
 
                 TextColumn::make('home_address')
@@ -128,6 +136,43 @@ class PeopleTable
                     ->label('Introduced By')
                     ->placeholder('Not recorded')
                     ->limit(30)
+                    ->searchable([
+                        'firstname',
+                        'middlename',
+                        'lastname',
+                        'nickname',
+                    ])
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.school_workplace')
+                    ->label('School')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.workplace')
+                    ->label('Workplace')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.course_strand')
+                    ->label('Course / Strand')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.grade_level')
+                    ->label('Grade / Year Level')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('household.household_name')
+                    ->label('Household')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('permanent_address')
+                    ->label('Permanent Address')
+                    ->limit(40)
+                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('emergencyContact.display_name')
