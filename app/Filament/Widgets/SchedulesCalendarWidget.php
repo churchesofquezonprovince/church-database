@@ -15,6 +15,9 @@ use Guava\Calendar\Filament\Actions\CreateAction;
 use Guava\Calendar\Filament\Actions\EditAction;
 use Guava\Calendar\Filament\CalendarWidget;
 use Guava\Calendar\ValueObjects\FetchInfo;
+use Guava\Calendar\ValueObjects\NoEventsClickInfo;
+use Guava\Calendar\ValueObjects\DateSelectInfo;
+use Guava\Calendar\ValueObjects\DateClickInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -26,7 +29,12 @@ class SchedulesCalendarWidget extends CalendarWidget
 
     protected bool $eventClickEnabled = true;
 
+    protected bool $noEventsClickEnabled = true;
+
+
+
     protected ?string $defaultEventClickAction = 'editSchedule';
+
 
     public function editScheduleAction(): EditAction
     {
@@ -122,21 +130,35 @@ class SchedulesCalendarWidget extends CalendarWidget
             ->columns(2);
     }
 
+
+
+
+
+
+    protected function onDateClick(DateClickInfo $info): void
+    {
+        $this->mountAction('createSchedule');
+    }
+
+    protected function onDateSelect(DateSelectInfo $info): void
+    {
+        $this->mountAction('createSchedule');
+    }
+
+    protected function onNoEventsClick(NoEventsClickInfo $info): void
+    {
+        $this->mountAction('createSchedule');
+    }
+
     protected function getDateClickContextMenuActions(): array
     {
-        return [
-            $this->createScheduleAction(),
-        ];
+        return [];
     }
 
     protected function getDateSelectContextMenuActions(): array
     {
-        return [
-            $this->createScheduleAction(),
-        ];
+        return [];
     }
-
-
 
     protected function getEventClickContextMenuActions(): array
     {
