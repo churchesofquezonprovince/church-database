@@ -33,6 +33,7 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 'Attendance',
                 'Campus Work',
