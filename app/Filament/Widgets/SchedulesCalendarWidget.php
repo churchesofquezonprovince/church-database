@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Guava\Calendar\Filament\Actions\CreateAction;
 use Guava\Calendar\Filament\Actions\EditAction;
@@ -20,6 +21,7 @@ use Guava\Calendar\ValueObjects\DateSelectInfo;
 use Guava\Calendar\ValueObjects\DateClickInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Throwable;
 
 class SchedulesCalendarWidget extends CalendarWidget
 {
@@ -35,6 +37,58 @@ class SchedulesCalendarWidget extends CalendarWidget
 
     protected ?string $defaultEventClickAction = 'editSchedule';
 
+
+    public function getHeaderActions(): array
+    {
+        return [
+            Action::make('syncGoogleCalendar')
+                ->label('Sync Google Calendar Now')
+                ->icon('heroicon-o-arrow-path')
+                ->color('primary')
+                ->action('syncGoogleCalendar'),
+        ];
+    }
+
+    public function syncGoogleCalendar(): void
+    {
+        $service = app(GoogleCalendarService::class);
+
+        if (! $service->enabled()) {
+            Notification::make()
+                ->title('Google Calendar sync is disabled')
+                ->body('Set GOOGLE_CALENDAR_ENABLED=true after adding the service account JSON and calendar IDs.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $stats = $service->pull();
+
+            Notification::make()
+                ->title('Google Calendar synced')
+                ->body(sprintf(
+                    'Created: %d, Updated: %d, Deleted: %d, Skipped: %d.',
+                    $stats['created'] ?? 0,
+                    $stats['updated'] ?? 0,
+                    $stats['deleted'] ?? 0,
+                    $stats['skipped'] ?? 0,
+                ))
+                ->success()
+                ->send();
+
+            if (method_exists($this, 'refreshRecords')) {
+                $this->refreshRecords();
+            }
+        } catch (Throwable $exception) {
+            Notification::make()
+                ->title('Google Calendar sync failed')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
 
     public function editScheduleAction(): EditAction
     {
