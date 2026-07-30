@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Models\Schedule;
 use App\Services\GoogleCalendarService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -38,17 +39,11 @@ class SchedulesCalendarWidget extends CalendarWidget
 
     protected ?string $defaultEventClickAction = 'editSchedule';
 
+    public bool $scheduleCalendarFilterIsActive = false;
 
-    public function getHeaderActions(): array
-    {
-        return [
-            Action::make('syncGoogleCalendar')
-                ->label('Sync Google Calendar Now')
-                ->icon('heroicon-o-arrow-path')
-                ->color('primary')
-                ->action('syncGoogleCalendar'),
-        ];
-    }
+    public array $visibleScheduleCalendarIds = [];
+
+
 
     public function syncGoogleCalendar(): void
     {
@@ -89,6 +84,68 @@ class SchedulesCalendarWidget extends CalendarWidget
                 ->danger()
                 ->send();
         }
+    }
+
+    public function getHeaderActions(): array
+    {
+        return [
+            Action::make('filterCalendars')
+                ->label('Filter Calendars')
+                ->icon('heroicon-o-funnel')
+                ->color($this->scheduleCalendarFilterIsActive ? 'warning' : 'gray')
+                ->form([
+                    CheckboxList::make('visibleScheduleCalendarIds')
+                        ->label('Visible Calendars')
+                        ->options(fn (): array => $this->calendarFilterOptions())
+                        ->columns(2),
+                ])
+                ->fillForm(fn (): array => [
+                    'visibleScheduleCalendarIds' => $this->activeCalendarFilterValues(),
+                ])
+                ->action(function (array $data): void {
+                    $this->scheduleCalendarFilterIsActive = true;
+                    $this->visibleScheduleCalendarIds = array_values($data['visibleScheduleCalendarIds'] ?? []);
+
+                    if (method_exists($this, 'refreshRecords')) {
+                        $this->refreshRecords();
+                    }
+                }),
+
+            Action::make('resetCalendarFilters')
+                ->label('Show All')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->visible(fn (): bool => $this->scheduleCalendarFilterIsActive)
+                ->action(function (): void {
+                    $this->scheduleCalendarFilterIsActive = false;
+                    $this->visibleScheduleCalendarIds = [];
+
+                    if (method_exists($this, 'refreshRecords')) {
+                        $this->refreshRecords();
+                    }
+                }),
+
+            Action::make('syncGoogleCalendar')
+                ->label('Sync Google Calendar Now')
+                ->icon('heroicon-o-arrow-path')
+                ->color('primary')
+                ->action('syncGoogleCalendar'),
+        ];
+    }
+
+    protected function calendarFilterOptions(): array
+    {
+        return app(GoogleCalendarService::class)->calendarOptions()
+            + ['__local__' => 'Local / Unsynced'];
+    }
+
+    protected function activeCalendarFilterValues(): array
+    {
+        if (! $this->scheduleCalendarFilterIsActive) {
+            return array_keys($this->calendarFilterOptions());
+        }
+
+        return $this->visibleScheduleCalendarIds;
     }
 
     public function editScheduleAction(): EditAction
@@ -243,6 +300,15 @@ class SchedulesCalendarWidget extends CalendarWidget
 
     protected function getEvents(FetchInfo $info): Collection|array|Builder
     {
+        $visibleCalendarIds = $this->activeCalendarFilterValues();
+
+        $showLocalSchedules = in_array('__local__', $visibleCalendarIds, true);
+
+        $visibleGoogleCalendarIds = array_values(array_filter(
+            $visibleCalendarIds,
+            fn (string $calendarId): bool => $calendarId !== '__local__',
+        ));
+
         return Schedule::query()
             ->where(function (Builder $query) use ($info): void {
                 $query
@@ -257,6 +323,24 @@ class SchedulesCalendarWidget extends CalendarWidget
                                     ->orWhere('ends_at', '>=', $info->end);
                             });
                     });
+            })
+            ->where(function (Builder $query) use ($visibleGoogleCalendarIds, $showLocalSchedules): void {
+                if ($visibleGoogleCalendarIds !== []) {
+                    $query->whereIn('google_calendar_id', $visibleGoogleCalendarIds);
+                }
+
+                if ($showLocalSchedules) {
+                    $query->{$visibleGoogleCalendarIds === [] ? 'where' : 'orWhere'}(function (Builder $query): void {
+                        $query
+                            ->whereNull('google_calendar_id')
+                            ->orWhere('google_calendar_id', '');
+                    });
+                }
+
+                if ($visibleGoogleCalendarIds === [] && ! $showLocalSchedules) {
+                    $query->whereRaw('1 = 0');
+                }
             });
     }
+
 }
