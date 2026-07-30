@@ -1,5 +1,4 @@
 <x-filament-panels::page>
-    {{-- Phase 20H: Google Calendar Legend --}}
     @php
         $configuredCalendars = collect(config('services.google_calendar.calendars', []))
             ->filter(fn ($calendar) => filled($calendar['id'] ?? null))
@@ -22,80 +21,71 @@
             ->count();
     @endphp
 
-    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div class="mb-3">
-            <h2 class="text-sm font-semibold text-gray-950 dark:text-white">
-                Google Calendar Legend
-            </h2>
+    <div class="space-y-3">
+        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-sm font-semibold text-gray-950 dark:text-white">
+                            Calendar
+                        </h2>
 
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                These colors match the configured Google Calendars used by the Schedules module.
-            </p>
-        </div>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">
+                            |
+                        </span>
 
-        <div class="flex flex-wrap gap-2">
-            @forelse ($configuredCalendars as $calendar)
-                <div class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-700">
-                    <span
-                        class="h-3 w-3 rounded-full"
-                        style="background-color: {{ $calendar['color'] }}"
-                    ></span>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            @forelse ($configuredCalendars as $calendar)
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2 py-1 text-[11px] leading-none dark:border-gray-700">
+                                    <span
+                                        class="h-2.5 w-2.5 rounded-full"
+                                        style="background-color: {{ $calendar['color'] }}"
+                                    ></span>
 
-                    <span class="font-medium text-gray-800 dark:text-gray-100">
-                        {{ $calendar['name'] }}
-                    </span>
+                                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                                        {{ $calendar['name'] }}
+                                    </span>
 
-                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                        {{ $calendar['count'] }}
-                    </span>
+                                    <span class="text-gray-400 dark:text-gray-500">
+                                        {{ $calendar['count'] }}
+                                    </span>
+                                </span>
+                            @empty
+                                <span class="text-xs text-gray-500 dark:text-gray-400">
+                                    No Google Calendars configured.
+                                </span>
+                            @endforelse
+
+                            @if ($localScheduleCount > 0)
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-2 py-1 text-[11px] leading-none dark:border-gray-700">
+                                    <span
+                                        class="h-2.5 w-2.5 rounded-full"
+                                        style="background-color: #3b82f6"
+                                    ></span>
+
+                                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                                        Local
+                                    </span>
+
+                                    <span class="text-gray-400 dark:text-gray-500">
+                                        {{ $localScheduleCount }}
+                                    </span>
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Colors follow the configured Google Calendars.
+                    </p>
                 </div>
-            @empty
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                    No Google Calendars are configured yet.
-                </div>
-            @endforelse
 
-            @if ($localScheduleCount > 0)
-                <div class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs dark:border-gray-700">
-                    <span
-                        class="h-3 w-3 rounded-full"
-                        style="background-color: #3b82f6"
-                    ></span>
-
-                    <span class="font-medium text-gray-800 dark:text-gray-100">
-                        Local / Unsynced
-                    </span>
-
-                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                        {{ $localScheduleCount }}
-                    </span>
-                </div>
-            @endif
-        </div>
-    </div>
-
-
-    <div class="space-y-6">
-        <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 shadow-sm dark:border-primary-900 dark:bg-primary-950">
-            <p class="text-sm font-bold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Posts
-            </p>
-
-            <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
-                Schedules
-            </h2>
-
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Phase 20E: Multiple Google Calendars are supported. Add/Edit can choose the target calendar, and Sync Now pulls from all configured calendars.
-            </p>
-
-            <div class="mt-4">
                 <button
                     type="button"
                     wire:click="syncGoogleCalendar"
                     wire:loading.attr="disabled"
                     wire:target="syncGoogleCalendar"
-                    class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-bold text-white hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 disabled:opacity-70"
                 >
                     <span wire:loading.remove wire:target="syncGoogleCalendar">
                         Sync Google Calendar Now
@@ -108,8 +98,6 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            @livewire(\App\Filament\Widgets\SchedulesCalendarWidget::class)
-        </div>
+        @livewire(\App\Filament\Widgets\SchedulesCalendarWidget::class)
     </div>
 </x-filament-panels::page>
