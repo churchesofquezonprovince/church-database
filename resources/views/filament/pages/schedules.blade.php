@@ -156,16 +156,28 @@
                                 </p>
                             </div>
 
+                            @php
+                                $scheduleStart = $schedule->starts_at?->timezone(config('app.timezone'));
+                                $scheduleEnd = $schedule->ends_at?->timezone(config('app.timezone'));
+
+                                if ($scheduleStart && $scheduleEnd && $scheduleStart->isSameDay($scheduleEnd)) {
+                                    $scheduleDateText = $scheduleStart->format('M d, Y') . ' · ' .
+                                        $scheduleStart->format('h:i A') . ' - ' .
+                                        $scheduleEnd->format('h:i A');
+                                } elseif ($scheduleStart && $scheduleEnd) {
+                                    $scheduleDateText = $scheduleStart->format('M d, Y h:i A') . ' - ' .
+                                        $scheduleEnd->format('M d, Y h:i A');
+                                } elseif ($scheduleStart) {
+                                    $scheduleDateText = $scheduleStart->format('M d, Y h:i A');
+                                } else {
+                                    $scheduleDateText = 'No schedule date';
+                                }
+                            @endphp
+
                             <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                                 <span>
-                                    {{ $schedule->starts_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') }}
+                                    {{ $scheduleDateText }}
                                 </span>
-
-                                @if ($schedule->ends_at)
-                                    <span>
-                                        to {{ $schedule->ends_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') }}
-                                    </span>
-                                @endif
 
                                 @if ($schedule->location)
                                     <span>
