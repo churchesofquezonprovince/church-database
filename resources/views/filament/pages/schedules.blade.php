@@ -28,11 +28,30 @@
             ->mapWithKeys(fn ($calendar) => [$calendar['id'] => $calendar['name']])
             ->all();
 
-        $upcomingSchedules = \App\Models\Schedule::query()
+        $upcomingScheduleRange = $this->upcomingScheduleRange ?? '30_days';
+
+        $upcomingSchedulesQuery = \App\Models\Schedule::query()
             ->where('starts_at', '>=', now()->startOfDay())
-            ->orderBy('starts_at')
-            ->limit(10)
+            ->orderBy('starts_at');
+
+        if ($upcomingScheduleRange === 'today') {
+            $upcomingSchedulesQuery->where('starts_at', '<=', now()->endOfDay());
+        } elseif ($upcomingScheduleRange === '7_days') {
+            $upcomingSchedulesQuery->where('starts_at', '<=', now()->addDays(7)->endOfDay());
+        } elseif ($upcomingScheduleRange === '30_days') {
+            $upcomingSchedulesQuery->where('starts_at', '<=', now()->addDays(30)->endOfDay());
+        }
+
+        $upcomingSchedules = $upcomingSchedulesQuery
+            ->limit($upcomingScheduleRange === 'all' ? 50 : 15)
             ->get();
+
+        $upcomingRangeLabels = [
+            'today' => 'Today',
+            '7_days' => 'Next 7 Days',
+            '30_days' => 'Next 30 Days',
+            'all' => 'All Upcoming',
+        ];
     @endphp
 
     <div class="space-y-4">
@@ -90,14 +109,31 @@
             </div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div class="mb-3">
-                <h2 class="text-base font-semibold text-gray-950 dark:text-white">
-                    Upcoming Schedules
-                </h2>
+            <div class="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">
+                        Upcoming Schedules
+                    </h2>
 
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Next 10 schedules from today onward.
-                </p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Showing {{ $upcomingRangeLabels[$upcomingScheduleRange] ?? 'Next 30 Days' }}.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($upcomingRangeLabels as $rangeKey => $rangeLabel)
+                        <button
+                            type="button"
+                            wire:click="setUpcomingScheduleRange('{{ $rangeKey }}')"
+                            class="rounded-lg border px-3 py-1.5 text-xs font-semibold transition
+                                {{ $upcomingScheduleRange === $rangeKey
+                                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-950/40 dark:text-primary-300'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800' }}"
+                        >
+                            {{ $rangeLabel }}
+                        </button>
+                    @endforeach
+                </div>
             </div>
 
             <div class="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">

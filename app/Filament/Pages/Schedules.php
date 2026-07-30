@@ -13,6 +13,18 @@ class Schedules extends Page
 
     protected string $view = 'filament.pages.schedules';
 
+    public string $upcomingScheduleRange = '30_days';
+
+    public function setUpcomingScheduleRange(string $range): void
+    {
+        if (! in_array($range, ['today', '7_days', '30_days', 'all'], true)) {
+            return;
+        }
+
+        $this->upcomingScheduleRange = $range;
+    }
+
+
     protected static string | \UnitEnum | null $navigationGroup = 'Posts';
 
     protected static ?string $navigationLabel = 'Schedules';
