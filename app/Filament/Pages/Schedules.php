@@ -15,6 +15,10 @@ class Schedules extends Page
 
     public string $upcomingScheduleRange = '30_days';
 
+    public string $upcomingScheduleSearch = '';
+
+    public string $upcomingScheduleCalendarId = 'all';
+
     public function setUpcomingScheduleRange(string $range): void
     {
         if (! in_array($range, ['today', '7_days', '30_days', 'all'], true)) {

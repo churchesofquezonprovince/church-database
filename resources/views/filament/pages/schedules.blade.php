@@ -30,6 +30,9 @@
 
         $upcomingScheduleRange = $this->upcomingScheduleRange ?? '30_days';
 
+        $upcomingScheduleSearch = trim($this->upcomingScheduleSearch ?? '');
+        $upcomingScheduleCalendarId = $this->upcomingScheduleCalendarId ?? 'all';
+
         $upcomingSchedulesQuery = \App\Models\Schedule::query()
             ->where('starts_at', '>=', now()->startOfDay())
             ->orderBy('starts_at');
@@ -40,6 +43,27 @@
             $upcomingSchedulesQuery->where('starts_at', '<=', now()->addDays(7)->endOfDay());
         } elseif ($upcomingScheduleRange === '30_days') {
             $upcomingSchedulesQuery->where('starts_at', '<=', now()->addDays(30)->endOfDay());
+        }
+
+        if ($upcomingScheduleSearch !== '') {
+            $upcomingSchedulesQuery->where(function ($query) use ($upcomingScheduleSearch) {
+                $query
+                    ->where('title', 'like', '%' . $upcomingScheduleSearch . '%')
+                    ->orWhere('description', 'like', '%' . $upcomingScheduleSearch . '%')
+                    ->orWhere('location', 'like', '%' . $upcomingScheduleSearch . '%')
+                    ->orWhere('locality', 'like', '%' . $upcomingScheduleSearch . '%')
+                    ->orWhere('category', 'like', '%' . $upcomingScheduleSearch . '%');
+            });
+        }
+
+        if ($upcomingScheduleCalendarId === '__local__') {
+            $upcomingSchedulesQuery->where(function ($query) {
+                $query
+                    ->whereNull('google_calendar_id')
+                    ->orWhere('google_calendar_id', '');
+            });
+        } elseif ($upcomingScheduleCalendarId !== 'all') {
+            $upcomingSchedulesQuery->where('google_calendar_id', $upcomingScheduleCalendarId);
         }
 
         $upcomingSchedules = $upcomingSchedulesQuery
@@ -134,6 +158,32 @@
                         </button>
                     @endforeach
                 </div>
+            </div>
+
+            <div class="mb-3 grid gap-3 lg:grid-cols-[1fr_260px]">
+                <input
+                    type="search"
+                    wire:model.live.debounce.500ms="upcomingScheduleSearch"
+                    placeholder="Search title, location, locality, category..."
+                    class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
+                />
+
+                <select
+                    wire:model.live="upcomingScheduleCalendarId"
+                    class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                >
+                    <option value="all">All Calendars</option>
+
+                    @foreach ($configuredCalendars as $calendar)
+                        <option value="{{ $calendar['id'] }}">
+                            {{ $calendar['name'] }}
+                        </option>
+                    @endforeach
+
+                    @if ($localScheduleCount > 0)
+                        <option value="__local__">Local / Unsynced</option>
+                    @endif
+                </select>
             </div>
 
             <div class="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
