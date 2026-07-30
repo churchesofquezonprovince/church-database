@@ -23,6 +23,7 @@ use Guava\Calendar\ValueObjects\DateSelectInfo;
 use Guava\Calendar\ValueObjects\DateClickInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Throwable;
 
 class SchedulesCalendarWidget extends CalendarWidget
@@ -38,6 +39,12 @@ class SchedulesCalendarWidget extends CalendarWidget
 
 
     protected ?string $defaultEventClickAction = 'editSchedule';
+
+    public ?string $pendingScheduleStartsAt = null;
+
+    public ?string $pendingScheduleEndsAt = null;
+
+    public bool $pendingScheduleIsAllDay = false;
 
     public bool $scheduleCalendarFilterIsActive = false;
 
@@ -226,13 +233,16 @@ class SchedulesCalendarWidget extends CalendarWidget
 
                 DateTimePicker::make('starts_at')
                     ->label('Starts At')
+                    ->default(fn (): ?string => $this->pendingScheduleStartsAt)
                     ->required(),
 
                 DateTimePicker::make('ends_at')
-                    ->label('Ends At'),
+                    ->label('Ends At')
+                    ->default(fn (): ?string => $this->pendingScheduleEndsAt),
 
                 Toggle::make('is_all_day')
-                    ->label('All-day schedule'),
+                    ->label('All-day schedule')
+                    ->default(fn (): bool => $this->pendingScheduleIsAllDay),
 
                 Textarea::make('description')
                     ->label('Description / Notes')
@@ -268,19 +278,87 @@ class SchedulesCalendarWidget extends CalendarWidget
 
 
 
+
+
+
     protected function onDateClick(DateClickInfo $info): void
     {
+        $this->fillPendingScheduleDatesFromCalendarInfo($info);
+
         $this->mountAction('createSchedule');
     }
 
     protected function onDateSelect(DateSelectInfo $info): void
     {
+        $this->fillPendingScheduleDatesFromCalendarInfo($info);
+
         $this->mountAction('createSchedule');
     }
 
     protected function onNoEventsClick(NoEventsClickInfo $info): void
     {
+        $this->fillPendingScheduleDatesFromCalendarInfo($info);
+
         $this->mountAction('createSchedule');
+    }
+
+    protected function fillPendingScheduleDatesFromCalendarInfo(mixed $info): void
+    {
+        $startValue = $this->calendarInfoValue($info, 'start')
+            ?? $this->calendarInfoValue($info, 'startStr')
+            ?? $this->calendarInfoValue($info, 'date')
+            ?? $this->calendarInfoValue($info, 'dateStr');
+
+        $endValue = $this->calendarInfoValue($info, 'end')
+            ?? $this->calendarInfoValue($info, 'endStr');
+
+        $this->pendingScheduleIsAllDay = (bool) (
+            $this->calendarInfoValue($info, 'allDay') ?? false
+        );
+
+        $this->pendingScheduleStartsAt = $this->calendarDateToString($startValue);
+        $this->pendingScheduleEndsAt = $this->calendarDateToString($endValue);
+
+        /*
+         * For a single clicked date, Guava usually gives only a start/date value.
+         * Fill Ends At on the same day so the Add Schedule popup is complete.
+         */
+        if ($this->pendingScheduleStartsAt && blank($this->pendingScheduleEndsAt)) {
+            $start = Carbon::parse($this->pendingScheduleStartsAt)
+                ->timezone(config('app.timezone'));
+
+            $this->pendingScheduleEndsAt = $this->pendingScheduleIsAllDay
+                ? $start->copy()->endOfDay()->format('Y-m-d H:i:s')
+                : $start->copy()->addHour()->format('Y-m-d H:i:s');
+        }
+    }
+
+    protected function calendarInfoValue(mixed $info, string $key): mixed
+    {
+        $value = data_get($info, $key);
+
+        if ($value !== null) {
+            return $value;
+        }
+
+        $rawData = data_get($info, 'data');
+
+        if (is_array($rawData)) {
+            return data_get($rawData, $key);
+        }
+
+        return null;
+    }
+
+    protected function calendarDateToString(mixed $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        return Carbon::parse($value)
+            ->timezone(config('app.timezone'))
+            ->format('Y-m-d H:i:s');
     }
 
     protected function getDateClickContextMenuActions(): array
