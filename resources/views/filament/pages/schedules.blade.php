@@ -19,6 +19,20 @@
                     ->orWhere('google_calendar_id', '');
             })
             ->count();
+
+        $calendarColorsById = $configuredCalendars
+            ->mapWithKeys(fn ($calendar) => [$calendar['id'] => $calendar['color']])
+            ->all();
+
+        $calendarNamesById = $configuredCalendars
+            ->mapWithKeys(fn ($calendar) => [$calendar['id'] => $calendar['name']])
+            ->all();
+
+        $upcomingSchedules = \App\Models\Schedule::query()
+            ->where('starts_at', '>=', now()->startOfDay())
+            ->orderBy('starts_at')
+            ->limit(10)
+            ->get();
     @endphp
 
     <div class="space-y-4">
@@ -75,5 +89,73 @@
                 @endif
             </div>
         </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="mb-3">
+                <h2 class="text-base font-semibold text-gray-950 dark:text-white">
+                    Upcoming Schedules
+                </h2>
+
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Next 10 schedules from today onward.
+                </p>
+            </div>
+
+            <div class="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                @forelse ($upcomingSchedules as $schedule)
+                    @php
+                        $calendarColor = $calendarColorsById[$schedule->google_calendar_id] ?? '#3b82f6';
+                        $calendarName = $calendarNamesById[$schedule->google_calendar_id] ?? 'Local / Unsynced';
+                    @endphp
+
+                    <div class="flex flex-col gap-2 bg-white p-3 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="h-3 w-3 shrink-0 rounded-full"
+                                    style="background-color: {{ $calendarColor }}"
+                                ></span>
+
+                                <p class="truncate text-sm font-semibold text-gray-950 dark:text-white">
+                                    {{ $schedule->title }}
+                                </p>
+                            </div>
+
+                            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                <span>
+                                    {{ $schedule->starts_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') }}
+                                </span>
+
+                                @if ($schedule->ends_at)
+                                    <span>
+                                        to {{ $schedule->ends_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') }}
+                                    </span>
+                                @endif
+
+                                @if ($schedule->location)
+                                    <span>
+                                        {{ $schedule->location }}
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="flex shrink-0 flex-wrap items-center gap-2">
+                            <span class="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                {{ $calendarName }}
+                            </span>
+
+                            <span class="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                {{ $schedule->google_sync_status ?: 'pending' }}
+                            </span>
+                        </div>
+                    </div>
+                @empty
+                    <div class="bg-white p-4 text-sm text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                        No upcoming schedules found.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
     </div>
 </x-filament-panels::page>
