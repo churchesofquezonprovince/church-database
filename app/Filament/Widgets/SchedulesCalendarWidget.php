@@ -6,6 +6,7 @@ use App\Models\Schedule;
 use App\Services\GoogleCalendarService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -180,6 +181,27 @@ class SchedulesCalendarWidget extends CalendarWidget
                     ->label('Description / Notes')
                     ->rows(4)
                     ->columnSpanFull(),
+
+                Placeholder::make('google_sync_status_display')
+                    ->label('Google Sync Status')
+                    ->content(function (?Schedule $record): string {
+                        if (! $record) {
+                            return 'New schedule. Not synced yet.';
+                        }
+
+                        $status = $record->google_sync_status ?: 'pending';
+
+                        $syncedAt = $record->synced_at
+                            ? $record->synced_at->timezone(config('app.timezone'))->format('M d, Y h:i A')
+                            : 'Not yet synced';
+
+                        return strtoupper($status) . ' — ' . $syncedAt;
+                    }),
+
+                Placeholder::make('google_sync_error_display')
+                    ->label('Sync Error')
+                    ->content(fn (?Schedule $record): string => $record?->google_sync_error ?: 'No sync error.')
+                    ->visible(fn (?Schedule $record): bool => filled($record?->google_sync_error)),
             ])
             ->columns(2);
     }
