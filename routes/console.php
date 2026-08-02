@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\ChurchDatabaseBackupService;
+
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 
@@ -29,3 +31,27 @@ Artisan::command('schedules:sync-google', function (): void {
 
 \Illuminate\Support\Facades\Schedule::command('schedules:sync-google')->hourly();
 
+
+
+Artisan::command('backups:run {--no-external}', function (): int {
+    try {
+        $backup = app(ChurchDatabaseBackupService::class)->run(
+            copyToExternal: ! $this->option('no-external'),
+        );
+
+        $this->info('Backup completed.');
+        $this->line('File: ' . $backup->filename);
+        $this->line('Local: ' . $backup->local_path);
+        $this->line('External: ' . ($backup->external_status ?? 'pending'));
+
+        if ($backup->external_path) {
+            $this->line('External path: ' . $backup->external_path);
+        }
+
+        return 0;
+    } catch (Throwable $exception) {
+        $this->error('Backup failed: ' . $exception->getMessage());
+
+        return 1;
+    }
+})->purpose('Create a local and external database backup');
