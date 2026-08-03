@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\ChurchDatabaseBackupCleanupService;
+
 use App\Services\ChurchDatabaseBackupService;
 
 use Illuminate\Foundation\Inspiring;
@@ -68,4 +70,34 @@ if (config('backup.schedule.enabled', true)) {
         ->dailyAt((string) config('backup.schedule.daily_at', '02:00'))
         ->withoutOverlapping()
         ->appendOutputTo(storage_path('logs/backup-scheduler.log'));
+}
+
+
+Artisan::command('backups:cleanup {--dry-run}', function (): int {
+    if (! config('backup.retention.enabled', true)) {
+        $this->warn('Backup retention cleanup is disabled.');
+
+        return 0;
+    }
+
+    $stats = app(ChurchDatabaseBackupCleanupService::class)->cleanup(
+        dryRun: (bool) $this->option('dry-run'),
+    );
+
+    $this->info(($stats['dry_run'] ? 'Dry run complete.' : 'Cleanup complete.'));
+    $this->line('Checked: ' . $stats['checked']);
+    $this->line('Local deleted: ' . $stats['local_deleted']);
+    $this->line('External deleted: ' . $stats['external_deleted']);
+    $this->line('Google Drive deleted: ' . $stats['google_drive_deleted']);
+    $this->line('Errors: ' . $stats['errors']);
+
+    return $stats['errors'] > 0 ? 1 : 0;
+})->purpose('Clean old database backup files according to retention settings');
+
+
+if (config('backup.retention.enabled', true)) {
+    \Illuminate\Support\Facades\Schedule::command('backups:cleanup')
+        ->dailyAt((string) config('backup.retention.cleanup_daily_at', '03:00'))
+        ->withoutOverlapping()
+        ->appendOutputTo(storage_path('logs/backup-cleanup-scheduler.log'));
 }

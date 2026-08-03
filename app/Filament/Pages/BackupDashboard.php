@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\BackupRun;
 use App\Services\ChurchDatabaseBackupService;
+use App\Services\ChurchDatabaseBackupCleanupService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Collection;
@@ -64,6 +65,33 @@ class BackupDashboard extends Page
         } catch (Throwable $exception) {
             Notification::make()
                 ->title('Backup failed')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    public function cleanupBackups(): void
+    {
+        try {
+            $stats = app(ChurchDatabaseBackupCleanupService::class)->cleanup();
+
+            Notification::make()
+                ->title('Backup cleanup completed')
+                ->body(sprintf(
+                    'Checked: %d. Local: %d. External: %d. Google Drive: %d. Errors: %d.',
+                    $stats['checked'],
+                    $stats['local_deleted'],
+                    $stats['external_deleted'],
+                    $stats['google_drive_deleted'],
+                    $stats['errors'],
+                ))
+                ->success()
+                ->send();
+        } catch (Throwable $exception) {
+            Notification::make()
+                ->title('Backup cleanup failed')
                 ->body($exception->getMessage())
                 ->danger()
                 ->send();

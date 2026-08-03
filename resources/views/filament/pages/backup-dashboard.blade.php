@@ -17,21 +17,39 @@
                 </p>
             </div>
 
-            <button
-                type="button"
-                wire:click="runBackup"
-                wire:loading.attr="disabled"
-                wire:target="runBackup"
-                class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 disabled:opacity-70"
-            >
-                <span wire:loading.remove wire:target="runBackup">
-                    Backup Now
-                </span>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    wire:click="cleanupBackups"
+                    wire:loading.attr="disabled"
+                    wire:target="cleanupBackups"
+                    class="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-70 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                    <span wire:loading.remove wire:target="cleanupBackups">
+                        Cleanup Old Backups
+                    </span>
 
-                <span wire:loading wire:target="runBackup">
-                    Backing up...
-                </span>
-            </button>
+                    <span wire:loading wire:target="cleanupBackups">
+                        Cleaning...
+                    </span>
+                </button>
+
+                <button
+                    type="button"
+                    wire:click="runBackup"
+                    wire:loading.attr="disabled"
+                    wire:target="runBackup"
+                    class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500 disabled:opacity-70"
+                >
+                    <span wire:loading.remove wire:target="runBackup">
+                        Backup Now
+                    </span>
+
+                    <span wire:loading wire:target="runBackup">
+                        Backing up...
+                    </span>
+                </button>
+            </div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
