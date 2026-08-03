@@ -33,6 +33,7 @@ class ChurchDatabaseBackupService
             'database_name' => $databaseName,
             'local_path' => $localPath,
             'external_status' => $copyToExternal ? 'pending' : 'skipped',
+            'google_drive_status' => $this->googleDriveEnabled() ? 'pending' : 'disabled',
             'started_at' => $startedAt,
         ]);
 
@@ -49,6 +50,10 @@ class ChurchDatabaseBackupService
 
             if ($copyToExternal) {
                 $this->copyBackupToExternalStorage($backupRun, $localPath, $filename);
+            }
+
+            if ($this->googleDriveEnabled()) {
+                $this->uploadBackupToGoogleDrive($backupRun->fresh(), $localPath, $filename);
             }
 
             return $backupRun->fresh();
@@ -201,6 +206,89 @@ class ChurchDatabaseBackupService
                 'error_message' => trim(($backupRun->error_message ? $backupRun->error_message . PHP_EOL : '') . 'External copy failed: ' . $exception->getMessage()),
             ]);
         }
+    }
+
+    protected function uploadBackupToGoogleDrive(BackupRun $backupRun, string $localPath, string $filename): void
+    {
+        try {
+            if (! File::exists($localPath)) {
+                throw new \RuntimeException("Local backup file does not exist: {$localPath}");
+            }
+
+            $rcloneConfigPath = $this->rcloneConfigPath();
+
+            if (! File::exists($rcloneConfigPath)) {
+                throw new \RuntimeException("rclone config file not found: {$rcloneConfigPath}");
+            }
+
+            $remote = trim((string) config('backup.google_drive.rclone_remote', 'coqpbackup'));
+            $folderId = trim((string) config('backup.google_drive.folder_id'));
+            $binary = trim((string) config('backup.google_drive.rclone_binary', 'rclone')) ?: 'rclone';
+
+            if ($remote === '') {
+                throw new \RuntimeException('Google Drive rclone remote is not configured.');
+            }
+
+            if ($folderId === '') {
+                throw new \RuntimeException('Google Drive folder ID is not configured.');
+            }
+
+            $command = $this->shellCommand([
+                $binary,
+                'copyto',
+                $localPath,
+                $remote . ':' . $filename,
+                '--config',
+                $rcloneConfigPath,
+                '--drive-root-folder-id',
+                $folderId,
+                '--no-traverse',
+            ]);
+
+            $output = [];
+            $exitCode = 0;
+
+            exec($command . ' 2>&1', $output, $exitCode);
+
+            if ($exitCode !== 0) {
+                throw new \RuntimeException(trim(implode(PHP_EOL, $output)) ?: 'rclone upload failed.');
+            }
+
+            $backupRun->update([
+                'google_drive_status' => 'uploaded',
+                'google_drive_file_id' => null,
+                'google_drive_path' => $remote . ':' . $filename,
+                'google_drive_uploaded_at' => now(),
+            ]);
+        } catch (Throwable $exception) {
+            $backupRun->update([
+                'google_drive_status' => 'failed',
+                'error_message' => trim(($backupRun->error_message ? $backupRun->error_message . PHP_EOL : '') . 'Google Drive upload failed: ' . $exception->getMessage()),
+            ]);
+        }
+    }
+
+
+    protected function googleDriveEnabled(): bool
+    {
+        return (bool) config('backup.google_drive.enabled');
+    }
+
+
+
+    protected function rcloneConfigPath(): string
+    {
+        return $this->normalizePath(
+            (string) config('backup.google_drive.rclone_config_path', 'storage/app/google-drive/rclone.conf'),
+            base_path()
+        );
+    }
+
+    protected function shellCommand(array $parts): string
+    {
+        return collect($parts)
+            ->map(fn (mixed $part): string => escapeshellarg((string) $part))
+            ->implode(' ');
     }
 
     protected function sqlValue(\PDO $pdo, mixed $value): string

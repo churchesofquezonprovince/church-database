@@ -9,7 +9,15 @@ return [
 
     'google_drive' => [
         'enabled' => env('BACKUP_GOOGLE_DRIVE_ENABLED', false),
-        'rclone_remote' => env('BACKUP_GOOGLE_DRIVE_RCLONE_REMOTE', 'coqpbackup'),
-        'folder_id' => env('BACKUP_GOOGLE_DRIVE_FOLDER_ID', '1fMxK1-_yl1VCjjRrV_6p42o0diduCC8z'),
+
+        'credentials_path' => env(
+            'BACKUP_GOOGLE_DRIVE_CREDENTIALS_PATH',
+            env('GOOGLE_CALENDAR_CREDENTIALS_PATH', 'storage/app/google-calendar/service-account.json'),
+        ),
+
+        'folder_id' => env(
+            'BACKUP_GOOGLE_DRIVE_FOLDER_ID',
+            '1fMxK1-_yl1VCjjRrV_6p42o0diduCC8z',
+        ),
     ],
 ];

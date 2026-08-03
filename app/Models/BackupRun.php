@@ -15,6 +15,10 @@ class BackupRun extends Model
         'external_path',
         'external_status',
         'external_size_bytes',
+        'google_drive_status',
+        'google_drive_file_id',
+        'google_drive_path',
+        'google_drive_uploaded_at',
         'error_message',
         'started_at',
         'finished_at',
@@ -23,6 +27,7 @@ class BackupRun extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
+        'google_drive_uploaded_at' => 'datetime',
         'local_size_bytes' => 'integer',
         'external_size_bytes' => 'integer',
     ];

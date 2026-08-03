@@ -48,6 +48,12 @@ Artisan::command('backups:run {--no-external}', function (): int {
             $this->line('External path: ' . $backup->external_path);
         }
 
+        $this->line('Google Drive: ' . ($backup->google_drive_status ?? 'disabled'));
+
+        if ($backup->google_drive_file_id) {
+            $this->line('Google Drive file ID: ' . $backup->google_drive_file_id);
+        }
+
         return 0;
     } catch (Throwable $exception) {
         $this->error('Backup failed: ' . $exception->getMessage());
