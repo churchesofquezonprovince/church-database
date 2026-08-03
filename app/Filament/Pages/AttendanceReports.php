@@ -309,6 +309,24 @@ class AttendanceReports extends Page
 
                 $present = $presentQuery->count();
 
+                $prophesiedQuery = AttendanceRecord::query()
+                    ->where('attendance_session_id', $session->id)
+                    ->where('prophesied', true);
+
+                if ($this->selectedCategory()) {
+                    $prophesiedQuery->whereHas(
+                        'person.churchProfile',
+                        fn ($query) => $query->where(
+                            'category',
+                            $this->selectedCategory()
+                        )
+                    );
+                }
+
+                $prophesied = $this->selectedReportType() === AttendanceSheet::TYPE_LORDS_TABLE
+                    ? $prophesiedQuery->count()
+                    : 0;
+
                 /*
                  * ABSENT
                  *
@@ -367,6 +385,7 @@ class AttendanceReports extends Page
                     'expected' => $expected,
                     'present' => $present,
                     'absent' => $absent,
+                    'prophesied' => $prophesied,
                     'marked' => $marked,
                     'unmarked' => $unmarked,
                     'rate' => $rate,
@@ -412,6 +431,7 @@ class AttendanceReports extends Page
                 $expected = (int) $rows->sum('active_participants');
                 $present = (int) $rows->sum('present');
                 $absent = (int) $rows->sum('absent');
+                $prophesied = (int) $rows->sum('prophesied');
                 $unmarked = (int) $rows->sum('unmarked');
 
                 $marked = $present + $absent;
@@ -654,6 +674,12 @@ class AttendanceReports extends Page
                     ->where('is_present', true)
                     ->count();
 
+                $prophesiedTotal = $this->selectedReportType() === AttendanceSheet::TYPE_LORDS_TABLE
+                    ? (clone $recordQuery)
+                        ->where('prophesied', true)
+                        ->count()
+                    : 0;
+
                 $absentQuery = clone $recordQuery;
                 $this->applyMainAttendanceStatusFilter($absentQuery);
 
@@ -669,6 +695,7 @@ class AttendanceReports extends Page
                     'expected' => $expectedTotal,
                     'present' => $presentTotal,
                     'absent' => $absentTotal,
+                    'prophesied' => $prophesiedTotal,
                     'unmarked' => max($expectedTotal - $markedTotal, 0),
                     'rate' => $markedTotal > 0
                         ? round(($presentTotal / $markedTotal) * 100, 1)
