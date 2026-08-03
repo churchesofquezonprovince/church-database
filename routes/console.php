@@ -61,3 +61,11 @@ Artisan::command('backups:run {--no-external}', function (): int {
         return 1;
     }
 })->purpose('Create a local and external database backup');
+
+
+if (config('backup.schedule.enabled', true)) {
+    \Illuminate\Support\Facades\Schedule::command('backups:run')
+        ->dailyAt((string) config('backup.schedule.daily_at', '02:00'))
+        ->withoutOverlapping()
+        ->appendOutputTo(storage_path('logs/backup-scheduler.log'));
+}
