@@ -169,6 +169,7 @@ class LordsTableAttendanceController extends Controller
                             ? AttendanceRecord::STATUS_PRESENT
                             : AttendanceRecord::STATUS_ABSENT,
                         'is_present' => $isPresent,
+                        'prophesied' => $isProphesied,
                         'marked_by_id' => auth()->id(),
                         'marked_at' => now(),
                     ]
@@ -208,6 +209,7 @@ class LordsTableAttendanceController extends Controller
                         [
                             'status' => AttendanceRecord::STATUS_PRESENT,
                             'is_present' => true,
+                            'prophesied' => $otherProphesiedPersonIds->contains((int) $personId),
                             'marked_by_id' => auth()->id(),
                             'marked_at' => now(),
                         ]
