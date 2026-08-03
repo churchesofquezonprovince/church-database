@@ -196,6 +196,7 @@
                 <p class="font-bold">Lord's Table attendance saved.</p>
                 <p class="mt-1 text-sm">
                     Present: {{ session('lords_table_present_count') }}.
+                    Prophesied: {{ session('lords_table_prophesied_count', 0) }}.
                     Absent: {{ session('lords_table_absent_count') }}.
                 </p>
             </div>

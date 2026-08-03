@@ -233,12 +233,18 @@ class LordsTableAttendanceController extends Controller
             return [$sheet, $session, $presentCount, $absentCount];
         });
 
+        $prophesiedCount = AttendanceRecord::query()
+            ->where('attendance_session_id', $session->id)
+            ->where('prophesied', true)
+            ->count();
+
         return redirect(LordsTableMeeting::getUrl() . '?' . http_build_query([
             'locality' => $locality,
             'meeting_date' => $meetingDate->toDateString(),
         ]))
             ->with('lords_table_saved', true)
             ->with('lords_table_present_count', $presentCount)
+            ->with('lords_table_prophesied_count', $prophesiedCount)
             ->with('lords_table_absent_count', $absentCount);
     }
 
