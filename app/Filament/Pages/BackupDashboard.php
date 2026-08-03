@@ -48,6 +48,14 @@ class BackupDashboard extends Page
                 $body .= ' External backup failed.';
             }
 
+            if ($backup->google_drive_status === 'uploaded') {
+                $body .= ' Google Drive uploaded.';
+            } elseif ($backup->google_drive_status === 'failed') {
+                $body .= ' Google Drive upload failed.';
+            } elseif ($backup->google_drive_status === 'disabled') {
+                $body .= ' Google Drive disabled.';
+            }
+
             Notification::make()
                 ->title('Backup completed')
                 ->body($body)
@@ -101,6 +109,20 @@ class BackupDashboard extends Page
     {
         return BackupRun::query()
             ->where('status', 'failed')
+            ->count();
+    }
+
+    public function googleDriveUploadedBackups(): int
+    {
+        return BackupRun::query()
+            ->where('google_drive_status', 'uploaded')
+            ->count();
+    }
+
+    public function googleDriveFailedBackups(): int
+    {
+        return BackupRun::query()
+            ->where('google_drive_status', 'failed')
             ->count();
     }
 

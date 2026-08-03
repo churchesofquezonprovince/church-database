@@ -13,7 +13,7 @@
                 </h2>
 
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Creates a compressed database backup locally and copies it to /mnt/databackup.
+                    Creates a compressed database backup locally, copies it to /mnt/databackup, and uploads it to Google Drive when enabled.
                 </p>
             </div>
 
@@ -34,7 +34,7 @@
             </button>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-4">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Last Successful
@@ -65,6 +65,20 @@
 
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Google Drive
+                </div>
+
+                <div class="mt-2 text-sm font-semibold text-gray-950 dark:text-white">
+                    {{ strtoupper($latestBackup?->google_drive_status ?? 'disabled') }}
+                </div>
+
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Uploaded: {{ $latestBackup?->google_drive_uploaded_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') ?? '—' }}
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Completed
                 </div>
 
@@ -79,15 +93,15 @@
 
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Failed
+                    Drive Uploaded / Failed
                 </div>
 
                 <div class="mt-2 text-2xl font-semibold text-gray-950 dark:text-white">
-                    {{ $this->failedBackups() }}
+                    {{ $this->googleDriveUploadedBackups() }} / {{ $this->googleDriveFailedBackups() }}
                 </div>
 
                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Check history for errors.
+                    Google Drive backup status.
                 </div>
             </div>
         </div>
@@ -104,14 +118,14 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                <table class="min-w-[1200px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-800">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Date</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">File</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Local</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">External</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Google Drive</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Error</th>
                         </tr>
                     </thead>
@@ -130,6 +144,13 @@
                                     'copied' => 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300',
                                     'failed' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
                                     'skipped' => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                                    default => 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300',
+                                };
+
+                                $googleDriveClass = match ($backup->google_drive_status) {
+                                    'uploaded' => 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300',
+                                    'failed' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                                    'disabled' => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
                                     default => 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300',
                                 };
                             @endphp
@@ -155,12 +176,6 @@
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                                    <div class="max-w-[260px] break-all">
-                                        {{ $backup->local_path ?? '—' }}
-                                    </div>
-                                </td>
-
                                 <td class="px-4 py-3">
                                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $externalClass }}">
                                         {{ strtoupper($backup->external_status ?? 'pending') }}
@@ -168,6 +183,21 @@
 
                                     <div class="mt-2 max-w-[260px] break-all text-xs text-gray-500 dark:text-gray-400">
                                         {{ $backup->external_path ?? '—' }}
+                                    </div>
+                                </td>
+
+                                <td class="px-4 py-3">
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $googleDriveClass }}">
+                                        {{ strtoupper($backup->google_drive_status ?? 'disabled') }}
+                                    </span>
+
+                                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                        Uploaded:
+                                        {{ $backup->google_drive_uploaded_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') ?? '—' }}
+                                    </div>
+
+                                    <div class="mt-1 max-w-[260px] break-all text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $backup->google_drive_path ?? '—' }}
                                     </div>
                                 </td>
 
