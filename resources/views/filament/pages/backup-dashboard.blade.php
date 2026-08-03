@@ -136,7 +136,15 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-[1200px] divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                <table class="min-w-[1500px] table-fixed divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                    <colgroup>
+                        <col style="width: 140px;">
+                        <col style="width: 280px;">
+                        <col style="width: 130px;">
+                        <col style="width: 330px;">
+                        <col style="width: 360px;">
+                        <col style="width: 260px;">
+                    </colgroup>
                     <thead class="bg-gray-50 dark:bg-gray-800">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Date</th>
@@ -174,16 +182,52 @@
                             @endphp
 
                             <tr class="bg-white dark:bg-gray-900">
-                                <td class="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-200">
-                                    {{ $backup->started_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') ?? '—' }}
+                                <td class="px-4 py-3 text-gray-700 dark:text-gray-200" style="width: 140px; min-width: 140px; max-width: 140px; white-space: nowrap;"
+                                >
+                                    @php
+                                        $backupStartedAt = $backup->started_at?->timezone(config('app.timezone'));
+                                    @endphp
+
+                                    @if ($backupStartedAt)
+                                        <div
+                                            class="font-semibold"
+                                            style="white-space: nowrap;"
+                                        >
+                                            {{ $backupStartedAt->format('M d, Y') }}
+                                        </div>
+
+                                        <div
+                                            class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                                            style="white-space: nowrap;"
+                                        >
+                                            {{ $backupStartedAt->format('h:i A') }}
+                                        </div>
+                                    @else
+                                        —
+                                    @endif
                                 </td>
 
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-gray-950 dark:text-white">
-                                        {{ $backup->filename }}
+                                <td class="px-4 py-3" style="width: 280px; min-width: 280px; max-width: 280px;">
+                                    @php
+                                        $filenameParts = explode('-', $backup->filename);
+                                        $filenameSecondLine = array_pop($filenameParts);
+                                        $filenameFirstLine = implode('-', $filenameParts);
+                                    @endphp
+
+                                    <div
+                                        class="font-medium leading-5 text-gray-950 dark:text-white"
+                                        title="{{ $backup->filename }}"
+                                    >
+                                        <div style="white-space: nowrap;">
+                                            {{ $filenameFirstLine }}
+                                        </div>
+
+                                        <div style="white-space: nowrap;">
+                                            {{ $filenameSecondLine }}
+                                        </div>
                                     </div>
 
-                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <div class="mt-1 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                         {{ $this->formatBytes($backup->local_size_bytes) }}
                                     </div>
                                 </td>
@@ -194,33 +238,69 @@
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 align-top" style="width: 380px; min-width: 380px; max-width: 380px;">
                                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $externalClass }}">
                                         {{ strtoupper($backup->external_status ?? 'pending') }}
                                     </span>
 
-                                    <div class="mt-2 max-w-[260px] break-all text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $backup->external_path ?? '—' }}
+                                    @php
+                                        $externalPath = trim((string) $backup->external_path);
+                                        $externalDirectory = $externalPath !== '' ? dirname($externalPath) : '';
+                                        $externalFilename = $externalPath !== '' ? basename($externalPath) : '';
+
+                                        $externalDirectoryParts = $externalDirectory !== ''
+                                            ? array_values(array_filter(explode('/', $externalDirectory)))
+                                            : [];
+
+                                        $externalRootLine = count($externalDirectoryParts) >= 2
+                                            ? '/' . $externalDirectoryParts[0] . '/' . $externalDirectoryParts[1]
+                                            : $externalDirectory;
+
+                                        $externalFolderLine = $externalDirectoryParts[2] ?? '';
+                                    @endphp
+
+                                    <div
+                                        class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400"
+                                        title="{{ $backup->external_path ?? '—' }}"
+                                    >
+                                        @if ($externalPath !== '')
+                                            <div style="white-space: nowrap;">
+                                                {{ $externalRootLine }}
+                                            </div>
+
+                                            <div style="white-space: nowrap;">
+                                                {{ $externalFolderLine }}
+                                            </div>
+
+                                            <div style="white-space: nowrap;">
+                                                {{ $externalFilename }}
+                                            </div>
+                                        @else
+                                            —
+                                        @endif
                                     </div>
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 align-top" style="width: 330px; min-width: 330px; max-width: 330px;">
                                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $googleDriveClass }}">
                                         {{ strtoupper($backup->google_drive_status ?? 'disabled') }}
                                     </span>
 
-                                    <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <div class="mt-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                                         Uploaded:
                                         {{ $backup->google_drive_uploaded_at?->timezone(config('app.timezone'))->format('M d, Y h:i A') ?? '—' }}
                                     </div>
 
-                                    <div class="mt-1 max-w-[260px] break-all text-xs text-gray-500 dark:text-gray-400">
+                                    <div
+                                        class="mt-1 truncate text-xs text-gray-500 dark:text-gray-400"
+                                        title="{{ $backup->google_drive_path ?? '—' }}"
+                                    >
                                         {{ $backup->google_drive_path ?? '—' }}
                                     </div>
                                 </td>
 
                                 <td class="px-4 py-3 text-xs text-red-600 dark:text-red-300">
-                                    <div class="max-w-[300px] whitespace-pre-wrap break-words">
+                                    <div class="max-w-[420px] whitespace-pre-wrap break-words">
                                         {{ $backup->error_message ?: '—' }}
                                     </div>
                                 </td>
