@@ -242,6 +242,23 @@ class LordsTableMeeting extends Page
             ->all();
     }
 
+    public function prophesiedPersonIds(): array
+    {
+        $session = $this->selectedSession();
+
+        if (! $session) {
+            return [];
+        }
+
+        return AttendanceRecord::query()
+            ->where('attendance_session_id', $session->id)
+            ->where('prophesied', true)
+            ->pluck('person_id')
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+    }
+
     public function counts(): array
     {
         $session = $this->selectedSession();

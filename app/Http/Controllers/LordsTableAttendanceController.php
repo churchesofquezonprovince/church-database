@@ -29,8 +29,12 @@ class LordsTableAttendanceController extends Controller
             'meeting_time' => ['nullable', 'date_format:H:i'],
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],
+            'prophesied_person_ids' => ['nullable', 'array'],
+            'prophesied_person_ids.*' => ['integer', 'exists:persons,id'],
             'other_present_person_ids' => ['nullable', 'array'],
             'other_present_person_ids.*' => ['integer', 'exists:persons,id'],
+            'other_prophesied_person_ids' => ['nullable', 'array'],
+            'other_prophesied_person_ids.*' => ['integer', 'exists:persons,id'],
         ]);
 
         $meetingDate = CarbonImmutable::parse($data['meeting_date'])->startOfDay();
@@ -64,7 +68,19 @@ class LordsTableAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $meetingTime): array {
+        $prophesiedPersonIds = collect($data['prophesied_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $otherProphesiedPersonIds = collect($data['other_prophesied_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $prophesiedPersonIds, $otherProphesiedPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
                 ->where(function ($query) use ($storedLocality): void {
@@ -137,6 +153,11 @@ class LordsTableAttendanceController extends Controller
                 );
 
                 $isPresent = $presentPersonIds->contains((int) $person->id);
+                $isProphesied = $prophesiedPersonIds->contains((int) $person->id);
+
+                if ($isProphesied) {
+                    $isPresent = true;
+                }
 
                 AttendanceRecord::query()->updateOrCreate(
                     [
@@ -166,7 +187,7 @@ class LordsTableAttendanceController extends Controller
 
             $otherPresentPersonIds
                 ->reject(fn (int $personId): bool => $visiblePersonIds->contains($personId))
-                ->each(function (int $personId) use ($sheet, $session, $meetingDate, &$presentCount): void {
+                ->each(function (int $personId) use ($sheet, $session, $meetingDate, $otherProphesiedPersonIds, &$presentCount): void {
                     AttendanceParticipant::query()->updateOrCreate(
                         [
                             'attendance_sheet_id' => $sheet->id,

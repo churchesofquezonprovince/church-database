@@ -17,6 +17,7 @@
         $hasNoCategory = $people->contains(fn ($person) => blank($person->churchProfile?->category));
         $presentPersonIds = $this->presentPersonIds();
         $absentPersonIds = $this->absentPersonIds();
+        $prophesiedPersonIds = $this->prophesiedPersonIds();
 
         $presentRowCount = $people
             ->filter(fn ($person) => in_array((int) $person->id, $presentPersonIds, true))
@@ -131,21 +132,36 @@
                                     </div>
 
                                     @if ($record->person)
-                                        <form
-                                            method="POST"
-                                            action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
-                                        >
-                                            @csrf
-                                            @method('DELETE')
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <label class="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-700 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-100">
+                                                <input
+                                                    type="checkbox"
+                                                    name="other_prophesied_person_ids[]"
+                                                    value="{{ $record->person_id }}"
+                                                    form="lords-table-attendance-form"
+                                                    @checked((bool) $record->prophesied)
+                                                    class="rounded border-purple-300 text-purple-600 shadow-sm focus:ring-purple-500 dark:border-purple-700 dark:bg-gray-900"
+                                                >
 
-                                            <button
-                                                type="submit"
-                                                onclick="return confirm('Remove this other locality attendee from this meeting date?')"
-                                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                                Prophesied
+                                            </label>
+
+                                            <form
+                                                method="POST"
+                                                action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
                                             >
-                                                Remove
-                                            </button>
-                                        </form>
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button
+                                                    type="submit"
+                                                    onclick="return confirm('Remove this other locality attendee from this meeting date?')"
+                                                    class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </form>
+                                        </div>
                                     @endif
                                 </div>
                             @endforeach
@@ -326,6 +342,7 @@
                     </div>
                 @else
                     <form
+                        id="lords-table-attendance-form"
                         method="POST"
                         action="{{ route('quezonprovinceactivities.attendance-sheets.lords-table.store') }}"
                         class="mt-5"
@@ -440,10 +457,11 @@
                         </div>
 
                         <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="min-w-[720px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <table class="min-w-[820px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
                                         <th class="w-20 px-3 py-3 sm:px-4 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="w-24 px-3 py-3 sm:px-4 text-center font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
                                         <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
                                         <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
                                         <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Contact</th>
@@ -472,6 +490,16 @@
                                                     data-attendance-checkbox
                                                     onchange="updatePermanentMeetingRowStatus(this); filterPermanentMeetingChecklist(this.closest('form'))"
                                                     class="lords-table-checkbox h-6 w-6 rounded border-gray-300 text-primary-600 focus:ring-primary-500 sm:h-5 sm:w-5"
+                                                >
+                                            </td>
+
+                                            <td class="px-3 py-3 text-center sm:px-4">
+                                                <input
+                                                    type="checkbox"
+                                                    name="prophesied_person_ids[]"
+                                                    value="{{ $person->id }}"
+                                                    @checked(in_array((int) $person->id, $prophesiedPersonIds, true))
+                                                    class="lords-table-prophesied-checkbox h-6 w-6 rounded border-purple-300 text-purple-600 focus:ring-purple-500 sm:h-5 sm:w-5 dark:border-purple-700 dark:bg-gray-900"
                                                 >
                                             </td>
 
