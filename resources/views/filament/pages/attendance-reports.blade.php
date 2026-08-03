@@ -427,12 +427,15 @@
                         </div>
                     @else
                         <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="min-w-[740px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <table class="min-w-[840px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
                                         <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
+                                        @if ($showProphesied)
+                                            <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                        @endif
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
                                         <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
@@ -448,6 +451,9 @@
                                             </td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
+                                            @if ($showProphesied)
+                                                <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                            @endif
                                             <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                             <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
                                             <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
@@ -736,6 +742,9 @@
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                @if ($showProphesied)
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                @endif
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
                             </tr>
@@ -753,12 +762,15 @@
                                     </td>
                                     <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                    @if ($showProphesied)
+                                        <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                    @endif
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
                                     <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                                    <td colspan="{{ $showProphesied ? 7 : 6 }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
                                         No people records yet.
                                     </td>
                                 </tr>

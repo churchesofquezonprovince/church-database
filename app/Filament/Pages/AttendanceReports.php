@@ -565,6 +565,14 @@ class AttendanceReports extends Page
                         ->count()
                     : 0;
 
+                $prophesied = $this->selectedReportType() === AttendanceSheet::TYPE_LORDS_TABLE
+                    ? AttendanceRecord::query()
+                        ->whereIn('attendance_session_id', $sessionIds)
+                        ->where('person_id', $personId)
+                        ->where('prophesied', true)
+                        ->count()
+                    : 0;
+
                 $marked = $present + $absent;
 
                 return [
@@ -573,6 +581,7 @@ class AttendanceReports extends Page
                     'expected' => $expected,
                     'present' => $present,
                     'absent' => $absent,
+                    'prophesied' => $prophesied,
                     'marked' => $marked,
                     'unmarked' => max($expected - $marked, 0),
                     'rate' => $marked > 0
@@ -763,6 +772,9 @@ class AttendanceReports extends Page
 
                 $presentTotal = (int) $sessions->sum('present_count');
                 $absentTotal = (int) $sessions->sum('absent_count');
+                $prophesiedTotal = $this->selectedReportType() === AttendanceSheet::TYPE_LORDS_TABLE
+                    ? (int) $sessions->sum('prophesied_count')
+                    : 0;
                 $markedTotal = $presentTotal + $absentTotal;
 
                 return [
@@ -773,6 +785,7 @@ class AttendanceReports extends Page
                     'expected' => $expectedTotal,
                     'present' => $presentTotal,
                     'absent' => $absentTotal,
+                    'prophesied' => $prophesiedTotal,
                     'unmarked' => max($expectedTotal - $markedTotal, 0),
                     'rate' => $markedTotal > 0
                         ? round(($presentTotal / $markedTotal) * 100, 1)
