@@ -6,6 +6,13 @@
             ->orderBy('id')
             ->get();
 
+        $editingLesson = null;
+
+        if (request()->integer('edit_lesson')) {
+            $editingLesson = \App\Models\ChildrenWorkLesson::query()
+                ->find(request()->integer('edit_lesson'));
+        }
+
         $statusOptions = [
             'scheduled' => 'Scheduled',
             'draft' => 'Draft',
@@ -22,6 +29,12 @@
             </div>
         @endif
 
+        @if (session('children_work_error'))
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                {{ session('children_work_error') }}
+            </div>
+        @endif
+
         <div class="rounded-2xl border border-pink-200 bg-pink-50 p-6 shadow-sm dark:border-pink-900 dark:bg-pink-950">
             <p class="text-sm font-semibold uppercase tracking-wide text-pink-700 dark:text-pink-300">
                 Children's Work
@@ -31,12 +44,92 @@
                 Lessons
             </h2>
 
-            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <div class="mt-4 flex flex-wrap gap-2">
+                <form method="POST" action="{{ route('quezonprovinceactivities.children-work.google-sheet.sync') }}">
+                    @csrf
+
+                    <button
+                        type="submit"
+                        onclick="return confirm('Sync lessons from Google Sheet now? Existing synced rows may be updated.')"
+                        class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500"
+                    >
+                        Sync Google Sheet Now
+                    </button>
+                </form>
+
+                <form method="POST" action="{{ route('quezonprovinceactivities.children-work.google-sheet.push') }}">
+                    @csrf
+
+                    <button
+                        type="submit"
+                        onclick="return confirm('Push website changes to Google Sheet now?')"
+                        class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                    >
+                        Push Website Changes to Google Sheet
+                    </button>
+                </form>
+            </div>
+
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
                 Manage lesson schedules, hymns, memory verses, stories, slides, and activities.
             </p>
         </div>
 
-        <details class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        @if ($editingLesson)
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm dark:border-amber-900 dark:bg-amber-950">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            Edit Lesson
+                        </p>
+
+                        <h3 class="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                            {{ $editingLesson->displayTitle() }}
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            {{ $editingLesson->displayDate() }}
+                        </p>
+                    </div>
+
+                    <a
+                        href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() }}"
+                        class="inline-flex rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+                    >
+                        Cancel Edit
+                    </a>
+                </div>
+
+                <form
+                    method="POST"
+                    action="{{ route('quezonprovinceactivities.children-work.lessons.update', $editingLesson) }}"
+                    class="mt-5 grid gap-4 lg:grid-cols-2"
+                >
+                    @csrf
+                    @method('PATCH')
+
+                    @include('filament.pages.partials.children-work-lesson-form-fields', [
+                        'lesson' => $editingLesson,
+                        'statusOptions' => $statusOptions,
+                    ])
+
+                    <div class="flex flex-wrap gap-2 lg:col-span-2">
+                        <button type="submit" class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500">
+                            Save Changes
+                        </button>
+
+                        <a
+                            href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() }}"
+                            class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                        >
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        @endif
+
+        <details class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900" @open(! $editingLesson && $lessons->isEmpty())>
             <summary class="cursor-pointer px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
                 Add Lesson
             </summary>
@@ -75,6 +168,7 @@
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Suggested Hymn</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Memory Verse</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Story</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Presentation Slides</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Activity</th>
                             <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                         </tr>
@@ -82,7 +176,9 @@
 
                     <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                         @forelse ($lessons as $lesson)
-                            <tr>
+                            <tr @class([
+                                'bg-amber-50 dark:bg-amber-950/40' => $editingLesson?->id === $lesson->id,
+                            ])>
                                 <td class="px-4 py-3 align-top font-semibold text-gray-900 dark:text-white">
                                     {{ $lesson->displayDate() }}
                                     <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">
@@ -100,6 +196,12 @@
                                             Open Lesson Link
                                         </a>
                                     @endif
+
+                                    @if ($lesson->sync_status)
+                                        <span class="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                            {{ $lesson->sync_status }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
@@ -115,70 +217,43 @@
                                 </td>
 
                                 <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                    {{ \Illuminate\Support\Str::limit($lesson->presentation_slides ?: '—', 100) }}
+                                </td>
+
+                                <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
                                     {{ \Illuminate\Support\Str::limit($lesson->activity ?: '—', 100) }}
                                 </td>
 
                                 <td class="px-4 py-3 align-top text-right">
-                                    <details class="inline-block text-left">
-                                        <summary class="cursor-pointer rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600">
+                                    <div class="flex justify-end gap-2">
+                                        <a
+                                            href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() . '?edit_lesson=' . $lesson->id }}"
+                                            class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600"
+                                        >
                                             Edit
-                                        </summary>
+                                        </a>
 
-                                        <div class="fixed inset-0 z-40 overflow-y-auto bg-gray-950/70 p-4">
-                                            <div class="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900">
-                                                <div class="flex items-start justify-between gap-4">
-                                                    <h4 class="text-lg font-bold text-gray-900 dark:text-white">
-                                                        Edit Lesson
-                                                    </h4>
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                        Click outside is disabled. Use Save or Delete.
-                                                    </span>
-                                                </div>
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
 
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route('quezonprovinceactivities.children-work.lessons.update', $lesson) }}"
-                                                    class="mt-5 grid gap-4 lg:grid-cols-2"
-                                                >
-                                                    @csrf
-                                                    @method('PATCH')
-
-                                                    @include('filament.pages.partials.children-work-lesson-form-fields', [
-                                                        'lesson' => $lesson,
-                                                        'statusOptions' => $statusOptions,
-                                                    ])
-
-                                                    <div class="lg:col-span-2">
-                                                        <button type="submit" class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500">
-                                                            Save Changes
-                                                        </button>
-                                                    </div>
-                                                </form>
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
-                                                    class="mt-4"
-                                                >
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button
-                                                        type="submit"
-                                                        onclick="return confirm('Delete this lesson?')"
-                                                        class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                                                    >
-                                                        Delete Lesson
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </details>
+                                            <button
+                                                type="submit"
+                                                onclick="return confirm('Delete this lesson?')"
+                                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                            >
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                                <td colspan="8" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
                                     No lessons yet.
                                 </td>
                             </tr>
