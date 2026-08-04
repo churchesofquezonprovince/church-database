@@ -128,6 +128,15 @@
     >{{ old('activity', $lesson?->activity) }}</textarea>
 </div>
 
+<div>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Activity Link</label>
+    <textarea
+        name="activity_url"
+        rows="3"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+    >{{ old('activity_url', $lesson?->activity_url) }}</textarea>
+</div>
+
 <div class="lg:col-span-2">
     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Notes</label>
     <textarea

@@ -167,17 +167,11 @@ class ChildrenWorkGoogleSheetsService
                 $rowHash = $this->rowHash($this->mappedRowFromSheetValues($values));
 
                 if ($lesson->google_sheet_row_number) {
-                    $range = $this->quoteSheetTitle($sheetTitle) . '!A' . $lesson->google_sheet_row_number . ':G' . $lesson->google_sheet_row_number;
-
-                    $service->spreadsheets_values->update(
-                        $spreadsheetId,
-                        $range,
-                        new ValueRange([
-                            'values' => [$values],
-                        ]),
-                        [
-                            'valueInputOption' => 'USER_ENTERED',
-                        ]
+                    $this->updateExistingSheetRowSafely(
+                        service: $service,
+                        spreadsheetId: $spreadsheetId,
+                        sheetTitle: $sheetTitle,
+                        lesson: $lesson,
                     );
 
                     $lesson->forceFill([
@@ -233,6 +227,52 @@ class ChildrenWorkGoogleSheetsService
             'failed' => $failed,
             'total_rows' => $lessons->count(),
         ];
+    }
+
+    private function updateExistingSheetRowSafely(
+        Sheets $service,
+        string $spreadsheetId,
+        string $sheetTitle,
+        ChildrenWorkLesson $lesson,
+    ): void {
+        $row = (int) $lesson->google_sheet_row_number;
+
+        if ($row <= 0) {
+            return;
+        }
+
+        /*
+         * Preserve Google Sheet smart chips.
+         *
+         * Do not update:
+         * B = Lesson
+         * C = Suggested Hymn
+         * F = Presentation Slides
+         * G = Activity
+         *
+         * Updating those cells through the API can replace YouTube chips /
+         * rich links with plain text or HYPERLINK formulas.
+         */
+        $updates = [
+            'A' => $lesson->scheduled_on?->format('Y-m-d') ?? '',
+            'D' => $lesson->memory_verse ?? '',
+            'E' => $lesson->story ?? '',
+        ];
+
+        foreach ($updates as $column => $value) {
+            $range = $this->quoteSheetTitle($sheetTitle) . '!' . $column . $row;
+
+            $service->spreadsheets_values->update(
+                $spreadsheetId,
+                $range,
+                new ValueRange([
+                    'values' => [[$value]],
+                ]),
+                [
+                    'valueInputOption' => 'USER_ENTERED',
+                ]
+            );
+        }
     }
 
     private function sheetsService(): Sheets
@@ -314,10 +354,12 @@ class ChildrenWorkGoogleSheetsService
         $lessonCell = $this->firstHyperlinkedValue($mapped, ['lesson', 'lessons', 'lesson_title', 'topic', 'title']);
         $hymnCell = $this->firstHyperlinkedValue($mapped, ['suggested_hymn', 'hymn', 'song']);
         $slidesCell = $this->firstHyperlinkedValue($mapped, ['presentation_slides', 'slides', 'presentation']);
+        $activityCell = $this->firstHyperlinkedValue($mapped, ['activity', 'activities']);
 
         $lessonTitle = $lessonCell['label'];
         $hymnTitle = $hymnCell['label'];
         $slidesTitle = $slidesCell['label'];
+        $activityTitle = $activityCell['label'];
 
         return [
             'scheduled_on' => $this->parseDate(
@@ -333,7 +375,8 @@ class ChildrenWorkGoogleSheetsService
             'story' => $this->firstValue($mapped, ['story', 'bible_story']),
             'presentation_slides' => $slidesTitle,
             'presentation_slides_url' => $slidesCell['url'] ?: $this->firstValue($mapped, ['presentation_slides_link', 'slides_link', 'slides_url']),
-            'activity' => $this->firstValue($mapped, ['activity', 'activities']),
+            'activity' => $activityTitle,
+            'activity_url' => $activityCell['url'] ?: $this->firstValue($mapped, ['activity_link', 'activity_url']),
             'assigned_to' => $this->firstValue($mapped, ['assigned_to', 'c_o', 'co', 'person_in_charge', 'in_charge']),
             'notes' => $this->firstValue($mapped, ['notes', 'remarks']),
             'status' => 'scheduled',
@@ -460,7 +503,7 @@ class ChildrenWorkGoogleSheetsService
             $lesson->memory_verse ?? '',
             $lesson->story ?? '',
             $this->hyperlinkFormula($lesson->presentation_slides_url, $lesson->presentation_slides),
-            $lesson->activity ?? '',
+            $this->hyperlinkFormula($lesson->activity_url, $lesson->activity),
         ];
     }
 

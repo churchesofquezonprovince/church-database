@@ -42,13 +42,77 @@
                 </p>
 
                 @if ($nextLesson->lesson_url)
-                    <p><a href="{{ $nextLesson->lesson_url }}" target="_blank" rel="noopener noreferrer">Open Lesson Link</a></p>
+                    <p>
+                        <a href="{{ $nextLesson->lesson_url }}" target="_blank" rel="noopener noreferrer">
+                            Open Lesson Link
+                        </a>
+                    </p>
+                @endif
+
+                @if ($nextLesson->suggested_hymn)
+                    <div class="lesson">
+                        <strong>Suggested Hymn</strong><br>
+                        {{ $nextLesson->suggested_hymn }}
+
+                        @if ($nextLesson->suggested_hymn_url)
+                            <p>
+                                <a href="{{ $nextLesson->suggested_hymn_url }}" target="_blank" rel="noopener noreferrer">
+                                    Open Link
+                                </a>
+                            </p>
+                        @endif
+                    </div>
                 @endif
 
                 @if ($nextLesson->memory_verse)
                     <div class="verse">
                         <strong>Memory Verse</strong><br>
                         {{ $nextLesson->memory_verse }}
+                    </div>
+                @endif
+
+                @if ($nextLesson->story)
+                    <div class="lesson">
+                        <strong>Story</strong><br>
+                        {{ $nextLesson->story }}
+
+                        @if ($nextLesson->story_url)
+                            <p>
+                                <a href="{{ $nextLesson->story_url }}" target="_blank" rel="noopener noreferrer">
+                                    Open Link
+                                </a>
+                            </p>
+                        @endif
+                    </div>
+                @endif
+
+                @if ($nextLesson->presentation_slides)
+                    <div class="lesson">
+                        <strong>Presentation Slides</strong><br>
+                        {{ $nextLesson->presentation_slides }}
+
+                        @if ($nextLesson->presentation_slides_url)
+                            <p>
+                                <a href="{{ $nextLesson->presentation_slides_url }}" target="_blank" rel="noopener noreferrer">
+                                    Open Link
+                                </a>
+                            </p>
+                        @endif
+                    </div>
+                @endif
+
+                @if ($nextLesson->activity)
+                    <div class="lesson">
+                        <strong>Activity</strong><br>
+                        {{ $nextLesson->activity }}
+
+                        @if ($nextLesson->activity_url)
+                            <p>
+                                <a href="{{ $nextLesson->activity_url }}" target="_blank" rel="noopener noreferrer">
+                                    Open Link
+                                </a>
+                            </p>
+                        @endif
                     </div>
                 @endif
             @else

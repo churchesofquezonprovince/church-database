@@ -101,6 +101,7 @@ class ChildrenWorkLessonController extends Controller
             'presentation_slides' => ['nullable', 'string'],
             'presentation_slides_url' => ['nullable', 'string'],
             'activity' => ['nullable', 'string'],
+            'activity_url' => ['nullable', 'string'],
             'assigned_to' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'status' => ['nullable', 'string', 'max:255'],

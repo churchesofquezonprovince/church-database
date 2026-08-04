@@ -204,24 +204,60 @@
                                     @endif
                                 </td>
 
-                                <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
-                                    {{ \Illuminate\Support\Str::limit($lesson->suggested_hymn ?: '—', 80) }}
-                                </td>
+                                  <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                      <div>{{ \Illuminate\Support\Str::limit($lesson->suggested_hymn ?: '—', 80) }}</div>
+
+                                      @if ($lesson->suggested_hymn_url)
+                                          <a href="{{ $lesson->suggested_hymn_url }}"
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300">
+                                              Open Hymn Link
+                                          </a>
+                                      @endif
+                                  </td>
+
+                                  <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                      <div>{{ \Illuminate\Support\Str::limit($lesson->story ?: '—', 100) }}</div>
+
+                                      @if ($lesson->story_url)
+                                          <a href="{{ $lesson->story_url }}"
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300">
+                                              Open Story Link
+                                          </a>
+                                      @endif
+                                  </td>
+
+                                  <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                      <div>{{ \Illuminate\Support\Str::limit($lesson->presentation_slides ?: '—', 100) }}</div>
+
+                                      @if ($lesson->presentation_slides_url)
+                                          <a href="{{ $lesson->presentation_slides_url }}"
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300">
+                                              Open Presentation Slides Link
+                                          </a>
+                                      @endif
+                                  </td>
+
+                                  <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+                                      <div>{{ \Illuminate\Support\Str::limit($lesson->activity ?: '—', 100) }}</div>
+
+                                      @if ($lesson->activity_url)
+                                          <a href="{{ $lesson->activity_url }}"
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300">
+                                              Open Activity Link
+                                          </a>
+                                      @endif
+                                  </td>
 
                                 <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
                                     {{ \Illuminate\Support\Str::limit($lesson->memory_verse ?: '—', 120) }}
-                                </td>
-
-                                <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
-                                    {{ \Illuminate\Support\Str::limit($lesson->story ?: '—', 100) }}
-                                </td>
-
-                                <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
-                                    {{ \Illuminate\Support\Str::limit($lesson->presentation_slides ?: '—', 100) }}
-                                </td>
-
-                                <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
-                                    {{ \Illuminate\Support\Str::limit($lesson->activity ?: '—', 100) }}
                                 </td>
 
                                 <td class="px-4 py-3 align-top text-right">

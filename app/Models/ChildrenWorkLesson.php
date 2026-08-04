@@ -19,6 +19,7 @@ class ChildrenWorkLesson extends Model
         'presentation_slides',
         'presentation_slides_url',
         'activity',
+        'activity_url',
         'assigned_to',
         'notes',
         'status',
