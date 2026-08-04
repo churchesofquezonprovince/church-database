@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Filament\Pages\ChildrenWorkLessons;
 use App\Models\ChildrenWorkLesson;
+use App\Services\ChildrenWorkGoogleSheetsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -37,6 +38,48 @@ class ChildrenWorkLessonController extends Controller
 
         return redirect(ChildrenWorkLessons::getUrl())
             ->with('children_work_saved', 'Lesson deleted.');
+    }
+
+    public function syncGoogleSheet(ChildrenWorkGoogleSheetsService $service): RedirectResponse
+    {
+        $this->authorizeManager();
+
+        try {
+            $result = $service->syncFromGoogleSheet();
+
+            return redirect(ChildrenWorkLessons::getUrl())
+                ->with(
+                    'children_work_saved',
+                    'Google Sheet synced. Created: ' . $result['created']
+                    . '. Updated: ' . $result['updated']
+                    . '. Skipped: ' . $result['skipped']
+                    . '. Sheet: ' . $result['sheet_title'] . '.'
+                );
+        } catch (\Throwable $exception) {
+            return redirect(ChildrenWorkLessons::getUrl())
+                ->with('children_work_error', 'Google Sheet sync failed: ' . $exception->getMessage());
+        }
+    }
+
+    public function pushGoogleSheet(ChildrenWorkGoogleSheetsService $service): RedirectResponse
+    {
+        $this->authorizeManager();
+
+        try {
+            $result = $service->pushToGoogleSheet();
+
+            return redirect(ChildrenWorkLessons::getUrl())
+                ->with(
+                    'children_work_saved',
+                    'Website changes pushed to Google Sheet. Created: ' . $result['created']
+                    . '. Updated: ' . $result['updated']
+                    . '. Failed: ' . $result['failed']
+                    . '. Sheet: ' . $result['sheet_title'] . '.'
+                );
+        } catch (\Throwable $exception) {
+            return redirect(ChildrenWorkLessons::getUrl())
+                ->with('children_work_error', 'Google Sheet push failed: ' . $exception->getMessage());
+        }
     }
 
     private function authorizeManager(): void

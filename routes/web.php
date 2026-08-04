@@ -453,6 +453,12 @@ Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/children-work')
     ->name('quezonprovinceactivities.children-work.')
     ->group(function (): void {
+        Route::post('/google-sheet/sync', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'syncGoogleSheet'])
+            ->name('google-sheet.sync');
+
+        Route::post('/google-sheet/push', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'pushGoogleSheet'])
+            ->name('google-sheet.push');
+
         Route::post('/lessons', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'store'])
             ->name('lessons.store');
 

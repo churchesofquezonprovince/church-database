@@ -101,3 +101,42 @@ if (config('backup.retention.enabled', true)) {
         ->withoutOverlapping()
         ->appendOutputTo(storage_path('logs/backup-cleanup-scheduler.log'));
 }
+
+Artisan::command('children-work:sync-google-sheet', function (\App\Services\ChildrenWorkGoogleSheetsService $service): int {
+    try {
+        $result = $service->syncFromGoogleSheet();
+
+        $this->info('Children Work Google Sheet synced.');
+        $this->line('Sheet: ' . $result['sheet_title']);
+        $this->line('Created: ' . $result['created']);
+        $this->line('Updated: ' . $result['updated']);
+        $this->line('Skipped: ' . $result['skipped']);
+        $this->line('Total rows: ' . $result['total_rows']);
+
+        return self::SUCCESS;
+    } catch (\Throwable $exception) {
+        $this->error('Children Work Google Sheet sync failed: ' . $exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Sync Children Work lessons from Google Sheets');
+
+Artisan::command('children-work:push-google-sheet', function (\App\Services\ChildrenWorkGoogleSheetsService $service): int {
+    try {
+        $result = $service->pushToGoogleSheet();
+
+        $this->info('Children Work website changes pushed to Google Sheet.');
+        $this->line('Sheet: ' . $result['sheet_title']);
+        $this->line('Created: ' . $result['created']);
+        $this->line('Updated: ' . $result['updated']);
+        $this->line('Failed: ' . $result['failed']);
+        $this->line('Total local changed rows: ' . $result['total_rows']);
+
+        return self::SUCCESS;
+    } catch (\Throwable $exception) {
+        $this->error('Children Work Google Sheet push failed: ' . $exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Push Children Work lesson changes to Google Sheets');
+
