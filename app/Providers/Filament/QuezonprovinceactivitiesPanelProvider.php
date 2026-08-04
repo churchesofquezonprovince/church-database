@@ -35,6 +35,7 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
+                "Children's Work",
                 'Attendance',
                 'Campus Work',
                 'Church Database',

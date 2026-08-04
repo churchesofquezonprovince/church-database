@@ -435,3 +435,31 @@ Route::middleware(['web', 'auth'])
             ->name('members.destroy');
     });
 
+// Children's Work public dashboard and protected lesson actions.
+Route::middleware(['web'])
+    ->get('/children-work', function () {
+        $nextLesson = \App\Models\ChildrenWorkLesson::query()->upcoming()->first()
+            ?: \App\Models\ChildrenWorkLesson::query()->past()->first();
+
+        return view('children-work.dashboard', [
+            'nextLesson' => $nextLesson,
+            'upcomingLessons' => \App\Models\ChildrenWorkLesson::query()->upcoming()->limit(8)->get(),
+            'recentLessons' => \App\Models\ChildrenWorkLesson::query()->past()->limit(5)->get(),
+        ]);
+    })
+    ->name('children-work.dashboard.public');
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/children-work')
+    ->name('quezonprovinceactivities.children-work.')
+    ->group(function (): void {
+        Route::post('/lessons', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'store'])
+            ->name('lessons.store');
+
+        Route::patch('/lessons/{lesson}', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'update'])
+            ->name('lessons.update');
+
+        Route::delete('/lessons/{lesson}', [\App\Http\Controllers\ChildrenWorkLessonController::class, 'destroy'])
+            ->name('lessons.destroy');
+    });
+
