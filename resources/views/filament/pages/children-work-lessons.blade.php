@@ -184,6 +184,12 @@
                                     <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">
                                         {{ $statusOptions[$lesson->status] ?? $lesson->status }}
                                     </span>
+                                <a
+                                    href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() . '?edit_lesson=' . $lesson->id }}"
+                                    class="mt-2 inline-flex rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600"
+                                >
+                                    Edit
+                                </a>
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -262,13 +268,6 @@
 
                                 <td class="px-4 py-3 align-top text-right">
                                     <div class="flex justify-end gap-2">
-                                        <a
-                                            href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() . '?edit_lesson=' . $lesson->id }}"
-                                            class="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600"
-                                        >
-                                            Edit
-                                        </a>
-
                                         <form
                                             method="POST"
                                             action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
