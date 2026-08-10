@@ -12,6 +12,16 @@ use Illuminate\Support\Str;
 
 class ChildrenWorkGoogleSheetsService
 {
+    /**
+     * Phase 22D2
+     *
+     * Google Sheet lesson format:
+     *
+     *   Row N     = lesson information
+     *   Row N + 1 = continuation/resource information
+     *
+     * Both physical rows represent ONE ChildrenWorkLesson record.
+     */
     public function syncFromGoogleSheet(): array
     {
         if (! config('children_work.google_sheets.enabled')) {
@@ -29,8 +39,11 @@ class ChildrenWorkGoogleSheetsService
         $range = $this->quoteSheetTitle($sheetTitle) . '!A:G';
 
         /*
-         * FORMULA values allow us to read =HYPERLINK("url", "label").
-         * UNFORMATTED values allow us to read real Google date serials.
+         * FORMULA values allow us to preserve formulas such as:
+         *
+         * =HYPERLINK("url","label")
+         *
+         * UNFORMATTED values allow us to read actual Google date serials.
          */
         $formulaValues = $service->spreadsheets_values
             ->get($spreadsheetId, $range, [
@@ -48,11 +61,17 @@ class ChildrenWorkGoogleSheetsService
 
         $values = $formulaValues ?: $rawValues;
 
-        $headerRowNumber = max((int) config('children_work.google_sheets.header_row', 1), 1);
+        $headerRowNumber = max(
+            (int) config('children_work.google_sheets.header_row', 1),
+            1
+        );
+
         $headerIndex = $headerRowNumber - 1;
 
         if (! isset($values[$headerIndex])) {
-            throw new Exception("Header row {$headerRowNumber} was not found in Google Sheet.");
+            throw new Exception(
+                "Header row {$headerRowNumber} was not found in Google Sheet."
+            );
         }
 
         $headers = $this->normalizeHeaders($values[$headerIndex]);
@@ -61,52 +80,185 @@ class ChildrenWorkGoogleSheetsService
         $updated = 0;
         $skipped = 0;
 
-        foreach ($values as $index => $row) {
-            $rowNumber = $index + 1;
+        /*
+         * Phase 22D2:
+         *
+         * Start at the first data row and consume TWO physical rows
+         * for every lesson.
+         */
+        $dataIndex = $headerIndex + 1;
 
-            if ($rowNumber <= $headerRowNumber) {
-                continue;
+        while ($dataIndex < count($values)) {
+            $firstRowNumber = $dataIndex + 1;
+
+            $formulaFirstRow = $formulaValues[$dataIndex] ?? [];
+            $rawFirstRow = $rawValues[$dataIndex] ?? [];
+
+            /*
+             * The second physical row belongs to the same lesson.
+             */
+            // $secondIndex = $dataIndex + 1;
+
+            // $formulaSecondRow = $formulaValues[$secondIndex] ?? [];
+            // $rawSecondRow = $rawValues[$secondIndex] ?? [];
+
+            // $firstMapped = $this->mapRow($headers, $formulaFirstRow);
+            // $firstRawMapped = $this->mapRow($headers, $rawFirstRow);
+
+            // $secondMapped = $this->mapRow($headers, $formulaSecondRow);
+            // $secondRawMapped = $this->mapRow($headers, $rawSecondRow);
+
+$firstMapped = $this->mapRow(
+    $headers,
+    $formulaFirstRow
+);
+
+$firstRawMapped = $this->mapRow(
+    $headers,
+    $rawFirstRow
+);
+
+/*
+ * The next physical row is OPTIONAL.
+ *
+ * We only consume it as part of this lesson when it
+ * actually looks like a continuation row.
+ */
+$secondIndex = $dataIndex + 1;
+
+$formulaSecondRow = [];
+$rawSecondRow = [];
+
+$secondMapped = [];
+$secondRawMapped = [];
+
+$hasContinuationRow = false;
+
+if ($secondIndex < count($values)) {
+    $formulaSecondRow = $formulaValues[$secondIndex] ?? [];
+    $rawSecondRow = $rawValues[$secondIndex] ?? [];
+
+    $hasContinuationRow = $this->isContinuationRow(
+        $formulaSecondRow,
+        $rawSecondRow,
+        $headers
+    );
+
+    if ($hasContinuationRow) {
+        $secondMapped = $this->mapRow(
+            $headers,
+            $formulaSecondRow
+        );
+
+        $secondRawMapped = $this->mapRow(
+            $headers,
+            $rawSecondRow
+        );
+    }
+}
+
+            /*
+             * If there is a completely empty row, do not manufacture a lesson.
+             */
+            if (
+                $this->rowIsEmpty($firstMapped)
+                && $this->rowIsEmpty($firstRawMapped)
+                && $this->rowIsEmpty($secondMapped)
+                && $this->rowIsEmpty($secondRawMapped)
+            ) {
+                // $skipped++;
+                // $dataIndex += 2;
+                // continue;
+$skipped++;
+$dataIndex += $hasContinuationRow ? 2 : 1;
+continue;
             }
 
-            $formulaRow = $formulaValues[$index] ?? [];
-            $rawRow = $rawValues[$index] ?? [];
+            /*
+             * Combine both physical rows into one logical lesson.
+             */
+            $mapped = $this->mergeTwoLessonRows(
+                $firstMapped,
+                $secondMapped
+            );
 
-            $mapped = $this->mapRow($headers, $formulaRow);
-            $rawMapped = $this->mapRow($headers, $rawRow);
+            $rawMapped = $this->mergeTwoLessonRows(
+                $firstRawMapped,
+                $secondRawMapped
+            );
 
             if ($this->rowIsEmpty($mapped) && $this->rowIsEmpty($rawMapped)) {
                 $skipped++;
+                $dataIndex += $hasContinuationRow ? 2 : 1;
                 continue;
             }
 
-            $payload = $this->payloadFromMappedRow($mapped, $rawMapped);
+            $payload = $this->payloadFromMappedRow(
+                $mapped,
+                $rawMapped
+            );
 
-            if (! filled($payload['scheduled_on']) && ! filled($payload['lesson_title'])) {
+            /*
+             * A lesson must have at least a date or title.
+             */
+            if (
+                ! filled($payload['scheduled_on'])
+                && ! filled($payload['lesson_title'])
+            ) {
                 $skipped++;
+                $dataIndex += $hasContinuationRow ? 2 : 1;
                 continue;
             }
 
-            $hash = $this->rowHash(array_merge($mapped, [
-                '__raw_date' => $this->firstValue($rawMapped, ['date', 'schedule', 'scheduled_on', 'meeting_date']),
-            ]));
+            /*
+             * Hash BOTH physical rows together.
+             *
+             * This means changing either row causes the lesson to sync.
+             */
+            $hash = $this->rowHash([
+                'row_1' => $firstMapped,
+                'row_2' => $secondMapped,
+                '__raw_row_1' => $firstRawMapped,
+                '__raw_row_2' => $secondRawMapped,
+            ]);
 
+            /*
+             * The first physical row is the anchor row for the lesson.
+             */
             $lesson = ChildrenWorkLesson::query()
-                ->where('google_sheet_row_number', $rowNumber)
+                ->where('google_sheet_row_number', $firstRowNumber)
                 ->first();
 
-            if (! $lesson && filled($payload['scheduled_on']) && filled($payload['lesson_title'])) {
+            /*
+             * Fallback matching for existing records.
+             */
+            if (
+                ! $lesson
+                && filled($payload['scheduled_on'])
+                && filled($payload['lesson_title'])
+            ) {
                 $lesson = ChildrenWorkLesson::query()
-                    ->whereDate('scheduled_on', $payload['scheduled_on'])
-                    ->where('lesson_title', $payload['lesson_title'])
+                    ->whereDate(
+                        'scheduled_on',
+                        $payload['scheduled_on']
+                    )
+                    ->where(
+                        'lesson_title',
+                        $payload['lesson_title']
+                    )
                     ->first();
             }
 
-            if ($lesson && $lesson->google_sheet_row_hash === $hash) {
+            if (
+                $lesson
+                && $lesson->google_sheet_row_hash === $hash
+            ) {
                 $skipped++;
+                $dataIndex += $hasContinuationRow ? 2 : 1;
                 continue;
             }
 
-            $payload['google_sheet_row_number'] = $rowNumber;
+            $payload['google_sheet_row_number'] = $firstRowNumber;
             $payload['google_sheet_row_hash'] = $hash;
             $payload['google_sheet_synced_at'] = now();
             $payload['source'] = 'google_sheet';
@@ -120,6 +272,12 @@ class ChildrenWorkGoogleSheetsService
                 ChildrenWorkLesson::query()->create($payload);
                 $created++;
             }
+
+/*
+ * Consume the continuation row only when one actually
+ * belongs to this lesson.
+ */
+$dataIndex += $hasContinuationRow ? 2 : 1;
         }
 
         return [
@@ -152,7 +310,9 @@ class ChildrenWorkGoogleSheetsService
                     ->orWhereNull('sync_status')
                     ->orWhere('sync_status', '!=', 'synced');
             })
-            ->orderByRaw('CASE WHEN scheduled_on IS NULL THEN 1 ELSE 0 END')
+            ->orderByRaw(
+                'CASE WHEN scheduled_on IS NULL THEN 1 ELSE 0 END'
+            )
             ->orderBy('scheduled_on')
             ->orderBy('id')
             ->get();
@@ -163,11 +323,21 @@ class ChildrenWorkGoogleSheetsService
 
         foreach ($lessons as $lesson) {
             try {
-                $values = $this->sheetRowFromLesson($lesson);
-                $rowHash = $this->rowHash($this->mappedRowFromSheetValues($values));
+                $values = $this->sheetRowsFromLesson($lesson);
+
+                $rowHashRows = [
+                    'row_1' => $this->mappedRowFromSheetValues($values[0]),
+                ];
+
+                if (isset($values[1])) {
+                    $rowHashRows['row_2'] =
+                        $this->mappedRowFromSheetValues($values[1]);
+                }
+
+                $rowHash = $this->rowHash($rowHashRows);
 
                 if ($lesson->google_sheet_row_number) {
-                    $this->updateExistingSheetRowSafely(
+                    $this->updateExistingSheetRowsSafely(
                         service: $service,
                         spreadsheetId: $spreadsheetId,
                         sheetTitle: $sheetTitle,
@@ -186,11 +356,14 @@ class ChildrenWorkGoogleSheetsService
                     continue;
                 }
 
+                /*
+                 * New lesson = append TWO physical rows.
+                 */
                 $response = $service->spreadsheets_values->append(
                     $spreadsheetId,
                     $this->quoteSheetTitle($sheetTitle) . '!A:G',
                     new ValueRange([
-                        'values' => [$values],
+                        'values' => $values,
                     ]),
                     [
                         'valueInputOption' => 'USER_ENTERED',
@@ -198,8 +371,13 @@ class ChildrenWorkGoogleSheetsService
                     ]
                 );
 
-                $updatedRange = $response->getUpdates()?->getUpdatedRange();
-                $rowNumber = $this->extractRowNumberFromUpdatedRange($updatedRange);
+                $updatedRange = $response
+                    ->getUpdates()
+                    ?->getUpdatedRange();
+
+                $rowNumber = $this->extractRowNumberFromUpdatedRange(
+                    $updatedRange
+                );
 
                 $lesson->forceFill([
                     'google_sheet_row_number' => $rowNumber,
@@ -229,38 +407,60 @@ class ChildrenWorkGoogleSheetsService
         ];
     }
 
-    private function updateExistingSheetRowSafely(
+    /**
+     * Update the two physical rows belonging to an existing lesson.
+     *
+     * We deliberately avoid updating the chip/resource columns so
+     * Google Sheets smart chips are not destroyed.
+     */
+    /**
+     * Update an existing lesson in Google Sheets without
+     * overwriting a following standalone schedule.
+     *
+     * Phase 22D3:
+     *
+     * A lesson occupies:
+     *   - one row when it has no continuation content
+     *   - two rows when it has story/slides/activity content
+     *
+     * We deliberately avoid updating smart-chip cells.
+     */
+    /**
+     * Update ordinary non-chip fields of an existing lesson.
+     *
+     * Phase 22D3:
+     *
+     * Only A (Date) and D (Memory Verse) are written back to
+     * Google Sheets.
+     *
+     * B/C/E/F/G are treated as protected cells because they may
+     * contain Google Sheets smart chips or other user-managed
+     * content.
+     *
+     * This also means a one-row schedule will never cause the
+     * following row to be overwritten.
+     */
+    private function updateExistingSheetRowsSafely(
         Sheets $service,
         string $spreadsheetId,
         string $sheetTitle,
         ChildrenWorkLesson $lesson,
     ): void {
-        $row = (int) $lesson->google_sheet_row_number;
+        $firstRow = (int) $lesson->google_sheet_row_number;
 
-        if ($row <= 0) {
+        if ($firstRow <= 0) {
             return;
         }
 
-        /*
-         * Preserve Google Sheet smart chips.
-         *
-         * Do not update:
-         * B = Lesson
-         * C = Suggested Hymn
-         * F = Presentation Slides
-         * G = Activity
-         *
-         * Updating those cells through the API can replace YouTube chips /
-         * rich links with plain text or HYPERLINK formulas.
-         */
         $updates = [
-            'A' => $lesson->scheduled_on?->format('Y-m-d') ?? '',
-            'D' => $lesson->memory_verse ?? '',
-            'E' => $lesson->story ?? '',
+            'A' . $firstRow => $lesson->scheduled_on?->format('Y-m-d') ?? '',
+            'D' . $firstRow => $lesson->memory_verse ?? '',
         ];
 
-        foreach ($updates as $column => $value) {
-            $range = $this->quoteSheetTitle($sheetTitle) . '!' . $column . $row;
+        foreach ($updates as $cell => $value) {
+            $range = $this->quoteSheetTitle($sheetTitle)
+                . '!'
+                . $cell;
 
             $service->spreadsheets_values->update(
                 $spreadsheetId,
@@ -275,16 +475,162 @@ class ChildrenWorkGoogleSheetsService
         }
     }
 
+    private function isContinuationRow(
+    array $formulaRow,
+    array $rawRow,
+    array $headers
+): bool {
+    $formulaMapped = $this->mapRow(
+        $headers,
+        $formulaRow
+    );
+
+    $rawMapped = $this->mapRow(
+        $headers,
+        $rawRow
+    );
+
+    /*
+     * A continuation row must NOT introduce another
+     * scheduled item.
+     */
+    $date = $this->firstValue(
+        $rawMapped,
+        [
+            'date',
+            'schedule',
+            'scheduled_on',
+            'meeting_date',
+        ]
+    ) ?: $this->firstValue(
+        $formulaMapped,
+        [
+            'date',
+            'schedule',
+            'scheduled_on',
+            'meeting_date',
+        ]
+    );
+
+    $lesson = $this->firstValue(
+        $formulaMapped,
+        [
+            'lesson',
+            'lessons',
+            'lesson_title',
+            'topic',
+            'title',
+        ]
+    );
+
+    /*
+     * If the row has a date or lesson/title, it is a
+     * new schedule rather than a continuation.
+     */
+    if (filled($date) || filled($lesson)) {
+        return false;
+    }
+
+    /*
+     * Continuation-specific fields.
+     */
+    foreach ([
+        'story',
+        'bible_story',
+        'presentation_slides',
+        'slides',
+        'presentation',
+        'activity',
+        'activities',
+    ] as $key) {
+        $value = $this->firstValue(
+            $formulaMapped,
+            [$key]
+        ) ?: $this->firstValue(
+            $rawMapped,
+            [$key]
+        );
+
+        if (filled($value)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+
+
+    /**
+     * Combine the two physical rows into one logical mapped row.
+     *
+     * The first non-empty value wins, except fields that are naturally
+     * split across the two rows are explicitly merged.
+     */
+    private function mergeTwoLessonRows(
+        array $first,
+        array $second
+    ): array {
+        $merged = $first;
+
+        foreach ($second as $key => $value) {
+            $value = trim((string) $value);
+
+            if ($value === '') {
+                continue;
+            }
+
+            /*
+             * These fields belong naturally to the second row in
+             * the Phase 22D2 sheet layout.
+             */
+            if (in_array($key, [
+                'story',
+                'bible_story',
+                'presentation_slides',
+                'slides',
+                'presentation',
+                'activity',
+                'activities',
+            ], true)) {
+                $merged[$key] = $value;
+                continue;
+            }
+
+            /*
+             * If the first row is empty, allow the second row to
+             * provide the value.
+             */
+            if (
+                ! isset($merged[$key])
+                || trim((string) $merged[$key]) === ''
+            ) {
+                $merged[$key] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
     private function sheetsService(): Sheets
     {
-        $credentialsPath = base_path((string) config('children_work.google_sheets.credentials_path'));
+        $credentialsPath = base_path(
+            (string) config(
+                'children_work.google_sheets.credentials_path'
+            )
+        );
 
         if (! file_exists($credentialsPath)) {
-            throw new Exception("Google credentials file not found: {$credentialsPath}");
+            throw new Exception(
+                "Google credentials file not found: {$credentialsPath}"
+            );
         }
 
         $client = new Client();
-        $client->setApplicationName('COQP Children Work Lessons');
+        $client->setApplicationName(
+            'COQP Children Work Lessons'
+        );
         $client->setAuthConfig($credentialsPath);
         $client->setScopes([
             Sheets::SPREADSHEETS,
@@ -293,30 +639,45 @@ class ChildrenWorkGoogleSheetsService
         return new Sheets($client);
     }
 
-    private function sheetTitle(Sheets $service, string $spreadsheetId): string
-    {
-        $configured = config('children_work.google_sheets.sheet_name');
+    private function sheetTitle(
+        Sheets $service,
+        string $spreadsheetId
+    ): string {
+        $configured = config(
+            'children_work.google_sheets.sheet_name'
+        );
 
         if (filled($configured)) {
             return (string) $configured;
         }
 
-        $spreadsheet = $service->spreadsheets->get($spreadsheetId, [
-            'fields' => 'sheets.properties.title',
-        ]);
+        $spreadsheet = $service->spreadsheets->get(
+            $spreadsheetId,
+            [
+                'fields' => 'sheets.properties.title',
+            ]
+        );
 
         $sheets = $spreadsheet->getSheets();
 
         if ($sheets === []) {
-            throw new Exception('No sheets found in spreadsheet.');
+            throw new Exception(
+                'No sheets found in spreadsheet.'
+            );
         }
 
-        return (string) $sheets[0]->getProperties()->getTitle();
+        return (string) $sheets[0]
+            ->getProperties()
+            ->getTitle();
     }
 
     private function quoteSheetTitle(string $title): string
     {
-        return "'" . str_replace("'", "''", $title) . "'";
+        return "'" . str_replace(
+            "'",
+            "''",
+            $title
+        ) . "'";
     }
 
     private function normalizeHeaders(array $headerRow): array
@@ -326,7 +687,10 @@ class ChildrenWorkGoogleSheetsService
         foreach ($headerRow as $index => $header) {
             $headers[$index] = Str::of((string) $header)
                 ->lower()
-                ->replaceMatches('/[^a-z0-9]+/', '_')
+                ->replaceMatches(
+                    '/[^a-z0-9]+/',
+                    '_'
+                )
                 ->trim('_')
                 ->toString();
         }
@@ -334,8 +698,10 @@ class ChildrenWorkGoogleSheetsService
         return $headers;
     }
 
-    private function mapRow(array $headers, array $row): array
-    {
+    private function mapRow(
+        array $headers,
+        array $row
+    ): array {
         $mapped = [];
 
         foreach ($headers as $index => $header) {
@@ -343,18 +709,54 @@ class ChildrenWorkGoogleSheetsService
                 continue;
             }
 
-            $mapped[$header] = trim((string) ($row[$index] ?? ''));
+            $mapped[$header] = trim(
+                (string) ($row[$index] ?? '')
+            );
         }
 
         return $mapped;
     }
 
-    private function payloadFromMappedRow(array $mapped, array $rawMapped): array
-    {
-        $lessonCell = $this->firstHyperlinkedValue($mapped, ['lesson', 'lessons', 'lesson_title', 'topic', 'title']);
-        $hymnCell = $this->firstHyperlinkedValue($mapped, ['suggested_hymn', 'hymn', 'song']);
-        $slidesCell = $this->firstHyperlinkedValue($mapped, ['presentation_slides', 'slides', 'presentation']);
-        $activityCell = $this->firstHyperlinkedValue($mapped, ['activity', 'activities']);
+    private function payloadFromMappedRow(
+        array $mapped,
+        array $rawMapped
+    ): array {
+        $lessonCell = $this->firstHyperlinkedValue(
+            $mapped,
+            [
+                'lesson',
+                'lessons',
+                'lesson_title',
+                'topic',
+                'title',
+            ]
+        );
+
+        $hymnCell = $this->firstHyperlinkedValue(
+            $mapped,
+            [
+                'suggested_hymn',
+                'hymn',
+                'song',
+            ]
+        );
+
+        $slidesCell = $this->firstHyperlinkedValue(
+            $mapped,
+            [
+                'presentation_slides',
+                'slides',
+                'presentation',
+            ]
+        );
+
+        $activityCell = $this->firstHyperlinkedValue(
+            $mapped,
+            [
+                'activity',
+                'activities',
+            ]
+        );
 
         $lessonTitle = $lessonCell['label'];
         $hymnTitle = $hymnCell['label'];
@@ -363,34 +765,131 @@ class ChildrenWorkGoogleSheetsService
 
         return [
             'scheduled_on' => $this->parseDate(
-                $this->firstValue($rawMapped, ['date', 'schedule', 'scheduled_on', 'meeting_date'])
-                ?: $this->firstValue($mapped, ['date', 'schedule', 'scheduled_on', 'meeting_date'])
+                $this->firstValue(
+                    $rawMapped,
+                    [
+                        'date',
+                        'schedule',
+                        'scheduled_on',
+                        'meeting_date',
+                    ]
+                )
+                ?: $this->firstValue(
+                    $mapped,
+                    [
+                        'date',
+                        'schedule',
+                        'scheduled_on',
+                        'meeting_date',
+                    ]
+                )
             ),
-            'lesson_code' => $this->parseLessonCode($lessonTitle),
+
+            'lesson_code' => $this->parseLessonCode(
+                $lessonTitle
+            ),
+
             'lesson_title' => $lessonTitle,
-            'lesson_url' => $lessonCell['url'] ?: $this->firstValue($mapped, ['lesson_link', 'lesson_url', 'link']),
+
+            'lesson_url' => $lessonCell['url']
+                ?: $this->firstValue(
+                    $mapped,
+                    [
+                        'lesson_link',
+                        'lesson_url',
+                        'link',
+                    ]
+                ),
+
             'suggested_hymn' => $hymnTitle,
-            'suggested_hymn_url' => $hymnCell['url'] ?: $this->firstValue($mapped, ['suggested_hymn_link', 'hymn_link', 'hymn_url']),
-            'memory_verse' => $this->firstValue($mapped, ['memory_verse', 'verse']),
-            'story' => $this->firstValue($mapped, ['story', 'bible_story']),
+
+            'suggested_hymn_url' => $hymnCell['url']
+                ?: $this->firstValue(
+                    $mapped,
+                    [
+                        'suggested_hymn_link',
+                        'hymn_link',
+                        'hymn_url',
+                    ]
+                ),
+
+            'memory_verse' => $this->firstValue(
+                $mapped,
+                [
+                    'memory_verse',
+                    'verse',
+                ]
+            ),
+
+            'story' => $this->firstValue(
+                $mapped,
+                [
+                    'story',
+                    'bible_story',
+                ]
+            ),
+
             'presentation_slides' => $slidesTitle,
-            'presentation_slides_url' => $slidesCell['url'] ?: $this->firstValue($mapped, ['presentation_slides_link', 'slides_link', 'slides_url']),
+
+            'presentation_slides_url' => $slidesCell['url']
+                ?: $this->firstValue(
+                    $mapped,
+                    [
+                        'presentation_slides_link',
+                        'slides_link',
+                        'slides_url',
+                    ]
+                ),
+
             'activity' => $activityTitle,
-            'activity_url' => $activityCell['url'] ?: $this->firstValue($mapped, ['activity_link', 'activity_url']),
-            'assigned_to' => $this->firstValue($mapped, ['assigned_to', 'c_o', 'co', 'person_in_charge', 'in_charge']),
-            'notes' => $this->firstValue($mapped, ['notes', 'remarks']),
+
+            'activity_url' => $activityCell['url']
+                ?: $this->firstValue(
+                    $mapped,
+                    [
+                        'activity_link',
+                        'activity_url',
+                    ]
+                ),
+
+            'assigned_to' => $this->firstValue(
+                $mapped,
+                [
+                    'assigned_to',
+                    'c_o',
+                    'co',
+                    'person_in_charge',
+                    'in_charge',
+                ]
+            ),
+
+            'notes' => $this->firstValue(
+                $mapped,
+                [
+                    'notes',
+                    'remarks',
+                ]
+            ),
+
             'status' => 'scheduled',
         ];
     }
 
-    private function firstHyperlinkedValue(array $mapped, array $keys): array
-    {
+    private function firstHyperlinkedValue(
+        array $mapped,
+        array $keys
+    ): array {
         foreach ($keys as $key) {
-            if (! isset($mapped[$key]) || trim((string) $mapped[$key]) === '') {
+            if (
+                ! isset($mapped[$key])
+                || trim((string) $mapped[$key]) === ''
+            ) {
                 continue;
             }
 
-            return $this->parseHyperlinkCell((string) $mapped[$key]);
+            return $this->parseHyperlinkCell(
+                (string) $mapped[$key]
+            );
         }
 
         return [
@@ -399,27 +898,47 @@ class ChildrenWorkGoogleSheetsService
         ];
     }
 
-    private function parseHyperlinkCell(string $value): array
-    {
+    private function parseHyperlinkCell(
+        string $value
+    ): array {
         $value = trim($value);
 
-        if (preg_match('/^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*[,;]\s*"((?:[^"]|"")*)"\s*\)$/iu', $value, $matches)) {
+        if (preg_match(
+            '/^=HYPERLINK\(\s*"((?:[^"]|"")*)"\s*[,;]\s*"((?:[^"]|"")*)"\s*\)$/iu',
+            $value,
+            $matches
+        )) {
             return [
-                'url' => str_replace('""', '"', $matches[1]),
-                'label' => str_replace('""', '"', $matches[2]),
+                'url' => str_replace(
+                    '""',
+                    '"',
+                    $matches[1]
+                ),
+                'label' => str_replace(
+                    '""',
+                    '"',
+                    $matches[2]
+                ),
             ];
         }
 
         return [
             'label' => $value,
-            'url' => $this->looksLikeUrl($value) ? $value : null,
+            'url' => $this->looksLikeUrl($value)
+                ? $value
+                : null,
         ];
     }
 
-    private function firstValue(array $mapped, array $keys): ?string
-    {
+    private function firstValue(
+        array $mapped,
+        array $keys
+    ): ?string {
         foreach ($keys as $key) {
-            if (isset($mapped[$key]) && trim((string) $mapped[$key]) !== '') {
+            if (
+                isset($mapped[$key])
+                && trim((string) $mapped[$key]) !== ''
+            ) {
                 return trim((string) $mapped[$key]);
             }
         }
@@ -438,16 +957,24 @@ class ChildrenWorkGoogleSheetsService
         return true;
     }
 
-    private function parseDate(null|string|int|float $value): ?string
-    {
-        if ($value === null || trim((string) $value) === '') {
+    private function parseDate(
+        null|string|int|float $value
+    ): ?string {
+        if (
+            $value === null
+            || trim((string) $value) === ''
+        ) {
             return null;
         }
 
         $value = trim((string) $value);
 
         if (is_numeric($value)) {
-            return CarbonImmutable::createFromDate(1899, 12, 30)
+            return CarbonImmutable::createFromDate(
+                1899,
+                12,
+                30
+            )
                 ->addDays((int) floor((float) $value))
                 ->format('Y-m-d');
         }
@@ -464,7 +991,10 @@ class ChildrenWorkGoogleSheetsService
             'M j, Y',
         ] as $format) {
             try {
-                $date = CarbonImmutable::createFromFormat($format, $value);
+                $date = CarbonImmutable::createFromFormat(
+                    $format,
+                    $value
+                );
 
                 if ($date) {
                     return $date->format('Y-m-d');
@@ -475,53 +1005,140 @@ class ChildrenWorkGoogleSheetsService
         }
 
         try {
-            return CarbonImmutable::parse($value)->format('Y-m-d');
+            return CarbonImmutable::parse($value)
+                ->format('Y-m-d');
         } catch (\Throwable) {
             return null;
         }
     }
 
-    private function parseLessonCode(?string $lesson): ?string
-    {
+    private function parseLessonCode(
+        ?string $lesson
+    ): ?string {
         if (! filled($lesson)) {
             return null;
         }
 
-        if (preg_match('/lesson\s*[\-#:]?\s*(\d+)/i', (string) $lesson, $matches)) {
+        if (preg_match(
+            '/lesson\s*[\-#:]?\s*(\d+)/i',
+            (string) $lesson,
+            $matches
+        )) {
             return 'Lesson ' . $matches[1];
         }
 
         return null;
     }
 
-    private function sheetRowFromLesson(ChildrenWorkLesson $lesson): array
-    {
-        return [
+    /**
+     * Produce TWO physical Google Sheet rows.
+     *
+     * Phase 22D2 layout:
+     *
+     * Row 1:
+     *   A Date
+     *   B Lesson
+     *   C Suggested Hymn
+     *   D Memory Verse
+     *
+     * Row 2:
+     *   E Story
+     *   F Presentation Slides
+     *   G Activity
+     *
+     * The remaining cells are intentionally blank.
+     */
+    /**
+     * Produce the Google Sheet rows for one lesson.
+     *
+     * Phase 22D3:
+     *
+     * A lesson uses TWO physical rows only when it has continuation
+     * content (story, presentation slides, or activity).
+     *
+     * A standalone schedule/review/no-meeting entry uses ONE row.
+     *
+     * No Schedule Type column is required.
+     */
+    private function sheetRowsFromLesson(
+        ChildrenWorkLesson $lesson
+    ): array {
+        $hasContinuation = filled($lesson->story)
+            || filled($lesson->presentation_slides)
+            || filled($lesson->activity);
+
+        $firstRow = [
             $lesson->scheduled_on?->format('Y-m-d') ?? '',
-            $this->hyperlinkFormula($lesson->lesson_url, $lesson->lesson_title),
-            $this->hyperlinkFormula($lesson->suggested_hymn_url, $lesson->suggested_hymn),
+            $this->hyperlinkFormula(
+                $lesson->lesson_url,
+                $lesson->lesson_title
+            ),
+            $this->hyperlinkFormula(
+                $lesson->suggested_hymn_url,
+                $lesson->suggested_hymn
+            ),
             $lesson->memory_verse ?? '',
-            $lesson->story ?? '',
-            $this->hyperlinkFormula($lesson->presentation_slides_url, $lesson->presentation_slides),
-            $this->hyperlinkFormula($lesson->activity_url, $lesson->activity),
+            '',
+            '',
+            '',
         ];
-    }
 
-    private function mappedRowFromSheetValues(array $values): array
-    {
+        if (! $hasContinuation) {
+            return [$firstRow];
+        }
+
         return [
-            'date' => trim((string) ($values[0] ?? '')),
-            'lesson' => trim((string) ($values[1] ?? '')),
-            'suggested_hymn' => trim((string) ($values[2] ?? '')),
-            'memory_verse' => trim((string) ($values[3] ?? '')),
-            'story' => trim((string) ($values[4] ?? '')),
-            'presentation_slides' => trim((string) ($values[5] ?? '')),
-            'activity' => trim((string) ($values[6] ?? '')),
+            $firstRow,
+            [
+                '',
+                '',
+                '',
+                '',
+                $lesson->story ?? '',
+                $this->hyperlinkFormula(
+                    $lesson->presentation_slides_url,
+                    $lesson->presentation_slides
+                ),
+                $this->hyperlinkFormula(
+                    $lesson->activity_url,
+                    $lesson->activity
+                ),
+            ],
         ];
     }
 
-    private function hyperlinkFormula(?string $url, ?string $label): string
-    {
+    private function mappedRowFromSheetValues(
+        array $values
+    ): array {
+        return [
+            'date' => trim(
+                (string) ($values[0] ?? '')
+            ),
+            'lesson' => trim(
+                (string) ($values[1] ?? '')
+            ),
+            'suggested_hymn' => trim(
+                (string) ($values[2] ?? '')
+            ),
+            'memory_verse' => trim(
+                (string) ($values[3] ?? '')
+            ),
+            'story' => trim(
+                (string) ($values[4] ?? '')
+            ),
+            'presentation_slides' => trim(
+                (string) ($values[5] ?? '')
+            ),
+            'activity' => trim(
+                (string) ($values[6] ?? '')
+            ),
+        ];
+    }
+
+    private function hyperlinkFormula(
+        ?string $url,
+        ?string $label
+    ): string {
         $url = trim((string) $url);
         $label = trim((string) $label);
 
@@ -533,30 +1150,52 @@ class ChildrenWorkGoogleSheetsService
             $label = $url;
         }
 
-        return '=HYPERLINK("' . $this->escapeFormulaString($url) . '","' . $this->escapeFormulaString($label) . '")';
+        return '=HYPERLINK("' .
+            $this->escapeFormulaString($url) .
+            '","' .
+            $this->escapeFormulaString($label) .
+            '")';
     }
 
-    private function escapeFormulaString(string $value): string
-    {
-        return str_replace('"', '""', $value);
+    private function escapeFormulaString(
+        string $value
+    ): string {
+        return str_replace(
+            '"',
+            '""',
+            $value
+        );
     }
 
-    private function looksLikeUrl(string $value): bool
-    {
-        return preg_match('/^https?:\/\//i', trim($value)) === 1;
+    private function looksLikeUrl(
+        string $value
+    ): bool {
+        return preg_match(
+            '/^https?:\/\//i',
+            trim($value)
+        ) === 1;
     }
 
-    private function extractRowNumberFromUpdatedRange(?string $range): ?int
-    {
+    private function extractRowNumberFromUpdatedRange(
+        ?string $range
+    ): ?int {
         if (! filled($range)) {
             return null;
         }
 
-        if (preg_match('/![A-Z]+(\d+):[A-Z]+(\d+)$/', (string) $range, $matches)) {
+        if (preg_match(
+            '/![A-Z]+(\d+):[A-Z]+(\d+)$/',
+            (string) $range,
+            $matches
+        )) {
             return (int) $matches[1];
         }
 
-        if (preg_match('/![A-Z]+(\d+)$/', (string) $range, $matches)) {
+        if (preg_match(
+            '/![A-Z]+(\d+)$/',
+            (string) $range,
+            $matches
+        )) {
             return (int) $matches[1];
         }
 
@@ -567,6 +1206,13 @@ class ChildrenWorkGoogleSheetsService
     {
         ksort($mapped);
 
-        return hash('sha256', json_encode($mapped, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return hash(
+            'sha256',
+            json_encode(
+                $mapped,
+                JSON_UNESCAPED_UNICODE
+                | JSON_UNESCAPED_SLASHES
+            )
+        );
     }
 }

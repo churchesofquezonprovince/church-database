@@ -1,32 +1,46 @@
 <x-filament-panels::page>
     @php
-        $lessons = \App\Models\ChildrenWorkLesson::query()
-            ->orderByRaw('CASE WHEN scheduled_on IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('scheduled_on')
-            ->orderBy('id')
-            ->get();
+$today = now();
 
-        $editingLesson = null;
+$lessons = \App\Models\ChildrenWorkLesson::query()
+    ->orderByRaw('CASE WHEN scheduled_on IS NULL THEN 1 ELSE 0 END')
+    ->orderBy('scheduled_on')
+    ->orderBy('id')
+    ->get();
 
-        if (request()->integer('edit_lesson')) {
-            $editingLesson = \App\Models\ChildrenWorkLesson::query()
-                ->find(request()->integer('edit_lesson'));
-        }
+$editingLesson = null;
 
-        $statusOptions = [
-            'scheduled' => 'Scheduled',
-            'draft' => 'Draft',
-            'special_activity' => 'Special Activity',
-            'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
-        ];
+$statusOptions = [
+    'scheduled' => 'Scheduled',
+    'draft' => 'Draft',
+    'special_activity' => 'Special Activity',
+    'completed' => 'Completed',
+    'cancelled' => 'Cancelled',
+];
 
+if (request()->integer('edit_lesson')) {
+    $editingLesson = \App\Models\ChildrenWorkLesson::query()
+        ->find(request()->integer('edit_lesson'));
+}
 
-        $nextLesson = $lessons
-            ->filter(fn ($lesson) => $lesson->scheduled_on)
-            ->filter(fn ($lesson) => $lesson->scheduled_on->isToday() || $lesson->scheduled_on->isFuture())
-            ->sortBy('scheduled_on')
-            ->first();
+$currentMonthLessons = $lessons->filter(function ($lesson) use ($today) {
+    return $lesson->scheduled_on &&
+           $lesson->scheduled_on->year == $today->year &&
+           $lesson->scheduled_on->month == $today->month;
+});
+
+$futureLessons = $lessons->filter(function ($lesson) use ($today) {
+    return $lesson->scheduled_on &&
+           $lesson->scheduled_on->gt($today->copy()->endOfMonth());
+});
+
+$nextLesson = $lessons
+    ->filter(fn ($lesson) =>
+        $lesson->scheduled_on &&
+        ($lesson->scheduled_on->isToday() || $lesson->scheduled_on->isFuture())
+    )
+    ->sortBy('scheduled_on')
+    ->first();
 
     @endphp
 
@@ -297,7 +311,7 @@
                     </thead>
 
                     <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                        @forelse ($lessons as $lesson)
+                        @forelse ($currentMonthLessons as $lesson)
                             <tr @class([
                                 'bg-amber-50 dark:bg-amber-950/40' => $editingLesson?->id === $lesson->id,
                             ])>
@@ -409,5 +423,51 @@
                 </table>
             </div>
         </div>
+
+<hr class="my-8 border-gray-300 dark:border-gray-700">
+
+<h3 class="text-lg font-bold text-gray-900 dark:text-white">
+    Future Schedules
+</h3>
+
+<div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+    <table class="min-w-[1200px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+
+        <thead class="bg-gray-50 dark:bg-gray-950">
+            <tr>
+                <th class="px-4 py-3 text-left">Date</th>
+                <th class="px-4 py-3 text-left">Lesson</th>
+                <th class="px-4 py-3 text-left">Suggested Hymn</th>
+                <th class="px-4 py-3 text-left">Memory Verse</th>
+                <th class="px-4 py-3 text-left">Story</th>
+                <th class="px-4 py-3 text-left">Presentation Slides</th>
+                <th class="px-4 py-3 text-left">Activity</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+
+        @forelse ($futureLessons as $lesson)
+
+            {{-- Copy ONE ENTIRE <tr>...</tr> from the first table here. --}}
+            {{-- Do NOT rewrite it. Just duplicate it exactly. --}}
+
+        @empty
+
+            <tr>
+                <td colspan="8"
+                    class="px-4 py-8 text-center text-gray-500">
+                    No future schedules.
+                </td>
+            </tr>
+
+        @endforelse
+
+        </tbody>
+
+    </table>
+</div>
+
     </div>
 </x-filament-panels::page>
