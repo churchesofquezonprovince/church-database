@@ -6,6 +6,10 @@ use Filament\Pages\Page;
 
 class AddAttendanceSheet extends Page
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    protected static ?string $slug = 'attendance-sheets/add-attendance-sheet';
+
     protected string $view = 'filament.pages.add-attendance-sheet';
 
     public function getTitle(): string
@@ -35,7 +39,7 @@ class AddAttendanceSheet extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->canManageRecords() ?? false;
+        return false;
     }
 
     public static function canAccess(): bool

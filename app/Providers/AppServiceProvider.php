@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Schedule;
+use App\Observers\ScheduleObserver;
 use App\Observers\PersonObserver;
 use App\Observers\HouseholdObserver;
 use App\Models\Person;
@@ -23,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Schedule::observe(ScheduleObserver::class);
         Person::observe(PersonObserver::class);
         Household::observe(HouseholdObserver::class);
         //

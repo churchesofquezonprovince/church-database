@@ -50,7 +50,7 @@
 
                 <form
                     method="POST"
-                    action="{{ route('church-database.attendance-sheets.store') }}"
+                    action="{{ route('quezonprovinceactivities.attendance-sheets.store') }}"
                     class="mt-6 space-y-5"
                 >
                     @csrf

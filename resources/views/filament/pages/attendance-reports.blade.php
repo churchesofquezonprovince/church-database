@@ -7,11 +7,25 @@
         $meetingRows = $this->meetingRows();
         $personRows = $this->personRows();
         $summary = $this->summary();
+        $localitySummaryRows = $this->localitySummaryRows();
+        $categorySummaryRows = $this->categorySummaryRows();
+        $attendanceTrendRows = $this->attendanceTrendRows();
+        $selectedTrendPeriod = $this->selectedTrendPeriod();
+        $showProphesied = $selectedReportType === \App\Models\AttendanceSheet::TYPE_LORDS_TABLE;
 
         $customSheets = $this->customSheets();
         $lordsTableSheets = $this->lordsTableSheets();
         $prayerMeetingSheets = $this->prayerMeetingSheets();
     @endphp
+
+    @if (session('attendance_session_deleted'))
+        <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <p class="font-bold">Attendance session deleted.</p>
+            <p class="mt-1 text-sm">
+                Deleted {{ session('attendance_session_deleted_date') }} and removed {{ session('attendance_session_deleted_records') }} attendance record(s).
+            </p>
+        </div>
+    @endif
 
     <div class="space-y-6">
         <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
@@ -31,6 +45,7 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}">
                 <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
+                <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
 
                 <label for="sheetId" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                     @if ($selectedReportType === \App\Models\AttendanceSheet::TYPE_CUSTOM)
@@ -128,9 +143,25 @@
                     </a>
                 </div>
 
-                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-4">
+                <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+                    <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
+
+                    <div>
+                        <label for="report_month_lords" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
+                            Report Month
+                        </label>
+
+                        <input
+                            id="report_month_lords"
+                            name="report_month"
+                            type="month"
+                            value="{{ $this->selectedReportMonth() }}"
+                            onchange="setAttendanceReportMonthRange(this)"
+                            class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
 
                     <div>
                         <label for="date_from" class="block text-sm font-semibold text-amber-900 dark:text-amber-100">
@@ -217,6 +248,22 @@
                 <form method="GET" action="{{ \App\Filament\Pages\AttendanceReports::getUrl() }}" class="mt-5 grid gap-4 lg:grid-cols-5">
                     <input type="hidden" name="report_type" value="{{ $selectedReportType }}">
                     <input type="hidden" name="sheetId" value="{{ $selectedSheet?->id }}">
+                    <input type="hidden" name="trend_period" value="{{ $selectedTrendPeriod }}">
+
+                    <div>
+                        <label for="report_month_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
+                            Report Month
+                        </label>
+
+                        <input
+                            id="report_month_prayer"
+                            name="report_month"
+                            type="month"
+                            value="{{ $this->selectedReportMonth() }}"
+                            onchange="setAttendanceReportMonthRange(this)"
+                            class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
+                        >
+                    </div>
 
                     <div>
                         <label for="date_from_prayer" class="block text-sm font-semibold text-sky-900 dark:text-sky-100">
@@ -299,6 +346,127 @@
         @endif
 
 
+
+
+            @if ($selectedSheet)
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Category Summary
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Summary by church category using the current sheet and report filters.
+                        </p>
+                    </div>
+
+                    @if ($categorySummaryRows->isEmpty())
+                        <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            No category summary rows found for the selected filters.
+                        </div>
+                    @else
+                        <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="min-w-[880px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-950">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
+                                        @if ($showProphesied)
+                                            <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                        @endif
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                    @foreach ($categorySummaryRows as $row)
+                                        <tr>
+                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                                {{ $row['category'] }}
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
+                                            @if ($showProphesied)
+                                                <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                            @endif
+                                            <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
+                                            <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if (in_array($selectedReportType, [
+                \App\Models\AttendanceSheet::TYPE_LORDS_TABLE,
+                \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING,
+            ], true))
+                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                                Locality Summary
+                            </h3>
+
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Comparison of all localities using the current report filters.
+                            </p>
+                        </div>
+                    </div>
+
+                    @if ($localitySummaryRows->isEmpty())
+                        <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            No locality summary rows found for the selected filters.
+                        </div>
+                    @else
+                        <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="min-w-[840px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-950">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Participants</th>
+                                        @if ($showProphesied)
+                                            <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                        @endif
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                    @foreach ($localitySummaryRows as $row)
+                                        <tr>
+                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                                {{ $row['locality'] }}
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['participants'] }}</td>
+                                            @if ($showProphesied)
+                                                <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                            @endif
+                                            <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
+                                            <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                            <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
+                                            <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+            @endif
+
         @if ($this->hasInvalidDateRange())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Invalid date range.</p>
@@ -341,7 +509,7 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        <a
+<a
                             href="{{ $this->printUrl() }}"
                             target="_blank"
                             class="rounded-full bg-gray-700 px-3 py-1 text-xs font-bold text-white hover:bg-gray-600"
@@ -375,31 +543,123 @@
                 </div>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
                     <p class="text-sm font-semibold opacity-75">Meetings</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['meetings'] }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-800 shadow-sm dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
-                    <p class="text-sm font-semibold opacity-75">Participants</p>
+                    <p class="text-sm font-semibold opacity-75">People in Report</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['participants'] }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-                    <p class="text-sm font-semibold opacity-75">Present Total</p>
-                    <p class="mt-3 text-3xl font-bold">{{ $summary['present_total'] }}</p>
+                    <p class="text-sm font-semibold opacity-75">Average Present Attendees</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_present']) }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                    <p class="text-sm font-semibold opacity-75">Absent Total</p>
-                    <p class="mt-3 text-3xl font-bold">{{ $summary['absent_total'] }}</p>
+                    <p class="text-sm font-semibold opacity-75">Average Absent Attendees</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_absent']) }}</p>
+                </div>
+
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+                    <p class="text-sm font-semibold opacity-75">Average Unmarked</p>
+                    <p class="mt-3 text-3xl font-bold">{{ $this->formatNumber($summary['average_unmarked']) }}</p>
                 </div>
 
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                    <p class="text-sm font-semibold opacity-75">Overall Rate</p>
+                    <p class="text-sm font-semibold opacity-75">Marked Attendance Rate</p>
                     <p class="mt-3 text-3xl font-bold">{{ $summary['overall_rate'] }}%</p>
                 </div>
+            </div>
+
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                            Attendance Trend
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Shows the attendance percentage increase or decrease compared with the previous {{ $selectedTrendPeriod === 'monthly' ? 'month' : 'week' }}.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($this->trendPeriodOptions() as $value => $label)
+                            <a
+                                href="{{ $this->trendPeriodUrl($value) }}"
+                                @class([
+                                    'rounded-full px-3 py-1 text-xs font-bold transition',
+                                    'bg-primary-600 text-white' => $selectedTrendPeriod === $value,
+                                    'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' => $selectedTrendPeriod !== $value,
+                                ])
+                            >
+                                {{ $label }}
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+
+                @if ($attendanceTrendRows->isEmpty())
+                    <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                        No attendance trend available for the selected filters.
+                    </div>
+                @else
+                    <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                        <table class="min-w-[780px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-950">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                                        {{ $selectedTrendPeriod === 'monthly' ? 'Month' : 'Week' }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Meetings</th>
+                                    @if ($showProphesied)
+                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                    @endif
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Attendance %</th>
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Increase / Decrease</th>
+                                </tr>
+                            </thead>
+
+                            <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                                @foreach ($attendanceTrendRows as $row)
+                                    <tr>
+                                        <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                            {{ $row['label'] }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['meetings'] }}</td>
+                                        @if ($showProphesied)
+                                            <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                        @endif
+                                        <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
+                                        <td class="px-4 py-3 text-right font-semibold text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                        <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
+                                        <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
+                                            {{ $this->formatPercent($row['rate']) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <span @class([
+                                                'rounded-full px-2.5 py-1 text-xs font-bold',
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' => $row['change'] === null || $row['change'] == 0,
+                                                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200' => $row['change'] !== null && $row['change'] > 0,
+                                                'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' => $row['change'] !== null && $row['change'] < 0,
+                                            ])>
+                                                {{ $this->formatChangePercent($row['change']) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
 
             <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -412,12 +672,15 @@
                         <thead class="bg-gray-50 dark:bg-gray-950">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Meeting Date</th>
-                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                @if ($showProphesied)
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                @endif
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
-                            </tr>
+                            
+                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th></tr>
                         </thead>
 
                         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -429,16 +692,34 @@
                                             {{ $row['session']->session_date->format('l') }}
                                         </span>
                                     </td>
-
-                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{{ $row['active_participants'] }}</td>
                                     <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                    @if ($showProphesied)
+                                        <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                    @endif
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
                                     <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
-                                </tr>
+                                
+                                    <td class="px-4 py-3 text-right">
+                                        <form
+                                            method="POST"
+                                            action="{{ route('quezonprovinceactivities.attendance-sheets.reports.sessions.destroy', $row['session']) }}"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button
+                                                type="submit"
+                                                onclick="return confirm('Delete this attendance session and all attendance records for this meeting date? This cannot be undone.')"
+                                                class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                            >
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </td></tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                                    <td colspan="{{ $showProphesied ? 7 : 6 }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
                                         No meeting records yet.
                                     </td>
                                 </tr>
@@ -459,9 +740,11 @@
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
-                                <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Expected</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Present</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Absent</th>
+                                @if ($showProphesied)
+                                    <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Prophesied</th>
+                                @endif
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Unmarked</th>
                                 <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Rate</th>
                             </tr>
@@ -477,16 +760,17 @@
                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
                                         {{ $row['person']?->locality ?: 'No locality' }}
                                     </td>
-
-                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{{ $row['expected'] }}</td>
                                     <td class="px-4 py-3 text-right text-emerald-600 dark:text-emerald-300">{{ $row['present'] }}</td>
                                     <td class="px-4 py-3 text-right text-red-600 dark:text-red-300">{{ $row['absent'] }}</td>
+                                    @if ($showProphesied)
+                                        <td class="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-300">{{ $row['prophesied'] ?? 0 }}</td>
+                                    @endif
                                     <td class="px-4 py-3 text-right text-gray-500 dark:text-gray-400">{{ $row['unmarked'] }}</td>
                                     <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">{{ $row['rate'] }}%</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                                    <td colspan="{{ $showProphesied ? 7 : 6 }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
                                         No people records yet.
                                     </td>
                                 </tr>
@@ -497,4 +781,37 @@
             </div>
         @endif
     </div>
+    <script>
+        function setAttendanceReportMonthRange(input) {
+            if (! input.value) {
+                return;
+            }
+
+            const form = input.closest('form');
+            const [year, month] = input.value.split('-').map(Number);
+
+            const firstDay = new Date(year, month - 1, 1);
+            const lastDay = new Date(year, month, 0);
+
+            const formatDate = (date) => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+
+                return `${y}-${m}-${d}`;
+            };
+
+            const dateFrom = form.querySelector('input[name="date_from"]');
+            const dateTo = form.querySelector('input[name="date_to"]');
+
+            if (dateFrom) {
+                dateFrom.value = formatDate(firstDay);
+            }
+
+            if (dateTo) {
+                dateTo.value = formatDate(lastDay);
+            }
+        }
+    </script>
+
 </x-filament-panels::page>

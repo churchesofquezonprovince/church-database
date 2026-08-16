@@ -5,6 +5,7 @@ namespace App\Filament\Resources\People\Tables;
 use App\Filament\Pages\FamilyTree;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
+use App\Support\LocalityOptions;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -24,7 +25,9 @@ class PeopleTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('lastname')
+            ->defaultSort('created_at', 'desc')
+            ->defaultPaginationPageOption(30)
+            ->paginated([10, 30, 50, 100])
             ->columns([
                 TextColumn::make('display_name')
                     ->label('Name')
@@ -60,17 +63,19 @@ class PeopleTable
                     ->label('Status')
                     ->badge()
                     ->color(fn (?string $state): string => ChurchProfileOptions::statusColor($state))
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('churchProfile.category')
                     ->label('Category')
                     ->badge()
                     ->color(fn (?string $state): string => ChurchProfileOptions::categoryColor($state))
+                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('churchProfile.service')
-                    ->label('Shepherding Group')
-                    ->formatStateUsing(fn (?string $state): HtmlString => self::serviceColumn($state))
+                    ->label('Shepherding Groups')
+                    ->formatStateUsing(fn (mixed $state): HtmlString => self::serviceColumn($state))
                     ->html()
                     ->searchable()
                     ->toggleable(),
@@ -79,6 +84,12 @@ class PeopleTable
                     ->label('Shepherd')
                     ->placeholder('No shepherd')
                     ->limit(30)
+                    ->searchable([
+                        'firstname',
+                        'middlename',
+                        'lastname',
+                        'nickname',
+                    ])
                     ->toggleable(),
 
                 TextColumn::make('home_address')
@@ -114,10 +125,54 @@ class PeopleTable
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('facebook_account')
+                    ->label('Facebook Account')
+                    ->searchable()
+                    ->copyable()
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('churchProfile.introducedBy.display_name')
                     ->label('Introduced By')
                     ->placeholder('Not recorded')
                     ->limit(30)
+                    ->searchable([
+                        'firstname',
+                        'middlename',
+                        'lastname',
+                        'nickname',
+                    ])
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.school_workplace')
+                    ->label('School')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.workplace')
+                    ->label('Workplace')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.course_strand')
+                    ->label('Course / Strand')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('educationProfile.grade_level')
+                    ->label('Grade / Year Level')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('household.household_name')
+                    ->label('Household')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('permanent_address')
+                    ->label('Permanent Address')
+                    ->limit(40)
+                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('emergencyContact.display_name')
@@ -170,13 +225,7 @@ class PeopleTable
 
                 SelectFilter::make('locality')
                     ->label('Locality')
-                    ->options(fn (): array => Person::query()
-                        ->whereNotNull('locality')
-                        ->where('locality', '!=', '')
-                        ->distinct()
-                        ->orderBy('locality')
-                        ->pluck('locality', 'locality')
-                        ->toArray())
+                    ->options(LocalityOptions::quezonProvince())
                     ->searchable(),
 
                 SelectFilter::make('shepherd_status')
@@ -208,9 +257,9 @@ class PeopleTable
                     }),
 
                 SelectFilter::make('shepherding_group')
-                    ->label('Shepherding Group')
+                    ->label('Shepherding Groups')
                     ->options([
-                        '__none' => 'No Shepherding Group',
+                        '__none' => 'No Shepherding Groups',
                         ...ChurchProfileOptions::shepherdingServices(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -379,11 +428,11 @@ class PeopleTable
                         ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('assignShepherdingGroup')
-                        ->label('Assign Shepherding Group')
+                        ->label('Assign Shepherding Groups')
                         ->icon('heroicon-o-users')
                         ->schema([
                             Select::make('service')
-                                ->label('Shepherding Group')
+                                ->label('Shepherding Groups')
                                 ->options(ChurchProfileOptions::shepherdingServices())
                                 ->searchable()
                                 ->required()
@@ -430,7 +479,7 @@ class PeopleTable
                         ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('clearShepherdingGroup')
-                        ->label('Clear Shepherding Group')
+                        ->label('Clear Shepherding Groups')
                         ->icon('heroicon-o-x-circle')
                         ->color('warning')
                         ->requiresConfirmation()
@@ -476,6 +525,24 @@ class PeopleTable
                 $person->id => $person->display_name,
             ])
             ->toArray();
+    }
+
+
+    private static function tableDisplayName(Person $record): string
+    {
+        $middleInitials = collect(preg_split('/\s+/', trim((string) $record->middlename)))
+            ->filter()
+            ->map(fn (string $part): string => strtoupper(mb_substr($part, 0, 1)) . '.')
+            ->implode(' ');
+
+        return collect([
+            filled($record->lastname) ? trim((string) $record->lastname) . ',' : null,
+            $record->firstname,
+            $middleInitials,
+            $record->suffix,
+        ])
+            ->filter(fn ($part): bool => filled($part))
+            ->implode(' ');
     }
 
     private static function nameColumn(Person $person): HtmlString
@@ -533,7 +600,7 @@ class PeopleTable
     {
         if (blank($service)) {
             return new HtmlString(
-                '<span class="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">No Shepherding Group</span>'
+                '<span class="inline-flex rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">No Shepherding Groups</span>'
             );
         }
 

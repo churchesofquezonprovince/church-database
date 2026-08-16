@@ -53,7 +53,7 @@ class Household extends Model
 
     public function members(): HasMany
     {
-        return $this->hasMany(Person::class);
+        return $this->hasMany(Person::class, 'household_id');
     }
 
     protected function displayName(): Attribute

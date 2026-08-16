@@ -27,7 +27,7 @@ class ShepherdingDashboard extends Page
 
     public array $peopleWithoutService = [];
 
-public array $listUrls = [];
+    public array $listUrls = [];
 
     public function mount(): void
     {
@@ -45,7 +45,7 @@ public array $listUrls = [];
 
     public function getTitle(): string
     {
-        return 'Shepherding Dashboard';
+        return 'Dashboard';
     }
 
     public static function getNavigationLabel(): string
@@ -55,7 +55,7 @@ public array $listUrls = [];
 
     public static function getNavigationGroup(): ?string
     {
-        return 'Church Database';
+        return 'Shepherding';
     }
 
     public static function getNavigationIcon(): ?string
@@ -234,7 +234,7 @@ $this->listUrls = [
     }
 
 
-private function peopleTableUrl(array $filters = []): string
+    private function peopleTableUrl(array $filters = []): string
 {
     $queryFilters = [];
 
@@ -256,8 +256,8 @@ private function peopleTableUrl(array $filters = []): string
 }
 
 
-public static function getNavigationSort(): ?int
+    public static function getNavigationSort(): ?int
     {
-        return 5;
+        return 1;
     }
 }

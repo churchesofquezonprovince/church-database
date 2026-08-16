@@ -8,6 +8,7 @@ use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use App\Filament\Dashboards\ChurchDashboard;
 use Filament\Panel;
+use Filament\Navigation\NavigationGroup;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use App\Filament\Widgets\ChurchDashboardWidget;
@@ -31,6 +32,16 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ->login()
             ->colors([
                 'primary' => Color::Amber,
+            ])
+            ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                "Children's Work",
+                'Attendance',
+                'Campus Work',
+                'Church Database',
+                'Posts',
+                'Shepherding',
+                'Administration',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

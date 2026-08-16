@@ -52,7 +52,7 @@
                     Open People Import Page
                 </a>
 
-                <a href="{{ route('church-database.exports.people-import-template') }}" class="rounded-xl border border-indigo-200 bg-white p-4 font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-gray-900 dark:text-indigo-200 dark:hover:bg-indigo-950">
+                <a href="{{ route('quezonprovinceactivities.exports.people-import-template') }}" class="rounded-xl border border-indigo-200 bg-white p-4 font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-gray-900 dark:text-indigo-200 dark:hover:bg-indigo-950">
                     Download People Import Template
                 </a>
             </div>
@@ -73,27 +73,27 @@
             </div>
 
             <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <a href="{{ route('church-database.exports.people') }}" class="rounded-xl border border-primary-200 bg-primary-50 p-4 font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
+                <a href="{{ route('quezonprovinceactivities.exports.people') }}" class="rounded-xl border border-primary-200 bg-primary-50 p-4 font-semibold text-primary-700 transition hover:bg-primary-100 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
                     Export People CSV
                 </a>
 
-                <a href="{{ route('church-database.exports.households') }}" class="rounded-xl border border-purple-200 bg-purple-50 p-4 font-semibold text-purple-700 transition hover:bg-purple-100 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-200">
+                <a href="{{ route('quezonprovinceactivities.exports.households') }}" class="rounded-xl border border-purple-200 bg-purple-50 p-4 font-semibold text-purple-700 transition hover:bg-purple-100 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-200">
                     Export Households CSV
                 </a>
 
-                <a href="{{ route('church-database.exports.locality-summary') }}" class="rounded-xl border border-sky-200 bg-sky-50 p-4 font-semibold text-sky-700 transition hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+                <a href="{{ route('quezonprovinceactivities.exports.locality-summary') }}" class="rounded-xl border border-sky-200 bg-sky-50 p-4 font-semibold text-sky-700 transition hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
                     Export Locality Summary CSV
                 </a>
 
-                <a href="{{ route('church-database.exports.shepherding') }}" class="rounded-xl border border-green-200 bg-green-50 p-4 font-semibold text-green-700 transition hover:bg-green-100 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+                <a href="{{ route('quezonprovinceactivities.exports.shepherding') }}" class="rounded-xl border border-green-200 bg-green-50 p-4 font-semibold text-green-700 transition hover:bg-green-100 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
                     Export Shepherding CSV
                 </a>
 
-                <a href="{{ route('church-database.exports.missing-people') }}" class="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                <a href="{{ route('quezonprovinceactivities.exports.missing-people') }}" class="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
                     Export Missing People CSV
                 </a>
 
-                <a href="{{ route('church-database.exports.missing-households') }}" class="rounded-xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <a href="{{ route('quezonprovinceactivities.exports.missing-households') }}" class="rounded-xl border border-amber-200 bg-amber-50 p-4 font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
                     Export Missing Households CSV
                 </a>
             </div>

@@ -33,7 +33,7 @@ class AttendanceHistory extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 9;
+        return 80;
     }
 
     public static function shouldRegisterNavigation(): bool

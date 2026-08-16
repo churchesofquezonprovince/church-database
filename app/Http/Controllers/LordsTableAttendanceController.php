@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class LordsTableAttendanceController extends Controller
 {
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
@@ -27,6 +29,12 @@ class LordsTableAttendanceController extends Controller
             'meeting_time' => ['nullable', 'date_format:H:i'],
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],
+            'prophesied_person_ids' => ['nullable', 'array'],
+            'prophesied_person_ids.*' => ['integer', 'exists:persons,id'],
+            'other_present_person_ids' => ['nullable', 'array'],
+            'other_present_person_ids.*' => ['integer', 'exists:persons,id'],
+            'other_prophesied_person_ids' => ['nullable', 'array'],
+            'other_prophesied_person_ids.*' => ['integer', 'exists:persons,id'],
         ]);
 
         $meetingDate = CarbonImmutable::parse($data['meeting_date'])->startOfDay();
@@ -54,7 +62,25 @@ class LordsTableAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $meetingTime): array {
+        $otherPresentPersonIds = collect($data['other_present_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $prophesiedPersonIds = collect($data['prophesied_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $otherProphesiedPersonIds = collect($data['other_prophesied_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $prophesiedPersonIds, $otherProphesiedPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
                 ->where(function ($query) use ($storedLocality): void {
@@ -127,6 +153,11 @@ class LordsTableAttendanceController extends Controller
                 );
 
                 $isPresent = $presentPersonIds->contains((int) $person->id);
+                $isProphesied = $prophesiedPersonIds->contains((int) $person->id);
+
+                if ($isProphesied) {
+                    $isPresent = true;
+                }
 
                 AttendanceRecord::query()->updateOrCreate(
                     [
@@ -138,6 +169,7 @@ class LordsTableAttendanceController extends Controller
                             ? AttendanceRecord::STATUS_PRESENT
                             : AttendanceRecord::STATUS_ABSENT,
                         'is_present' => $isPresent,
+                        'prophesied' => $isProphesied,
                         'marked_by_id' => auth()->id(),
                         'marked_at' => now(),
                     ]
@@ -149,6 +181,42 @@ class LordsTableAttendanceController extends Controller
                     $absentCount++;
                 }
             }
+
+            $visiblePersonIds = $people
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id);
+
+            $otherPresentPersonIds
+                ->reject(fn (int $personId): bool => $visiblePersonIds->contains($personId))
+                ->each(function (int $personId) use ($sheet, $session, $meetingDate, $otherProphesiedPersonIds, &$presentCount): void {
+                    AttendanceParticipant::query()->updateOrCreate(
+                        [
+                            'attendance_sheet_id' => $sheet->id,
+                            'person_id' => $personId,
+                        ],
+                        [
+                            'starts_on' => $meetingDate->toDateString(),
+                            'ends_on' => $meetingDate->toDateString(),
+                            'is_active' => true,
+                        ]
+                    );
+
+                    AttendanceRecord::query()->updateOrCreate(
+                        [
+                            'attendance_session_id' => $session->id,
+                            'person_id' => $personId,
+                        ],
+                        [
+                            'status' => AttendanceRecord::STATUS_PRESENT,
+                            'is_present' => true,
+                            'prophesied' => $otherProphesiedPersonIds->contains((int) $personId),
+                            'marked_by_id' => auth()->id(),
+                            'marked_at' => now(),
+                        ]
+                    );
+
+                    $presentCount++;
+                });
 
             ActivityLogger::log(
                 action: 'lords_table.attendance.saved',
@@ -165,12 +233,18 @@ class LordsTableAttendanceController extends Controller
             return [$sheet, $session, $presentCount, $absentCount];
         });
 
+        $prophesiedCount = AttendanceRecord::query()
+            ->where('attendance_session_id', $session->id)
+            ->where('prophesied', true)
+            ->count();
+
         return redirect(LordsTableMeeting::getUrl() . '?' . http_build_query([
             'locality' => $locality,
             'meeting_date' => $meetingDate->toDateString(),
         ]))
             ->with('lords_table_saved', true)
             ->with('lords_table_present_count', $presentCount)
+            ->with('lords_table_prophesied_count', $prophesiedCount)
             ->with('lords_table_absent_count', $absentCount);
     }
 
@@ -178,6 +252,10 @@ class LordsTableAttendanceController extends Controller
     {
         return Person::query()
             ->with(['churchProfile'])
+            ->whereHas(
+                'churchProfile',
+                fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
+            )
             ->when(
                 $locality === '__no_locality',
                 fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),

@@ -19,6 +19,7 @@ class AttendanceRecord extends Model
         'attendance_session_id',
         'person_id',
         'status',
+        'prophesied',
         'is_present',
         'remarks',
         'marked_by_id',
@@ -26,6 +27,7 @@ class AttendanceRecord extends Model
     ];
 
     protected $casts = [
+        'prophesied' => 'boolean',
         'is_present' => 'boolean',
         'marked_at' => 'datetime',
     ];

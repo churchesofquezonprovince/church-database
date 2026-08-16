@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
+use App\Support\LocalityOptions;
 use App\Models\Household;
 use App\Models\Person;
 use Filament\Forms\Components\Placeholder;
@@ -19,7 +20,7 @@ class HouseholdForm
         return $schema
             ->components([
                 Section::make('Household Information')
-                    ->description('Create or update a household record. Members are linked from each person profile.')
+                    ->description('Create or update a household record. Select the household head and all household members below.')
                     ->schema([
                         TextInput::make('household_name')
                             ->label('Household Name')
@@ -34,16 +35,46 @@ class HouseholdForm
                             ->searchable()
                             ->preload()
                             ->native(false)
+                            ->live()
                             ->placeholder('Select household head')
-                            ->helperText('This person will be used for the household family tree shortcut.'),
+                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically.')
+                            ->afterStateUpdated(function ($state, $set, $get): void {
+                                $suggestedMemberIds = self::suggestedMemberIdsForHead($state);
 
-                        TextInput::make('locality')
+                                if ($suggestedMemberIds === []) {
+                                    return;
+                                }
+
+                                $currentMemberIds = collect($get('member_ids') ?? [])
+                                    ->map(fn ($id): int => (int) $id)
+                                    ->filter(fn (int $id): bool => $id > 0);
+
+                                $set('member_ids', $currentMemberIds
+                                    ->merge($suggestedMemberIds)
+                                    ->unique()
+                                    ->values()
+                                    ->map(fn (int $id): string => (string) $id)
+                                    ->all());
+                            }),
+
+                        Select::make('member_ids')
+                            ->label('Household Members')
+                            ->options(fn (): array => self::personOptions())
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select household members')
+                            ->helperText('Select all people who belong to this household. The household head is included automatically after saving.')
+                            ->columnSpanFull(),
+
+                        Select::make('locality')
                             ->label('Locality')
-                            ->required()
-                            ->live(onBlur: true)
-                            ->maxLength(150)
-                            ->helperText('Used together with household name to detect duplicate households.')
-                            ->placeholder('Lucena, Pagbilao, Tayabas'),
+                            ->options(LocalityOptions::quezonProvince())
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select locality'),
 
                         Placeholder::make('duplicate_household_warning')
                             ->label('')
@@ -66,6 +97,43 @@ class HouseholdForm
             ]);
     }
 
+
+
+    private static function suggestedMemberIdsForHead(mixed $headId): array
+    {
+        if (blank($headId)) {
+            return [];
+        }
+
+        $headId = (int) $headId;
+
+        if ($headId <= 0) {
+            return [];
+        }
+
+        $head = Person::query()
+            ->with('spouse')
+            ->find($headId);
+
+        if (! $head) {
+            return [];
+        }
+
+        $childrenIds = Person::query()
+            ->whereHas('parentRelationships', fn ($query) => $query->where('parent_id', $headId))
+            ->pluck('id');
+
+        return collect([
+            $head->id,
+            $head->spouse_id,
+        ])
+            ->merge($childrenIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
 
     private static function duplicateHouseholdWarning($get, $livewire): HtmlString
     {

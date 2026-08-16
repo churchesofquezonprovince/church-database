@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class PrayerMeetingAttendanceController extends Controller
 {
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
@@ -28,6 +30,8 @@ class PrayerMeetingAttendanceController extends Controller
             'meeting_time' => ['nullable', 'date_format:H:i'],
             'present_person_ids' => ['nullable', 'array'],
             'present_person_ids.*' => ['integer', 'exists:persons,id'],
+            'other_present_person_ids' => ['nullable', 'array'],
+            'other_present_person_ids.*' => ['integer', 'exists:persons,id'],
         ]);
 
         $meetingDay = (int) $data['meeting_day'];
@@ -56,7 +60,13 @@ class PrayerMeetingAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds, $meetingTime): array {
+        $otherPresentPersonIds = collect($data['other_present_person_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
                 ->where(function ($query) use ($storedLocality): void {
@@ -152,6 +162,41 @@ class PrayerMeetingAttendanceController extends Controller
                 }
             }
 
+            $visiblePersonIds = $people
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id);
+
+            $otherPresentPersonIds
+                ->reject(fn (int $personId): bool => $visiblePersonIds->contains($personId))
+                ->each(function (int $personId) use ($sheet, $session, $meetingDate, &$presentCount): void {
+                    AttendanceParticipant::query()->updateOrCreate(
+                        [
+                            'attendance_sheet_id' => $sheet->id,
+                            'person_id' => $personId,
+                        ],
+                        [
+                            'starts_on' => $meetingDate->toDateString(),
+                            'ends_on' => $meetingDate->toDateString(),
+                            'is_active' => true,
+                        ]
+                    );
+
+                    AttendanceRecord::query()->updateOrCreate(
+                        [
+                            'attendance_session_id' => $session->id,
+                            'person_id' => $personId,
+                        ],
+                        [
+                            'status' => AttendanceRecord::STATUS_PRESENT,
+                            'is_present' => true,
+                            'marked_by_id' => auth()->id(),
+                            'marked_at' => now(),
+                        ]
+                    );
+
+                    $presentCount++;
+                });
+
             ActivityLogger::log(
                 action: 'prayer_meeting.attendance.saved',
                 subject: $sheet,
@@ -182,6 +227,10 @@ class PrayerMeetingAttendanceController extends Controller
     {
         return Person::query()
             ->with(['churchProfile'])
+            ->whereHas(
+                'churchProfile',
+                fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
+            )
             ->when(
                 $locality === '__no_locality',
                 fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),

@@ -71,7 +71,7 @@
 
                 <form
                     method="POST"
-                    action="{{ route('church-database.imports.people') }}"
+                    action="{{ route('quezonprovinceactivities.imports.people') }}"
                     enctype="multipart/form-data"
                     class="mt-6 space-y-5"
                 >
@@ -118,10 +118,10 @@
             <div class="space-y-4">
                 <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-800 shadow-sm dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-100">
                     <p class="font-bold">Step 1</p>
-                    <p class="mt-1 text-sm">Download the template, open it in Excel, then save as CSV UTF-8.</p>
+                    <p class="mt-1 text-sm">Download the template, open it in Excel, then save as CSV UTF-8 or CSV (Delimited).</p>
 
                     <a
-                        href="{{ route('church-database.exports.people-import-template') }}"
+                        href="{{ route('quezonprovinceactivities.exports.people-import-template') }}"
                         class="mt-4 inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
                     >
                         Download Template
@@ -131,8 +131,8 @@
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                     <p class="font-bold">Important</p>
                     <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                        <li>Required: firstname and lastname.</li>
-                        <li>Dates must be YYYY-MM-DD.</li>
+                        <li>Required: First Name, Last Name, Sex, Locality, and Status.</li>
+                        <li>Birthdate must be YYYY-MM-DD. Baptism date may be YYYY, YYYY-MM, or YYYY-MM-DD.</li>
                         <li>Use Validate Only first.</li>
                         <li>Backup before real import.</li>
                         <li>Shepherd and emergency contact names must already exist in People records.</li>

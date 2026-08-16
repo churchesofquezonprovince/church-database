@@ -36,7 +36,7 @@ class PersonInfolist
                     ->schema([
                         TextEntry::make('display_name')
                             ->label('Name')
-                            ->state(fn (Person $record): HtmlString => self::value($record->display_name, important: true))
+                            ->state(fn (Person $record): HtmlString => self::value(self::viewDisplayName($record), important: true))
                             ->html(),
 
                         TextEntry::make('sex')
@@ -62,6 +62,11 @@ class PersonInfolist
                         TextEntry::make('email')
                             ->label('Email')
                             ->state(fn (Person $record): HtmlString => self::emailValue($record->email))
+                            ->html(),
+
+                        TextEntry::make('facebook_account')
+                            ->label('Facebook Account')
+                            ->state(fn (Person $record): HtmlString => self::facebookValue($record->facebook_account))
                             ->html(),
                     ])
                     ->columns(2),
@@ -209,12 +214,12 @@ class PersonInfolist
 
                         TextEntry::make('churchProfile.baptism_date')
                             ->label('Baptism Date')
-                            ->state(fn (Person $record): HtmlString => self::dateValue($record->churchProfile?->baptism_date))
+                            ->state(fn (Person $record): HtmlString => self::baptismDateValue($record->churchProfile))
                             ->html(),
 
                         TextEntry::make('churchProfile.service')
-                            ->label('Shepherding Group')
-                            ->state(fn (Person $record): HtmlString => self::value($record->churchProfile?->service))
+                            ->label('Shepherding Groups')
+                            ->state(fn (Person $record): HtmlString => self::shepherdingGroupsValue($record->churchProfile?->service))
                             ->html(),
 
                         TextEntry::make('church_shepherd')
@@ -247,8 +252,13 @@ class PersonInfolist
                             ->html(),
 
                         TextEntry::make('education_school_workplace')
-                            ->label('School / Workplace')
+                            ->label('School')
                             ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->school_workplace))
+                            ->html(),
+
+                        TextEntry::make('education_workplace')
+                            ->label('Workplace')
+                            ->state(fn (Person $record): HtmlString => self::value($record->educationProfile?->workplace))
                             ->html(),
                     ])
                     ->columns(2),
@@ -274,6 +284,24 @@ class PersonInfolist
             ]);
     }
 
+
+    private static function viewDisplayName(Person $record): string
+    {
+        $middleInitials = collect(preg_split('/\s+/', trim((string) $record->middlename)))
+            ->filter()
+            ->map(fn (string $part): string => strtoupper(mb_substr($part, 0, 1)) . '.')
+            ->implode(' ');
+
+        return collect([
+            filled($record->lastname) ? trim((string) $record->lastname) . ',' : null,
+            $record->firstname,
+            $middleInitials,
+            $record->suffix,
+        ])
+            ->filter(fn ($part): bool => filled($part))
+            ->implode(' ');
+    }
+
     private static function family(): FamilyRelationshipService
     {
         return app(FamilyRelationshipService::class);
@@ -281,7 +309,7 @@ class PersonInfolist
 
     private static function profileOverview(Person $record): HtmlString
     {
-        $name = $record->display_name;
+        $name = self::viewDisplayName($record);
         $initials = collect(preg_split('/\s+/', trim((string) $name)))
             ->filter()
             ->take(2)
@@ -290,7 +318,7 @@ class PersonInfolist
 
         $status = $record->churchProfile?->status ?? 'Unknown';
         $category = $record->churchProfile?->category ?? 'Unknown';
-        $service = $record->churchProfile?->service ?? 'No Shepherding Group';
+        $service = self::shepherdingGroupsText($record->churchProfile?->service);
         $locality = $record->locality ?: 'No Locality';
 
         $treeUrl = FamilyTree::getUrl([
@@ -317,14 +345,99 @@ class PersonInfolist
             . '<div class="mt-5 grid gap-3 md:grid-cols-3">'
             . self::summaryBox('Status', $status, self::statusTone($status))
             . self::summaryBox('Category', $category, 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200')
-            . self::summaryBox('Shepherding Group', $service, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
+            . self::summaryBox('Shepherding Groups', $service, 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200')
             . '</div>'
             . '</div>'
         );
     }
 
-    private static function summaryBox(string $label, ?string $value, string $tone): string
+
+
+    private static function baptismDateValue(?ChurchProfile $profile): HtmlString
     {
+        if (! $profile || blank($profile->baptism_year)) {
+            return self::none();
+        }
+
+        $year = (int) $profile->baptism_year;
+        $month = filled($profile->baptism_month) ? (int) $profile->baptism_month : null;
+        $day = filled($profile->baptism_day) ? (int) $profile->baptism_day : null;
+
+        if ($month && $day) {
+            return self::value(
+                \Carbon\CarbonImmutable::create($year, $month, $day)->format('F j, Y')
+            );
+        }
+
+        if ($month) {
+            return self::value(
+                \Carbon\CarbonImmutable::create($year, $month, 1)->format('F Y')
+            );
+        }
+
+        return self::value((string) $year);
+    }
+
+    private static function shepherdingGroupsText(mixed $groups): string
+    {
+        if (blank($groups)) {
+            return 'No Shepherding Groups';
+        }
+
+        if (is_array($groups)) {
+            return collect($groups)
+                ->map(fn ($group): string => trim((string) $group))
+                ->filter()
+                ->unique()
+                ->implode(', ') ?: 'No Shepherding Groups';
+        }
+
+        $decoded = json_decode((string) $groups, true);
+
+        if (is_array($decoded)) {
+            return collect($decoded)
+                ->map(fn ($group): string => trim((string) $group))
+                ->filter()
+                ->unique()
+                ->implode(', ') ?: 'No Shepherding Groups';
+        }
+
+        return trim((string) $groups) ?: 'No Shepherding Groups';
+    }
+
+    private static function shepherdingGroupsValue(mixed $groups): HtmlString
+    {
+        $text = self::shepherdingGroupsText($groups);
+
+        if ($text === 'No Shepherding Groups') {
+            return self::none();
+        }
+
+        return self::value($text);
+    }
+
+    private static function summaryBox(string $label, mixed $value, string $tone): string
+    {
+        if (is_array($value)) {
+            $value = collect($value)
+                ->map(fn ($item): string => trim((string) $item))
+                ->filter()
+                ->unique()
+                ->implode(', ');
+        }
+
+        if (! blank($value) && is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            if (is_array($decoded)) {
+                $value = collect($decoded)
+                    ->map(fn ($item): string => trim((string) $item))
+                    ->filter()
+                    ->unique()
+                    ->implode(', ');
+            }
+        }
+
         return '<div class="rounded-xl border p-4 ' . e($tone) . '">'
             . '<p class="text-xs font-semibold uppercase tracking-wide opacity-75">' . e($label) . '</p>'
             . '<p class="mt-1 text-lg font-bold">' . e($value ?: 'Not recorded') . '</p>'
@@ -369,6 +482,56 @@ class PersonInfolist
             . '</a>'
         );
     }
+
+    private static function facebookValue(?string $facebook): HtmlString
+    {
+        if (blank($facebook)) {
+            return self::none();
+        }
+
+        $value = trim((string) $facebook);
+        $url = null;
+
+        if (
+            filter_var($value, FILTER_VALIDATE_URL)
+            && in_array(
+                strtolower((string) parse_url($value, PHP_URL_SCHEME)),
+                ['http', 'https'],
+                true
+            )
+        ) {
+            $url = $value;
+        } elseif (
+            preg_match(
+                '/^(?:www\.)?facebook\.com\//i',
+                $value
+            )
+        ) {
+            $url = 'https://' . $value;
+        } elseif (
+            preg_match(
+                '/^@?([A-Za-z0-9.]+)$/',
+                $value,
+                $matches
+            )
+        ) {
+            $url = 'https://www.facebook.com/' . $matches[1];
+        }
+
+        if (! $url) {
+            return self::value($value);
+        }
+
+        return new HtmlString(
+            '<a href="' . e($url) . '"'
+            . ' target="_blank"'
+            . ' rel="noopener noreferrer"'
+            . ' class="block rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">'
+            . e($value)
+            . '</a>'
+        );
+    }
+
 
     private static function emailValue(?string $email): HtmlString
     {

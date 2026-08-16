@@ -34,7 +34,7 @@ class AttendanceSheets extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 2;
+        return 20;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -98,15 +98,26 @@ class AttendanceSheets extends Page
         $sheetId = request()->integer('sheetId');
 
         $query = AttendanceSheet::query()
+            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+            ->where('is_active', true)
             ->withCount(['sessions', 'participants'])
-            ->with(['sessions' => fn ($query) => $query->orderBy('session_date')]);
+            ->with([
+                'sessions' => fn ($query) => $query->orderBy('session_date'),
+            ]);
 
         if ($sheetId) {
-            return $query->find($sheetId);
+            $selectedSheet = (clone $query)->find($sheetId);
+
+            if ($selectedSheet) {
+                return $selectedSheet;
+            }
         }
 
-        return $query->latest()->first();
+        return $query
+            ->latest()
+            ->first();
     }
+
 
     public function participantRows(): Collection
     {
@@ -137,6 +148,7 @@ class AttendanceSheets extends Page
             ->pluck('person_id');
 
         return Person::query()
+            ->with(['churchProfile'])
             ->whereNotIn('id', $existingPersonIds)
             ->when(
                 filled($sheet->locality),

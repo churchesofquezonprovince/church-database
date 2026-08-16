@@ -35,4 +35,62 @@ return [
         ],
     ],
 
+
+    'google_calendar' => [
+        'enabled' => env('GOOGLE_CALENDAR_ENABLED', false),
+
+        /*
+         * Legacy single-calendar fallback.
+         */
+        'calendar_id' => env('GOOGLE_CALENDAR_ID'),
+
+        /*
+         * Multiple Google Calendars for COQP schedules.
+         */
+        'calendars' => [
+            'quezon_province' => [
+                'name' => 'Quezon Province',
+                'id' => env('GOOGLE_CALENDAR_QUEZON_PROVINCE_ID'),
+                'color' => '#009688',
+            ],
+            'childrens_meeting' => [
+                'name' => "Children's Meeting in Quezon",
+                'id' => env('GOOGLE_CALENDAR_CHILDRENS_MEETING_ID'),
+                'color' => '#795548',
+            ],
+            'international_activities' => [
+                'name' => 'International Activities',
+                'id' => env('GOOGLE_CALENDAR_INTERNATIONAL_ACTIVITIES_ID'),
+                'color' => '#B39D00',
+            ],
+            'local_activities' => [
+                'name' => 'Local Activities',
+                'id' => env('GOOGLE_CALENDAR_LOCAL_ACTIVITIES_ID'),
+                'color' => '#AD4E6E',
+            ],
+            'national_activities' => [
+                'name' => 'National Activities',
+                'id' => env('GOOGLE_CALENDAR_NATIONAL_ACTIVITIES_ID'),
+                'color' => '#6D4AFF',
+            ],
+            'provincial_activities' => [
+                'name' => 'Provincial Activities',
+                'id' => env('GOOGLE_CALENDAR_PROVINCIAL_ACTIVITIES_ID'),
+                'color' => '#0B8DB3',
+            ],
+            'regional_activities' => [
+                'name' => 'Regional Activities',
+                'id' => env('GOOGLE_CALENDAR_REGIONAL_ACTIVITIES_ID'),
+                'color' => '#00A896',
+            ],
+            'regular_weekly_meetings' => [
+                'name' => 'Regular Weekly Meetings',
+                'id' => env('GOOGLE_CALENDAR_REGULAR_WEEKLY_MEETINGS_ID'),
+                'color' => '#8B5A2B',
+            ],
+        ],
+
+        'credentials_path' => env('GOOGLE_CALENDAR_CREDENTIALS_PATH', 'storage/app/google-calendar/service-account.json'),
+    ],
+
 ];

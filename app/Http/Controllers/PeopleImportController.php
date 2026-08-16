@@ -144,10 +144,14 @@ class PeopleImportController extends Controller
         $headers = $parsed['headers'] ?? [];
         $rows = $parsed['rows'] ?? [];
 
-        foreach (['firstname', 'lastname'] as $requiredHeader) {
+        foreach (['firstname', 'lastname', 'sex', 'locality'] as $requiredHeader) {
             if (! in_array($requiredHeader, $headers, true)) {
                 $errors[] = "Missing required header: {$requiredHeader}";
             }
+        }
+
+        if (! in_array('status', $headers, true) && ! in_array('church_status', $headers, true)) {
+            $errors[] = 'Missing required header: status';
         }
 
         if (count($rows) > 500) {
@@ -160,6 +164,7 @@ class PeopleImportController extends Controller
 
         $allowedSex = ['', 'Male', 'Female'];
         $allowedStatuses = array_keys(ChurchProfileOptions::statuses());
+        $allowedCategories = array_keys(ChurchProfileOptions::categories());
         $allowedGroups = array_keys(ChurchProfileOptions::shepherdingServices());
 
         $seenPersonIdentities = [];
@@ -176,32 +181,59 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: lastname is required.";
             }
 
+            if (blank($row['sex'] ?? null)) {
+                $errors[] = "Line {$line}: sex is required.";
+            }
+
+            if (blank($row['locality'] ?? null)) {
+                $errors[] = "Line {$line}: locality is required.";
+            }
+
             if (! in_array($row['sex'] ?? '', $allowedSex, true)) {
-                $errors[] = "Line {$line}: sex must be Male, Female, or blank.";
+                $errors[] = "Line {$line}: sex must be Male or Female.";
             }
 
-            foreach (['birthdate', 'baptism_date'] as $dateField) {
-                $value = $row[$dateField] ?? '';
+            $birthdate = $row['birthdate'] ?? '';
 
-                if (filled($value) && ! $this->isValidDate($value)) {
-                    $errors[] = "Line {$line}: {$dateField} must use YYYY-MM-DD format.";
-                }
+            if (filled($birthdate) && ! $this->isValidDate($birthdate)) {
+                $errors[] = "Line {$line}: birthdate must use YYYY-MM-DD format.";
             }
 
-            $status = $row['church_status'] ?? '';
+            $baptismDate = $row['baptism_date'] ?? '';
+
+            if (filled($baptismDate) && ! $this->isValidPartialBaptismDate($baptismDate)) {
+                $errors[] = "Line {$line}: baptism_date must use YYYY, YYYY-MM, or YYYY-MM-DD format.";
+            }
+
+            $status = $this->importValue($row, 'church_status', 'status');
+
+            if (blank($status)) {
+                $errors[] = "Line {$line}: status is required.";
+            }
 
             if (filled($status) && ! in_array($status, $allowedStatuses, true)) {
-                $errors[] = "Line {$line}: church_status is invalid.";
+                $errors[] = "Line {$line}: status is invalid.";
             }
 
-            $group = $row['shepherding_group'] ?? '';
+            $category = $this->importValue($row, 'category');
+
+            if (filled($category) && ! in_array($category, $allowedCategories, true)) {
+                $errors[] = "Line {$line}: category is invalid.";
+            }
+
+            $group = $this->importValue($row, 'shepherding_group', 'service');
 
             if (filled($group) && ! in_array($group, $allowedGroups, true)) {
-                $errors[] = "Line {$line}: shepherding_group is invalid.";
+                $errors[] = "Line {$line}: service is invalid.";
             }
 
             if (filled($row['email'] ?? '') && ! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
                 $errors[] = "Line {$line}: email is invalid.";
+            }
+
+
+            if (mb_strlen((string) ($row['facebook_account'] ?? '')) > 255) {
+                $errors[] = "Line {$line}: facebook_account must not exceed 255 characters.";
             }
 
             if (filled($row['shepherd_full_name'] ?? '') && ! $this->findPersonByFullName($row['shepherd_full_name'])) {
@@ -306,6 +338,7 @@ class PeopleImportController extends Controller
         $person->locality = $this->nullable($row['locality'] ?? null);
         $person->contact_number = $this->nullable($row['contact_number'] ?? null);
         $person->email = $this->nullable($row['email'] ?? null);
+        $person->facebook_account = $this->nullable($row['facebook_account'] ?? null);
         $person->home_address = $this->nullable($row['home_address'] ?? null);
         $person->permanent_address = $this->nullable($row['permanent_address'] ?? null);
         $person->geocoordinates = $this->nullable($row['geocoordinates'] ?? null);
@@ -316,9 +349,14 @@ class PeopleImportController extends Controller
         $person->save();
 
         $profile = $person->churchProfile()->firstOrNew([]);
-        $profile->status = $this->nullable($row['church_status'] ?? null) ?: 'Unknown';
-        $profile->baptism_date = $this->nullable($row['baptism_date'] ?? null);
-        $profile->service = $this->nullable($row['shepherding_group'] ?? null);
+        $baptismParts = $this->parsePartialBaptismDate($row['baptism_date'] ?? null);
+
+        $profile->status = $this->nullable($this->importValue($row, 'church_status', 'status')) ?: 'Unknown';
+        $profile->category = $this->nullable($this->importValue($row, 'category'));
+        $profile->baptism_year = $baptismParts['year'];
+        $profile->baptism_month = $baptismParts['month'];
+        $profile->baptism_day = $baptismParts['day'];
+        $profile->service = $this->nullable($this->importValue($row, 'shepherding_group', 'service'));
         $profile->shepherd_id = filled($row['shepherd_full_name'] ?? null)
             ? $this->findPersonByFullName($row['shepherd_full_name'])?->id
             : null;
@@ -330,12 +368,14 @@ class PeopleImportController extends Controller
         if (
             filled($row['occupation'] ?? null)
             || filled($row['school_workplace'] ?? null)
+            || filled($row['workplace'] ?? null)
             || filled($row['grade_level'] ?? null)
             || filled($row['course_strand'] ?? null)
         ) {
             $education = $person->educationProfile()->firstOrNew([]);
             $education->occupation = $this->nullable($row['occupation'] ?? null);
             $education->school_workplace = $this->nullable($row['school_workplace'] ?? null);
+            $education->workplace = $this->nullable($row['workplace'] ?? null);
             $education->grade_level = $this->nullable($row['grade_level'] ?? null);
             $education->course_strand = $this->nullable($row['course_strand'] ?? null);
             $education->save();
@@ -388,6 +428,18 @@ class PeopleImportController extends Controller
         return $person;
     }
 
+
+    private function importValue(array $row, string ...$keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $row) && filled($row[$key])) {
+                return trim((string) $row[$key]);
+            }
+        }
+
+        return null;
+    }
+
     private function normalizeHeader(mixed $header): string
     {
         return trim(strtolower(str_replace("\xEF\xBB\xBF", '', (string) $header)));
@@ -404,6 +456,87 @@ class PeopleImportController extends Controller
         return true;
     }
 
+
+    private function isValidPartialBaptismDate(string $value): bool
+    {
+        return $this->parsePartialBaptismDate($value) !== [
+            'year' => null,
+            'month' => null,
+            'day' => null,
+        ];
+    }
+
+    private function parsePartialBaptismDate(?string $value): array
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return [
+                'year' => null,
+                'month' => null,
+                'day' => null,
+            ];
+        }
+
+        if (preg_match('/^\d{4}$/', $value)) {
+            $year = (int) $value;
+
+            return $this->validYear($year)
+                ? ['year' => $year, 'month' => null, 'day' => null]
+                : ['year' => null, 'month' => null, 'day' => null];
+        }
+
+        if (preg_match('/^(\d{4})-(\d{1,2})$/', $value, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+
+            if (! $this->validYear($year) || $month < 1 || $month > 12) {
+                return [
+                    'year' => null,
+                    'month' => null,
+                    'day' => null,
+                ];
+            }
+
+            return [
+                'year' => $year,
+                'month' => $month,
+                'day' => null,
+            ];
+        }
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $value, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            if (! $this->validYear($year) || ! checkdate($month, $day, $year)) {
+                return [
+                    'year' => null,
+                    'month' => null,
+                    'day' => null,
+                ];
+            }
+
+            return [
+                'year' => $year,
+                'month' => $month,
+                'day' => $day,
+            ];
+        }
+
+        return [
+            'year' => null,
+            'month' => null,
+            'day' => null,
+        ];
+    }
+
+    private function validYear(int $year): bool
+    {
+        return $year >= 1800 && $year <= ((int) date('Y') + 1);
+    }
+
     private function isValidDate(string $value): bool
     {
         $date = DateTime::createFromFormat('Y-m-d', $value);
@@ -417,4 +550,15 @@ class PeopleImportController extends Controller
 
         return $value === '' ? null : $value;
     }
+
+    public function store(\Illuminate\Http\Request $request)
+    {
+        return match ((string) $request->input('action', 'validate')) {
+            'validate' => $this->import($request),
+            'import' => $this->import($request),
+            default => $this->import($request),
+        };
+    }
+
+
 }

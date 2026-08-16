@@ -1,4 +1,54 @@
 <x-filament-panels::page>
+    <style>
+        .attendance-sheets-page,
+        .attendance-sheets-page * {
+            box-sizing: border-box;
+            min-width: 0;
+        }
+
+        .attendance-sheets-page h1,
+        .attendance-sheets-page h2,
+        .attendance-sheets-page h3,
+        .attendance-sheets-page p,
+        .attendance-sheets-page a,
+        .attendance-sheets-page span,
+        .attendance-sheets-page label,
+        .attendance-sheets-page td,
+        .attendance-sheets-page th {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .attendance-sheets-page table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .attendance-sheets-page td,
+        .attendance-sheets-page th {
+            white-space: normal;
+            vertical-align: top;
+        }
+
+        @media (max-width: 640px) {
+            .attendance-sheets-page table {
+                min-width: 0 !important;
+            }
+
+            .attendance-sheets-page td,
+            .attendance-sheets-page th {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+                font-size: 0.75rem;
+            }
+
+            .attendance-sheets-page td form button {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="attendance-sheets-page">
 
     <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <p class="text-sm font-bold text-gray-900 dark:text-white">
@@ -97,8 +147,8 @@
                 </a>
             </div>
         @else
-            <div class="grid gap-6 xl:grid-cols-4">
-                <div class="space-y-4 xl:col-span-1">
+            <div class="grid min-w-0 gap-6 xl:grid-cols-4">
+                <div class="min-w-0 space-y-4 xl:col-span-1">
                     <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="font-bold text-gray-900 dark:text-white">
@@ -118,12 +168,12 @@
                                 <a
                                     href="{{ $this->sheetUrl($sheet) }}"
                                     @class([
-                                        'block rounded-xl border p-3 transition',
+                                        'block min-w-0 rounded-xl border p-3 transition',
                                         'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950' => $selectedSheet->id === $sheet->id,
                                         'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800' => $selectedSheet->id !== $sheet->id,
                                     ])
                                 >
-                                    <p class="font-bold text-gray-900 dark:text-white">
+                                    <p class="break-words font-bold text-gray-900 dark:text-white">
                                         {{ $sheet->title }}
                                     </p>
                             <p class="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
@@ -147,11 +197,11 @@
                     </div>
                 </div>
 
-                <div class="space-y-6 xl:col-span-3">
+                <div class="min-w-0 space-y-6 xl:col-span-3">
                     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="min-w-0">
+                                <h3 class="break-words text-2xl font-bold text-gray-900 dark:text-white">
                                     {{ $selectedSheet->title }}
                                 </h3>
 
@@ -196,110 +246,234 @@
                         @endif
                     </div>
 
-                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
-                        <h3 class="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+
+                    <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
+                        <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
                             Add Participants
-                        </h3>
+                        </summary>
 
-                        <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-200">
-                            You can add people even in the middle of the attendance date range.
-                        </p>
+                        <div class="border-t border-emerald-200 p-4 dark:border-emerald-900 sm:p-6">
+                            <p class="break-words text-sm text-emerald-700 dark:text-emerald-200">
+                                Search and tap people to add them. Counting dates are optional.
+                            </p>
 
-                        <form
+                            <form
                             method="POST"
-                            action="{{ route('church-database.attendance-sheets.participants.store', ['sheet' => $selectedSheet]) }}"
-                            class="mt-5 space-y-4"
+                            action="{{ route('quezonprovinceactivities.attendance-sheets.participants.store', ['sheet' => $selectedSheet]) }}"
+                            class="mt-5 min-w-0 space-y-4"
                         >
                             @csrf
 
-                            <div>
-                                <label for="person_ids" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                                    People
+                            <div class="min-w-0">
+                                <label for="participant_search" class="block break-words text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                    Search people
                                 </label>
 
-                                <select
-                                    id="person_ids"
-                                    name="person_ids[]"
-                                    multiple
-                                    required
-                                    size="8"
-                                    class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
+                                <input
+                                    id="participant_search"
+                                    type="search"
+                                    placeholder="Search name, locality, status, or category..."
+                                    oninput="
+                                        const q = this.value.toLowerCase();
+                                        this.closest('form').querySelectorAll('[data-person-card]').forEach((card) => {
+                                            card.hidden = ! card.dataset.searchText.includes(q);
+                                        });
+                                    "
+                                    class="mt-2 block w-full min-w-0 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-base text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
                                 >
-                                    @foreach ($availablePeople as $person)
-                                        <option value="{{ $person->id }}">
-                                            {{ $person->display_name }}{{ $person->locality ? ' — ' . $person->locality : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
 
-                                <p class="mt-2 text-xs text-emerald-700 dark:text-emerald-200">
-                                    Hold Ctrl on Windows to select multiple people.
+                                <div class="mt-3 flex min-w-0 flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onclick="this.closest('form').querySelectorAll('[data-person-card]:not([hidden]) input[type=checkbox]').forEach((box) => box.checked = true)"
+                                        class="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600"
+                                    >
+                                        Select visible
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onclick="this.closest('form').querySelectorAll('input[name=&quot;person_ids[]&quot;]').forEach((box) => box.checked = false)"
+                                        class="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100"
+                                    >
+                                        Clear selected
+                                    </button>
+                                </div>
+
+                                <div
+                                    class="mt-3 min-w-0 space-y-2 rounded-xl border border-emerald-200 bg-white p-2 dark:border-emerald-900 dark:bg-gray-950"
+                                    style="max-height: 22rem; overflow-y: auto; overflow-x: hidden;"
+                                >
+                                    @forelse ($availablePeople as $person)
+                                        <label
+                                            data-person-card
+                                            data-search-text="{{ \Illuminate\Support\Str::lower(collect([
+                                                $person->display_name,
+                                                $person->locality,
+                                                $person->churchProfile?->status,
+                                                $person->churchProfile?->category,
+                                                $person->contact_number,
+                                            ])->filter()->implode(' ')) }}"
+                                            class="flex w-full min-w-0 max-w-full cursor-pointer items-start gap-3 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm hover:bg-emerald-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-emerald-950"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                name="person_ids[]"
+                                                value="{{ $person->id }}"
+                                                class="mt-1 h-5 w-5 shrink-0 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                            >
+
+                                            <span class="block min-w-0 flex-1 overflow-hidden">
+                                                <span class="block whitespace-normal break-words font-bold leading-snug text-gray-900 dark:text-white">
+                                                    {{ $person->display_name }}
+                                                </span>
+
+                                                <span class="mt-0.5 block whitespace-normal break-words text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $person->locality ?: 'No locality' }}
+                                                    @if ($person->churchProfile?->status)
+                                                        · {{ $person->churchProfile->status }}
+                                                    @endif
+                                                    @if ($person->churchProfile?->category)
+                                                        · {{ $person->churchProfile->category }}
+                                                    @endif
+                                                </span>
+                                            </span>
+                                        </label>
+                                    @empty
+                                        <p class="rounded-lg border border-dashed border-emerald-300 p-4 text-center text-sm text-emerald-700 dark:border-emerald-800 dark:text-emerald-200">
+                                            All available people are already added to this sheet.
+                                        </p>
+                                    @endforelse
+                                </div>
+
+                                <p class="mt-2 break-words text-xs text-emerald-700 dark:text-emerald-200">
+                                    Mobile tip: search first, then tap Select visible if needed.
                                 </p>
                             </div>
 
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <label for="starts_on" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                                        Starts On
-                                    </label>
+                            <details class="min-w-0 overflow-hidden rounded-xl border border-emerald-200 bg-white p-4 dark:border-emerald-900 dark:bg-gray-950">
+                                <summary class="cursor-pointer break-words text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                                    Counting dates optional
+                                </summary>
 
-                                    <input
-                                        id="starts_on"
-                                        name="starts_on"
-                                        type="date"
-                                        value="{{ optional($selectedSheet->start_date)->format('Y-m-d') }}"
-                                        class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
-                                    >
+                                <p class="mt-2 break-words text-xs text-emerald-700 dark:text-emerald-200">
+                                    Use these only when a person should start or stop being counted on specific dates.
+                                </p>
+
+                                <div class="mt-4 grid min-w-0 gap-4 md:grid-cols-2">
+                                    <div class="min-w-0">
+                                        <label for="starts_on" class="block break-words text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                            Starts counting from
+                                        </label>
+
+                                        <input
+                                            id="starts_on"
+                                            name="starts_on"
+                                            type="date"
+                                            value="{{ optional($selectedSheet->start_date)->format('Y-m-d') }}"
+                                            class="mt-2 block w-full min-w-0 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-base text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
+                                        >
+                                    </div>
+
+                                    <div class="min-w-0">
+                                        <label for="ends_on" class="block break-words text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                            Stops counting after
+                                        </label>
+
+                                        <input
+                                            id="ends_on"
+                                            name="ends_on"
+                                            type="date"
+                                            class="mt-2 block w-full min-w-0 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-base text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
+                                        >
+                                    </div>
                                 </div>
-
-                                <div>
-                                    <label for="ends_on" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                                        Ends On
-                                    </label>
-
-                                    <input
-                                        id="ends_on"
-                                        name="ends_on"
-                                        type="date"
-                                        class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
-                                    >
-                                </div>
-                            </div>
+                            </details>
 
                             <button
                                 type="submit"
-                                class="inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                                class="flex w-full justify-center rounded-xl bg-emerald-600 px-5 py-3 text-base font-bold text-white hover:bg-emerald-500"
                             >
                                 Add Selected People
                             </button>
-                        </form>
-                    </div>
+                            </form>
+                        </div>
+                    </details>
 
-                    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+
+                    <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
+                        <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
                             Participants
                         </h3>
 
-                        <div class="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <div class="mt-5 space-y-3 md:hidden">
+                            @forelse ($participantRows as $participant)
+                                <div class="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                                    <p class="break-all text-base font-bold leading-snug text-gray-900 dark:text-white">
+                                        {{ $participant->person?->display_name ?? 'Unknown person' }}
+                                    </p>
+
+                                    <div class="mt-3 grid gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                        <div class="min-w-0">
+                                            <span class="font-bold text-gray-800 dark:text-gray-100">Locality:</span>
+                                            <span class="break-all">{{ $participant->person?->locality ?: 'No locality' }}</span>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <span class="font-bold text-gray-800 dark:text-gray-100">Starts counting:</span>
+                                            <span>{{ optional($participant->starts_on)->format('M d, Y') ?: 'Sheet start' }}</span>
+                                        </div>
+
+                                        <div class="min-w-0">
+                                            <span class="font-bold text-gray-800 dark:text-gray-100">Stops after:</span>
+                                            <span>{{ optional($participant->ends_on)->format('M d, Y') ?: 'No end' }}</span>
+                                        </div>
+                                    </div>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ route('quezonprovinceactivities.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
+                                        onsubmit="return confirm('Remove this person from the attendance sheet?');"
+                                        class="mt-4"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button
+                                            type="submit"
+                                            class="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                                        >
+                                            Remove
+                                        </button>
+                                    </form>
+                                </div>
+                            @empty
+                                <div class="rounded-xl border border-dashed border-gray-300 p-5 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                    No participants added yet.
+                                </div>
+                            @endforelse
+                        </div>
+
+                        <div class="mt-5 hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 md:block">
+                            <table class="w-full table-fixed divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Starts</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Ends</th>
-                                        <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Action</th>
+                                        <th class="w-[34%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
+                                        <th class="w-[22%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
+                                        <th class="w-[16%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Starts counting</th>
+                                        <th class="w-[16%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Stops after</th>
+                                        <th class="w-[12%] px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Action</th>
                                     </tr>
                                 </thead>
 
                                 <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                     @forelse ($participantRows as $participant)
                                         <tr>
-                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                            <td class="break-all px-4 py-3 font-semibold leading-snug text-gray-900 dark:text-white">
                                                 {{ $participant->person?->display_name ?? 'Unknown person' }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                            <td class="break-all px-4 py-3 text-gray-500 dark:text-gray-400">
                                                 {{ $participant->person?->locality ?: 'No locality' }}
                                             </td>
 
@@ -314,7 +488,7 @@
                                             <td class="px-4 py-3 text-right">
                                                 <form
                                                     method="POST"
-                                                    action="{{ route('church-database.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
+                                                    action="{{ route('quezonprovinceactivities.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
                                                     onsubmit="return confirm('Remove this person from the attendance sheet?');"
                                                 >
                                                     @csrf
@@ -340,8 +514,10 @@
                             </table>
                         </div>
                     </div>
+
                 </div>
             </div>
         @endif
+    </div>
     </div>
 </x-filament-panels::page>

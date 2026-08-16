@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
-use App\Forms\Components\PersonSelect;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
+use App\Support\LocalityOptions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -91,6 +91,12 @@ class PersonForm
                             ->email()
                             ->maxLength(255)
                             ->placeholder('name@example.com'),
+
+                        TextInput::make('facebook_account')
+                            ->label('Facebook Account')
+                            ->maxLength(255)
+                            ->placeholder('Profile URL, username, or Facebook name')
+                            ->helperText('Examples: facebook.com/juan.santos, @juan.santos, or Juan Santos'),
                     ])
                     ->columns(2),
 
@@ -130,12 +136,16 @@ class PersonForm
                                     ->required()
                                     ->native(false),
 
-                                PersonSelect::relationship(
-                                    field: 'parent_id',
-                                    relationship: 'parent',
-                                    label: 'Existing Person',
-                                )
-                                    ->helperText('Use this if the parent or guardian is already encoded.'),
+                                Select::make('parent_id')
+                                    ->label('Existing Person')
+                                    ->options(fn (): array => self::parentPersonSearchOptions())
+                                    ->getSearchResultsUsing(fn (string $search): array => self::parentPersonSearchOptions($search))
+                                    ->getOptionLabelUsing(fn ($value): ?string => self::parentPersonLabel($value))
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->placeholder('Search name, nickname, locality, or contact number')
+                                    ->helperText('Search any part of the name, nickname, locality, or contact number.'),
 
                                 TextInput::make('parent_name')
                                     ->label('Parent / Guardian Name')
@@ -143,6 +153,7 @@ class PersonForm
                                     ->helperText('Use this if the parent or guardian is not yet encoded.'),
                             ])
                             ->columns(3)
+                            ->default([])
                             ->defaultItems(0)
                             ->addActionLabel('Add Parent / Guardian')
                             ->reorderable(false)
@@ -155,11 +166,14 @@ class PersonForm
                 Section::make('Address')
                     ->description('Locality, home address, permanent address, and optional map coordinates.')
                     ->schema([
-                        TextInput::make('locality')
+                        Select::make('locality')
                             ->label('Locality')
+                            ->options(LocalityOptions::quezonProvince())
                             ->required()
-                            ->maxLength(150)
-                            ->placeholder('Lucena, Pagbilao, Tayabas'),
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select locality'),
 
                         TextInput::make('geocoordinates')
                             ->label('GPS Coordinates')
@@ -195,15 +209,39 @@ class PersonForm
                             ->required()
                             ->native(false),
 
-                        DatePicker::make('baptism_date')
-                            ->label('Baptism Date'),
-
-                        Select::make('service')
-                            ->label('Shepherding Group')
-                            ->options(ChurchProfileOptions::shepherdingServices())
+                        Select::make('baptism_year')
+                            ->label('Baptism Year')
+                            ->options(self::yearOptions())
                             ->searchable()
                             ->native(false)
-                            ->placeholder('Select shepherding group'),
+                            ->placeholder('Unknown year')
+                            ->helperText('Use this if the exact baptism date is not known.'),
+
+                        Select::make('baptism_month')
+                            ->label('Baptism Month')
+                            ->options(self::monthOptions())
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Unknown month')
+                            ->disabled(fn ($get): bool => blank($get('baptism_year'))),
+
+                        Select::make('baptism_day')
+                            ->label('Baptism Day')
+                            ->options(fn ($get): array => self::dayOptions($get('baptism_year'), $get('baptism_month')))
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder('Unknown day')
+                            ->disabled(fn ($get): bool => blank($get('baptism_year')) || blank($get('baptism_month')))
+                            ->helperText('Optional. Leave blank if only the month or year is known.'),
+
+                        Select::make('service')
+                            ->label('Shepherding Groups')
+                            ->options(ChurchProfileOptions::shepherdingServices())
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select one or more shepherding groups'),
 
                         Select::make('shepherd_id')
                             ->label('Shepherd')
@@ -245,9 +283,74 @@ class PersonForm
                             ->placeholder('Student, Teacher, Engineer'),
 
                         TextInput::make('school_workplace')
-                            ->label('School / Workplace')
+                            ->label('School')
+                            ->datalist([
+                                'Southern Luzon State University',
+                                'Southern Luzon State University, Alabat Campus',
+                                'Southern Luzon State University, Catanauan Campus',
+                                'Southern Luzon State University, Gumaca Campus',
+                                'Southern Luzon State University, Infanta Campus',
+                                'Southern Luzon State University, Lucena Campus',
+                                'Southern Luzon State University, Polillo Campus',
+                                'Southern Luzon State University, Tagkawayan Campus',
+                                'Southern Luzon State University, Tayabas Campus',
+                                'Southern Luzon State University, Tiaong Campus',
+                                'Polytechnic University of the Philippines, Lopez Branch',
+                                'Polytechnic University of the Philippines, General Luna Campus',
+                                'Polytechnic University of the Philippines, Mulanay Campus',
+                                'Polytechnic University of the Philippines, Unisan Campus',
+                                'Dalubhasaan ng Lungsod ng Lucena',
+                                'Manuel S. Enverga University Foundation',
+                                'Manuel S. Enverga University Foundation, Inc. – Candelaria',
+                                'Manuel S. Enverga University Foundation, Inc. – Calauag',
+                                'Manuel S. Enverga University Foundation, Inc. – Catanauan',
+                                'Manuel S. Enverga Academy Foundation, Inc. – Sampaloc',
+                                'Manuel S. Enverga Institute Foundation, Inc. – San Antonio',
+                                'Sacred Heart College of Lucena City, Inc.',
+                                'Maryhill College',
+                                'Calayan Educational Foundation, Inc.',
+                                'St. Anne College Lucena, Inc.',
+                                'College of Sciences, Technology and Communications, Inc.',
+                                'Paaralang Sekundarya ng Lucban',
+                                'Nagsinamo National High School',
+                                'Luis Palad Integrated High School',
+                                'Quezon Science High School',
+                                'Quezon National High School',
+                                'Manuel S. Enverga Memorial School of Arts and Trades',
+                                'Dr. Maria D. Pastrana National High School',
+                                'Pagbilao National High School',
+                                'Talipan National High School',
+                                'Dr. Panfilo Castro National High School',
+                                'Bukal Sur National High School',
+                                'Sta. Catalina National High School',
+                                'Sariaya National High School',
+                                'Lutucan National High School',
+                                'Canda National High School',
+                                'Recto Memorial National High School',
+                                'Lusacan National High School',
+                                'San Antonio National High School',
+                                'Infanta National High School',
+                                'Polillo National High School',
+                                'Sampaloc National High School',
+                                'Alabat Island National High School',
+                                'Atimonan National Comprehensive High School',
+                                'Calauag National High School',
+                                'Guinayangan National High School',
+                                'Gumaca National High School',
+                                'Lopez National Comprehensive High School',
+                                'Tagkawayan National High School',
+                                'Catanauan National High School',
+                                'Bondoc Peninsula Agricultural High School',
+                                'Pitogo Community High School',
+                                'Unisan National High School',
+                            ])
                             ->maxLength(255)
-                            ->placeholder('School or workplace name'),
+                            ->placeholder('Select or type school name'),
+
+                        TextInput::make('workplace')
+                            ->label('Workplace')
+                            ->maxLength(255)
+                            ->placeholder('Workplace or company name'),
                     ])
                     ->columns(2),
 
@@ -277,6 +380,65 @@ class PersonForm
             ]);
     }
 
+
+
+    private static function parentPersonSearchOptions(?string $search = ''): array
+    {
+        $search = trim((string) $search);
+
+        return Person::query()
+            ->when(filled($search), function ($query) use ($search): void {
+                collect(preg_split('/\s+/', $search))
+                    ->filter()
+                    ->each(function (string $term) use ($query): void {
+                        $like = '%' . $term . '%';
+
+                        $query->where(function ($query) use ($like): void {
+                            $query
+                                ->where('firstname', 'like', $like)
+                                ->orWhere('middlename', 'like', $like)
+                                ->orWhere('lastname', 'like', $like)
+                                ->orWhere('suffix', 'like', $like)
+                                ->orWhere('nickname', 'like', $like)
+                                ->orWhere('locality', 'like', $like)
+                                ->orWhere('contact_number', 'like', $like);
+                        });
+                    });
+            })
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(75)
+            ->get()
+            ->mapWithKeys(fn (Person $person): array => [
+                $person->id => self::parentPersonOptionLabel($person),
+            ])
+            ->all();
+    }
+
+    private static function parentPersonLabel(mixed $id): ?string
+    {
+        if (blank($id)) {
+            return null;
+        }
+
+        $person = Person::query()->find($id);
+
+        return $person
+            ? self::parentPersonOptionLabel($person)
+            : null;
+    }
+
+    private static function parentPersonOptionLabel(Person $person): string
+    {
+        return collect([
+            $person->display_name,
+            filled($person->nickname) ? 'Nickname: ' . $person->nickname : null,
+            $person->locality,
+            $person->contact_number,
+        ])
+            ->filter(fn ($value): bool => filled($value))
+            ->implode(' — ');
+    }
 
     private static function duplicatePersonWarning($get, $livewire): HtmlString
     {
@@ -367,4 +529,52 @@ class PersonForm
             ])
             ->toArray();
     }
+    private static function yearOptions(): array
+    {
+        $currentYear = (int) now()->format('Y');
+
+        return collect(range($currentYear, 1900))
+            ->mapWithKeys(fn (int $year): array => [$year => (string) $year])
+            ->toArray();
+    }
+
+    private static function monthOptions(): array
+    {
+        return [
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
+        ];
+    }
+
+    private static function dayOptions(mixed $year, mixed $month): array
+    {
+        if (blank($year) || blank($month)) {
+            return [];
+        }
+
+        $year = (int) $year;
+        $month = (int) $month;
+
+        if ($year < 1900 || $month < 1 || $month > 12) {
+            return [];
+        }
+
+        $days = \Carbon\CarbonImmutable::create($year, $month, 1)->daysInMonth;
+
+        return collect(range(1, $days))
+            ->mapWithKeys(fn (int $day): array => [$day => (string) $day])
+            ->toArray();
+    }
+
+
 }

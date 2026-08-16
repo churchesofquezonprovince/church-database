@@ -3,7 +3,6 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Pages\FamilyTree;
-use App\Filament\Pages\ShepherdingDashboard;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\People\PersonResource;
 use App\Models\Household;
@@ -55,42 +54,6 @@ class ChurchDashboardWidget extends Widget
                     'church_status' => 'Active',
                 ]),
             ],
-            [
-                'key' => 'new_ones',
-                'label' => 'New Ones',
-                'count' => $this->peopleWithStatus('New One'),
-                'url' => $this->peopleTableUrl([
-                    'church_status' => 'New One',
-                ]),
-            ],
-            [
-                'key' => 'gospel_friends',
-                'label' => 'Gospel Friends',
-                'count' => $this->peopleWithStatus('Gospel Friend'),
-                'url' => $this->peopleTableUrl([
-                    'church_status' => 'Gospel Friend',
-                ]),
-            ],
-            [
-                'key' => 'no_shepherd',
-                'label' => 'No Shepherd',
-                'count' => Person::query()
-                    ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
-                    ->count(),
-                'url' => $this->peopleTableUrl([
-                    'shepherd_status' => 'without_shepherd',
-                ]),
-            ],
-            [
-                'key' => 'no_group',
-                'label' => 'No Shepherding Group',
-                'count' => Person::query()
-                    ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
-                    ->count(),
-                'url' => $this->peopleTableUrl([
-                    'shepherding_group' => '__none',
-                ]),
-            ],
         ];
 
         $this->quickLinks = [
@@ -118,52 +81,9 @@ class ChurchDashboardWidget extends Widget
                 'description' => 'View visual family relationships.',
                 'url' => FamilyTree::getUrl(),
             ],
-            [
-                'key' => 'shepherding',
-                'label' => 'Shepherding Dashboard',
-                'description' => 'Monitor care, status, and follow-up needs.',
-                'url' => ShepherdingDashboard::getUrl(),
-            ],
         ];
 
-        $this->careAlerts = [
-            [
-                'key' => 'without_shepherd',
-                'label' => 'People without shepherd',
-                'count' => Person::query()
-                    ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
-                    ->count(),
-                'url' => $this->peopleTableUrl([
-                    'shepherd_status' => 'without_shepherd',
-                ]),
-            ],
-            [
-                'key' => 'without_service',
-                'label' => 'People without shepherding group',
-                'count' => Person::query()
-                    ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
-                    ->count(),
-                'url' => $this->peopleTableUrl([
-                    'shepherding_group' => '__none',
-                ]),
-            ],
-            [
-                'key' => 'dormant',
-                'label' => 'Dormant people',
-                'count' => $this->peopleWithStatus('Dormant'),
-                'url' => $this->peopleTableUrl([
-                    'church_status' => 'Dormant',
-                ]),
-            ],
-            [
-                'key' => 'new_ones',
-                'label' => 'New ones needing follow-up',
-                'count' => $this->peopleWithStatus('New One'),
-                'url' => $this->peopleTableUrl([
-                    'church_status' => 'New One',
-                ]),
-            ],
-        ];
+        $this->careAlerts = [];
 
         $this->recentPeople = Person::query()
             ->with(['churchProfile', 'household'])

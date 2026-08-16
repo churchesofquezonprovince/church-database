@@ -8,7 +8,26 @@
         $selectedSession = $this->selectedSession();
         $selectedMeetingTime = request('meeting_time', substr((string) ($selectedSheet->meeting_time ?? ''), 0, 5));
         $people = $this->people();
+        $categoryOptions = $people
+            ->pluck('churchProfile.category')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $hasNoCategory = $people->contains(fn ($person) => blank($person->churchProfile?->category));
         $presentPersonIds = $this->presentPersonIds();
+        $absentPersonIds = $this->absentPersonIds();
+
+        $presentRowCount = $people
+            ->filter(fn ($person) => in_array((int) $person->id, $presentPersonIds, true))
+            ->count();
+
+        $absentRowCount = $people
+            ->filter(fn ($person) => in_array((int) $person->id, $absentPersonIds, true))
+            ->count();
+
+        $unmarkedRowCount = max($people->count() - $presentRowCount - $absentRowCount, 0);
         $counts = $this->counts();
         $selectedDateObject = \Carbon\CarbonImmutable::parse($selectedMeetingDate);
         $isCorrectDay = $selectedDateObject->dayOfWeek === $selectedMeetingDay;
@@ -50,16 +69,16 @@
 
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-900 dark:bg-amber-950">
                 <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100">
-                    Other Locality Attendee
+                    Other Locality / Unmarked Attendee
                 </h3>
 
                 <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                    Use this if someone from another locality attended this meeting. The person will be added to this meeting date and marked Present.
+                    Use this if someone from another locality attended, or if someone hidden from the main list attended. Dormant, Moved, Gospel Friend, Unknown, and other non-main statuses can be added here.
                 </p>
 
                 <form
                     method="POST"
-                    action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.store', $selectedSession) }}"
+                    action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.store', $selectedSession) }}"
                     class="mt-4 grid gap-3 md:grid-cols-[1fr_auto]"
                 >
                     @csrf
@@ -67,7 +86,7 @@
                     <div class="space-y-2">
                         <input
                             type="search"
-                            placeholder="Search name or locality..."
+                            placeholder="Search name, locality, or status..."
                             oninput="const q = this.value.toLowerCase(); this.closest('form').querySelectorAll('select[name=person_id] option').forEach((option, index) => { if (index === 0) return; option.hidden = ! option.textContent.toLowerCase().includes(q); });"
                             class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
                         >
@@ -77,11 +96,11 @@
                             required
                             class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-gray-100"
                         >
-                        <option value="">Select person from other locality</option>
+                        <option value="">Select person</option>
 
                         @foreach ($otherLocalityCandidates as $person)
                             <option value="{{ $person->id }}">
-                                {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }}
+                                {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }} — {{ $person->churchProfile?->status ?: 'No Status' }}
                             </option>
                         @endforeach
                         </select>
@@ -97,14 +116,14 @@
 
                 @if ($otherLocalityCandidates->isEmpty())
                     <p class="mt-3 text-xs text-amber-700 dark:text-amber-200">
-                        No other locality candidates available.
+                        No other locality or unmarked candidates available.
                     </p>
                 @endif
 
                 @if ($otherLocalityPresentRecords->isNotEmpty())
                     <div class="mt-5 rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-900 dark:bg-gray-950">
                         <p class="text-sm font-bold text-gray-900 dark:text-white">
-                            Current other-locality attendees
+                            Current other-locality / unmarked attendees
                         </p>
 
                         <div class="mt-3 space-y-2">
@@ -117,6 +136,7 @@
 
                                         <span class="block text-xs text-gray-500 dark:text-gray-400">
                                             {{ $record->person?->locality ?: 'No Locality' }}
+                                            · {{ $record->person?->churchProfile?->status ?: 'No Status' }}
                                             · marked {{ optional($record->marked_at)->format('M d, Y · g:i A') }}
                                         </span>
                                     </div>
@@ -124,7 +144,7 @@
                                     @if ($record->person)
                                         <form
                                             method="POST"
-                                            action="{{ route('church-database.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
+                                            action="{{ route('quezonprovinceactivities.attendance-sheets.permanent-meeting.other-attendees.destroy', ['session' => $selectedSession, 'person' => $record->person]) }}"
                                         >
                                             @csrf
                                             @method('DELETE')
@@ -146,7 +166,7 @@
             </div>
         @else
             <div class="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                Select a locality and meeting date first to add other locality attendees.
+                Select a locality and meeting date first to add other locality or unmarked attendees.
             </div>
         @endif
 
@@ -288,29 +308,31 @@
                 </p>
             </div>
         @else
-            <div class="grid gap-4 md:grid-cols-4">
-                <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-800 shadow-sm dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
-                    <p class="text-sm font-semibold opacity-75">Locality</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $this->localityLabel() }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
-                    <p class="text-sm font-semibold opacity-75">Meeting Day</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $this->dayLabel($selectedMeetingDay) }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-                    <p class="text-sm font-semibold opacity-75">Present</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['present'] }}</p>
-                </div>
-
-                <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
-                    <p class="text-sm font-semibold opacity-75">Absent</p>
-                    <p class="mt-3 text-2xl font-bold">{{ $counts['absent'] }}</p>
-                </div>
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border border-amber-700 bg-amber-950 p-5 text-amber-100 shadow-sm">
+                <p class="text-sm font-semibold text-amber-200">Locality</p>
+                <p class="mt-4 text-3xl font-bold">{{ $selectedLocality === '__no_locality' ? 'No Locality' : $selectedLocality }}</p>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="rounded-2xl border border-emerald-700 bg-emerald-950 p-5 text-emerald-100 shadow-sm">
+                <p class="text-sm font-semibold text-emerald-200">
+                    Present on {{ $days[$selectedMeetingDay] ?? $this->dayLabel($selectedMeetingDay) }}
+                </p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['present'] }}</p>
+            </div>
+
+            <div class="rounded-2xl border border-red-700 bg-red-950 p-5 text-red-100 shadow-sm">
+                <p class="text-sm font-semibold text-red-200">Absent</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['absent'] }}</p>
+            </div>
+
+            <div class="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-100 shadow-sm">
+                <p class="text-sm font-semibold text-slate-200">Unmarked</p>
+                <p class="mt-4 text-3xl font-bold">{{ $counts['other_status'] ?? 0 }}</p>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">
@@ -322,7 +344,7 @@
                         </p>
                     </div>
 
-                    <div class="flex gap-2">
+                    <div class="grid grid-cols-2 gap-2 sm:flex">
                         <button
                             type="button"
                             onclick="document.querySelectorAll('.prayer-meeting-checkbox').forEach((box) => box.checked = true)"
@@ -348,7 +370,7 @@
                 @else
                     <form
                         method="POST"
-                        action="{{ route('church-database.attendance-sheets.prayer-meeting.store') }}"
+                        action="{{ route('quezonprovinceactivities.attendance-sheets.prayer-meeting.store') }}"
                         class="mt-5"
                     >
                         @csrf
@@ -363,39 +385,149 @@
                         <input type="hidden" name="meeting_day" value="{{ $selectedMeetingDay }}">
                         <input type="hidden" name="meeting_date" value="{{ $selectedMeetingDate }}">
 
-                        <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                            <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        @if ($selectedSession)
+                            @foreach ($this->otherLocalityPresentRecords() as $otherRecord)
+                                @if ($otherRecord->person_id)
+                                    <input type="hidden" name="other_present_person_ids[]" value="{{ $otherRecord->person_id }}">
+                                @endif
+                            @endforeach
+                        @endif
+
+
+                        <div class="mb-4 grid gap-3 lg:grid-cols-[1fr_240px_auto] lg:items-end">
+                            <div>
+                                <label for="prayer_meeting_participant_search" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Search Participants
+                                </label>
+
+                                <input
+                                    id="prayer_meeting_participant_search"
+                                    data-participant-search
+                                    type="search"
+                                    placeholder="Search name, category, or contact..."
+                                    oninput="filterPermanentMeetingChecklist(this.closest('form'))"
+                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                >
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Category
+                                </label>
+
+                                <select
+                                    data-participant-category-filter
+                                    onchange="filterPermanentMeetingChecklist(this.closest('form'))"
+                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                >
+                                    <option value="__all">All Categories</option>
+
+                                    @foreach ($categoryOptions as $category)
+                                        <option value="{{ \Illuminate\Support\Str::lower($category) }}">
+                                            {{ $category }}
+                                        </option>
+                                    @endforeach
+
+                                    @if ($hasNoCategory)
+                                        <option value="__no_category">No category</option>
+                                    @endif
+                                </select>
+                            </div>
+
+                            <button
+                                type="button"
+                                onclick="const form = this.closest('form'); const search = form.querySelector('[data-participant-search]'); const category = form.querySelector('[data-participant-category-filter]'); search.value = ''; category.value = '__all'; filterPermanentMeetingChecklist(form); search.focus();"
+                                class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Clear Filters
+                            </button>
+                        </div>
+
+                        <input type="hidden" data-attendance-status-filter value="all">
+
+                        <div class="mb-4 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'all')"
+                                class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 ring-2 ring-primary-500 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                All {{ $people->count() }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'present')"
+                                class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                            >
+                                Present {{ $presentRowCount }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'absent')"
+                                class="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                            >
+                                Absent {{ $absentRowCount }}
+                            </button>
+
+                            <button
+                                type="button"
+                                data-attendance-status-button
+                                onclick="setPermanentMeetingStatusFilter(this, 'unmarked')"
+                                class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                            >
+                                Unmarked {{ $unmarkedRowCount }}
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table class="min-w-[720px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
-                                        <th class="w-20 px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
-                                        <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Contact</th>
+                                        <th class="w-20 px-3 py-3 sm:px-4 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+                                        <th class="px-3 py-3 sm:px-4 text-left font-semibold text-gray-700 dark:text-gray-200">Contact</th>
                                     </tr>
                                 </thead>
 
                                 <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                     @foreach ($people as $person)
-                                        <tr>
-                                            <td class="px-4 py-3 text-center">
+                                        @php
+                                            $attendanceStatus = in_array((int) $person->id, $presentPersonIds, true)
+                                                ? 'present'
+                                                : (in_array((int) $person->id, $absentPersonIds, true) ? 'absent' : 'unmarked');
+                                        @endphp
+
+                                        <tr
+                                            data-category="{{ \Illuminate\Support\Str::lower($person->churchProfile?->category ?: '__no_category') }}"
+                                            data-initial-attendance-status="{{ $attendanceStatus }}"
+                                            data-attendance-status="{{ $attendanceStatus }}"
+                                        >
+                                            <td class="px-3 py-3 text-center sm:px-4">
                                                 <input
                                                     type="checkbox"
                                                     name="present_person_ids[]"
                                                     value="{{ $person->id }}"
                                                     @checked(in_array((int) $person->id, $presentPersonIds, true))
-                                                    class="prayer-meeting-checkbox h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                    data-attendance-checkbox
+                                                    onchange="updatePermanentMeetingRowStatus(this); filterPermanentMeetingChecklist(this.closest('form'))"
+                                                    class="prayer-meeting-checkbox h-6 w-6 rounded border-gray-300 text-primary-600 focus:ring-primary-500 sm:h-5 sm:w-5"
                                                 >
                                             </td>
 
-                                            <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                                            <td class="px-3 py-3 font-semibold sm:px-4 text-gray-900 dark:text-white">
                                                 {{ $person->display_name }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                            <td class="px-3 py-3 text-gray-500 sm:px-4 dark:text-gray-400">
                                                 {{ $person->churchProfile?->category ?: 'No category' }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                            <td class="px-3 py-3 text-gray-500 sm:px-4 dark:text-gray-400">
                                                 {{ $person->contact_number ?: 'No contact' }}
                                             </td>
                                         </tr>
@@ -406,7 +538,7 @@
 
                         <button
                             type="submit"
-                            class="mt-5 inline-flex rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500"
+                            class="mt-5 inline-flex w-full justify-center rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white hover:bg-primary-500 sm:w-auto sm:py-2"
                         >
                             Save Prayer Meeting Attendance
                         </button>
@@ -415,4 +547,57 @@
             </div>
         @endif
     </div>
+    <script>
+        function filterPermanentMeetingChecklist(form) {
+            const searchInput = form.querySelector('[data-participant-search]');
+            const categoryFilter = form.querySelector('[data-participant-category-filter]');
+            const statusFilter = form.querySelector('[data-attendance-status-filter]');
+
+            const query = (searchInput?.value || '').toLowerCase().trim();
+            const category = (categoryFilter?.value || '__all').toLowerCase();
+            const status = (statusFilter?.value || 'all').toLowerCase();
+
+            form.querySelectorAll('tbody tr[data-category]').forEach((row) => {
+                const matchesSearch = query === '' || row.textContent.toLowerCase().includes(query);
+                const matchesCategory = category === '__all' || row.dataset.category === category;
+                const matchesStatus = status === 'all' || row.dataset.attendanceStatus === status;
+
+                row.hidden = ! (matchesSearch && matchesCategory && matchesStatus);
+            });
+        }
+
+        function setPermanentMeetingStatusFilter(button, status) {
+            const form = button.closest('form');
+            const statusFilter = form.querySelector('[data-attendance-status-filter]');
+
+            statusFilter.value = status;
+
+            form.querySelectorAll('[data-attendance-status-button]').forEach((statusButton) => {
+                statusButton.classList.remove('ring-2', 'ring-primary-500');
+            });
+
+            button.classList.add('ring-2', 'ring-primary-500');
+
+            filterPermanentMeetingChecklist(form);
+        }
+
+        function updatePermanentMeetingRowStatus(checkbox) {
+            const row = checkbox.closest('tr[data-attendance-status]');
+
+            if (! row) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                row.dataset.attendanceStatus = 'present';
+
+                return;
+            }
+
+            row.dataset.attendanceStatus = row.dataset.initialAttendanceStatus === 'present'
+                ? 'absent'
+                : row.dataset.initialAttendanceStatus;
+        }
+    </script>
+
 </x-filament-panels::page>
