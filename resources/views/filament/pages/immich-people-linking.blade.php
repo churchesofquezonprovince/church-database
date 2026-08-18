@@ -20,14 +20,66 @@
                 Immich People Linking
             </h2>
 
-            <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-                Select an Attendance Session. The system will inspect the linked
-                Immich album and show only the people recognized in photographs
-                taken on that session's date.
-            </p>
+<p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+    Use Attendance Session to inspect people recognized in photographs
+    from one attendance date, or Whole Attendance Sheet to inspect all
+    recognized people across the linked Immich album.
+</p>
         </div>
 
+<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+
+    <p class="text-sm font-bold text-gray-900 dark:text-white">
+        Linking Scope
+    </p>
+
+    <div class="mt-3 flex flex-wrap gap-2">
+
+        <button
+            type="button"
+            wire:click="setLinkingScope('session')"
+            class="rounded-xl px-4 py-2 text-sm font-bold transition
+                {{ $this->linkingScope === 'session'
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' }}"
+        >
+            Attendance Session
+        </button>
+
+        <button
+            type="button"
+            wire:click="setLinkingScope('sheet')"
+            class="rounded-xl px-4 py-2 text-sm font-bold transition
+                {{ $this->linkingScope === 'sheet'
+                    ? 'bg-violet-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' }}"
+        >
+            Whole Attendance Sheet
+        </button>
+
+    </div>
+
+    @if ($this->linkingScope === 'sheet')
+        <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
+            <strong>Whole Attendance Sheet mode.</strong>
+            All recognized people from the linked Immich album are shown.
+            This only manages permanent Immich-to-Church Person mappings and
+            does not change attendance records.
+        </div>
+    @else
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200">
+            <strong>Attendance Session mode.</strong>
+            Only people recognized in photographs from the selected session's
+            date are shown.
+        </div>
+    @endif
+
+</div>
+
         {{-- Session selector --}}
+@if ($sessions->isNotEmpty())
+
+    @if ($this->linkingScope === 'session')
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
 
             <label
@@ -37,31 +89,31 @@
                 Attendance Session
             </label>
 
-            @if ($sessions->isNotEmpty())
+            <select
+                id="session"
+                wire:model.live="selectedSessionId"
+                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+            >
+                @foreach ($sessions as $session)
+                    <option value="{{ $session->id }}">
+                        {{ $session->sheet?->title }}
+                        —
+                        {{ $session->session_date->format('M d, Y') }}
+                    </option>
+                @endforeach
+            </select>
 
-                <select
-                    id="session"
-                    wire:model.live="selectedSessionId"
-                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                >
-                    @foreach ($sessions as $session)
-                        <option value="{{ $session->id }}">
-                            {{ $session->sheet?->title ?? 'Attendance Sheet' }}
-                            —
-                            {{ $session->session_date->format('M d, Y') }}
-                        </option>
-                    @endforeach
-                </select>
-
-            @else
-
-                <div class="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                    No Attendance Session has a linked Immich Album yet.
-                    Link an album from Attendance → Attendance Sheets first.
-                </div>
-
-            @endif
         </div>
+    @endif
+
+@else
+
+    <div class="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        No Attendance Session has a linked Immich Album yet.
+        Link an album from Attendance → Attendance Sheets first.
+    </div>
+
+@endif
 
         @if ($selectedSession)
 
@@ -95,9 +147,22 @@
                     </div>
 
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                            People Found
-                        </p>
+<p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    {{ $this->linkingScope === 'sheet'
+        ? 'People Found in Entire Album'
+        : 'People Found on Session Date' }}
+</p>
+
+<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+    @if ($this->linkingScope === 'sheet')
+        All unique Immich people recognized anywhere in the linked album.
+        Linking here applies permanently to future attendance synchronization
+        for this sheet.
+    @else
+        Only people recognized in photographs from
+        {{ $selectedSession?->session_date?->format('F d, Y') }}.
+    @endif
+</p>
 
                         <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
                             {{ $people->count() }}

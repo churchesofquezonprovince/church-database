@@ -19,6 +19,8 @@ class ImmichPeopleLinking extends Page
 
     public ?int $selectedSessionId = null;
 
+    public string $linkingScope = 'session';
+    
     public string $search = '';
 
     public array $selectedPeople = [];
@@ -264,6 +266,23 @@ public function linkPerson(string $immichPersonId): void
         ->send();
 }
 
+
+public function setLinkingScope(string $scope): void
+{
+    if (! in_array($scope, ['session', 'sheet'], true)) {
+        return;
+    }
+
+    $this->linkingScope = $scope;
+
+    /*
+     * Clear selections because the available people may change
+     * completely when changing scope.
+     */
+    $this->selectedPeople = [];
+    $this->search = '';
+}
+
 public function detectedPeople(): Collection
 {
     $session = $this->selectedSession();
@@ -275,17 +294,26 @@ public function detectedPeople(): Collection
     }
 
     try {
-        $people = app(ImmichApiService::class)
-            ->peopleFromAlbumForDate(
-                albumId: $album->immich_album_id,
-                date: $session->session_date->format('Y-m-d'),
-            );
+        if ($this->linkingScope === 'sheet') {
+            $people = app(ImmichApiService::class)
+                ->peopleFromAlbum(
+                    albumId: $album->immich_album_id,
+                );
+        } else {
+            $people = app(ImmichApiService::class)
+                ->peopleFromAlbumForDate(
+                    albumId: $album->immich_album_id,
+                    date: $session->session_date->format('Y-m-d'),
+                );
+        }
 
         return collect($people)
             ->when(
                 filled($this->search),
                 function (Collection $people): Collection {
-                    $search = mb_strtolower(trim($this->search));
+                    $search = mb_strtolower(
+                        trim($this->search)
+                    );
 
                     return $people->filter(
                         fn (array $person): bool =>
@@ -302,9 +330,10 @@ public function detectedPeople(): Collection
 
     } catch (\Throwable $e) {
         Log::warning(
-            'Unable to load Immich people for attendance session.',
+            'Unable to load Immich people for People Linking.',
             [
                 'attendance_session_id' => $session->id,
+                'scope' => $this->linkingScope,
                 'message' => $e->getMessage(),
             ]
         );

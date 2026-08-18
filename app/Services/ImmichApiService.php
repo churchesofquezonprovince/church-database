@@ -152,58 +152,108 @@ public function searchAlbumAssetsForDate(
 
 
 
-public function peopleFromAlbumForDate(
+public function peopleFromAlbum(
     string $albumId,
-    string $date,
 ): array {
     $people = [];
 
     $page = 1;
 
     do {
-        $response = $this->searchAlbumAssetsForDate(
-            albumId: $albumId,
-            date: $date,
-            page: $page,
-            size: 1000,
+        $response = $this->client()
+            ->post('/api/search/metadata', [
+                'albumIds' => [$albumId],
+                'page' => $page,
+                'size' => 1000,
+                'withPeople' => true,
+                'withExif' => false,
+                'withDeleted' => false,
+                'withStacked' => false,
+            ])
+            ->throw()
+            ->json();
+
+        $assets = collect(
+            data_get($response, 'assets.items', [])
         );
 
-        $items = data_get($response, 'assets.items', []);
-
-        foreach ($items as $asset) {
+        foreach ($assets as $asset) {
             foreach (($asset['people'] ?? []) as $person) {
                 if (! is_array($person)) {
                     continue;
                 }
 
-                $personId = $person['id'] ?? null;
+                $id = $person['id'] ?? null;
 
-                if (! $personId) {
+                if (! $id) {
                     continue;
                 }
 
-                $people[$personId] = [
-                    'id' => $personId,
-                    'name' => trim((string) ($person['name'] ?? '')),
-                    'thumbnailPath' => $person['thumbnailPath'] ?? null,
-                    'updatedAt' => $person['updatedAt'] ?? null,
+                $people[$id] = [
+                    'id' => $id,
+                    'name' => trim(
+                        (string) ($person['name'] ?? '')
+                    ),
+                    'thumbnailPath' =>
+                        $person['thumbnailPath'] ?? null,
                 ];
             }
         }
 
-        $nextPage = data_get($response, 'assets.nextPage');
+        $nextPage = data_get(
+            $response,
+            'assets.nextPage'
+        );
 
-        if (! $nextPage) {
-            break;
-        }
+        $page++;
 
-        $page = (int) $nextPage;
-    } while ($page <= 100);
+    } while ($nextPage !== null);
 
     return array_values($people);
 }
 
+public function peopleFromAlbumForDate(
+    string $albumId,
+    string $date,
+    int $page = 1,
+    int $size = 1000,
+    ?\Carbon\CarbonInterface $updatedAfter = null,
+): array {
+    $response = $this->searchAlbumAssetsForDate(
+        albumId: $albumId,
+        date: $date,
+        page: $page,
+        size: $size,
+        updatedAfter: $updatedAfter,
+    );
 
+    $people = [];
+
+    foreach (data_get($response, 'assets.items', []) as $asset) {
+        foreach (($asset['people'] ?? []) as $person) {
+            if (! is_array($person)) {
+                continue;
+            }
+
+            $id = $person['id'] ?? null;
+
+            if (! $id) {
+                continue;
+            }
+
+            $people[$id] = [
+                'id' => $id,
+                'name' => trim(
+                    (string) ($person['name'] ?? '')
+                ),
+                'thumbnailPath' =>
+                    $person['thumbnailPath'] ?? null,
+            ];
+        }
+    }
+
+    return array_values($people);
+}
 
     public function searchAlbumAssets(
         string $albumId,
