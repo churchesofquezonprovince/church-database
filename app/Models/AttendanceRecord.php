@@ -21,6 +21,7 @@ class AttendanceRecord extends Model
         'status',
         'prophesied',
         'is_present',
+        'attendance_source',
         'remarks',
         'marked_by_id',
         'marked_at',
@@ -31,6 +32,10 @@ class AttendanceRecord extends Model
         'is_present' => 'boolean',
         'marked_at' => 'datetime',
     ];
+
+    public const SOURCE_MANUAL = 'manual';
+    
+    public const SOURCE_IMMICH = 'immich';
 
     public function session(): BelongsTo
     {

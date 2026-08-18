@@ -14,6 +14,11 @@ return [
     |
     */
 
+'immich' => [
+    'url' => env('IMMICH_URL'),
+    'api_key' => env('IMMICH_API_KEY'),
+],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

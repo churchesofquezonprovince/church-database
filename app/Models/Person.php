@@ -69,6 +69,11 @@ class Person extends Model
         });
     }
 
+public function immichMapping(): HasOne
+{
+    return $this->hasOne(ImmichPersonMapping::class);
+}
+
     public function household(): BelongsTo
     {
         return $this->belongsTo(Household::class, 'household_id');

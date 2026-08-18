@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceSession extends Model
@@ -21,6 +22,22 @@ class AttendanceSession extends Model
         'session_date' => 'date',
     ];
 
+
+public function immichAlbum(): HasOne
+{
+    return $this->hasOne(
+        AttendanceSessionImmichAlbum::class,
+        'attendance_session_id',
+    );
+}
+
+public function immichDetections(): HasMany
+{
+    return $this->hasMany(
+        AttendanceImmichAssetDetection::class,
+        'attendance_session_id',
+    );
+}
 
     public function sessionTimeLabel(): ?string
     {

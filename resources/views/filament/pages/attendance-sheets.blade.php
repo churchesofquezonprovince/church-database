@@ -231,19 +231,205 @@
                             </div>
                         </div>
 
-                        <div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            @foreach ($selectedSheet->sessions->take(8) as $session)
-                                <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
-                                    {{ $session->session_date->format('M d, Y') }}
-                                </div>
-                            @endforeach
-                        </div>
+<div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    @foreach ($selectedSheet->sessions->take(8) as $session)
+        <a
+            href="{{ $this->sessionUrl($session) }}"
+            @class([
+                'block rounded-xl border p-3 text-sm font-semibold transition',
+                'border-primary-300 bg-primary-50 text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200'
+                    => $this->selectedSession()?->id === $session->id,
+                'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800'
+                    => $this->selectedSession()?->id !== $session->id,
+            ])
+        >
+            <div class="flex items-center justify-between gap-2">
+                <span>
+                    {{ $session->session_date->format('M d, Y') }}
+                </span>
+
+                @if ($session->immichAlbum)
+                    <span class="rounded-full bg-violet-600 px-2 py-1 text-[10px] font-bold text-white">
+                        Immich
+                    </span>
+                @endif
+            </div>
+        </a>
+    @endforeach
+</div>
 
                         @if ($selectedSheet->sessions_count > 8)
                             <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
                                 Showing first 8 dates only. Full attendance grid will be added in the next phase.
                             </p>
                         @endif
+
+@php
+    $selectedSession = $this->selectedSession();
+    $immichAlbums = $this->immichAlbums();
+@endphp
+
+@if ($selectedSession)
+    <div class="mt-6 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950">
+
+        <div class="border-b border-violet-200 px-5 py-4 dark:border-violet-900 sm:px-6">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                        Immich Attendance
+                    </p>
+
+                    <h4 class="mt-1 break-words text-lg font-bold text-violet-950 dark:text-white">
+                        {{ $selectedSession->session_date->format('M d, Y') }}
+                    </h4>
+
+                    <p class="mt-1 text-xs text-violet-700 dark:text-violet-300">
+                        This connects an Immich album to this attendance session.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 sm:p-6">
+
+            @if ($selectedSession->immichAlbum)
+
+                <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                Linked Immich Album
+                            </p>
+
+                            <p class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                                {{ $selectedSession->immichAlbum->immich_album_name }}
+                            </p>
+
+                            <p class="mt-2 break-words text-xs text-gray-500 dark:text-gray-400">
+                                Album ID:
+                                {{ $selectedSession->immichAlbum->immich_album_id }}
+                            </p>
+
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Last sync:
+                                {{ optional($selectedSession->immichAlbum->last_synced_at)->format('M d, Y g:i A') ?? 'Never' }}
+                            </p>
+                        </div>
+
+                        <div class="flex flex-col gap-2 sm:flex-row">
+
+<button
+    type="button"
+    wire:click="syncImmich({{ $selectedSession->id }})"
+    wire:loading.attr="disabled"
+    wire:target="syncImmich"
+    class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+>
+    <span wire:loading.remove wire:target="syncImmich">
+        Sync Attendance
+    </span>
+
+    <span wire:loading wire:target="syncImmich">
+        Synchronizing...
+    </span>
+</button>
+
+                            <button
+                                type="button"
+                                wire:click="unlinkImmichAlbum({{ $selectedSession->id }})"
+                                wire:confirm="Unlink this Immich album from this attendance session?"
+                                class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                            >
+                                Unlink
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-violet-100 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                        <p class="text-sm font-semibold text-violet-900 dark:text-violet-100">
+                            Phase 23A
+                        </p>
+
+                        <p class="mt-1 text-xs leading-5 text-violet-700 dark:text-violet-300">
+                            The album is linked successfully. Synchronization will be enabled in the next Phase 23 step.
+                            No attendance records are being changed yet.
+                        </p>
+                    </div>
+
+                </div>
+
+            @else
+
+                <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+
+                    <div class="min-w-0">
+                        <label
+                            for="immich_album_id"
+                            class="block text-sm font-bold text-violet-950 dark:text-violet-100"
+                        >
+                            Select Immich Album
+                        </label>
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Choose the album containing photographs from this specific meeting date.
+                        </p>
+
+                        @if (count($immichAlbums) > 0)
+
+                            <select
+                                id="immich_album_id"
+                                wire:model="immichAlbumId"
+                                class="mt-3 block w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-violet-900 dark:bg-gray-950 dark:text-white"
+                            >
+                                <option value="">
+                                    Select an Immich album...
+                                </option>
+
+                                @foreach ($immichAlbums as $album)
+                                    <option value="{{ $album['id'] }}">
+                                        {{ $album['albumName'] ?? 'Unnamed album' }}
+                                        @if (isset($album['assetCount']))
+                                            — {{ $album['assetCount'] }} photo(s)
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <button
+                                type="button"
+                                wire:click="linkImmichAlbum({{ $selectedSession->id }}, @js($immichAlbumId))"
+                                wire:loading.attr="disabled"
+                                class="mt-4 w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+                            >
+                                <span wire:loading.remove>
+                                    Link Album to This Session
+                                </span>
+
+                                <span wire:loading>
+                                    Linking...
+                                </span>
+                            </button>
+
+                        @else
+
+                            <div class="mt-4 rounded-xl border border-dashed border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                                Unable to load Immich albums.
+                            </div>
+
+                        @endif
+
+                    </div>
+                </div>
+
+            @endif
+
+        </div>
+    </div>
+@endif
+                        
                     </div>
 
 
