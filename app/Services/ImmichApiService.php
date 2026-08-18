@@ -112,45 +112,62 @@ public function allPeople(
     return $allPeople;
 }
 
-
 public function searchAlbumAssetsForDate(
     string $albumId,
     string $date,
     int $page = 1,
     int $size = 1000,
+    ?\Carbon\CarbonInterface $updatedAfter = null,
 ): array {
-    $timezone = config('app.timezone', 'Asia/Manila');
+    /*
+     * Immich's server-side takenAfter/takenBefore filtering can produce
+     * incorrect results when an asset's localDateTime timezone metadata
+     * differs from the application's timezone.
+     *
+     * Fetch the album assets normally, then filter locally using the
+     * date portion of Immich's localDateTime value.
+     */
+    $response = $this->searchAlbumAssets(
+        albumId: $albumId,
+        page: $page,
+        size: $size,
+        updatedAfter: $updatedAfter?->toIso8601String(),
+    );
 
-    $start = \Carbon\CarbonImmutable::parse(
-        $date,
-        $timezone,
-    )->startOfDay();
+    $items = collect(
+        data_get($response, 'assets.items', [])
+    )->filter(function ($asset) use ($date): bool {
+        if (! is_array($asset)) {
+            return false;
+        }
 
-    $end = $start->endOfDay();
+        $localDateTime = $asset['localDateTime'] ?? null;
 
-    return $this->client()
-        ->post('/api/search/metadata', [
-            'albumIds' => [$albumId],
+        if (! filled($localDateTime)) {
+            return false;
+        }
 
-            /*
-             * Restrict the search to the Attendance Session's day.
-             */
-            'takenAfter' => $start->toIso8601String(),
-            'takenBefore' => $end->toIso8601String(),
+        /*
+         * Compare the date portion directly.
+         *
+         * Example:
+         * 2026-07-29T19:54:05.000Z
+         *              ↓
+         * 2026-07-29
+         */
+        return str_starts_with(
+            (string) $localDateTime,
+            $date,
+        );
+    })->values();
 
-            'page' => $page,
-            'size' => $size,
-
-            'withPeople' => true,
-            'withExif' => false,
-            'withDeleted' => false,
-            'withStacked' => false,
-        ])
-        ->throw()
-        ->json();
+    return [
+        'assets' => [
+            ...($response['assets'] ?? []),
+            'items' => $items->all(),
+        ],
+    ];
 }
-
-
 
 public function peopleFromAlbum(
     string $albumId,
