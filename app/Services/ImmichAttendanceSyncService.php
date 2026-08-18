@@ -275,8 +275,10 @@ if ($result === 'created') {
                         'person_id' => $personId,
                         'status' => AttendanceRecord::STATUS_PRESENT,
                         'is_present' => true,
-                        'attendance_source' =>
-                            AttendanceRecord::SOURCE_IMMICH,
+                        'attendance_source' => AttendanceRecord::SOURCE_IMMICH,
+                        'immich_confirmed' => false,
+                        'immich_confirmed_at' => null,
+                        'immich_confirmed_by_id' => null,
                         'marked_by_id' => null,
                         'marked_at' => now(),
                     ]);
@@ -309,8 +311,7 @@ if ($result === 'created') {
                 $record->update([
                     'status' => AttendanceRecord::STATUS_PRESENT,
                     'is_present' => true,
-                    'attendance_source' =>
-                        AttendanceRecord::SOURCE_IMMICH,
+                    'attendance_source' => AttendanceRecord::SOURCE_IMMICH,
                     'marked_by_id' => null,
                     'marked_at' => now(),
                 ]);

@@ -7,6 +7,7 @@
         $participantRows = $this->participantRows();
         $presentPersonIds = $this->presentPersonIds();
         $recordCounts = $this->recordCounts();
+        $attendanceRecords = $this->attendanceRecords();
         $lordsTableLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE);
         $prayerMeetingLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING);
     @endphp
@@ -175,13 +176,24 @@
                                 <h3 class="text-lg font-bold text-gray-900 dark:text-white">
                                     Attendance Checklist
                                 </h3>
-
-                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    Checked means present. Unchecked means absent.
-                                </p>
                             </div>
 
                             <div class="flex gap-2">
+
+
+@if ($attendanceRecords->where('attendance_source', \App\Models\AttendanceRecord::SOURCE_IMMICH)->where('is_present', true)->where('immich_confirmed', false)->isNotEmpty())
+    <button
+        type="button"
+        wire:click="confirmAllImmichAttendance"
+        wire:confirm="Confirm all automatically detected Immich attendance for this session?"
+        wire:loading.attr="disabled"
+        class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
+    >
+        Confirm All Immich
+    </button>
+@endif
+
+
                                 <button
                                     type="button"
                                     onclick="document.querySelectorAll('.attendance-checkbox').forEach((box) => box.checked = true)"
@@ -229,6 +241,14 @@
                                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
                                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
                                                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Source
+</th>
+
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Review
+</th>
+
                                             </tr>
                                         </thead>
 
@@ -261,6 +281,50 @@
                                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
                                                         {{ $person?->churchProfile?->category ?: 'No category' }}
                                                     </td>
+
+@php
+    $record = $attendanceRecords->get($personId);
+@endphp
+
+<td class="px-4 py-3">
+    @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
+        <span class="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-800 dark:bg-violet-900 dark:text-violet-100">
+            Immich
+        </span>
+    @elseif ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_MANUAL)
+        <span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+            Manual
+        </span>
+    @else
+        <span class="text-xs text-gray-400">
+            —
+        </span>
+    @endif
+</td>
+
+<td class="px-4 py-3">
+    @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
+        @if ($record->immich_confirmed)
+            <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                Confirmed
+            </span>
+        @else
+            <button
+                type="button"
+                wire:click="confirmImmichAttendance({{ $personId }})"
+                wire:loading.attr="disabled"
+                class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
+            >
+                Confirm
+            </button>
+        @endif
+    @else
+        <span class="text-xs text-gray-400">
+            —
+        </span>
+    @endif
+</td>
+
                                                 </tr>
                                             @endforeach
                                         </tbody>

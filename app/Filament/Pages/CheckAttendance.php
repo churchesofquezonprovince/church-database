@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use Filament\Notifications\Notification;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -268,4 +269,93 @@ class CheckAttendance extends Page
     {
         return self::getUrl() . '?sheetId=' . $sheet->id . '&sessionId=' . $session->id;
     }
+
+public function attendanceRecords(): Collection
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    return AttendanceRecord::query()
+        ->with(['person', 'immichConfirmedBy'])
+        ->where('attendance_session_id', $session->id)
+        ->get()
+        ->keyBy('person_id');
+}
+
+public function confirmImmichAttendance(int $personId): void
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        Notification::make()
+            ->title('No attendance session selected')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    $record = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->where('person_id', $personId)
+        ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+        ->first();
+
+    if (! $record) {
+        Notification::make()
+            ->title('Immich attendance record not found')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    $record->update([
+        'immich_confirmed' => true,
+        'immich_confirmed_at' => now(),
+        'immich_confirmed_by_id' => auth()->id(),
+    ]);
+
+    Notification::make()
+        ->title('Immich attendance confirmed')
+        ->success()
+        ->send();
+}
+
+public function confirmAllImmichAttendance(): void
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        Notification::make()
+            ->title('No attendance session selected')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    $count = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+        ->where('is_present', true)
+        ->where('immich_confirmed', false)
+        ->update([
+            'immich_confirmed' => true,
+            'immich_confirmed_at' => now(),
+            'immich_confirmed_by_id' => auth()->id(),
+        ]);
+
+    Notification::make()
+        ->title('Immich attendance reviewed')
+        ->body("{$count} Immich attendance record(s) confirmed.")
+        ->success()
+        ->send();
+}
+
+
+
 }

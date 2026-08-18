@@ -22,6 +22,9 @@ class AttendanceRecord extends Model
         'prophesied',
         'is_present',
         'attendance_source',
+        'immich_confirmed',
+        'immich_confirmed_at',
+        'immich_confirmed_by_id',
         'remarks',
         'marked_by_id',
         'marked_at',
@@ -31,11 +34,18 @@ class AttendanceRecord extends Model
         'prophesied' => 'boolean',
         'is_present' => 'boolean',
         'marked_at' => 'datetime',
+        'immich_confirmed' => 'boolean',
+        'immich_confirmed_at' => 'datetime',
     ];
 
     public const SOURCE_MANUAL = 'manual';
     
     public const SOURCE_IMMICH = 'immich';
+
+public function immichConfirmedBy(): BelongsTo
+{
+    return $this->belongsTo(User::class, 'immich_confirmed_by_id');
+}
 
     public function session(): BelongsTo
     {
