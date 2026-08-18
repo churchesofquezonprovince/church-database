@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-
+use App\Services\ImmichPeopleThumbnailService;
 use App\Services\ImmichAttendanceSyncService;
 use App\Models\AttendanceSession;
 use App\Models\ImmichPersonMapping;
@@ -307,26 +307,27 @@ public function detectedPeople(): Collection
                 );
         }
 
-        return collect($people)
-            ->when(
-                filled($this->search),
-                function (Collection $people): Collection {
-                    $search = mb_strtolower(
-                        trim($this->search)
-                    );
+$people = app(ImmichPeopleThumbnailService::class)
+    ->syncPeople($people);
 
-                    return $people->filter(
-                        fn (array $person): bool =>
-                            str_contains(
-                                mb_strtolower(
-                                    trim($person['name'] ?? '')
-                                ),
-                                $search
-                            )
-                    );
-                }
-            )
-            ->values();
+return $people
+    ->when(
+        filled($this->search),
+        function (Collection $people): Collection {
+            $search = mb_strtolower(trim($this->search));
+
+            return $people->filter(
+                fn (array $person): bool =>
+                    str_contains(
+                        mb_strtolower(
+                            trim($person['name'] ?? '')
+                        ),
+                        $search
+                    )
+            );
+        }
+    )
+    ->values();
 
     } catch (\Throwable $e) {
         Log::warning(

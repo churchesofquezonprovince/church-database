@@ -5,6 +5,14 @@
         $selectedSession = $this->selectedSession();
         $people = $this->detectedPeople();
         $unmatchedPeople = $this->unmatchedPeople();
+
+        $matchedPeople = $people
+            ->filter(
+                fn (array $person): bool =>
+                    $this->mappingFor($person['id']) !== null
+            )
+            ->values();
+
         $churchPeople = $this->churchPeople();
     @endphp
 
@@ -208,15 +216,16 @@
     </div>
 
     <div class="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
-        <p class="text-xs font-bold uppercase tracking-wide text-green-600 dark:text-green-300">
-            Linked
-        </p>
+    <p class="text-xs font-bold uppercase tracking-wide text-green-600 dark:text-green-300">
+        Linked
+    </p>
 
-        <p class="mt-1 text-2xl font-bold text-green-700 dark:text-green-200">
-            {{ $people->count() - $unmatchedPeople->count() }}
-        </p>
-    </div>
+    <p class="mt-1 text-2xl font-bold text-green-700 dark:text-green-200">
+        {{ $people->count() - $unmatchedPeople->count() }}
+    </p>
+</div>
 
+@if ($this->linkingScope === 'sheet')
     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
         <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
             Needs Matching
@@ -226,6 +235,7 @@
             {{ $unmatchedPeople->count() }}
         </p>
     </div>
+@endif
 
 </div>
 
@@ -250,7 +260,7 @@
             </div>
 
 
-@if ($unmatchedPeople->isNotEmpty())
+@if ($this->linkingScope === 'sheet' && $unmatchedPeople->isNotEmpty())
 
     <div class="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-sm dark:border-amber-900 dark:bg-amber-950">
 
@@ -282,21 +292,19 @@
 
                         <div class="flex min-w-0 items-center gap-4">
 
-                            @if (! empty($immichPerson['thumbnailPath']))
-
-                                <img
-                                    src="{{ rtrim(config('services.immich.url'), '/') . '/api/people/' . $immichId . '/thumbnail' }}"
-                                    alt="{{ $displayName ?: 'Unnamed Immich Person' }}"
-                                    class="h-16 w-16 shrink-0 rounded-full object-cover"
-                                >
-
-                            @else
-
-                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-                                    {{ $displayName ? strtoupper(mb_substr($displayName, 0, 1)) : '?' }}
-                                </div>
-
-                            @endif
+@if (! empty($immichPerson['localThumbnailUrl']))
+    <img
+        src="{{ $immichPerson['localThumbnailUrl'] }}"
+        alt="{{ $displayName ?: 'Unnamed Immich Person' }}"
+        class="h-16 w-16 shrink-0 rounded-full object-cover"
+    >
+@else
+    <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+        {{ $displayName
+            ? strtoupper(mb_substr($displayName, 0, 1))
+            : '?' }}
+    </div>
+@endif
 
                             <div class="min-w-0">
 
@@ -365,13 +373,13 @@
                     </h3>
 
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Only people found in photographs for this Attendance Session's date are shown.
+                        Only people already linked to a Church Person are shown here.
                     </p>
                 </div>
 
                 <div class="divide-y divide-gray-200 dark:divide-gray-700">
 
-                    @forelse ($people as $immichPerson)
+                    @forelse ($matchedPeople as $immichPerson)
 
                         @php
                             $immichId = $immichPerson['id'];
@@ -386,20 +394,18 @@
                                 {{-- Immich person --}}
                                 <div class="flex min-w-0 items-center gap-4">
 
-                                    @if (! empty($immichPerson['thumbnailPath']))
-
+                                    @if (! empty($immichPerson['localThumbnailUrl']))
                                         <img
-                                            src="{{ rtrim(config('services.immich.url'), '/') . '/api/people/' . $immichId . '/thumbnail' }}"
+                                            src="{{ $immichPerson['localThumbnailUrl'] }}"
                                             alt="{{ $displayName ?: 'Unnamed Immich Person' }}"
                                             class="h-16 w-16 shrink-0 rounded-full object-cover"
                                         >
-
                                     @else
-
-                                        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-violet-100 text-lg font-bold text-violet-700 dark:bg-violet-900 dark:text-violet-200">
-                                            {{ $displayName ? strtoupper(mb_substr($displayName, 0, 1)) : '?' }}
+                                        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+                                            {{ $displayName
+                                                ? strtoupper(mb_substr($displayName, 0, 1))
+                                                : '?' }}
                                         </div>
-
                                     @endif
 
                                     <div class="min-w-0">
@@ -419,83 +425,44 @@
                                 {{-- Church mapping --}}
                                 <div class="w-full lg:max-w-xl">
 
-                                    @if ($mapping)
+                                    <div class="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
 
-                                        <div class="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
+                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
-                                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <p class="text-xs font-bold uppercase tracking-wide text-green-600 dark:text-green-300">
+                                                    Linked Church Person
+                                                </p>
 
-                                                <div>
-                                                    <p class="text-xs font-bold uppercase tracking-wide text-green-600 dark:text-green-300">
-                                                        Linked Church Person
-                                                    </p>
+                                                <p class="mt-1 break-words font-bold text-green-900 dark:text-green-100">
+                                                    {{ $mapping->person?->display_name ?? 'Unknown' }}
+                                                </p>
+                                            </div>
 
-                                                    <p class="mt-1 break-words font-bold text-green-900 dark:text-green-100">
-                                                        {{ $mapping->person?->display_name ?? 'Unknown' }}
-                                                    </p>
-                                                </div>
+                                            <div class="flex flex-wrap gap-2">
 
-<div class="flex flex-wrap gap-2">
-    <span class="w-fit rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">
-        Linked
-    </span>
+                                                <span class="w-fit rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white">
+                                                    Linked
+                                                </span>
 
-    <span class="w-fit rounded-full bg-violet-600 px-3 py-1 text-xs font-bold text-white">
-        Attendance Enabled
-    </span>
-</div>
+                                                <span class="w-fit rounded-full bg-violet-600 px-3 py-1 text-xs font-bold text-white">
+                                                    Attendance Enabled
+                                                </span>
 
                                             </div>
 
-                                            <button
-                                                type="button"
-                                                wire:click="unlinkPerson('{{ $immichId }}')"
-                                                wire:confirm="Unlink this Immich person from the Church Person?"
-                                                class="mt-3 w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:text-red-200"
-                                            >
-                                                Unlink
-                                            </button>
-
                                         </div>
 
-                                    @else
+                                        <button
+                                            type="button"
+                                            wire:click="unlinkPerson('{{ $immichId }}')"
+                                            wire:confirm="Unlink this Immich person from the Church Person?"
+                                            class="mt-3 w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:text-red-200"
+                                        >
+                                            Unlink
+                                        </button>
 
-                                        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
-
-                                            <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                                                Needs Matching
-                                            </p>
-
-<select
-    wire:model.live="selectedPeople.{{ $immichId }}"
-    class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-white"
->
-    <option value="">
-        Select Church Person...
-    </option>
-
-    @foreach ($churchPeople as $churchPerson)
-        <option value="{{ $churchPerson->id }}">
-            {{ $churchPerson->display_name }}
-            @if ($churchPerson->locality)
-                — {{ $churchPerson->locality }}
-            @endif
-        </option>
-    @endforeach
-</select>
-
-<button
-    type="button"
-    wire:click="linkPerson('{{ $immichId }}')"
-    wire:loading.attr="disabled"
-    class="mt-3 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
->
-    Link to Church Person
-</button>
-
-                                        </div>
-
-                                    @endif
+                                    </div>
 
                                 </div>
 
@@ -508,13 +475,13 @@
                         <div class="p-10 text-center">
 
                             <p class="font-bold text-gray-900 dark:text-white">
-                                No recognized people found for this session.
+                                No linked people found for this session.
                             </p>
 
                             <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                No people were detected in photographs from
-                                {{ $selectedSession->session_date->format('M d, Y') }}
-                                in the linked Immich album.
+                                No recognized people with an existing Church Person
+                                mapping were found for
+                                {{ $selectedSession->session_date->format('M d, Y') }}.
                             </p>
 
                         </div>
@@ -522,6 +489,7 @@
                     @endforelse
 
                 </div>
+
             </div>
 
         @endif
