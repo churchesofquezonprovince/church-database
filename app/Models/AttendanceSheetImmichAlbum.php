@@ -5,10 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class AttendanceSessionImmichAlbum extends Model
+class AttendanceSheetImmichAlbum extends Model
 {
     protected $fillable = [
-        'attendance_session_id',
+        'attendance_sheet_id',
         'immich_album_id',
         'immich_album_name',
         'enabled',
@@ -22,11 +22,11 @@ class AttendanceSessionImmichAlbum extends Model
         'last_synced_at' => 'datetime',
     ];
 
-    public function attendanceSession(): BelongsTo
+    public function attendanceSheet(): BelongsTo
     {
         return $this->belongsTo(
-            AttendanceSession::class,
-            'attendance_session_id',
+            AttendanceSheet::class,
+            'attendance_sheet_id',
         );
     }
 }

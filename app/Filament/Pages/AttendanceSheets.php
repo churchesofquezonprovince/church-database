@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSession;
@@ -109,32 +110,32 @@ class AttendanceSheets extends Page
             ->get();
     }
 
-    public function selectedSheet(): ?AttendanceSheet
-    {
-        $sheetId = request()->integer('sheetId');
+public function selectedSheet(): ?AttendanceSheet
+{
+    $sheetId = request()->integer('sheetId');
 
-        $query = AttendanceSheet::query()
-            ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
-            ->where('is_active', true)
-            ->withCount(['sessions', 'participants'])
-            ->with([
-                'sessions' => fn ($query) => $query
-                    ->with('immichAlbum')
-                    ->orderBy('session_date'),
-            ]);
+    $query = AttendanceSheet::query()
+        ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+        ->where('is_active', true)
+        ->withCount(['sessions', 'participants'])
+        ->with([
+            'immichAlbum',
+            'sessions' => fn ($query) => $query
+                ->orderBy('session_date'),
+        ]);
 
-        if ($sheetId) {
-            $selectedSheet = (clone $query)->find($sheetId);
+    if ($sheetId) {
+        $selectedSheet = (clone $query)->find($sheetId);
 
-            if ($selectedSheet) {
-                return $selectedSheet;
-            }
+        if ($selectedSheet) {
+            return $selectedSheet;
         }
-
-        return $query
-            ->latest()
-            ->first();
     }
+
+    return $query
+        ->latest()
+        ->first();
+}
 
     public function selectedSession(): ?AttendanceSession
     {
@@ -167,7 +168,7 @@ class AttendanceSheets extends Page
         ]);
     }
 
-    public function syncImmich(int $sessionId): void
+public function syncImmich(int $sessionId): void
 {
     $sheet = $this->selectedSheet();
 
@@ -175,12 +176,11 @@ class AttendanceSheets extends Page
         return;
     }
 
-    $session = $sheet->sessions
-        ->firstWhere('id', $sessionId);
+    $session = $sheet->sessions->firstWhere('id', $sessionId);
 
     if (! $session) {
         Notification::make()
-            ->title('Invalid session')
+            ->title('Invalid attendance session')
             ->danger()
             ->send();
 
@@ -192,11 +192,12 @@ class AttendanceSheets extends Page
             ->sync($session);
 
         Notification::make()
-            ->title('Immich synchronization completed')
+            ->title('Immich attendance synchronized')
             ->body(
                 'Photos: ' . $result['assets']
-                . ' · People detected: ' . $result['detections']
-                . ' · Matched: ' . $result['matched']
+                . ' · Detected: ' . $result['detections']
+                . ' · Added: ' . $result['matched']
+                . ' · Already present: ' . $result['already_present']
                 . ' · Unmatched: ' . count($result['unmatched'])
             )
             ->success()
@@ -206,6 +207,7 @@ class AttendanceSheets extends Page
             $this->sessionUrl($session),
             navigate: false,
         );
+
     } catch (\Throwable $e) {
         Log::error('Immich attendance synchronization failed.', [
             'attendance_session_id' => $session->id,
@@ -286,118 +288,109 @@ class AttendanceSheets extends Page
         }
     }
 
-    public function linkImmichAlbum(
-        int $sessionId,
-        string $albumId,
-    ): void {
-        $sheet = $this->selectedSheet();
+public function linkImmichAlbum(
+    int $sheetId,
+    string $albumId,
+): void {
+    $sheet = AttendanceSheet::query()
+        ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+        ->where('is_active', true)
+        ->find($sheetId);
 
-        if (! $sheet) {
-            return;
-        }
+    if (! $sheet) {
+        Notification::make()
+            ->title('Attendance Sheet not found')
+            ->danger()
+            ->send();
 
-        $session = $sheet->sessions
-            ->firstWhere('id', $sessionId);
-
-        if (! $session) {
-            Notification::make()
-                ->title('Invalid attendance session')
-                ->body('The selected session does not belong to this sheet.')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        if (blank($albumId)) {
-            Notification::make()
-                ->title('No Immich album selected')
-                ->body('Please select an Immich album first.')
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        try {
-            $album = app(ImmichApiService::class)
-                ->album($albumId);
-
-            AttendanceSessionImmichAlbum::updateOrCreate(
-                [
-                    'attendance_session_id' => $session->id,
-                ],
-                [
-                    'immich_album_id' => $album['id'],
-                    'immich_album_name' => $album['albumName'] ?? 'Unnamed album',
-                    'enabled' => true,
-                    'last_modified_asset_at' =>
-                        $album['lastModifiedAssetTimestamp'] ?? null,
-                ],
-            );
-
-            $this->immichAlbumId = '';
-
-            Notification::make()
-                ->title('Immich album linked')
-                ->body(
-                    ($album['albumName'] ?? 'Unnamed album')
-                    . ' is now linked to '
-                    . $session->session_date->format('M d, Y') . '.'
-                )
-                ->success()
-                ->send();
-
-            $this->redirect(
-                $this->sessionUrl($session),
-                navigate: false,
-            );
-        } catch (\Throwable $e) {
-            Log::error('Failed to link Immich album.', [
-                'attendance_session_id' => $session->id,
-                'immich_album_id' => $albumId,
-                'message' => $e->getMessage(),
-            ]);
-
-            Notification::make()
-                ->title('Could not link Immich album')
-                ->body($e->getMessage())
-                ->danger()
-                ->send();
-        }
+        return;
     }
 
-    public function unlinkImmichAlbum(int $sessionId): void
-    {
-        $sheet = $this->selectedSheet();
+    if (blank($albumId)) {
+        Notification::make()
+            ->title('No Immich album selected')
+            ->warning()
+            ->send();
 
-        if (! $sheet) {
-            return;
-        }
+        return;
+    }
 
-        $session = $sheet->sessions
-            ->firstWhere('id', $sessionId);
+    try {
+        $album = app(ImmichApiService::class)
+            ->album($albumId);
 
-        if (! $session) {
-            return;
-        }
-
-        AttendanceSessionImmichAlbum::query()
-            ->where('attendance_session_id', $session->id)
-            ->delete();
+        AttendanceSheetImmichAlbum::updateOrCreate(
+            [
+                'attendance_sheet_id' => $sheet->id,
+            ],
+            [
+                'immich_album_id' => $album['id'],
+                'immich_album_name' =>
+                    $album['albumName'] ?? 'Unnamed album',
+                'enabled' => true,
+                'last_modified_asset_at' =>
+                    $album['lastModifiedAssetTimestamp'] ?? null,
+            ],
+        );
 
         $this->immichAlbumId = '';
 
         Notification::make()
-            ->title('Immich album unlinked')
+            ->title('Immich album linked')
+            ->body(
+                ($album['albumName'] ?? 'Unnamed album')
+                . ' is now linked to '
+                . $sheet->title . '.'
+            )
             ->success()
             ->send();
 
         $this->redirect(
-            $this->sessionUrl($session),
+            $this->sheetUrl($sheet),
             navigate: false,
         );
+    } catch (\Throwable $e) {
+        Log::error('Failed to link Immich album.', [
+            'attendance_sheet_id' => $sheet->id,
+            'immich_album_id' => $albumId,
+            'message' => $e->getMessage(),
+        ]);
+
+        Notification::make()
+            ->title('Could not link Immich album')
+            ->body($e->getMessage())
+            ->danger()
+            ->send();
     }
+}
+
+public function unlinkImmichAlbum(int $sheetId): void
+{
+    $sheet = AttendanceSheet::query()
+        ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
+        ->where('is_active', true)
+        ->find($sheetId);
+
+    if (! $sheet) {
+        return;
+    }
+
+    AttendanceSheetImmichAlbum::query()
+        ->where('attendance_sheet_id', $sheet->id)
+        ->delete();
+
+    $this->immichAlbumId = '';
+
+    Notification::make()
+        ->title('Immich album unlinked')
+        ->success()
+        ->send();
+
+    $this->redirect(
+        $this->sheetUrl($sheet),
+        navigate: false,
+    );
+}
 
     public function sheetUrl(AttendanceSheet $sheet): string
     {

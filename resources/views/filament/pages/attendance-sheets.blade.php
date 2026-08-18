@@ -292,74 +292,44 @@
 
         <div class="p-5 sm:p-6">
 
-            @if ($selectedSession->immichAlbum)
+@if ($selectedSheet->immichAlbum)
 
-                <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+    <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
 
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
-                        <div class="min-w-0">
-                            <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                Linked Immich Album
-                            </p>
+            <div class="min-w-0">
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Linked Immich Album
+                </p>
 
-                            <p class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
-                                {{ $selectedSession->immichAlbum->immich_album_name }}
-                            </p>
+                <p class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                    {{ $selectedSheet->immichAlbum->immich_album_name }}
+                </p>
 
-                            <p class="mt-2 break-words text-xs text-gray-500 dark:text-gray-400">
-                                Album ID:
-                                {{ $selectedSession->immichAlbum->immich_album_id }}
-                            </p>
+                <p class="mt-2 break-all text-xs text-gray-500 dark:text-gray-400">
+                    {{ $selectedSheet->immichAlbum->immich_album_id }}
+                </p>
 
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Last sync:
-                                {{ optional($selectedSession->immichAlbum->last_synced_at)->format('M d, Y g:i A') ?? 'Never' }}
-                            </p>
-                        </div>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Last sync:
+                    {{ optional($selectedSheet->immichAlbum->last_synced_at)->format('M d, Y g:i A') ?? 'Never' }}
+                </p>
+            </div>
 
-                        <div class="flex flex-col gap-2 sm:flex-row">
+            <button
+                type="button"
+                wire:click="unlinkImmichAlbum({{ $selectedSheet->id }})"
+                wire:confirm="Unlink this Immich album from the entire attendance sheet?"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+            >
+                Unlink Album
+            </button>
 
-<button
-    type="button"
-    wire:click="syncImmich({{ $selectedSession->id }})"
-    wire:loading.attr="disabled"
-    wire:target="syncImmich"
-    class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
->
-    <span wire:loading.remove wire:target="syncImmich">
-        Sync Attendance
-    </span>
+        </div>
 
-    <span wire:loading wire:target="syncImmich">
-        Synchronizing...
-    </span>
-</button>
+    </div>
 
-                            <button
-                                type="button"
-                                wire:click="unlinkImmichAlbum({{ $selectedSession->id }})"
-                                wire:confirm="Unlink this Immich album from this attendance session?"
-                                class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-                            >
-                                Unlink
-                            </button>
-
-                        </div>
-                    </div>
-
-                    <div class="mt-4 rounded-xl border border-violet-100 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
-                        <p class="text-sm font-semibold text-violet-900 dark:text-violet-100">
-                            Phase 23A
-                        </p>
-
-                        <p class="mt-1 text-xs leading-5 text-violet-700 dark:text-violet-300">
-                            The album is linked successfully. Synchronization will be enabled in the next Phase 23 step.
-                            No attendance records are being changed yet.
-                        </p>
-                    </div>
-
-                </div>
 
             @else
 

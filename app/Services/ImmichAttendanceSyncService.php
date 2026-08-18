@@ -16,159 +16,307 @@ class ImmichAttendanceSyncService
     ) {
     }
 
-    public function sync(AttendanceSession $session): array
-    {
-        $album = $session->immichAlbum;
+public function sync(AttendanceSession $session): array
+{
+    $album = $session->sheet?->immichAlbum;
 
-        if (! $album) {
-            throw new RuntimeException(
-                'No Immich album is linked to this attendance session.'
-            );
+    if (! $album) {
+        throw new RuntimeException(
+            'No Immich album is linked to the Attendance Sheet.'
+        );
+    }
+
+    if (! $album->enabled) {
+        throw new RuntimeException(
+            'Immich synchronization is disabled for this Attendance Sheet.'
+        );
+    }
+
+    $response = $this->scanSessionAssets($session);
+
+    $assetCount = 0;
+
+    /*
+     * Unique Immich people detected across all photos.
+     *
+     * Keyed by Immich UUID so a person appearing in 20 photos
+     * is still counted as ONE person.
+     */
+    $detectedPeople = [];
+
+    $detectionCount = 0;
+
+    $mappedPeople = [];
+    $alreadyPresentPeople = [];
+    $createdPeople = [];
+    
+    $createdCount = 0;
+    $alreadyPresentCount = 0;
+
+    /*
+     * Unmatched people, also keyed by Immich UUID.
+     */
+    $unmatched = [];
+
+    foreach ($response['assets'] as $asset) {
+        $assetId = $asset['id'] ?? null;
+
+        if (! $assetId) {
+            continue;
         }
 
-        if (! $album->enabled) {
-            throw new RuntimeException(
-                'Immich synchronization is disabled for this session.'
-            );
-        }
+        $assetCount++;
 
-        $assetCount = 0;
-        $detectionCount = 0;
-        $matchedCount = 0;
-        $unmatched = [];
+        foreach (($asset['people'] ?? []) as $immichPerson) {
+            if (! is_array($immichPerson)) {
+                continue;
+            }
+
+            $immichPersonId = $immichPerson['id'] ?? null;
+
+            if (! $immichPersonId) {
+                continue;
+            }
+
+            $detectionCount++;
+
+            /*
+             * Record the unique Immich person.
+             */
+            $detectedPeople[$immichPersonId] = [
+                'id' => $immichPersonId,
+                'name' => trim(
+                    (string) ($immichPerson['name'] ?? '')
+                ),
+                'thumbnailPath' =>
+                    $immichPerson['thumbnailPath'] ?? null,
+            ];
+
+            /*
+             * Permanent Immich UUID → Church Person mapping.
+             */
+            $mapping = ImmichPersonMapping::query()
+                ->where('immich_person_id', $immichPersonId)
+                ->first();
+
+            $churchPersonId = $mapping?->person_id;
+
+            /*
+             * Preserve every asset/person detection for auditing.
+             */
+            AttendanceImmichAssetDetection::updateOrCreate(
+                [
+                    'attendance_session_id' => $session->id,
+                    'immich_asset_id' => $assetId,
+                    'immich_person_id' => $immichPersonId,
+                ],
+                [
+                    'person_id' => $churchPersonId,
+                    'asset_taken_at' =>
+                        $asset['localDateTime'] ?? null,
+                    'detected_at' => now(),
+                ],
+            );
+
+            /*
+             * No permanent mapping yet.
+             */
+            if (! $churchPersonId) {
+                $unmatched[$immichPersonId] = [
+                    'id' => $immichPersonId,
+                    'name' => trim(
+                        (string) ($immichPerson['name'] ?? '')
+                    ),
+                    'thumbnailPath' =>
+                        $immichPerson['thumbnailPath'] ?? null,
+                ];
+
+                continue;
+            }
+
+            /*
+             * Mapped person → attendance.
+             */
+
+$mappedPeople[$churchPersonId] = true;
+
+$result = $this->markPresent(
+    session: $session,
+    personId: $churchPersonId,
+);
+
+if ($result === 'created') {
+    $createdPeople[$churchPersonId] = true;
+} elseif ($result === 'already_present') {
+    $alreadyPresentPeople[$churchPersonId] = true;
+}        
+
+
+
+        }
+    }
+
+    $album->update([
+        'last_modified_asset_at' => now(),
+        'last_synced_at' => now(),
+    ]);
+
+    return [
+        'assets' => $assetCount,
+
+        /*
+         * Total photo/person detections.
+         * Useful for diagnostics but not the primary attendance count.
+         */
+        'detections' => $detectionCount,
+
+        /*
+         * Actual unique people seen in the day's photos.
+         */
+        'unique_people' => count($detectedPeople),
+
+        /*
+         * Number of unique detected people having a Church mapping.
+         */
+        'mapped_people' =>
+            count($detectedPeople) - count($unmatched),
+
+'matched' => count($createdPeople),
+'already_present' => count($alreadyPresentPeople),
+
+        'unmatched' => array_values($unmatched),
+    ];
+}
+
+    /**
+     * Scan all assets belonging to the linked album that fall on
+     * the Attendance Session's date.
+     *
+     * We deliberately rescan the day's assets on every manual sync.
+     * This keeps the behavior correct when Immich recognizes a face
+     * after the original photograph was uploaded.
+     */
+    protected function scanSessionAssets(
+        AttendanceSession $session,
+    ): array {
+        $album = $session->sheet?->immichAlbum;
+
+        $allAssets = [];
 
         $page = 1;
 
         do {
-            $response = $this->immich->searchAlbumAssets(
+            $response = $this->immich->searchAlbumAssetsForDate(
                 albumId: $album->immich_album_id,
+                date: $session->session_date->format('Y-m-d'),
                 page: $page,
                 size: 1000,
-                updatedAfter: $album->last_synced_at?->toIso8601String(),
             );
 
-            $items = data_get($response, 'assets.items', []);
+            $items = data_get(
+                $response,
+                'assets.items',
+                [],
+            );
 
             foreach ($items as $asset) {
-                $assetId = $asset['id'] ?? null;
-
-                if (! $assetId) {
-                    continue;
-                }
-
-                $assetCount++;
-
-                foreach (($asset['people'] ?? []) as $immichPerson) {
-                    $immichPersonId = $immichPerson['id'] ?? null;
-                    $immichName = $immichPerson['name'] ?? null;
-
-                    if (! $immichPersonId) {
-                        continue;
-                    }
-
-                    $detectionCount++;
-
-                    $mapping = ImmichPersonMapping::query()
-                        ->with('person')
-                        ->where('immich_person_id', $immichPersonId)
-                        ->first();
-
-                    $churchPersonId = $mapping?->person_id;
-
-                    AttendanceImmichAssetDetection::updateOrCreate(
-                        [
-                            'attendance_session_id' => $session->id,
-                            'immich_asset_id' => $assetId,
-                            'immich_person_id' => $immichPersonId,
-                        ],
-                        [
-                            'person_id' => $churchPersonId,
-                            'asset_taken_at' => $asset['localDateTime'] ?? null,
-                            'detected_at' => now(),
-                        ],
-                    );
-
-                    if (! $churchPersonId) {
-                        $unmatched[$immichPersonId] = [
-                            'id' => $immichPersonId,
-                            'name' => $immichName,
-                        ];
-
-                        continue;
-                    }
-
-                    $matchedCount++;
-
-                    $this->markPresent(
-                        session: $session,
-                        personId: $churchPersonId,
-                    );
+                if (
+                    is_array($asset)
+                    && filled($asset['id'] ?? null)
+                ) {
+                    $allAssets[$asset['id']] = $asset;
                 }
             }
 
-            $nextPage = data_get($response, 'assets.nextPage');
+            $nextPage = data_get(
+                $response,
+                'assets.nextPage',
+            );
 
             if (! $nextPage) {
                 break;
             }
 
             $page = (int) $nextPage;
-        } while (true);
-
-        $album->update([
-            'last_modified_asset_at' => now(),
-            'last_synced_at' => now(),
-        ]);
+        } while ($page <= 100);
 
         return [
-            'assets' => $assetCount,
-            'detections' => $detectionCount,
-            'matched' => $matchedCount,
-            'unmatched' => array_values($unmatched),
+            'assets' => array_values($allAssets),
         ];
     }
 
+    /**
+     * Mark a mapped Church Person present.
+     *
+     * Returns:
+     *
+     * created          = new Immich attendance record
+     * already_present  = an existing record was already present
+     *
+     * Manual records are NEVER overwritten.
+     */
     protected function markPresent(
         AttendanceSession $session,
         int $personId,
-    ): void {
-        DB::transaction(function () use ($session, $personId): void {
-            $record = AttendanceRecord::query()
-                ->where('attendance_session_id', $session->id)
-                ->where('person_id', $personId)
-                ->first();
+    ): string {
+        return DB::transaction(
+            function () use ($session, $personId): string {
+                $record = AttendanceRecord::query()
+                    ->where('attendance_session_id', $session->id)
+                    ->where('person_id', $personId)
+                    ->first();
 
-            if (! $record) {
-                AttendanceRecord::create([
-                    'attendance_session_id' => $session->id,
-                    'person_id' => $personId,
+                /*
+                 * No attendance record yet.
+                 */
+                if (! $record) {
+                    AttendanceRecord::create([
+                        'attendance_session_id' => $session->id,
+                        'person_id' => $personId,
+                        'status' => AttendanceRecord::STATUS_PRESENT,
+                        'is_present' => true,
+                        'attendance_source' =>
+                            AttendanceRecord::SOURCE_IMMICH,
+                        'marked_by_id' => null,
+                        'marked_at' => now(),
+                    ]);
+
+                    return 'created';
+                }
+
+                /*
+                 * Manual attendance always wins.
+                 *
+                 * Do not change:
+                 *   status
+                 *   is_present
+                 *   attendance_source
+                 *   marked_by_id
+                 *   marked_at
+                 */
+                if (
+                    $record->attendance_source
+                    === AttendanceRecord::SOURCE_MANUAL
+                ) {
+                    return 'already_present';
+                }
+
+                /*
+                 * Existing Immich record.
+                 *
+                 * Keep it present and simply refresh its timestamp.
+                 */
+                $record->update([
                     'status' => AttendanceRecord::STATUS_PRESENT,
                     'is_present' => true,
-                    'attendance_source' => AttendanceRecord::SOURCE_IMMICH,
+                    'attendance_source' =>
+                        AttendanceRecord::SOURCE_IMMICH,
                     'marked_by_id' => null,
                     'marked_at' => now(),
                 ]);
 
-                return;
-            }
-
-            /*
-             * Manual attendance always wins.
-             *
-             * An Immich sync must never overwrite a manually
-             * entered attendance decision.
-             */
-            if ($record->attendance_source === AttendanceRecord::SOURCE_MANUAL) {
-                return;
-            }
-
-            $record->update([
-                'status' => AttendanceRecord::STATUS_PRESENT,
-                'is_present' => true,
-                'attendance_source' => AttendanceRecord::SOURCE_IMMICH,
-                'marked_by_id' => null,
-                'marked_at' => now(),
-            ]);
-        });
+                return 'already_present';
+            },
+        );
     }
 }

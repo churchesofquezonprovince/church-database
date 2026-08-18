@@ -6,6 +6,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\AttendanceSheetImmichAlbum;
 
 class AttendanceSheet extends Model
 {
@@ -35,6 +37,14 @@ class AttendanceSheet extends Model
         'is_one_time' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+public function immichAlbum(): HasOne
+{
+    return $this->hasOne(
+        AttendanceSheetImmichAlbum::class,
+        'attendance_sheet_id',
+    );
+}
 
     public function creator(): BelongsTo
     {

@@ -23,14 +23,6 @@ class AttendanceSession extends Model
     ];
 
 
-public function immichAlbum(): HasOne
-{
-    return $this->hasOne(
-        AttendanceSessionImmichAlbum::class,
-        'attendance_session_id',
-    );
-}
-
 public function immichDetections(): HasMany
 {
     return $this->hasMany(
