@@ -84,6 +84,151 @@
 
 </div>
 
+
+{{-- Information --}}
+<div class="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm dark:border-violet-900 dark:bg-violet-950">
+
+    @if ($this->linkingScope === 'sheet')
+
+        @php
+            $sheet = $selectedSession?->sheet;
+            $sheetSessions = $sessions
+                ->filter(fn ($session) => $session->attendance_sheet_id === $sheet?->id)
+                ->sortBy('session_date')
+                ->values();
+        @endphp
+
+        <div class="grid gap-4 md:grid-cols-3">
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                    Attendance Sheet
+                </p>
+
+                <p class="mt-1 font-bold text-gray-900 dark:text-white">
+                    {{ $sheet?->title ?? 'Attendance' }}
+                </p>
+
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                    {{ $sheetSessions->count() }} attendance
+                    {{ \Illuminate\Support\Str::plural('session', $sheetSessions->count()) }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                    Immich Album
+                </p>
+
+                <p class="mt-1 font-bold text-gray-900 dark:text-white">
+                    {{ $sheet?->immichAlbum?->immich_album_name ?? 'Not linked' }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    People Found in Entire Album
+                </p>
+
+                <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
+                    {{ $people->count() }}
+                </p>
+            </div>
+
+        </div>
+
+        <div class="mt-4 rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+
+            <p class="text-sm font-bold text-gray-900 dark:text-white">
+                Attendance Sessions Covered
+            </p>
+
+            <div class="mt-3 flex flex-wrap gap-2">
+
+                @forelse ($sheetSessions as $session)
+
+                    <span class="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800 dark:bg-violet-900 dark:text-violet-200">
+                        {{ $session->session_date->format('M d, Y') }}
+                    </span>
+
+                @empty
+
+                    <span class="text-sm text-gray-500 dark:text-gray-400">
+                        No attendance sessions found.
+                    </span>
+
+                @endforelse
+
+            </div>
+
+        </div>
+
+    @else
+
+        <div class="grid gap-4 md:grid-cols-3">
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                    Attendance Session
+                </p>
+
+                <p class="mt-1 font-bold text-gray-900 dark:text-white">
+                    {{ $selectedSession->sheet?->title ?? 'Attendance' }}
+                </p>
+
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    {{ $selectedSession->session_date->format('M d, Y') }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                    Immich Album
+                </p>
+
+                <p class="mt-1 font-bold text-gray-900 dark:text-white">
+                    {{ $selectedSession->sheet?->immichAlbum?->immich_album_name ?? 'Not linked' }}
+                </p>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    People Found on Session Date
+                </p>
+
+                <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
+                    {{ $people->count() }}
+                </p>
+            </div>
+
+        </div>
+
+        <div class="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-800 dark:border-violet-800 dark:bg-gray-950 dark:text-violet-200">
+            Only photographs from
+            <strong>{{ $selectedSession->session_date->format('F d, Y') }}</strong>
+            in this linked album are being examined.
+        </div>
+
+        <button
+            type="button"
+            wire:click="syncImmich"
+            wire:loading.attr="disabled"
+            wire:target="syncImmich"
+            class="rounded-xl border-2 border-violet-700 bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:border-violet-800 hover:bg-violet-500 disabled:opacity-50"
+        >
+            <span wire:loading.remove wire:target="syncImmich">
+                Sync Attendance
+            </span>
+
+            <span wire:loading wire:target="syncImmich">
+                Synchronizing...
+            </span>
+        </button>
+
+    @endif
+
+</div>
+
         {{-- Session selector --}}
 @if ($sessions->isNotEmpty())
 
@@ -114,6 +259,7 @@
         </div>
     @endif
 
+  
 @else
 
     <div class="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -125,83 +271,7 @@
 
         @if ($selectedSession)
 
-            {{-- Session information --}}
-            <div class="rounded-2xl border border-violet-200 bg-violet-50 p-5 shadow-sm dark:border-violet-900 dark:bg-violet-950">
-
-                <div class="grid gap-4 md:grid-cols-3">
-
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                            Attendance Session
-                        </p>
-
-                        <p class="mt-1 font-bold text-gray-900 dark:text-white">
-                            {{ $selectedSession->sheet?->title ?? 'Attendance' }}
-                        </p>
-
-                        <p class="text-sm text-gray-600 dark:text-gray-300">
-                            {{ $selectedSession->session_date->format('M d, Y') }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                            Immich Album
-                        </p>
-
-                        <p class="mt-1 font-bold text-gray-900 dark:text-white">
-                            {{ $selectedSession->sheet?->immichAlbum?->immich_album_name ?? 'Not linked' }}
-                        </p>
-                    </div>
-
-                    <div>
-<p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-    {{ $this->linkingScope === 'sheet'
-        ? 'People Found in Entire Album'
-        : 'People Found on Session Date' }}
-</p>
-
-<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-    @if ($this->linkingScope === 'sheet')
-        All unique Immich people recognized anywhere in the linked album.
-        Linking here applies permanently to future attendance synchronization
-        for this sheet.
-    @else
-        Only people recognized in photographs from
-        {{ $selectedSession?->session_date?->format('F d, Y') }}.
-    @endif
-</p>
-
-                        <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
-                            {{ $people->count() }}
-                        </p>
-                    </div>
-
-                </div>
-
-                <div class="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-800 dark:border-violet-800 dark:bg-gray-950 dark:text-violet-200">
-                    Only photographs from
-                    <strong>{{ $selectedSession->session_date->format('F d, Y') }}</strong>
-                    in this linked album are being examined.
-                </div>
-
-<button
-    type="button"
-    wire:click="syncImmich"
-    wire:loading.attr="disabled"
-    wire:target="syncImmich"
-    class="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
->
-    <span wire:loading.remove wire:target="syncImmich">
-        Sync Attendance
-    </span>
-
-    <span wire:loading wire:target="syncImmich">
-        Synchronizing...
-    </span>
-</button>
-
-            </div>
+        {{-- Stats --}}
 
 <div class="mt-4 grid gap-3 sm:grid-cols-3">
 
