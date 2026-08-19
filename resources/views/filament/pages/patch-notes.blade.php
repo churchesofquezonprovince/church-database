@@ -1,10 +1,24 @@
 <x-filament-panels::page>
     @php
         $patchNotesMajorVersion = 1;
-        $patchNotesCurrentPhase = 21;
 
         $patchNotes = $this->patchNotes();
         $groupedPatchNotes = $this->groupedPatchNotes();
+
+        $patchNotesCurrentPhase = $patchNotes
+            ->map(function (array $note): ?int {
+                preg_match(
+                    '/\bPhase\s+(\d+)/i',
+                    (string) ($note['tag'] ?? ''),
+                    $matches,
+                );
+
+                return isset($matches[1])
+                    ? (int) $matches[1]
+                    : null;
+            })
+            ->filter()
+            ->max() ?? 0;
     @endphp
 
     <div class="space-y-6">
@@ -50,7 +64,7 @@
         @else
             <div class="grid gap-4 md:grid-cols-3">
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Total Updates and Version</p>
+                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Version, Phase, and Total Updates</p>
                     <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">{{ $patchNotesMajorVersion . '.' . $patchNotesCurrentPhase . '.' . ($patchNotes->count()) }}</p>
                 </div>
 
