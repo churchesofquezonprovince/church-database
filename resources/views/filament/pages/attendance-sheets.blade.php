@@ -88,19 +88,6 @@
     @endphp
 
     <div class="space-y-6">
-        <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
-            <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Attendance Module
-            </p>
-
-            <h2 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                Attendance Sheets
-            </h2>
-
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Manage attendance sheets and add participants. Attendance checking will be added in the next phase.
-            </p>
-        </div>
 
         @if (session('attendance_participants_saved'))
             <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
@@ -230,12 +217,15 @@
                             </div>
 
                             <div class="flex flex-wrap gap-2">
-                                <a
-                                    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?sheetId=' . $selectedSheet->id }}"
-                                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                                >
-                                    Check Attendance
-                                </a>
+<a
+    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?' . http_build_query([
+        'sheetId' => $selectedSheet->id,
+        'sessionId' => $this->selectedSession()?->id,
+    ]) }}"
+    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+>
+    Check Attendance
+</a>
 
                                 <span class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white">
                                     {{ $selectedSheet->sessions_count }} session(s)
