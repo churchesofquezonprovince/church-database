@@ -16,6 +16,13 @@ class CheckAttendance extends Page
 {
     protected string $view = 'filament.pages.check-attendance';
 
+public ?int $selectedSessionId = null;
+
+public function mount(): void
+{
+    $this->selectedSessionId = request()->integer('sessionId') ?: null;
+}
+
     public function permanentMeetingLocalities(string $sheetType): Collection
     {
         $sheets = AttendanceSheet::query()
@@ -165,57 +172,91 @@ class CheckAttendance extends Page
             ->get();
     }
 
-    public function selectedSession(): ?AttendanceSession
-    {
-        $sheet = $this->selectedSheet();
+public function selectedSession(): ?AttendanceSession
+{
+    $sheet = $this->selectedSheet();
 
-        if (! $sheet) {
-            return null;
-        }
-
-        $sessionId = request()->integer('sessionId');
-
-        $query = AttendanceSession::query()
-            ->where('attendance_sheet_id', $sheet->id);
-
-        if ($sessionId) {
-            return $query->find($sessionId);
-        }
-
-        return $query
-            ->orderByRaw('CASE WHEN session_date >= CURDATE() THEN 0 ELSE 1 END')
-            ->orderBy('session_date')
-            ->first();
+    if (! $sheet) {
+        return null;
     }
 
-    public function participantRows(): Collection
-    {
-        $session = $this->selectedSession();
+    $query = AttendanceSession::query()
+        ->where('attendance_sheet_id', $sheet->id);
 
-        if (! $session) {
-            return collect();
-        }
-
-        $sessionDate = $session->session_date->format('Y-m-d');
-
-        return AttendanceParticipant::query()
-            ->with(['person.churchProfile'])
-            ->where('attendance_sheet_id', $session->attendance_sheet_id)
-            ->where('is_active', true)
-            ->where(function ($query) use ($sessionDate): void {
-                $query->whereNull('starts_on')
-                    ->orWhere('starts_on', '<=', $sessionDate);
-            })
-            ->where(function ($query) use ($sessionDate): void {
-                $query->whereNull('ends_on')
-                    ->orWhere('ends_on', '>=', $sessionDate);
-            })
-            ->get()
-            ->sortBy(fn (AttendanceParticipant $participant): string => $participant->person?->display_name ?? '')
-            ->values();
+    if ($this->selectedSessionId) {
+        return $query->find($this->selectedSessionId);
     }
 
-    public function presentPersonIds(): array
+    return $query
+        ->orderByRaw('CASE WHEN session_date >= CURDATE() THEN 0 ELSE 1 END')
+        ->orderBy('session_date')
+        ->first();
+}
+
+
+public function participantRows(): Collection
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    $sessionDate = $session->session_date->format('Y-m-d');
+
+    $participants = AttendanceParticipant::query()
+        ->with(['person.churchProfile'])
+        ->where('attendance_sheet_id', $session->attendance_sheet_id)
+        ->where('is_active', true)
+        ->where(function ($query) use ($sessionDate): void {
+            $query->whereNull('starts_on')
+                ->orWhere('starts_on', '<=', $sessionDate);
+        })
+        ->where(function ($query) use ($sessionDate): void {
+            $query->whereNull('ends_on')
+                ->orWhere('ends_on', '>=', $sessionDate);
+        })
+        ->get();
+
+    $recordPersonIds = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->pluck('person_id');
+
+    $recordPeople = Person::query()
+        ->with('churchProfile')
+        ->whereIn('id', $recordPersonIds)
+        ->get();
+
+    $rows = $participants->keyBy(
+        fn (AttendanceParticipant $participant): int =>
+            (int) $participant->person_id
+    );
+
+    foreach ($recordPeople as $person) {
+        $personId = (int) $person->id;
+
+        if ($rows->has($personId)) {
+            continue;
+        }
+
+        $participant = new AttendanceParticipant([
+            'person_id' => $personId,
+        ]);
+
+        $participant->setRelation('person', $person);
+
+        $rows->put($personId, $participant);
+    }
+
+    return $rows
+        ->sortBy(
+            fn (AttendanceParticipant $participant): string =>
+                $participant->person?->display_name ?? ''
+        )
+        ->values();
+}
+
+public function presentPersonIds(): array
     {
         $session = $this->selectedSession();
 
@@ -285,6 +326,26 @@ public function attendanceRecords(): Collection
         ->keyBy('person_id');
 }
 
+public function immichConfirmationCounts(): array
+{
+    $records = $this->attendanceRecords()
+        ->filter(
+            fn (AttendanceRecord $record): bool =>
+                $record->attendance_source === AttendanceRecord::SOURCE_IMMICH
+                && $record->is_present
+        );
+
+    return [
+        'detected' => $records->count(),
+        'pending' => $records
+            ->where('immich_confirmed', false)
+            ->count(),
+        'confirmed' => $records
+            ->where('immich_confirmed', true)
+            ->count(),
+    ];
+}
+
 public function confirmImmichAttendance(int $personId): void
 {
     $session = $this->selectedSession();
@@ -298,11 +359,13 @@ public function confirmImmichAttendance(int $personId): void
         return;
     }
 
-    $record = AttendanceRecord::query()
-        ->where('attendance_session_id', $session->id)
-        ->where('person_id', $personId)
-        ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
-        ->first();
+$record = AttendanceRecord::query()
+    ->where('attendance_session_id', $session->id)
+    ->where('person_id', $personId)
+    ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+    ->where('is_present', true)
+    ->where('immich_confirmed', false)
+    ->first();
 
     if (! $record) {
         Notification::make()

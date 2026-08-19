@@ -8,6 +8,7 @@
         $presentPersonIds = $this->presentPersonIds();
         $recordCounts = $this->recordCounts();
         $attendanceRecords = $this->attendanceRecords();
+        $immichConfirmationCounts = $this->immichConfirmationCounts();
         $lordsTableLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE);
         $prayerMeetingLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING);
     @endphp
@@ -170,6 +171,43 @@
                         </div>
                     </div>
 
+
+
+@if ($immichConfirmationCounts['detected'] > 0)
+    <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm font-bold text-violet-900 dark:text-violet-100">
+                    Immich Attendance Review
+                </p>
+
+                <p class="mt-1 text-xs text-violet-700 dark:text-violet-200">
+                    Immich has automatically marked
+                    {{ $immichConfirmationCounts['detected'] }}
+                    attendance record(s) as present.
+                    Review and confirm them below.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 text-xs font-bold">
+                <span class="rounded-full bg-violet-600 px-3 py-1 text-white">
+                    Detected: {{ $immichConfirmationCounts['detected'] }}
+                </span>
+
+                <span class="rounded-full bg-amber-500 px-3 py-1 text-white">
+                    Pending: {{ $immichConfirmationCounts['pending'] }}
+                </span>
+
+                <span class="rounded-full bg-emerald-600 px-3 py-1 text-white">
+                    Confirmed: {{ $immichConfirmationCounts['confirmed'] }}
+                </span>
+            </div>
+        </div>
+    </div>
+@endif
+
+
+
                     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -185,11 +223,11 @@
     <button
         type="button"
         wire:click="confirmAllImmichAttendance"
-        wire:confirm="Confirm all automatically detected Immich attendance for this session?"
+        wire:confirm="Confirm all pending Immich attendance records for this session? This records that an administrator reviewed them."
         wire:loading.attr="disabled"
         class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
     >
-        Confirm All Immich
+        Confirm All Pending Immich
     </button>
 @endif
 
@@ -304,25 +342,44 @@
 
 <td class="px-4 py-3">
     @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
-        @if ($record->immich_confirmed)
-            <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
-                Confirmed
-            </span>
-        @else
-            <button
-                type="button"
-                wire:click="confirmImmichAttendance({{ $personId }})"
-                wire:loading.attr="disabled"
-                class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
-            >
-                Confirm
-            </button>
-        @endif
-    @else
-        <span class="text-xs text-gray-400">
-            —
+
+    @if ($record->immich_confirmed)
+    <div class="space-y-1">
+        <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+            Confirmed
         </span>
-    @endif
+
+        @if ($record->immichConfirmedBy)
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                by {{ $record->immichConfirmedBy->name }}
+            </p>
+        @endif
+
+        @if ($record->immich_confirmed_at)
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+                {{ $record->immich_confirmed_at->format('M d, Y · g:i A') }}
+            </p>
+        @endif
+    </div>
+@else
+    <div class="space-y-2">
+        <span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100">
+            Pending Review
+        </span>
+
+        <button
+            type="button"
+            wire:click="confirmImmichAttendance({{ $personId }})"
+            wire:loading.attr="disabled"
+            wire:target="confirmImmichAttendance({{ $personId }})"
+            class="block rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
+        >
+            Confirm
+        </button>
+    </div>
+@endif
+
+@endif
 </td>
 
                                                 </tr>
