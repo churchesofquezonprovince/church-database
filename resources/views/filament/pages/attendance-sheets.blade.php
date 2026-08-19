@@ -111,11 +111,27 @@
             </div>
         @endif
 
-        @if (session('attendance_participant_removed'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                <p class="font-bold">Participant removed from the sheet.</p>
-            </div>
+@if (session('attendance_participant_removed'))
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <p class="font-bold">
+            Participant removed from the attendance sheet.
+        </p>
+
+        @if (session('attendance_records_deleted', 0) > 0)
+            <p class="mt-1 text-sm">
+                Removed {{ session('attendance_records_deleted') }}
+                related attendance record(s).
+            </p>
         @endif
+
+        @if (session('immich_detections_deleted', 0) > 0)
+            <p class="mt-1 text-sm">
+                Removed {{ session('immich_detections_deleted') }}
+                related Immich detection record(s).
+            </p>
+        @endif
+    </div>
+@endif
 
         @if ($errors->any())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
@@ -777,6 +793,7 @@
                             </table>
                         </div>
                     </div>
+
 
                 </div>
             </div>

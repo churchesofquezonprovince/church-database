@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceImmichAssetDetection;
+use App\Models\AttendanceRecord;
+use Illuminate\Support\Facades\DB;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
@@ -60,29 +63,72 @@ class AttendanceSheetParticipantController extends Controller
     }
 
     public function destroy(AttendanceSheet $sheet, AttendanceParticipant $participant): RedirectResponse
-    {
-        abort_unless(auth()->user()?->canManageRecords(), 403);
+{
+    abort_unless(auth()->user()?->canManageRecords(), 403);
 
-        abort_unless((int) $participant->attendance_sheet_id === (int) $sheet->id, 404);
+    abort_unless(
+        (int) $participant->attendance_sheet_id === (int) $sheet->id,
+        404,
+    );
 
-        $oldValues = [
-            'sheet_id' => $sheet->id,
-            'sheet_title' => $sheet->title,
-            'participant_id' => $participant->id,
-            'person_id' => $participant->person_id,
-            'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
-            'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
-        ];
+    $oldValues = [
+        'sheet_id' => $sheet->id,
+        'sheet_title' => $sheet->title,
+        'participant_id' => $participant->id,
+        'person_id' => $participant->person_id,
+        'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
+        'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
+    ];
 
-        $participant->delete();
+    [$attendanceRecordCount, $immichDetectionCount] = DB::transaction(
+        function () use ($sheet, $participant): array {
+            $sessionIds = \App\Models\AttendanceSession::query()
+                ->where('attendance_sheet_id', $sheet->id)
+                ->pluck('id');
 
-        ActivityLogger::log(
-            action: 'attendance_sheet.participant.removed',
-            subject: $sheet,
-            description: 'Removed participant from attendance sheet.',
-            oldValues: $oldValues,
-        );
+            $attendanceRecordCount = AttendanceRecord::query()
+                ->whereIn('attendance_session_id', $sessionIds)
+                ->where('person_id', $participant->person_id)
+                ->count();
 
-        return back()->with('attendance_participant_removed', true);
-    }
+            AttendanceRecord::query()
+                ->whereIn('attendance_session_id', $sessionIds)
+                ->where('person_id', $participant->person_id)
+                ->delete();
+
+            $immichDetectionCount = AttendanceImmichAssetDetection::query()
+                ->whereIn('attendance_session_id', $sessionIds)
+                ->where('person_id', $participant->person_id)
+                ->count();
+
+            AttendanceImmichAssetDetection::query()
+                ->whereIn('attendance_session_id', $sessionIds)
+                ->where('person_id', $participant->person_id)
+                ->delete();
+
+            $participant->delete();
+
+            return [
+                $attendanceRecordCount,
+                $immichDetectionCount,
+            ];
+        },
+    );
+
+    ActivityLogger::log(
+        action: 'attendance_sheet.participant.removed',
+        subject: $sheet,
+        description: 'Removed participant and related attendance records from attendance sheet.',
+        oldValues: $oldValues + [
+            'attendance_records_deleted' => $attendanceRecordCount,
+            'immich_detections_deleted' => $immichDetectionCount,
+        ],
+    );
+
+    return back()
+        ->with('attendance_participant_removed', true)
+        ->with('attendance_records_deleted', $attendanceRecordCount)
+        ->with('immich_detections_deleted', $immichDetectionCount);
+}
+
 }
