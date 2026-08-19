@@ -231,12 +231,16 @@
                             </div>
                         </div>
 
-<div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+<div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     @foreach ($selectedSheet->sessions->take(8) as $session)
+        @php
+            $sessionAttendance = $this->sessionAttendanceSummary($session);
+        @endphp
+
         <a
             href="{{ $this->sessionUrl($session) }}"
             @class([
-                'block rounded-xl border p-3 text-sm font-semibold transition',
+                'block rounded-xl border p-3 text-sm transition',
                 'border-primary-300 bg-primary-50 text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200'
                     => $this->selectedSession()?->id === $session->id,
                 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800'
@@ -244,7 +248,7 @@
             ])
         >
             <div class="flex items-center justify-between gap-2">
-                <span>
+                <span class="font-semibold">
                     {{ $session->session_date->format('M d, Y') }}
                 </span>
 
@@ -254,6 +258,38 @@
                     </span>
                 @endif
             </div>
+
+            @if ($sessionAttendance['marked'] > 0)
+                <div class="mt-3 space-y-1 text-xs">
+                    <p class="font-semibold text-emerald-700 dark:text-emerald-300">
+                        {{ $sessionAttendance['present'] }} Present
+                    </p>
+
+                    <div class="flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-gray-400">
+                        @if ($sessionAttendance['immich'] > 0)
+                            <span>
+                                {{ $sessionAttendance['immich'] }} Immich
+                            </span>
+                        @endif
+
+                        @if ($sessionAttendance['manual'] > 0)
+                            <span>
+                                {{ $sessionAttendance['manual'] }} Manual
+                            </span>
+                        @endif
+
+                        @if ($sessionAttendance['immich_pending'] > 0)
+                            <span class="font-semibold text-amber-600 dark:text-amber-300">
+                                {{ $sessionAttendance['immich_pending'] }} pending
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            @else
+                <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                    No attendance recorded
+                </p>
+            @endif
         </a>
     @endforeach
 </div>
@@ -267,11 +303,82 @@
 @php
     $selectedSession = $this->selectedSession();
     $immichAlbums = $this->immichAlbums();
+    $selectedSessionAttendance = $selectedSession
+        ? $this->sessionAttendanceSummary($selectedSession)
+        : null;
+@endphp
+
+@php
+    $selectedSession = $this->selectedSession();
+    $immichAlbums = $this->immichAlbums();
 @endphp
 
 @if ($selectedSession)
-    <div class="mt-6 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950">
 
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+        <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Recorded Attendance
+        </p>
+
+        <h4 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+            {{ $selectedSession->session_date->format('M d, Y') }}
+        </h4>
+    </div>
+
+    <div class="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                Present
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">
+                {{ $selectedSessionAttendance['present'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Marked
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">
+                {{ $selectedSessionAttendance['marked'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                Immich
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
+                {{ $selectedSessionAttendance['immich'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
+                Immich Pending
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-200">
+                {{ $selectedSessionAttendance['immich_pending'] }}
+            </p>
+        </div>
+    </div>
+
+    @if ($selectedSessionAttendance['immich_confirmed'] > 0)
+        <div class="px-5 pb-5">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                {{ $selectedSessionAttendance['immich_confirmed'] }}
+                Immich attendance record(s) confirmed by an administrator.
+            </p>
+        </div>
+    @endif
+</div>
+
+    <div class="mt-6 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950">
         <div class="border-b border-violet-200 px-5 py-4 dark:border-violet-900 sm:px-6">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div class="min-w-0">

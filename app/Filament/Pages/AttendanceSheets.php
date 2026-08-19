@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
 use App\Models\AttendanceParticipant;
@@ -222,6 +223,34 @@ public function syncImmich(int $sessionId): void
     }
 }
 
+public function sessionAttendanceSummary(AttendanceSession $session): array
+{
+    $records = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->get();
+
+    $present = $records->where('is_present', true);
+
+    return [
+        'present' => $present->count(),
+        'absent' => $records->where('is_present', false)->count(),
+        'marked' => $records->count(),
+        'immich' => $present
+            ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+            ->count(),
+        'manual' => $present
+            ->where('attendance_source', AttendanceRecord::SOURCE_MANUAL)
+            ->count(),
+        'immich_pending' => $present
+            ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+            ->where('immich_confirmed', false)
+            ->count(),
+        'immich_confirmed' => $present
+            ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+            ->where('immich_confirmed', true)
+            ->count(),
+    ];
+}
 
     public function participantRows(): Collection
     {
