@@ -186,7 +186,7 @@ class GoogleCalendarService
         }
 
         $schedule = Schedule::query()
-            ->where('google_calendar_id', $calendarId)
+#            ->where('google_calendar_id', $calendarId)
             ->where('google_event_id', $googleEventId)
             ->first();
 
