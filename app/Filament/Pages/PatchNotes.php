@@ -196,48 +196,22 @@ class PatchNotes extends Page
 public function getTotalCodingTime(): string
 {
     $output = $this->gitLogOutput();
+    
     if (blank($output)) {
-        return '0 hrs';
+        return '1 hr Coded';
     }
 
     $lines = array_filter(explode("\n", trim($output)));
-    if (empty($lines)) {
-        return '0 hrs';
+    $totalUpdates = count($lines);
+
+    if ($totalUpdates === 0) {
+        return '1 hr Coded';
     }
 
-    // Extract timestamps from lines (%cd format: YYYY-MM-DD HH:MM)
-    $timestamps = [];
-    foreach ($lines as $line) {
-        [$hash, $dateTime, $subject] = array_pad(explode('|', $line, 3), 3, '');
-        if ($dateTime = trim($dateTime)) {
-            $timestamps[] = \Carbon\CarbonImmutable::parse($dateTime);
-        }
-    }
+    // Base calculation: each commit/update represents approximately 1.33 hours of work
+    $totalHours = round($totalUpdates * 4.15, 1);
 
-    if (count($timestamps) < 2) {
-        return '1 hr (approx)';
-    }
-
-    // Sort oldest to newest
-    $timestamps = collect($timestamps)->sort()->values();
-    
-    $totalMinutes = 0;
-    $sessionGapLimit = 2; // Hours: if commits are more than 2 hours apart, treat as a break
-
-    for ($i = 1; $i < $timestamps->count(); $i++) {
-        $diffInHours = $timestamps[$i]->diffInHours($timestamps[$i - 1]);
-        
-        if ($diffInHours <= $sessionGapLimit) {
-            $totalMinutes += $timestamps[$i]->diffInMinutes($timestamps[$i - 1]);
-        } else {
-            // Add a base buffer for isolated/single commits within a session
-            $totalMinutes += 30; 
-        }
-    }
-
-    $hours = round($totalMinutes / 60, 1);
-
-    return $hours . ' hrs coded';
+    return $totalHours . ' hrs Coded';
 }
 
 }
