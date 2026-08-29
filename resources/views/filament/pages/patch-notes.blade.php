@@ -48,6 +48,11 @@
                 >
                     Filament Documentation
                 </a>
+
+                <!-- NEW CODING TIME PILL -->
+    <span class="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-900">
+        ⏱️ {{ $this->getTotalCodingTime() }}
+    </span>
             </div>
         </div>
 
