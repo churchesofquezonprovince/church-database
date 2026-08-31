@@ -7,8 +7,9 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "calebporzio/sushi": "^2.5",
         "filament/filament": "^5.6",
-        "google/apiclient": "^2.0",
+        "google/apiclient": "^2.19",
         "guava/calendar": "^3.2",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0"
