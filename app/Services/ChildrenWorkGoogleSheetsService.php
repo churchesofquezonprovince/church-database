@@ -12,6 +12,187 @@ use Illuminate\Support\Str;
 
 class ChildrenWorkGoogleSheetsService
 {
+
+/* Phase Book HAHAHA.  */
+private function gridMetadata(
+    Sheets $service,
+    string $spreadsheetId,
+    string $sheetTitle,
+    array $headers,
+    int $lastRow
+): array {
+    if ($lastRow < 1) {
+        return [];
+    }
+
+    $range = $this->quoteSheetTitle($sheetTitle)
+        . '!A1:G'
+        . $lastRow;
+
+    $spreadsheet = $service->spreadsheets->get(
+        $spreadsheetId,
+        [
+            'ranges' => [$range],
+            'includeGridData' => true,
+        ]
+    );
+
+    $sheet = $spreadsheet->getSheets()[0] ?? null;
+
+    if (! $sheet) {
+        return [];
+    }
+
+    $result = [];
+
+    foreach ($sheet->getData() ?? [] as $data) {
+        foreach ($data->getRowData() ?? [] as $rowIndex => $row) {
+            $mapped = [];
+
+            foreach ($row->getValues() ?? [] as $columnIndex => $cell) {
+                $header = $headers[$columnIndex] ?? null;
+
+                if (! filled($header)) {
+                    continue;
+                }
+
+                $mapped[$header] = [
+                    'label' => trim(
+                        (string) $cell->getFormattedValue()
+                    ),
+                    'url' => $this->urlFromCellData($cell),
+                ];
+            }
+
+            $result[$rowIndex] = $mapped;
+        }
+    }
+
+    return $result;
+}
+
+private function urlFromCellData(
+    \Google\Service\Sheets\CellData $cell
+): ?string {
+    /*
+     * Ordinary whole-cell hyperlink.
+     */
+    $hyperlink = trim(
+        (string) $cell->getHyperlink()
+    );
+
+    if ($hyperlink !== '') {
+        return $hyperlink;
+    }
+
+    /*
+     * Smart chips / rich-link chips.
+     */
+    foreach ($cell->getChipRuns() ?? [] as $chipRun) {
+        $chip = $chipRun->getChip();
+
+        if (! $chip) {
+            continue;
+        }
+
+        $richLink = $chip->getRichLinkProperties();
+
+        if (! $richLink) {
+            continue;
+        }
+
+        $uri = trim(
+            (string) $richLink->getUri()
+        );
+
+        if ($uri !== '') {
+            return $uri;
+        }
+    }
+
+    /*
+     * Rich-text hyperlinks.
+     */
+    foreach ($cell->getTextFormatRuns() ?? [] as $run) {
+        $link = $run->getFormat()?->getLink();
+
+        if (! $link) {
+            continue;
+        }
+
+        $uri = trim(
+            (string) $link->getUri()
+        );
+
+        if ($uri !== '') {
+            return $uri;
+        }
+    }
+
+    /*
+     * Plain URL fallback.
+     */
+    $formatted = trim(
+        (string) $cell->getFormattedValue()
+    );
+
+    if ($this->looksLikeUrl($formatted)) {
+        return $formatted;
+    }
+
+    return null;
+}
+
+private function mergeTwoMetadataRows(
+    array $first,
+    array $second
+): array {
+    $merged = $first;
+
+    /*
+     * A continuation row contains the actual resource links.
+     * Therefore any URL from row 2 should override the URL
+     * belonging to the corresponding row-1 display cell.
+     */
+    foreach ($second as $key => $metadata) {
+        $url = trim(
+            (string) ($metadata['url'] ?? '')
+        );
+
+        if ($url === '') {
+            continue;
+        }
+
+        $merged[$key]['url'] = $url;
+
+        if (
+            filled($metadata['label'] ?? null)
+        ) {
+            $merged[$key]['resource_label'] =
+                $metadata['label'];
+        }
+    }
+
+    return $merged;
+}
+
+private function metadataUrl(
+    array $metadata,
+    array $keys
+): ?string {
+    foreach ($keys as $key) {
+        $url = trim(
+            (string) ($metadata[$key]['url'] ?? '')
+        );
+
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    return null;
+}
+
     /**
      * Phase 22D2
      *
@@ -75,6 +256,15 @@ class ChildrenWorkGoogleSheetsService
         }
 
         $headers = $this->normalizeHeaders($values[$headerIndex]);
+
+        $gridMetadata = $this->gridMetadata(
+    $service,
+    $spreadsheetId,
+    $sheetTitle,
+    $headers,
+    count($values)
+);
+
 
         $created = 0;
         $updated = 0;
@@ -157,6 +347,18 @@ if ($secondIndex < count($values)) {
     }
 }
 
+$firstMetadata =
+    $gridMetadata[$dataIndex] ?? [];
+
+$secondMetadata = $hasContinuationRow
+    ? ($gridMetadata[$secondIndex] ?? [])
+    : [];
+
+$metadata = $this->mergeTwoMetadataRows(
+    $firstMetadata,
+    $secondMetadata
+);
+
             /*
              * If there is a completely empty row, do not manufacture a lesson.
              */
@@ -193,10 +395,11 @@ continue;
                 continue;
             }
 
-            $payload = $this->payloadFromMappedRow(
-                $mapped,
-                $rawMapped
-            );
+$payload = $this->payloadFromMappedRow(
+    $mapped,
+    $rawMapped,
+    $metadata
+);
 
             /*
              * A lesson must have at least a date or title.
@@ -475,7 +678,8 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
         }
     }
 
-    private function isContinuationRow(
+
+private function isContinuationRow(
     array $formulaRow,
     array $rawRow,
     array $headers
@@ -491,9 +695,18 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
     );
 
     /*
-     * A continuation row must NOT introduce another
-     * scheduled item.
+     * Children's Work sheet structure:
+     *
+     * Main row:
+     *   Has a date in column A.
+     *
+     * Optional continuation/resource row:
+     *   Has NO date, but may contain values in B-G.
+     *
+     * Therefore a value in Lesson, Hymn, Story, Slides,
+     * or Activity does NOT make this a new schedule.
      */
+
     $date = $this->firstValue(
         $rawMapped,
         [
@@ -512,8 +725,44 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
         ]
     );
 
-    $lesson = $this->firstValue(
-        $formulaMapped,
+    /*
+     * A dated row always starts a new logical schedule.
+     */
+    if (filled($date)) {
+        return false;
+    }
+
+    /*
+     * Completely empty rows are not continuation rows.
+     */
+    if (
+        $this->rowIsEmpty($formulaMapped)
+        && $this->rowIsEmpty($rawMapped)
+    ) {
+        return false;
+    }
+
+    /*
+     * Any non-empty undated row immediately following
+     * a main row is its resource/continuation row.
+     */
+    return true;
+}
+
+
+
+private function mergeTwoLessonRows(
+    array $first,
+    array $second
+): array {
+    $merged = $first;
+
+    /*
+     * Preserve special resource cells from the continuation
+     * row without replacing the human-readable title on row 1.
+     */
+    $lessonResource = $this->firstValue(
+        $second,
         [
             'lesson',
             'lessons',
@@ -523,16 +772,50 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
         ]
     );
 
-    /*
-     * If the row has a date or lesson/title, it is a
-     * new schedule rather than a continuation.
-     */
-    if (filled($date) || filled($lesson)) {
-        return false;
+    if (filled($lessonResource)) {
+        $merged['__lesson_resource'] = $lessonResource;
+    }
+
+    $hymnResource = $this->firstValue(
+        $second,
+        [
+            'suggested_hymn',
+            'hymn',
+            'song',
+        ]
+    );
+
+    if (filled($hymnResource)) {
+        $merged['__hymn_resource'] = $hymnResource;
     }
 
     /*
-     * Continuation-specific fields.
+     * Column F on the first row frequently contains:
+     *
+     *   c/o Dorothy
+     *   PPT Presentation:
+     *
+     * Preserve it before row 2 replaces Presentation Slides.
+     */
+    $presentationHeading = $this->firstValue(
+        $first,
+        [
+            'presentation_slides',
+            'slides',
+            'presentation',
+        ]
+    );
+
+    if (filled($presentationHeading)) {
+        $merged['__presentation_heading'] =
+            $presentationHeading;
+    }
+
+    /*
+     * Story, Presentation Slides and Activity normally contain
+     * the actual resource/title on the continuation row.
+     *
+     * Prefer row 2 for these fields.
      */
     foreach ([
         'story',
@@ -543,75 +826,50 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
         'activity',
         'activities',
     ] as $key) {
-        $value = $this->firstValue(
-            $formulaMapped,
-            [$key]
-        ) ?: $this->firstValue(
-            $rawMapped,
-            [$key]
-        );
-
-        if (filled($value)) {
-            return true;
+        if (
+            isset($second[$key])
+            && trim((string) $second[$key]) !== ''
+        ) {
+            $merged[$key] = trim(
+                (string) $second[$key]
+            );
         }
     }
 
-    return false;
+    /*
+     * For every other field, allow row 2 to fill an empty
+     * value but never replace a populated main-row value.
+     */
+    foreach ($second as $key => $value) {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            continue;
+        }
+
+        if (in_array($key, [
+            'story',
+            'bible_story',
+            'presentation_slides',
+            'slides',
+            'presentation',
+            'activity',
+            'activities',
+        ], true)) {
+            continue;
+        }
+
+        if (
+            ! isset($merged[$key])
+            || trim((string) $merged[$key]) === ''
+        ) {
+            $merged[$key] = $value;
+        }
+    }
+
+    return $merged;
 }
 
-
-
-
-    /**
-     * Combine the two physical rows into one logical mapped row.
-     *
-     * The first non-empty value wins, except fields that are naturally
-     * split across the two rows are explicitly merged.
-     */
-    private function mergeTwoLessonRows(
-        array $first,
-        array $second
-    ): array {
-        $merged = $first;
-
-        foreach ($second as $key => $value) {
-            $value = trim((string) $value);
-
-            if ($value === '') {
-                continue;
-            }
-
-            /*
-             * These fields belong naturally to the second row in
-             * the Phase 22D2 sheet layout.
-             */
-            if (in_array($key, [
-                'story',
-                'bible_story',
-                'presentation_slides',
-                'slides',
-                'presentation',
-                'activity',
-                'activities',
-            ], true)) {
-                $merged[$key] = $value;
-                continue;
-            }
-
-            /*
-             * If the first row is empty, allow the second row to
-             * provide the value.
-             */
-            if (
-                ! isset($merged[$key])
-                || trim((string) $merged[$key]) === ''
-            ) {
-                $merged[$key] = $value;
-            }
-        }
-
-        return $merged;
-    }
 
     private function sheetsService(): Sheets
     {
@@ -717,51 +975,66 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
         return $mapped;
     }
 
-    private function payloadFromMappedRow(
-        array $mapped,
-        array $rawMapped
-    ): array {
-        $lessonCell = $this->firstHyperlinkedValue(
-            $mapped,
-            [
-                'lesson',
-                'lessons',
-                'lesson_title',
-                'topic',
-                'title',
-            ]
-        );
+private function payloadFromMappedRow(
+    array $mapped,
+    array $rawMapped,
+    array $metadata = []
+): array {
+    $lessonCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            'lesson',
+            'lessons',
+            'lesson_title',
+            'topic',
+            'title',
+        ]
+    );
 
-        $hymnCell = $this->firstHyperlinkedValue(
-            $mapped,
-            [
-                'suggested_hymn',
-                'hymn',
-                'song',
-            ]
-        );
+    $lessonResourceCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            '__lesson_resource',
+        ]
+    );
 
-        $slidesCell = $this->firstHyperlinkedValue(
-            $mapped,
-            [
-                'presentation_slides',
-                'slides',
-                'presentation',
-            ]
-        );
+    $hymnCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            'suggested_hymn',
+            'hymn',
+            'song',
+        ]
+    );
 
-        $activityCell = $this->firstHyperlinkedValue(
-            $mapped,
-            [
-                'activity',
-                'activities',
-            ]
-        );
+    $hymnResourceCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            '__hymn_resource',
+        ]
+    );
 
-        $lessonTitle = $lessonCell['label'];
-        $hymnTitle = $hymnCell['label'];
-        $slidesTitle = $slidesCell['label'];
-        $activityTitle = $activityCell['label'];
+    $slidesCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            'presentation_slides',
+            'slides',
+            'presentation',
+        ]
+    );
+
+    $activityCell = $this->firstHyperlinkedValue(
+        $mapped,
+        [
+            'activity',
+            'activities',
+        ]
+    );
+
+    $lessonTitle = $lessonCell['label'];
+    $hymnTitle = $hymnCell['label'];
+    $slidesTitle = $slidesCell['label'];
+    $activityTitle = $activityCell['label'];
 
         return [
             'scheduled_on' => $this->parseDate(
@@ -791,8 +1064,20 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
 
             'lesson_title' => $lessonTitle,
 
-            'lesson_url' => $lessonCell['url']
-                ?: $this->firstValue(
+
+'lesson_url' => $this->metadataUrl(
+    $metadata,
+    [
+        'lesson',
+        'lessons',
+        'lesson_title',
+        'topic',
+        'title',
+    ]
+)
+    ?: $lessonCell['url']
+    ?: $lessonResourceCell['url']
+    ?: $this->firstValue(
                     $mapped,
                     [
                         'lesson_link',
@@ -803,8 +1088,17 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
 
             'suggested_hymn' => $hymnTitle,
 
-            'suggested_hymn_url' => $hymnCell['url']
-                ?: $this->firstValue(
+'suggested_hymn_url' => $this->metadataUrl(
+    $metadata,
+    [
+        'suggested_hymn',
+        'hymn',
+        'song',
+    ]
+)
+    ?: $hymnCell['url']
+    ?: $hymnResourceCell['url']
+    ?: $this->firstValue(
                     $mapped,
                     [
                         'suggested_hymn_link',
@@ -829,39 +1123,69 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
                 ]
             ),
 
+'story_url' => $this->metadataUrl(
+    $metadata,
+    [
+        'story',
+        'bible_story',
+    ]
+),
+
             'presentation_slides' => $slidesTitle,
 
-            'presentation_slides_url' => $slidesCell['url']
-                ?: $this->firstValue(
-                    $mapped,
-                    [
-                        'presentation_slides_link',
-                        'slides_link',
-                        'slides_url',
-                    ]
-                ),
+'presentation_slides_url' => $this->metadataUrl(
+    $metadata,
+    [
+        'presentation_slides',
+        'slides',
+        'presentation',
+    ]
+)
+    ?: $slidesCell['url']
+    ?: $this->firstValue(
+        $mapped,
+        [
+            'presentation_slides_link',
+            'slides_link',
+            'slides_url',
+        ]
+    ),
 
             'activity' => $activityTitle,
 
-            'activity_url' => $activityCell['url']
-                ?: $this->firstValue(
-                    $mapped,
-                    [
-                        'activity_link',
-                        'activity_url',
-                    ]
-                ),
+'activity_url' => $this->metadataUrl(
+    $metadata,
+    [
+        'activity',
+        'activities',
+    ]
+)
+    ?: $activityCell['url']
+    ?: $this->firstValue(
+        $mapped,
+        [
+            'activity_link',
+            'activity_url',
+        ]
+    ),
 
-            'assigned_to' => $this->firstValue(
-                $mapped,
-                [
-                    'assigned_to',
-                    'c_o',
-                    'co',
-                    'person_in_charge',
-                    'in_charge',
-                ]
-            ),
+'assigned_to' => $this->firstValue(
+    $mapped,
+    [
+        'assigned_to',
+        'c_o',
+        'co',
+        'person_in_charge',
+        'in_charge',
+    ]
+) ?: $this->extractAssignedTo(
+    $this->firstValue(
+        $mapped,
+        [
+            '__presentation_heading',
+        ]
+    )
+),
 
             'notes' => $this->firstValue(
                 $mapped,
@@ -929,6 +1253,31 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
                 : null,
         ];
     }
+
+private function extractAssignedTo(
+    ?string $value
+): ?string {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return null;
+    }
+
+    if (preg_match(
+        '/\bc\s*\/?\s*o\s*[:\-]?\s*(.+?)(?:\r?\n|$)/iu',
+        $value,
+        $matches
+    )) {
+        $assignedTo = trim($matches[1]);
+
+        return $assignedTo !== ''
+            ? $assignedTo
+            : null;
+    }
+
+    return null;
+}
+
 
     private function firstValue(
         array $mapped,

@@ -102,6 +102,18 @@
 </div>
 
 <div>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Story Link
+    </label>
+
+    <textarea
+        name="story_url"
+        rows="3"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+    >{{ old('story_url', $lesson?->story_url) }}</textarea>
+</div>
+
+<div>
     <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Presentation Slides</label>
     <textarea
         name="presentation_slides"

@@ -98,6 +98,7 @@ class ChildrenWorkLessonController extends Controller
             'suggested_hymn_url' => ['nullable', 'string'],
             'memory_verse' => ['nullable', 'string'],
             'story' => ['nullable', 'string'],
+            'story_url' => ['nullable', 'string'],
             'presentation_slides' => ['nullable', 'string'],
             'presentation_slides_url' => ['nullable', 'string'],
             'activity' => ['nullable', 'string'],

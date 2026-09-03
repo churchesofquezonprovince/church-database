@@ -16,6 +16,7 @@ class ChildrenWorkLesson extends Model
         'suggested_hymn_url',
         'memory_verse',
         'story',
+        'story_url',
         'presentation_slides',
         'presentation_slides_url',
         'activity',
