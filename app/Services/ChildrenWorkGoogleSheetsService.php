@@ -423,6 +423,7 @@ $payload = $this->payloadFromMappedRow(
                 'row_2' => $secondMapped,
                 '__raw_row_1' => $firstRawMapped,
                 '__raw_row_2' => $secondRawMapped,
+                '__metadata' => $metadata,
             ]);
 
             /*
