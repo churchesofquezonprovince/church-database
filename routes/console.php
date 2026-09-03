@@ -121,6 +121,16 @@ Artisan::command('children-work:sync-google-sheet', function (\App\Services\Chil
     }
 })->purpose('Sync Children Work lessons from Google Sheets');
 
+\Illuminate\Support\Facades\Schedule::command(
+    'children-work:sync-google-sheet'
+)
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(
+        storage_path('logs/children-work-google-sync.log')
+    );
+
+
 Artisan::command('children-work:push-google-sheet', function (\App\Services\ChildrenWorkGoogleSheetsService $service): int {
     try {
         $result = $service->pushToGoogleSheet();

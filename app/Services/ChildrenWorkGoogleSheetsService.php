@@ -749,36 +749,7 @@ $payload['google_sheet_smart_chip_fields']
             $payload['sync_status'] = 'synced';
             $payload['sync_error'] = null;
 
-if ($lesson) {
-    /*
-     * Native Smart Chip URLs are Google-managed.
-     *
-     * Their corresponding titles are website-editable,
-     * so preserve the website title during later imports.
-     */
-    $smartChipTitleMap = [
-        'lesson_url' => 'lesson_title',
-        'suggested_hymn_url' => 'suggested_hymn',
-        'story_url' => 'story',
-        'presentation_slides_url' =>
-            'presentation_slides',
-        'activity_url' => 'activity',
-    ];
 
-    foreach (
-        $smartChipFields
-        as $smartChipUrlField
-    ) {
-        $titleField =
-            $smartChipTitleMap[$smartChipUrlField]
-            ?? null;
-
-        if ($titleField) {
-            $payload[$titleField] =
-                $lesson->{$titleField};
-        }
-    }
-}
             
             if ($lesson) {
                 $lesson->update($payload);
