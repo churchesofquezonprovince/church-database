@@ -351,7 +351,7 @@
                                         <form
             method="POST"
             action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
-            onsubmit="return confirm('Delete this Children\'s Work lesson? This action cannot be undone.');"
+            onsubmit="return confirm('Delete this lesson from BOTH the website and Google Sheet? This will physically remove its Google Sheet row(s).');"
         >
             @csrf
             @method('DELETE')
