@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
+use Filament\Support\Enums\Width;
 
 class ChildrenWorkDashboard extends Page
 {
@@ -41,5 +42,10 @@ class ChildrenWorkDashboard extends Page
     public static function canAccess(): bool
     {
         return true;
+    }
+
+    public function getMaxContentWidth(): Width|string|null
+    {
+        return Width::SixExtraLarge;
     }
 }

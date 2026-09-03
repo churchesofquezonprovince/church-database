@@ -438,13 +438,71 @@ Route::middleware(['web', 'auth'])
 // Children's Work public dashboard and protected lesson actions.
 Route::middleware(['web'])
     ->get('/children-work', function () {
-        $nextLesson = \App\Models\ChildrenWorkLesson::query()->upcoming()->first()
-            ?: \App\Models\ChildrenWorkLesson::query()->past()->first();
+        $dashboardQuery = \App\Models\ChildrenWorkLesson::query()
+            ->whereNotIn('status', ['draft', 'cancelled']);
+
+        $nextLesson = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '>=', today())
+            ->orderBy('scheduled_on')
+            ->orderBy('id')
+            ->first();
+
+        if (! $nextLesson) {
+            $nextLesson = (clone $dashboardQuery)
+                ->whereNotNull('scheduled_on')
+                ->whereDate('scheduled_on', '<', today())
+                ->orderByDesc('scheduled_on')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $upcomingLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '>=', today())
+            ->whereDate(
+                'scheduled_on',
+                '<=',
+                now()->endOfMonth()->toDateString()
+            )
+            ->when(
+                $nextLesson?->scheduled_on?->gte(today()),
+                fn ($query) => $query->where(
+                    'id',
+                    '!=',
+                    $nextLesson->id
+                )
+            )
+            ->orderBy('scheduled_on')
+            ->orderBy('id')
+            ->limit(8)
+            ->get();
+
+        $recentLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '<', today())
+            ->orderByDesc('scheduled_on')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+        $futureLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate(
+                'scheduled_on',
+                '>',
+                now()->endOfMonth()->toDateString()
+            )
+            ->orderBy('scheduled_on')
+            ->orderBy('id')
+            ->limit(12)
+            ->get();
 
         return view('children-work.dashboard', [
             'nextLesson' => $nextLesson,
-            'upcomingLessons' => \App\Models\ChildrenWorkLesson::query()->upcoming()->limit(8)->get(),
-            'recentLessons' => \App\Models\ChildrenWorkLesson::query()->past()->limit(5)->get(),
+            'upcomingLessons' => $upcomingLessons,
+            'recentLessons' => $recentLessons,
+            'futureLessons' => $futureLessons,
         ]);
     })
     ->name('children-work.dashboard.public');
