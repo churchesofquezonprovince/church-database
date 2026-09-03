@@ -1,5 +1,11 @@
 @php
     $lesson ??= null;
+
+    $smartChipFields =
+        $lesson?->google_sheet_smart_chip_fields ?? [];
+
+    $isSmartChipLink = fn (string $field): bool =>
+        in_array($field, $smartChipFields, true);
 @endphp
 
 <div>
@@ -57,12 +63,22 @@
 </div>
 
 <div class="lg:col-span-2">
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Lesson Link</label>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Lesson Link
+    </label>
+
     <textarea
         name="lesson_url"
         rows="2"
+        @disabled($isSmartChipLink('lesson_url'))
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >{{ old('lesson_url', $lesson?->lesson_url) }}</textarea>
+
+    @if ($isSmartChipLink('lesson_url'))
+        <p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🔒 Google Sheets Smart Chip — edit this link in Google Sheets.
+        </p>
+    @endif
 </div>
 
 <div>
@@ -75,12 +91,22 @@
 </div>
 
 <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Suggested Hymn Link</label>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Suggested Hymn Link
+    </label>
+
     <textarea
         name="suggested_hymn_url"
         rows="3"
+        @disabled($isSmartChipLink('suggested_hymn_url'))
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >{{ old('suggested_hymn_url', $lesson?->suggested_hymn_url) }}</textarea>
+
+    @if ($isSmartChipLink('suggested_hymn_url'))
+        <p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🔒 Google Sheets Smart Chip — edit this link in Google Sheets.
+        </p>
+    @endif
 </div>
 
 <div class="lg:col-span-2">
@@ -109,8 +135,15 @@
     <textarea
         name="story_url"
         rows="3"
+        @disabled($isSmartChipLink('story_url'))
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >{{ old('story_url', $lesson?->story_url) }}</textarea>
+
+    @if ($isSmartChipLink('story_url'))
+        <p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🔒 Google Sheets Smart Chip — edit this link in Google Sheets.
+        </p>
+    @endif
 </div>
 
 <div>
@@ -123,12 +156,22 @@
 </div>
 
 <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Presentation Slides Link</label>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Presentation Slides Link
+    </label>
+
     <textarea
         name="presentation_slides_url"
         rows="3"
+        @disabled($isSmartChipLink('presentation_slides_url'))
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >{{ old('presentation_slides_url', $lesson?->presentation_slides_url) }}</textarea>
+
+    @if ($isSmartChipLink('presentation_slides_url'))
+        <p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🔒 Google Sheets Smart Chip — edit this link in Google Sheets.
+        </p>
+    @endif
 </div>
 
 <div>
@@ -141,12 +184,22 @@
 </div>
 
 <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Activity Link</label>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Activity Link
+    </label>
+
     <textarea
         name="activity_url"
         rows="3"
+        @disabled($isSmartChipLink('activity_url'))
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >{{ old('activity_url', $lesson?->activity_url) }}</textarea>
+
+    @if ($isSmartChipLink('activity_url'))
+        <p class="mt-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🔒 Google Sheets Smart Chip — edit this link in Google Sheets.
+        </p>
+    @endif
 </div>
 
 <div class="lg:col-span-2">

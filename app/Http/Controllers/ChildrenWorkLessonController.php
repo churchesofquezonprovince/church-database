@@ -10,25 +10,50 @@ use Illuminate\Http\Request;
 
 class ChildrenWorkLessonController extends Controller
 {
-    public function store(Request $request): RedirectResponse
-    {
-        $this->authorizeManager();
+public function store(Request $request): RedirectResponse
+{
+    $this->authorizeManager();
 
-        ChildrenWorkLesson::query()->create($this->validatedData($request));
+    ChildrenWorkLesson::query()->create(
+        $this->validatedData($request, true)
+    );
 
-        return redirect(ChildrenWorkLessons::getUrl())
-            ->with('children_work_saved', 'Lesson created.');
+    return redirect(ChildrenWorkLessons::getUrl())
+        ->with('children_work_saved', 'Lesson created.');
+}
+
+public function update(
+    Request $request,
+    ChildrenWorkLesson $lesson
+): RedirectResponse {
+    $this->authorizeManager();
+
+    $data = $this->validatedData($request, false);
+
+    /*
+     * Smart Chip URLs belong to Google Sheets.
+     *
+     * Titles remain editable. Only the URL fields are protected.
+     */
+    foreach (
+        $lesson->google_sheet_smart_chip_fields ?? []
+        as $lockedField
+    ) {
+        unset($data[$lockedField]);
     }
 
-    public function update(Request $request, ChildrenWorkLesson $lesson): RedirectResponse
-    {
-        $this->authorizeManager();
+    /*
+     * Preserve source/google row identity.
+     * Mark the website edit as awaiting Google synchronization.
+     */
+    $data['sync_status'] = 'local';
+    $data['sync_error'] = null;
 
-        $lesson->update($this->validatedData($request));
+    $lesson->update($data);
 
-        return redirect(ChildrenWorkLessons::getUrl())
-            ->with('children_work_saved', 'Lesson updated.');
-    }
+    return redirect(ChildrenWorkLessons::getUrl())
+        ->with('children_work_saved', 'Lesson updated.');
+}
 
     public function destroy(ChildrenWorkLesson $lesson): RedirectResponse
     {
@@ -87,7 +112,10 @@ class ChildrenWorkLessonController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
     }
 
-    private function validatedData(Request $request): array
+private function validatedData(
+    Request $request,
+    bool $forCreate = false
+): array
     {
         $validated = $request->validate([
             'scheduled_on' => ['nullable', 'date'],
@@ -114,10 +142,14 @@ class ChildrenWorkLessonController extends Controller
             }
         }
 
-        $validated['status'] = $validated['status'] ?: 'scheduled';
-        $validated['source'] = 'local';
-        $validated['sync_status'] = 'local';
+$validated['status']
+    = $validated['status'] ?? 'scheduled';
 
-        return $validated;
+if ($forCreate) {
+    $validated['source'] = 'local';
+    $validated['sync_status'] = 'local';
+}
+
+return $validated;
     }
 }

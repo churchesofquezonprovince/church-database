@@ -56,12 +56,13 @@ private function gridMetadata(
                     continue;
                 }
 
-                $mapped[$header] = [
-                    'label' => trim(
-                        (string) $cell->getFormattedValue()
-                    ),
-                    'url' => $this->urlFromCellData($cell),
-                ];
+$mapped[$header] = [
+    'label' => trim(
+        (string) $cell->getFormattedValue()
+    ),
+    'url' => $this->urlFromCellData($cell),
+    'is_smart_chip' => $this->cellHasSmartChip($cell),
+];
             }
 
             $result[$rowIndex] = $mapped;
@@ -69,6 +70,51 @@ private function gridMetadata(
     }
 
     return $result;
+}
+
+private function cellHasSmartChip($cell): bool
+{
+    foreach ($cell->getChipRuns() ?? [] as $chipRun) {
+        if ($chipRun->getChip()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+private function smartChipLinkFields(
+    array $firstMetadata,
+    array $secondMetadata
+): array {
+    /*
+     * Google Sheet column/header -> website URL field.
+     *
+     * We intentionally lock ONLY the URL field.
+     * The human-readable title remains editable.
+     */
+    $map = [
+        'lesson' => 'lesson_url',
+        'suggested_hymn' => 'suggested_hymn_url',
+        'story' => 'story_url',
+        'presentation_slides' => 'presentation_slides_url',
+        'activity' => 'activity_url',
+    ];
+
+    $locked = [];
+
+    foreach ([$firstMetadata, $secondMetadata] as $metadata) {
+        foreach ($map as $sheetField => $modelField) {
+            if (
+                ($metadata[$sheetField]['is_smart_chip'] ?? false)
+                === true
+            ) {
+                $locked[$modelField] = true;
+            }
+        }
+    }
+
+    return array_keys($locked);
 }
 
 private function urlFromCellData(
@@ -359,6 +405,11 @@ $metadata = $this->mergeTwoMetadataRows(
     $secondMetadata
 );
 
+$smartChipFields = $this->smartChipLinkFields(
+    $firstMetadata,
+    $secondMetadata
+);
+
             /*
              * If there is a completely empty row, do not manufacture a lesson.
              */
@@ -400,6 +451,9 @@ $payload = $this->payloadFromMappedRow(
     $rawMapped,
     $metadata
 );
+
+$payload['google_sheet_smart_chip_fields']
+    = $smartChipFields;
 
             /*
              * A lesson must have at least a date or title.

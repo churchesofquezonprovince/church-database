@@ -30,6 +30,7 @@ class ChildrenWorkLesson extends Model
         'source',
         'google_sheet_row_number',
         'google_sheet_row_hash',
+        'google_sheet_smart_chip_fields',
         'google_sheet_synced_at',
         'sync_status',
         'sync_error',
@@ -38,7 +39,17 @@ class ChildrenWorkLesson extends Model
     protected $casts = [
         'scheduled_on' => 'date',
         'google_sheet_synced_at' => 'datetime',
+        'google_sheet_smart_chip_fields' => 'array',
     ];
+
+public function hasSmartChipLink(string $field): bool
+{
+    return in_array(
+        $field,
+        $this->google_sheet_smart_chip_fields ?? [],
+        true
+    );
+}
 
 public static function resourceDisplayTitle(
     ?string $value,

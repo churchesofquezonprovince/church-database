@@ -1,48 +1,61 @@
 <x-filament-panels::page>
-    @php
-$today = now();
+@php
+    $today = today();
 
-$lessons = \App\Models\ChildrenWorkLesson::query()
-    ->orderByRaw('CASE WHEN scheduled_on IS NULL THEN 1 ELSE 0 END')
-    ->orderBy('scheduled_on')
-    ->orderBy('id')
-    ->get();
+    $lessons = \App\Models\ChildrenWorkLesson::query()
+        ->whereNotNull('scheduled_on')
+        ->orderBy('scheduled_on')
+        ->orderBy('id')
+        ->get();
 
-$editingLesson = null;
+    $editingLesson = null;
 
-$statusOptions = [
-    'scheduled' => 'Scheduled',
-    'draft' => 'Draft',
-    'special_activity' => 'Special Activity',
-    'completed' => 'Completed',
-    'cancelled' => 'Cancelled',
-];
+    $statusOptions = [
+        'scheduled' => 'Scheduled',
+        'draft' => 'Draft',
+        'special_activity' => 'Special Activity',
+        'completed' => 'Completed',
+        'cancelled' => 'Cancelled',
+    ];
 
-if (request()->integer('edit_lesson')) {
-    $editingLesson = \App\Models\ChildrenWorkLesson::query()
-        ->find(request()->integer('edit_lesson'));
-}
+    if (request()->integer('edit_lesson')) {
+        $editingLesson = \App\Models\ChildrenWorkLesson::query()
+            ->find(request()->integer('edit_lesson'));
+    }
 
-$currentMonthLessons = $lessons->filter(function ($lesson) use ($today) {
-    return $lesson->scheduled_on &&
-           $lesson->scheduled_on->year == $today->year &&
-           $lesson->scheduled_on->month == $today->month;
-});
+    $nextLesson = $lessons
+        ->filter(fn ($lesson) =>
+            ! in_array($lesson->status, ['cancelled'], true)
+            && $lesson->scheduled_on
+            && $lesson->scheduled_on->gte($today)
+        )
+        ->sortBy([
+            ['scheduled_on', 'asc'],
+            ['id', 'asc'],
+        ])
+        ->first();
 
-$futureLessons = $lessons->filter(function ($lesson) use ($today) {
-    return $lesson->scheduled_on &&
-           $lesson->scheduled_on->gt($today->copy()->endOfMonth());
-});
+    $currentMonthLessons = $lessons
+        ->filter(fn ($lesson) =>
+            $lesson->scheduled_on
+            && $lesson->scheduled_on->year === $today->year
+            && $lesson->scheduled_on->month === $today->month
+        )
+        ->sortBy([
+            ['scheduled_on', 'asc'],
+            ['id', 'asc'],
+        ]);
 
-$nextLesson = $lessons
-    ->filter(fn ($lesson) =>
-        $lesson->scheduled_on &&
-        ($lesson->scheduled_on->isToday() || $lesson->scheduled_on->isFuture())
-    )
-    ->sortBy('scheduled_on')
-    ->first();
-
-    @endphp
+    $futureLessons = $lessons
+        ->filter(fn ($lesson) =>
+            $lesson->scheduled_on
+            && $lesson->scheduled_on->gt($today->copy()->endOfMonth())
+        )
+        ->sortBy([
+            ['scheduled_on', 'asc'],
+            ['id', 'asc'],
+        ]);
+@endphp
 
     <div class="space-y-6">
         @if (session('children_work_saved'))
@@ -177,14 +190,20 @@ $nextLesson = $lessons
         </details>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                Lesson Schedule
-            </h3>
+<div>
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+        {{ $today->format('F Y') }} Schedule
+    </h3>
+
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Current month's Children's Work meetings and preparation materials.
+    </p>
+</div>
 
 
           <div class="rounded-2xl border border-pink-200 bg-pink-50 p-6 shadow-sm dark:border-pink-900 dark:bg-pink-950">
               <h3 class="text-xl font-bold text-gray-900 dark:text-white">
-                  Next Week's Schedule
+                  Next Meeting
               </h3>
 
               @if($nextLesson)
@@ -240,18 +259,22 @@ $nextLesson = $lessons
                                       {{ $nextLesson->memory_verse }}
                                   </td>
 
-                                  <td class="px-3 py-3">
-                                      {{ $nextLesson->story }}
+<td class="px-3 py-3 align-top">
+    <div>
+        {{ $nextLesson->story ?: '—' }}
+    </div>
 
-                                      @if($nextLesson->story_url)
-                                          <br>
-                                          <a href="{{ $nextLesson->story_url }}"
-                                             target="_blank"
-                                             class="text-pink-600 text-xs font-semibold hover:underline">
-                                              Open Story Link
-                                          </a>
-                                      @endif
-                                  </td>
+    @if ($nextLesson->story_url)
+        <a
+            href="{{ $nextLesson->story_url }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+        >
+            Open Story Link
+        </a>
+    @endif
+</td>
 
                                   <td class="px-3 py-3">
                                       {{ $nextLesson->presentation_slides }}
@@ -306,7 +329,6 @@ $nextLesson = $lessons
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Story</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Presentation Slides</th>
                             <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Activity</th>
-                            <th class="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                         </tr>
                     </thead>
 
@@ -326,6 +348,21 @@ $nextLesson = $lessons
                                 >
                                     Edit
                                 </a>
+                                        <form
+            method="POST"
+            action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
+            onsubmit="return confirm('Delete this Children\'s Work lesson? This action cannot be undone.');"
+        >
+            @csrf
+            @method('DELETE')
+
+            <button
+                type="submit"
+                class="inline-flex rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-gray-950 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+                Delete
+            </button>
+        </form>
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -415,7 +452,7 @@ $nextLesson = $lessons
                         @empty
                             <tr>
                                 <td colspan="8" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
-                                    No lessons yet.
+                                    No lessons scheduled for {{ $today->format('F Y') }}.
                                 </td>
                             </tr>
                         @endforelse
@@ -426,9 +463,15 @@ $nextLesson = $lessons
 
 <hr class="my-8 border-gray-300 dark:border-gray-700">
 
-<h3 class="text-lg font-bold text-gray-900 dark:text-white">
-    Future Schedules
-</h3>
+<div class="mt-8">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+        Future Schedules
+    </h3>
+
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Meetings scheduled after {{ $today->format('F Y') }}.
+    </p>
+</div>
 
 <div class="mt-5 overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
     <table class="min-w-[1200px] w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
@@ -442,27 +485,152 @@ $nextLesson = $lessons
                 <th class="px-4 py-3 text-left">Story</th>
                 <th class="px-4 py-3 text-left">Presentation Slides</th>
                 <th class="px-4 py-3 text-left">Activity</th>
-                <th class="px-4 py-3 text-right">Actions</th>
             </tr>
         </thead>
 
         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
 
-        @forelse ($futureLessons as $lesson)
+@forelse ($futureLessons as $lesson)
+    <tr @class([
+        'bg-amber-50 dark:bg-amber-950/40' => $editingLesson?->id === $lesson->id,
+    ])>
 
-            {{-- Copy ONE ENTIRE <tr>...</tr> from the first table here. --}}
-            {{-- Do NOT rewrite it. Just duplicate it exactly. --}}
+        <td class="px-4 py-3 align-top font-semibold text-gray-900 dark:text-white">
+            {{ $lesson->displayDate() }}
 
-        @empty
+            <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">
+                {{ $statusOptions[$lesson->status] ?? ucfirst(str_replace('_', ' ', $lesson->status)) }}
+            </span>
 
-            <tr>
-                <td colspan="8"
-                    class="px-4 py-8 text-center text-gray-500">
-                    No future schedules.
-                </td>
-            </tr>
+            <a
+                href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() . '?edit_lesson=' . $lesson->id }}"
+                class="mt-2 inline-flex rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600"
+            >
+                Edit
+            </a>
+                                                    <form
+            method="POST"
+            action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $lesson) }}"
+            onsubmit="return confirm('Delete this Children\'s Work lesson? This action cannot be undone.');"
+        >
+            @csrf
+            @method('DELETE')
 
-        @endforelse
+            <button
+                type="submit"
+                class="inline-flex rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-gray-950 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+                Delete
+            </button>
+        </form>
+        </td>
+
+        <td class="px-4 py-3 align-top">
+            <p class="font-semibold text-gray-900 dark:text-white">
+                {{ $lesson->displayTitle() }}
+            </p>
+
+            @if ($lesson->lesson_url)
+                <a
+                    href="{{ $lesson->lesson_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                >
+                    Open Lesson Link
+                </a>
+            @endif
+
+            @if ($lesson->sync_status)
+                <span class="mt-2 block w-fit rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    {{ $lesson->sync_status }}
+                </span>
+            @endif
+        </td>
+
+        <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+            <div>
+                {{ \Illuminate\Support\Str::limit($lesson->suggested_hymn ?: '—', 80) }}
+            </div>
+
+            @if ($lesson->suggested_hymn_url)
+                <a
+                    href="{{ $lesson->suggested_hymn_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                >
+                    Open Hymn Link
+                </a>
+            @endif
+        </td>
+
+        <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+            {{ \Illuminate\Support\Str::limit($lesson->memory_verse ?: '—', 120) }}
+        </td>
+
+        <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+            <div>
+                {{ \Illuminate\Support\Str::limit($lesson->story ?: '—', 100) }}
+            </div>
+
+            @if ($lesson->story_url)
+                <a
+                    href="{{ $lesson->story_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                >
+                    Open Story Link
+                </a>
+            @endif
+        </td>
+
+        <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+            <div>
+                {{ \Illuminate\Support\Str::limit($lesson->presentation_slides ?: '—', 100) }}
+            </div>
+
+            @if ($lesson->presentation_slides_url)
+                <a
+                    href="{{ $lesson->presentation_slides_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                >
+                    Open Presentation Slides
+                </a>
+            @endif
+        </td>
+
+        <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
+            <div>
+                {{ \Illuminate\Support\Str::limit($lesson->activity ?: '—', 100) }}
+            </div>
+
+            @if ($lesson->activity_url)
+                <a
+                    href="{{ $lesson->activity_url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                >
+                    Open Activity
+                </a>
+            @endif
+        </td>
+
+    </tr>
+@empty
+    <tr>
+        <td
+            colspan="8"
+            class="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
+        >
+            No future schedules.
+        </td>
+    </tr>
+@endforelse
 
         </tbody>
 
