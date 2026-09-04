@@ -95,73 +95,157 @@ class AttendanceSheetStatusController extends Controller
         return back()->with('attendance_sheet_deleted', true);
     }
 
-    public function update(Request $request, AttendanceSheet $sheet): RedirectResponse
-    {
-        abort_unless(auth()->user()?->canManageRecords(), 403);
+public function update(
+    Request $request,
+    AttendanceSheet $sheet
+): RedirectResponse {
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
 
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'locality' => ['nullable', 'string', 'max:150'],
-            'meeting_day' => ['nullable', 'integer', 'between:0,6'],
-            'meeting_time' => ['nullable', 'date_format:H:i'],
-            'meeting_form_type' => [
-    'required',
-    'in:disabled,normal',
-],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
+    $data = $request->validate([
+        'title' => [
+            'required',
+            'string',
+            'max:255',
+        ],
 
-        $oldValues = $sheet->only([
-            'title',
-            'locality',
-            'meeting_day',
-            'meeting_time',
-            'meeting_form_type',
-            'start_date',
-            'end_date',
-        ]);
+        'locality' => [
+            'nullable',
+            'string',
+            'max:150',
+        ],
 
-$sheet->forceFill([
-    'title' => $data['title'],
-    'locality' => blank($data['locality'] ?? null)
-        ? null
-        : $data['locality'],
-    'meeting_day' =>
-        $data['meeting_day']
-        ?? $sheet->meeting_day,
-    'meeting_time' =>
+        'meeting_day' => [
+            'nullable',
+            'integer',
+            'between:0,6',
+        ],
+
+        'meeting_time' => [
+            'nullable',
+            'date_format:H:i',
+        ],
+
+        'meeting_form_type' => [
+            'required',
+            'in:disabled,normal',
+        ],
+
+        'start_date' => [
+            'nullable',
+            'date',
+        ],
+
+        'end_date' => [
+            'nullable',
+            'date',
+            'after_or_equal:start_date',
+        ],
+
+        'remarks' => [
+            'nullable',
+            'string',
+        ],
+    ]);
+
+    $oldValues = $sheet->only([
+        'title',
+        'locality',
+        'meeting_day',
+        'meeting_time',
+        'meeting_form_type',
+        'start_date',
+        'end_date',
+        'remarks',
+    ]);
+
+    $meetingTime =
         blank($data['meeting_time'] ?? null)
             ? null
-            : $data['meeting_time'],
+            : $data['meeting_time'];
 
-    'meeting_form_type' =>
-        $data['meeting_form_type'],
+    DB::transaction(
+        function () use (
+            $sheet,
+            $data,
+            $meetingTime
+        ): void {
+            $sheet->forceFill([
+                'title' =>
+                    $data['title'],
 
-    'start_date' =>
-        blank($data['start_date'] ?? null)
-            ? null
-            : $data['start_date'],
-    'end_date' =>
-        blank($data['end_date'] ?? null)
-            ? null
-            : $data['end_date'],
-])->save();
+                'locality' =>
+                    blank($data['locality'] ?? null)
+                        ? null
+                        : $data['locality'],
 
-/*
- * Generate missing stable public URLs when the
- * Normal Meeting Form is enabled.
- *
- * Existing slugs are preserved.
- */
-$sheet->ensureMeetingFormSlugs();
+                'meeting_day' =>
+                    $data['meeting_day']
+                    ?? $sheet->meeting_day,
 
-        ActivityLogger::log(
-            action: 'attendance_sheet.updated',
-            subject: $sheet,
-            description: 'Updated attendance sheet details.',
-            oldValues: $oldValues,
-            newValues: $sheet->only([
+                'meeting_time' =>
+                    $meetingTime,
+
+                'meeting_form_type' =>
+                    $data['meeting_form_type'],
+
+                'start_date' =>
+                    blank($data['start_date'] ?? null)
+                        ? null
+                        : $data['start_date'],
+
+                'end_date' =>
+                    blank($data['end_date'] ?? null)
+                        ? null
+                        : $data['end_date'],
+
+                'remarks' =>
+                    blank($data['remarks'] ?? null)
+                        ? null
+                        : $data['remarks'],
+            ])->save();
+
+            /*
+             * AttendanceSession stores its own session_time.
+             * Keep every existing meeting date synchronized
+             * with the sheet's edited meeting time.
+             *
+             * Do not recreate sessions because their IDs may
+             * already be referenced by attendance, Immich,
+             * and pre-listed history.
+             */
+            $sheet->sessions()->update([
+                'session_time' =>
+                    $meetingTime,
+            ]);
+
+            /*
+             * Generate missing stable public meeting URLs
+             * when Normal Meeting Form is enabled.
+             *
+             * Existing slugs remain unchanged.
+             */
+            $sheet->ensureMeetingFormSlugs();
+        }
+    );
+
+    ActivityLogger::log(
+        action:
+            'attendance_sheet.updated',
+
+        subject:
+            $sheet,
+
+        description:
+            'Updated attendance sheet details and synchronized meeting session times.',
+
+        oldValues:
+            $oldValues,
+
+        newValues:
+            $sheet->only([
                 'title',
                 'locality',
                 'meeting_day',
@@ -169,10 +253,14 @@ $sheet->ensureMeetingFormSlugs();
                 'meeting_form_type',
                 'start_date',
                 'end_date',
+                'remarks',
             ]),
-        );
+    );
 
-        return back()->with('attendance_sheet_updated', true);
-    }
+    return back()->with(
+        'attendance_sheet_updated',
+        true
+    );
+}
 
 }
