@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use Filament\Notifications\Notification;
+use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -419,6 +420,26 @@ public function confirmAllImmichAttendance(): void
         ->send();
 }
 
+public function meetingResponses(): Collection
+{
+    $session = $this->selectedSession();
 
+    if (! $session) {
+        return collect();
+    }
+
+    return AttendanceMeetingResponse::query()
+        ->with([
+            'person',
+            'campusContact',
+        ])
+        ->where(
+            'attendance_session_id',
+            $session->id
+        )
+        ->orderByDesc('responded_at')
+        ->orderByDesc('id')
+        ->get();
+}
 
 }

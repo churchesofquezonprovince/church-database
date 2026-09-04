@@ -11,6 +11,9 @@
         $immichConfirmationCounts = $this->immichConfirmationCounts();
         $lordsTableLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE);
         $prayerMeetingLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING);
+        $meetingResponses = $this->meetingResponses();
+        $yesMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_YES);
+        $noMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_NO);
     @endphp
 
     <div class="space-y-6">
@@ -170,6 +173,401 @@
                             </div>
                         </div>
                     </div>
+
+
+@if ($selectedSheet->meetingFormEnabled())
+    <div
+        class="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm dark:border-indigo-900 dark:bg-indigo-950"
+    >
+        <div
+            class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+        >
+            <div>
+                <h3
+                    class="text-lg font-bold text-indigo-950 dark:text-indigo-100"
+                >
+                    Meeting Responses
+                </h3>
+
+                <p
+                    class="mt-1 text-sm text-indigo-700 dark:text-indigo-300"
+                >
+                    RSVP responses are separate from actual
+                    attendance. A YES response does not mark a
+                    person as present.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <span
+                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white"
+                >
+                    YES: {{ $yesMeetingResponses->count() }}
+                </span>
+
+                <span
+                    class="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white"
+                >
+                    NO: {{ $noMeetingResponses->count() }}
+                </span>
+
+                <span
+                    class="rounded-full bg-indigo-600 px-3 py-1 text-xs font-bold text-white"
+                >
+                    Total: {{ $meetingResponses->count() }}
+                </span>
+            </div>
+        </div>
+
+
+        @if ($meetingResponses->isEmpty())
+
+            <div
+                class="mt-5 rounded-xl border border-dashed border-indigo-300 bg-white/60 p-6 text-center text-sm text-indigo-700 dark:border-indigo-800 dark:bg-gray-950 dark:text-indigo-200"
+            >
+                No public meeting responses have been submitted
+                for this date yet.
+            </div>
+
+        @else
+
+            <div class="mt-6 grid gap-6 xl:grid-cols-2">
+
+                {{-- =========================================
+                     YES RESPONSES
+                ========================================== --}}
+                <div>
+                    <div
+                        class="flex items-center justify-between"
+                    >
+                        <h4
+                            class="font-bold text-emerald-800 dark:text-emerald-200"
+                        >
+                            YES — Attending
+                        </h4>
+
+                        <span
+                            class="text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                        >
+                            {{ $yesMeetingResponses->count() }}
+                        </span>
+                    </div>
+
+                    <div class="mt-3 space-y-3">
+
+                        @forelse ($yesMeetingResponses as $response)
+
+                            <div
+                                class="rounded-xl border border-emerald-200 bg-white p-4 dark:border-emerald-900 dark:bg-gray-950"
+                            >
+                                <div
+                                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                >
+                                    <div class="min-w-0">
+
+                                        <p
+                                            class="font-bold text-gray-900 dark:text-white"
+                                        >
+                                            {{ $response->respondent_name }}
+                                        </p>
+
+                                        <div
+                                            class="mt-2 flex flex-wrap gap-2"
+                                        >
+
+                                            @if (
+                                                $response->respondent_type
+                                                ===
+                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+                                            )
+                                                <span
+                                                    class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100"
+                                                >
+                                                    People Database
+                                                </span>
+
+                                            @elseif (
+                                                $response->respondent_type
+                                                ===
+                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_CAMPUS
+                                            )
+                                                <span
+                                                    class="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100"
+                                                >
+                                                    Campus Database
+                                                </span>
+
+                                            @else
+                                                <span
+                                                    class="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100"
+                                                >
+                                                    Guest
+                                                </span>
+                                            @endif
+
+
+                                            @if (
+                                                filled($response->original_source)
+                                                &&
+                                                $response->original_source
+                                                !== $response->respondent_type
+                                            )
+                                                <span
+                                                    class="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                                >
+                                                    Originally
+                                                    {{ $response->originalSourceLabel() }}
+                                                </span>
+                                            @endif
+
+                                        </div>
+
+                                        @if (
+                                            $response->original_source
+                                            ===
+                                            \App\Models\AttendanceMeetingResponse::RESPONDENT_GUEST
+                                            &&
+                                            filled($response->guest_profile)
+                                        )
+                                            <details
+                                                class="mt-3"
+                                            >
+                                                <summary
+                                                    class="cursor-pointer text-xs font-bold text-indigo-700 dark:text-indigo-300"
+                                                >
+                                                    Optional guest information
+                                                </summary>
+
+                                                <div
+                                                    class="mt-2 space-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                >
+                                                    @foreach ($response->guest_profile as $key => $value)
+
+                                                        @continue(blank($value))
+
+                                                        <p>
+                                                            <span class="font-semibold">
+                                                                {{ match ($key) {
+                                                                    'firstname' => 'First Name',
+                                                                    'lastname' => 'Last Name',
+                                                                    'sex' => 'Sex',
+                                                                    'locality' => 'Locality',
+                                                                    'school_campus' => 'School / Campus',
+                                                                    'course_strand' => 'Course / Strand',
+                                                                    'grade_level' => 'Grade Level',
+                                                                    'contact_number' => 'Contact Number',
+                                                                    'email' => 'Email',
+                                                                    'facebook_account' => 'Facebook',
+                                                                    default => str($key)->headline(),
+                                                                } }}:
+                                                            </span>
+
+                                                            {{ $value }}
+                                                        </p>
+
+                                                    @endforeach
+                                                </div>
+                                            </details>
+                                        @endif
+
+                                    </div>
+
+                                    @if ($response->responded_at)
+                                        <span
+                                            class="shrink-0 text-xs text-gray-400"
+                                        >
+                                            {{ $response->responded_at->format('M d · g:i A') }}
+                                        </span>
+                                    @endif
+
+                                </div>
+                            </div>
+
+                        @empty
+
+                            <div
+                                class="rounded-xl border border-dashed border-emerald-300 p-4 text-center text-sm text-emerald-700 dark:border-emerald-800 dark:text-emerald-200"
+                            >
+                                No YES responses.
+                            </div>
+
+                        @endforelse
+
+                    </div>
+                </div>
+
+
+                {{-- =========================================
+                     NO RESPONSES
+                ========================================== --}}
+                <div>
+                    <div
+                        class="flex items-center justify-between"
+                    >
+                        <h4
+                            class="font-bold text-red-800 dark:text-red-200"
+                        >
+                            NO — Unable to Attend
+                        </h4>
+
+                        <span
+                            class="text-xs font-bold text-red-700 dark:text-red-300"
+                        >
+                            {{ $noMeetingResponses->count() }}
+                        </span>
+                    </div>
+
+                    <div class="mt-3 space-y-3">
+
+                        @forelse ($noMeetingResponses as $response)
+
+                            <div
+                                class="rounded-xl border border-red-200 bg-white p-4 dark:border-red-900 dark:bg-gray-950"
+                            >
+                                <div
+                                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                >
+
+                                    <div class="min-w-0">
+
+                                        <p
+                                            class="font-bold text-gray-900 dark:text-white"
+                                        >
+                                            {{ $response->respondent_name }}
+                                        </p>
+
+                                        <div
+                                            class="mt-2 flex flex-wrap gap-2"
+                                        >
+
+                                            @if (
+                                                $response->respondent_type
+                                                ===
+                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+                                            )
+                                                <span
+                                                    class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100"
+                                                >
+                                                    People Database
+                                                </span>
+
+                                            @elseif (
+                                                $response->respondent_type
+                                                ===
+                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_CAMPUS
+                                            )
+                                                <span
+                                                    class="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100"
+                                                >
+                                                    Campus Database
+                                                </span>
+
+                                            @else
+                                                <span
+                                                    class="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100"
+                                                >
+                                                    Guest
+                                                </span>
+                                            @endif
+
+
+                                            @if (
+                                                filled($response->original_source)
+                                                &&
+                                                $response->original_source
+                                                !== $response->respondent_type
+                                            )
+                                                <span
+                                                    class="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                                >
+                                                    Originally
+                                                    {{ $response->originalSourceLabel() }}
+                                                </span>
+                                            @endif
+
+                                        </div>
+
+
+                                        @if (
+                                            $response->original_source
+                                            ===
+                                            \App\Models\AttendanceMeetingResponse::RESPONDENT_GUEST
+                                            &&
+                                            filled($response->guest_profile)
+                                        )
+                                            <details
+                                                class="mt-3"
+                                            >
+                                                <summary
+                                                    class="cursor-pointer text-xs font-bold text-indigo-700 dark:text-indigo-300"
+                                                >
+                                                    Optional guest information
+                                                </summary>
+
+                                                <div
+                                                    class="mt-2 space-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                                                >
+                                                    @foreach ($response->guest_profile as $key => $value)
+
+                                                        @continue(blank($value))
+
+                                                        <p>
+                                                            <span class="font-semibold">
+                                                                {{ match ($key) {
+                                                                    'firstname' => 'First Name',
+                                                                    'lastname' => 'Last Name',
+                                                                    'sex' => 'Sex',
+                                                                    'locality' => 'Locality',
+                                                                    'school_campus' => 'School / Campus',
+                                                                    'course_strand' => 'Course / Strand',
+                                                                    'grade_level' => 'Grade Level',
+                                                                    'contact_number' => 'Contact Number',
+                                                                    'email' => 'Email',
+                                                                    'facebook_account' => 'Facebook',
+                                                                    default => str($key)->headline(),
+                                                                } }}:
+                                                            </span>
+
+                                                            {{ $value }}
+                                                        </p>
+
+                                                    @endforeach
+                                                </div>
+                                            </details>
+                                        @endif
+
+                                    </div>
+
+
+                                    @if ($response->responded_at)
+                                        <span
+                                            class="shrink-0 text-xs text-gray-400"
+                                        >
+                                            {{ $response->responded_at->format('M d · g:i A') }}
+                                        </span>
+                                    @endif
+
+                                </div>
+                            </div>
+
+                        @empty
+
+                            <div
+                                class="rounded-xl border border-dashed border-red-300 p-4 text-center text-sm text-red-700 dark:border-red-800 dark:text-red-200"
+                            >
+                                No NO responses.
+                            </div>
+
+                        @endforelse
+
+                    </div>
+                </div>
+
+            </div>
+
+        @endif
+    </div>
+@endif
 
 
 
