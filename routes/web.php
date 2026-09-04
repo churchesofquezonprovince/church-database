@@ -15,6 +15,7 @@ use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
+use App\Http\Controllers\AttendanceMeetingResponsePromotionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
 use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
@@ -275,6 +276,18 @@ Route::middleware(['web', 'auth'])
         Route::post('/{session}', [AttendanceSheetRecordController::class, 'store'])
             ->name('store');
     });
+
+Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/promote-to-campus',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'promoteGuestToCampus',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.promote-to-campus'
+    );
 
 
 Route::middleware(['web', 'auth'])
@@ -567,3 +580,29 @@ Route::middleware(['web', 'auth'])
             ->middleware('throttle:60,1')
             ->name('meeting.store');
     });
+
+
+    Route::middleware(['web', 'auth'])
+    ->get(
+        '/quezonprovinceactivities/attendance-meeting-responses/person-search',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'searchPeople',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.person-search'
+    );
+
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/link-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'linkGuestToPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.link-person'
+    );

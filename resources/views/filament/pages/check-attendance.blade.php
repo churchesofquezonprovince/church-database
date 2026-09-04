@@ -196,6 +196,32 @@
                     attendance. A YES response does not mark a
                     person as present.
                 </p>
+@if (session('meeting_response_promoted_to_campus'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+        <strong>
+            Campus Contact created.
+        </strong>
+
+        {{ session('meeting_response_promoted_name') }}
+        is now linked to this RSVP through the Campus Database.
+    </div>
+@endif
+
+@if (session('meeting_response_linked_to_person'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+        <strong>
+            Guest linked to People Database.
+        </strong>
+
+        {{ session('meeting_response_linked_person_name') }}
+        is now the canonical identity for this RSVP.
+    </div>
+@endif
+
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -370,6 +396,13 @@
                                             </details>
                                         @endif
 
+@include(
+    'filament.pages.partials.meeting-response-promotion',
+    [
+        'response' => $response,
+    ]
+)
+
                                     </div>
 
                                     @if ($response->responded_at)
@@ -535,6 +568,13 @@
                                                 </div>
                                             </details>
                                         @endif
+
+@include(
+    'filament.pages.partials.meeting-response-promotion',
+    [
+        'response' => $response,
+    ]
+)
 
                                     </div>
 
@@ -799,4 +839,292 @@
             </div>
         </div>
     </div>
+
+
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchUrl = @json(
+        route(
+            'quezonprovinceactivities.attendance-meeting-responses.person-search'
+        )
+    );
+
+    document
+        .querySelectorAll('[data-person-link-form]')
+        .forEach((form) => {
+            const searchInput =
+                form.querySelector(
+                    '[data-person-search]'
+                );
+
+            const status =
+                form.querySelector(
+                    '[data-person-search-status]'
+                );
+
+            const results =
+                form.querySelector(
+                    '[data-person-results]'
+                );
+
+            const personId =
+                form.querySelector(
+                    '[data-person-id]'
+                );
+
+            const selected =
+                form.querySelector(
+                    '[data-selected-person]'
+                );
+
+            const selectedName =
+                form.querySelector(
+                    '[data-selected-person-name]'
+                );
+
+            const clearButton =
+                form.querySelector(
+                    '[data-clear-person]'
+                );
+
+            let timer = null;
+            let controller = null;
+
+
+            function clearResults() {
+                results.innerHTML = '';
+                results.classList.add('hidden');
+            }
+
+
+            function clearSelection() {
+                personId.value = '';
+                selectedName.textContent = '';
+                selected.classList.add('hidden');
+
+                searchInput.value = '';
+                searchInput.disabled = false;
+
+                status.textContent =
+                    'Search by first name, last name, or nickname.';
+
+                searchInput.focus();
+            }
+
+
+            function choosePerson(person) {
+                personId.value = person.id;
+
+                selectedName.textContent =
+                    person.name
+                    + (
+                        person.locality
+                            ? ' · ' + person.locality
+                            : ''
+                    );
+
+                selected.classList.remove('hidden');
+
+                searchInput.value = person.name;
+                searchInput.disabled = true;
+
+                clearResults();
+
+                status.textContent =
+                    'Person selected.';
+            }
+
+
+            searchInput.addEventListener(
+                'input',
+                () => {
+                    clearTimeout(timer);
+
+                    const query =
+                        searchInput.value.trim();
+
+                    personId.value = '';
+                    selected.classList.add('hidden');
+
+                    if (query.length < 2) {
+                        clearResults();
+
+                        status.textContent =
+                            'Type at least 2 characters.';
+
+                        return;
+                    }
+
+                    timer = setTimeout(
+                        async () => {
+                            if (controller) {
+                                controller.abort();
+                            }
+
+                            controller =
+                                new AbortController();
+
+                            status.textContent =
+                                'Searching...';
+
+                            try {
+                                const response =
+                                    await fetch(
+                                        searchUrl
+                                        + '?q='
+                                        + encodeURIComponent(
+                                            query
+                                        ),
+                                        {
+                                            headers: {
+                                                'Accept':
+                                                    'application/json'
+                                            },
+
+                                            signal:
+                                                controller.signal
+                                        }
+                                    );
+
+                                if (! response.ok) {
+                                    throw new Error(
+                                        'Search failed'
+                                    );
+                                }
+
+                                const data =
+                                    await response.json();
+
+                                clearResults();
+
+                                const rows =
+                                    Array.isArray(
+                                        data.results
+                                    )
+                                        ? data.results
+                                        : [];
+
+                                if (rows.length === 0) {
+                                    status.textContent =
+                                        'No matching People found.';
+
+                                    return;
+                                }
+
+                                rows.forEach(
+                                    (person) => {
+                                        const button =
+                                            document.createElement(
+                                                'button'
+                                            );
+
+                                        button.type =
+                                            'button';
+
+                                        button.className =
+                                            'block w-full border-t border-gray-100 px-3 py-3 text-left first:border-t-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800';
+
+                                        const name =
+                                            document.createElement(
+                                                'div'
+                                            );
+
+                                        name.className =
+                                            'text-sm font-bold text-gray-900 dark:text-white';
+
+                                        name.textContent =
+                                            person.name;
+
+                                        button.appendChild(
+                                            name
+                                        );
+
+                                        if (
+                                            person.locality
+                                        ) {
+                                            const locality =
+                                                document.createElement(
+                                                    'div'
+                                                );
+
+                                            locality.className =
+                                                'mt-1 text-xs text-gray-500 dark:text-gray-400';
+
+                                            locality.textContent =
+                                                person.locality;
+
+                                            button.appendChild(
+                                                locality
+                                            );
+                                        }
+
+                                        button.addEventListener(
+                                            'click',
+                                            () =>
+                                                choosePerson(
+                                                    person
+                                                )
+                                        );
+
+                                        results.appendChild(
+                                            button
+                                        );
+                                    }
+                                );
+
+                                results.classList.remove(
+                                    'hidden'
+                                );
+
+                                status.textContent =
+                                    rows.length
+                                    + ' match(es).';
+                            } catch (error) {
+                                if (
+                                    error.name
+                                    === 'AbortError'
+                                ) {
+                                    return;
+                                }
+
+                                clearResults();
+
+                                status.textContent =
+                                    'Unable to search right now.';
+                            }
+                        },
+                        250
+                    );
+                }
+            );
+
+
+            clearButton.addEventListener(
+                'click',
+                clearSelection
+            );
+
+
+            form.addEventListener(
+                'submit',
+                (event) => {
+                    if (! personId.value) {
+                        event.preventDefault();
+
+                        status.textContent =
+                            'Select a Person before linking.';
+
+                        searchInput.focus();
+                    }
+                }
+            );
+        });
+});
+</script>
+
+
+
 </x-filament-panels::page>
