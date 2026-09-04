@@ -537,8 +537,18 @@ Route::middleware(['web', 'auth'])
  *
  * No login required.
  */
-Route::middleware(['web'])
+    Route::middleware(['web'])
     ->group(function (): void {
+        Route::get(
+            '/meeting/{slug}/name-search',
+            [
+                PublicMeetingFormController::class,
+                'search',
+            ]
+        )
+            ->middleware('throttle:120,1')
+            ->name('meeting.search');
+
         Route::get(
             '/meeting/{slug}',
             [
