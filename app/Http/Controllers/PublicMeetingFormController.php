@@ -581,13 +581,17 @@ $meetingResponse->forceFill([
         string $name,
         string $response
     ): RedirectResponse {
-        return redirect()
-            ->to(
-                secure_url(
-                    '/meeting/'
-                    . $session->public_slug
-                )
-            )
+$url =
+    request()->getHost() === 'm.overcomers.win'
+        ? 'https://m.overcomers.win/'
+            . $session->public_slug
+        : secure_url(
+            '/meeting/'
+            . $session->public_slug
+        );
+
+return redirect()
+    ->to($url)
             ->with(
                 'meeting_response_saved',
                 true

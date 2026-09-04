@@ -393,11 +393,13 @@
 
             <form
                 method="POST"
-                action="{{ route(
-                    'meeting.store',
-                    ['slug' => $session->public_slug],
-                    false
-                ) }}"
+action="{{ route(
+    request()->getHost() === 'm.overcomers.win'
+        ? 'meeting.short.store'
+        : 'meeting.store',
+    ['slug' => $session->public_slug],
+    false
+) }}"
             >
 
                 @csrf
@@ -1160,13 +1162,15 @@
 
 <script>
 (() => {
-    const searchUrl = @json(
-        route(
-            'meeting.search',
-            ['slug' => $session->public_slug],
-            false
-        )
-    );
+const searchUrl = @json(
+    route(
+        request()->getHost() === 'm.overcomers.win'
+            ? 'meeting.short.search'
+            : 'meeting.search',
+        ['slug' => $session->public_slug],
+        false
+    )
+);
 
     const searchInput =
         document.getElementById('name_search');

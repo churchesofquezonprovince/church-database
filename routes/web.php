@@ -36,6 +36,47 @@ Route::middleware(['web'])
     })
     ->name('quezonprovinceactivities.test-site');
 
+/*
+ * ============================================================
+ * SHORT PUBLIC MEETING LINKS
+ * ============================================================
+ *
+ * Example:
+ * https://m.overcomers.win/9-4-26-ceficoccampusmeeting
+ */
+Route::domain('m.overcomers.win')
+    ->middleware(['web'])
+    ->group(function (): void {
+        Route::get(
+            '/{slug}/name-search',
+            [
+                PublicMeetingFormController::class,
+                'search',
+            ]
+        )
+            ->middleware('throttle:120,1')
+            ->name('meeting.short.search');
+
+        Route::get(
+            '/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'show',
+            ]
+        )
+            ->name('meeting.short.show');
+
+        Route::post(
+            '/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'store',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.short.store');
+    });
+
 
 Route::redirect('/', '/quezonprovinceactivities');
 

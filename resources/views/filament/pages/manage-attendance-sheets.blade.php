@@ -482,16 +482,40 @@
                     </div>
 
 
-                    @if ($session->publicMeetingUrl())
-                        <a
-                            href="{{ $session->publicMeetingUrl() }}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-emerald-500"
-                        >
-                            Open Form
-                        </a>
-                    @endif
+@if ($session->publicMeetingUrl())
+    <div class="flex shrink-0 flex-wrap gap-2">
+        <button
+            type="button"
+            data-short-url="https://m.overcomers.win/{{ $session->public_slug }}"
+            onclick="
+                navigator.clipboard
+                    .writeText(this.dataset.shortUrl)
+                    .then(() => {
+                        const button = this;
+                        const originalText = button.textContent.trim();
+
+                        button.textContent = 'Copied!';
+
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                        }, 1500);
+                    });
+            "
+            class="rounded-lg bg-sky-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-sky-500"
+        >
+            Shorten Link
+        </button>
+
+        <a
+            href="{{ $session->publicMeetingUrl() }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-emerald-500"
+        >
+            Open Form
+        </a>
+    </div>
+@endif
 
                 </div>
 
