@@ -17,6 +17,10 @@ class AttendanceSheet extends Model
 
     public const TYPE_PRAYER_MEETING = 'prayer_meeting';
 
+    public const MEETING_FORM_DISABLED = 'disabled';
+
+    public const MEETING_FORM_NORMAL = 'normal';
+
     protected $fillable = [
         'title',
         'sheet_type',
@@ -27,6 +31,7 @@ class AttendanceSheet extends Model
         'start_date',
         'end_date',
         'is_active',
+        'meeting_form_type',
         'remarks',
         'created_by_id',
     ];
@@ -105,4 +110,17 @@ public function immichAlbum(): HasOne
     {
         return $this->sheet_type === self::TYPE_LORDS_TABLE;
     }
+    
+    public function meetingFormEnabled(): bool
+{
+    return $this->meeting_form_type === self::MEETING_FORM_NORMAL;
+}
+
+public function meetingFormLabel(): string
+{
+    return match ($this->meeting_form_type) {
+        self::MEETING_FORM_NORMAL => 'Normal Meeting Form',
+        default => 'Disabled',
+    };
+}
 }

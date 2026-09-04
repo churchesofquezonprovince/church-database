@@ -22,6 +22,13 @@ class AttendanceSession extends Model
         'session_date' => 'date',
     ];
 
+    public function meetingResponses(): HasMany
+{
+    return $this->hasMany(
+        AttendanceMeetingResponse::class,
+        'attendance_session_id',
+    );
+}
 
 public function immichDetections(): HasMany
 {
