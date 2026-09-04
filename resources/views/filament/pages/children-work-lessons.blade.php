@@ -35,26 +35,28 @@
         ])
         ->first();
 
-    $currentMonthLessons = $lessons
-        ->filter(fn ($lesson) =>
-            $lesson->scheduled_on
-            && $lesson->scheduled_on->year === $today->year
-            && $lesson->scheduled_on->month === $today->month
-        )
-        ->sortBy([
-            ['scheduled_on', 'asc'],
-            ['id', 'asc'],
-        ]);
+$currentMonthLessons = $lessons
+    ->filter(fn ($lesson) =>
+        $lesson->scheduled_on
+        && $lesson->scheduled_on->year === $today->year
+        && $lesson->scheduled_on->month === $today->month
+        && (! $nextLesson || $lesson->id !== $nextLesson->id)
+    )
+    ->sortBy([
+        ['scheduled_on', 'asc'],
+        ['id', 'asc'],
+    ]);
 
-    $futureLessons = $lessons
-        ->filter(fn ($lesson) =>
-            $lesson->scheduled_on
-            && $lesson->scheduled_on->gt($today->copy()->endOfMonth())
-        )
-        ->sortBy([
-            ['scheduled_on', 'asc'],
-            ['id', 'asc'],
-        ]);
+$futureLessons = $lessons
+    ->filter(fn ($lesson) =>
+        $lesson->scheduled_on
+        && $lesson->scheduled_on->gt($today->copy()->endOfMonth())
+        && (! $nextLesson || $lesson->id !== $nextLesson->id)
+    )
+    ->sortBy([
+        ['scheduled_on', 'asc'],
+        ['id', 'asc'],
+    ]);
     $pastLessons = $lessons
     ->filter(fn ($lesson) =>
         $lesson->scheduled_on
@@ -215,264 +217,310 @@
     </form>
 </details>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-<div>
-    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-        {{ $today->format('F Y') }} Schedule
-    </h3>
-
-    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Current month's Children's Work meetings and preparation materials.
-    </p>
-</div>
 
 
 {{-- =========================================================
      NEXT MEETING
 ========================================================== --}}
-<div class="mt-5 rounded-2xl border border-pink-200 bg-pink-50 p-6 shadow-sm dark:border-pink-900 dark:bg-pink-950">
 
-    <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+<div class="mt-8">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
         Next Meeting
     </h3>
 
-    @if ($nextLesson)
-
-<div class="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-    <table
-        class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700"
-        style="table-layout: fixed;"
-    >
-
-<colgroup>
-    <col style="width: 9%;">   {{-- Date --}}
-    <col style="width: 13%;">  {{-- Lesson --}}
-    <col style="width: 12%;">  {{-- Suggested Hymn --}}
-    <col style="width: 18%;">  {{-- Memory Verse --}}
-    <col style="width: 13%;">  {{-- Story --}}
-    <col style="width: 16%;">  {{-- Presentation Slides --}}
-    <col style="width: 19%;">  {{-- Activity --}}
-</colgroup>
-
-                <thead>
-                    <tr class="border-b border-pink-200 dark:border-pink-900">
-
-                        <th class="px-4 py-3 text-left">
-                            Date
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Lesson
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Suggested Hymn
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Memory Verse
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Story
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Presentation Slides
-                        </th>
-
-                        <th class="px-4 py-3 text-left">
-                            Activity
-                        </th>
-
-                    </tr>
-                </thead>
-
-                <tbody>
-                    <tr>
-
-                        {{-- Date --}}
-                        <td class="px-4 py-3 align-top font-semibold">
-                            {{ $nextLesson->displayDate() }}
-
-                            <span class="block text-xs font-normal opacity-70">
-                                {{
-                                    $statusOptions[$nextLesson->status]
-                                    ?? ucfirst(str_replace('_', ' ', $nextLesson->status))
-                                }}
-                            </span>
-                        </td>
-
-
-                        {{-- Lesson --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <p class="font-semibold">
-                                {{ $nextLesson->displayTitle() }}
-                            </p>
-
-                            @if ($nextLesson->lesson_url)
-                                <a
-                                    href="{{ $nextLesson->lesson_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-1 inline-flex text-xs font-semibold text-pink-500 hover:underline"
-                                >
-                                    Open Lesson Link
-                                </a>
-                            @endif
-
-                        </td>
-
-
-                        {{-- Suggested Hymn --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <div class="whitespace-normal break-words">
-                                {{
-                                    \Illuminate\Support\Str::limit(
-                                        $nextLesson->suggested_hymn ?: '—',
-                                        80
-                                    )
-                                }}
-                            </div>
-
-                            @if ($nextLesson->suggested_hymn_url)
-                                <a
-                                    href="{{ $nextLesson->suggested_hymn_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-1 inline-flex text-xs font-semibold text-pink-500 hover:underline"
-                                >
-                                    Open Hymn Link
-                                </a>
-                            @endif
-
-                        </td>
-
-
-                        {{-- Memory Verse - FULL --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <div class="whitespace-normal break-words">
-                                {{ $nextLesson->memory_verse ?: '—' }}
-                            </div>
-
-                        </td>
-
-
-                        {{-- Story - COMPRESSED --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <div class="whitespace-normal break-words">
-                                {{
-                                    \Illuminate\Support\Str::limit(
-                                        $nextLesson->story ?: '—',
-                                        100
-                                    )
-                                }}
-                            </div>
-
-                            @if ($nextLesson->story_url)
-                                <a
-                                    href="{{ $nextLesson->story_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-1 inline-flex text-xs font-semibold text-pink-500 hover:underline"
-                                >
-                                    Open Story Link
-                                </a>
-                            @endif
-
-                        </td>
-
-
-                        {{-- Presentation --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <div class="whitespace-normal break-words">
-                                {{
-                                    \Illuminate\Support\Str::limit(
-                                        $nextLesson->presentation_slides ?: '—',
-                                        120
-                                    )
-                                }}
-                            </div>
-
-                            @if ($nextLesson->presentation_slides_url)
-                                <a
-                                    href="{{ $nextLesson->presentation_slides_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-1 inline-flex text-xs font-semibold text-pink-500 hover:underline"
-                                >
-                                    Open Presentation Slides
-                                </a>
-                            @endif
-
-                        </td>
-
-
-                        {{-- Activity - FULL --}}
-                        <td class="px-4 py-3 align-top">
-
-                            <div class="whitespace-normal break-words">
-                                {{ $nextLesson->activity ?: '—' }}
-                            </div>
-
-                            @if ($nextLesson->activity_url)
-                                <a
-                                    href="{{ $nextLesson->activity_url }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-1 inline-flex text-xs font-semibold text-pink-500 hover:underline"
-                                >
-                                    Open Activity
-                                </a>
-                            @endif
-
-                        </td>
-
-                    </tr>
-                </tbody>
-
-            </table>
-
-        </div>
-
-    @else
-
-        <p class="mt-4 text-gray-500 dark:text-gray-400">
-            No upcoming lesson scheduled.
-        </p>
-
-    @endif
-
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        The next upcoming Children's Work meeting.
+    </p>
 </div>
+
+
+@if ($nextLesson)
+
+    <div class="mt-5 overflow-hidden rounded-xl border border-pink-300 bg-pink-50 dark:border-pink-900 dark:bg-pink-950">
+
+        <table
+            class="w-full divide-y divide-pink-200 text-sm dark:divide-pink-900"
+            style="table-layout: fixed;"
+        >
+
+            <colgroup>
+                <col style="width: 9%;">   {{-- Date --}}
+                <col style="width: 13%;">  {{-- Lesson --}}
+                <col style="width: 12%;">  {{-- Suggested Hymn --}}
+                <col style="width: 18%;">  {{-- Memory Verse --}}
+                <col style="width: 13%;">  {{-- Story --}}
+                <col style="width: 16%;">  {{-- Presentation Slides --}}
+                <col style="width: 19%;">  {{-- Activity --}}
+            </colgroup>
+
+
+            <thead class="bg-pink-100 dark:bg-pink-950">
+                <tr>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Date
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Lesson
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Suggested Hymn
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Memory Verse
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Story
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Presentation Slides
+                    </th>
+
+                    <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        Activity
+                    </th>
+
+                </tr>
+            </thead>
+
+
+            <tbody class="bg-pink-50 dark:bg-pink-950">
+
+                <tr>
+
+                    {{-- DATE + STATUS + ACTIONS --}}
+                    <td class="px-4 py-3 align-top font-semibold text-gray-900 dark:text-white">
+
+                        {{ $nextLesson->displayDate() }}
+
+                        <span class="block text-xs font-normal text-gray-600 dark:text-gray-300">
+                            {{
+                                $statusOptions[$nextLesson->status]
+                                ?? ucfirst(str_replace('_', ' ', $nextLesson->status))
+                            }}
+                        </span>
+
+                        <div class="mt-2 flex flex-wrap gap-2">
+
+                            <a
+                                href="{{ \App\Filament\Pages\ChildrenWorkLessons::getUrl() . '?edit_lesson=' . $nextLesson->id }}"
+                                class="inline-flex rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-gray-600"
+                            >
+                                Edit
+                            </a>
+
+                            <form
+                                method="POST"
+                                action="{{ route('quezonprovinceactivities.children-work.lessons.destroy', $nextLesson) }}"
+                                onsubmit="return confirm('Delete this lesson from BOTH the website and Google Sheet? This will physically remove its Google Sheet row(s).');"
+                            >
+                                @csrf
+                                @method('DELETE')
+
+                                <button
+                                    type="submit"
+                                    class="inline-flex rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900 dark:bg-gray-950 dark:text-red-400 dark:hover:bg-red-950/40"
+                                >
+                                    Delete
+                                </button>
+                            </form>
+
+                        </div>
+
+                    </td>
+
+
+                    {{-- LESSON --}}
+                    <td class="px-4 py-3 align-top">
+
+                        <p class="font-semibold text-gray-900 dark:text-white">
+                            {{ $nextLesson->displayTitle() }}
+                        </p>
+
+                        @if ($nextLesson->lesson_url)
+                            <a
+                                href="{{ $nextLesson->lesson_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                            >
+                                Open Lesson Link
+                            </a>
+                        @endif
+
+                        @if ($nextLesson->sync_status)
+                            <span class="mt-2 block w-fit rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-gray-900/70 dark:text-gray-300">
+                                {{ $nextLesson->sync_status }}
+                            </span>
+                        @endif
+
+                    </td>
+
+
+                    {{-- SUGGESTED HYMN --}}
+                    <td class="px-4 py-3 align-top text-gray-700 dark:text-gray-200">
+
+                        <div class="whitespace-normal break-words">
+                            {{
+                                \Illuminate\Support\Str::limit(
+                                    $nextLesson->suggested_hymn ?: '—',
+                                    80
+                                )
+                            }}
+                        </div>
+
+                        @if ($nextLesson->suggested_hymn_url)
+                            <a
+                                href="{{ $nextLesson->suggested_hymn_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                            >
+                                Open Hymn Link
+                            </a>
+                        @endif
+
+                    </td>
+
+
+                    {{-- MEMORY VERSE --}}
+                    <td class="px-4 py-3 align-top text-gray-700 dark:text-gray-200">
+
+                        <div class="whitespace-normal break-words">
+                            {{ $nextLesson->memory_verse ?: '—' }}
+                        </div>
+
+                    </td>
+
+
+                    {{-- STORY --}}
+                    <td class="px-4 py-3 align-top text-gray-700 dark:text-gray-200">
+
+                        <div class="whitespace-normal break-words">
+                            {{
+                                \Illuminate\Support\Str::limit(
+                                    $nextLesson->story ?: '—',
+                                    100
+                                )
+                            }}
+                        </div>
+
+                        @if ($nextLesson->story_url)
+                            <a
+                                href="{{ $nextLesson->story_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                            >
+                                Open Story Link
+                            </a>
+                        @endif
+
+                    </td>
+
+
+                    {{-- PRESENTATION SLIDES --}}
+                    <td class="px-4 py-3 align-top text-gray-700 dark:text-gray-200">
+
+                        <div class="whitespace-normal break-words">
+                            {{
+                                \Illuminate\Support\Str::limit(
+                                    $nextLesson->presentation_slides ?: '—',
+                                    120
+                                )
+                            }}
+                        </div>
+
+                        @if ($nextLesson->presentation_slides_url)
+                            <a
+                                href="{{ $nextLesson->presentation_slides_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                            >
+                                Open Presentation Slides
+                            </a>
+                        @endif
+
+                    </td>
+
+
+                    {{-- ACTIVITY --}}
+                    <td class="px-4 py-3 align-top text-gray-700 dark:text-gray-200">
+
+                        <div class="whitespace-normal break-words">
+                            {{ $nextLesson->activity ?: '—' }}
+                        </div>
+
+                        @if ($nextLesson->activity_url)
+                            <a
+                                href="{{ $nextLesson->activity_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-1 inline-flex text-xs font-semibold text-pink-600 hover:underline dark:text-pink-300"
+                            >
+                                Open Activity
+                            </a>
+                        @endif
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+@else
+
+    <div class="mt-5 rounded-xl border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+        No upcoming lesson scheduled.
+    </div>
+
+@endif
 
 
 {{-- =========================================================
      CURRENT MONTH / PRESENT SCHEDULES
 ========================================================== --}}
+
+<div class="mt-8">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+        {{ $today->format('F Y') }} Schedule
+    </h3>
+
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Remaining Children's Work meetings for the current month.
+    </p>
+</div>
+
+
 <div class="mt-5 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+
     <table
         class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700"
         style="table-layout: fixed;"
     >
 
-<colgroup>
-    <col style="width: 9%;">   {{-- Date --}}
-    <col style="width: 13%;">  {{-- Lesson --}}
-    <col style="width: 12%;">  {{-- Suggested Hymn --}}
-    <col style="width: 18%;">  {{-- Memory Verse --}}
-    <col style="width: 13%;">  {{-- Story --}}
-    <col style="width: 16%;">  {{-- Presentation Slides --}}
-    <col style="width: 19%;">  {{-- Activity --}}
-</colgroup>
+        <colgroup>
+            <col style="width: 9%;">   {{-- Date --}}
+            <col style="width: 13%;">  {{-- Lesson --}}
+            <col style="width: 12%;">  {{-- Suggested Hymn --}}
+            <col style="width: 18%;">  {{-- Memory Verse --}}
+            <col style="width: 13%;">  {{-- Story --}}
+            <col style="width: 16%;">  {{-- Presentation Slides --}}
+            <col style="width: 19%;">  {{-- Activity --}}
+        </colgroup>
 
         <thead class="bg-gray-50 dark:bg-gray-950">
             <tr>
-
                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
                     Date
                 </th>
@@ -500,9 +548,9 @@
                 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
                     Activity
                 </th>
-
             </tr>
         </thead>
+
 
         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
 
@@ -608,7 +656,7 @@
                     </td>
 
 
-                    {{-- Memory Verse - FULL --}}
+                    {{-- Memory Verse --}}
                     <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
 
                         <div class="whitespace-normal break-words">
@@ -618,7 +666,7 @@
                     </td>
 
 
-                    {{-- Story - COMPRESSED --}}
+                    {{-- Story --}}
                     <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
 
                         <div class="whitespace-normal break-words">
@@ -644,7 +692,7 @@
                     </td>
 
 
-                    {{-- Presentation --}}
+                    {{-- Presentation Slides --}}
                     <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
 
                         <div class="whitespace-normal break-words">
@@ -670,7 +718,7 @@
                     </td>
 
 
-                    {{-- Activity - FULL --}}
+                    {{-- Activity --}}
                     <td class="px-4 py-3 align-top text-gray-600 dark:text-gray-300">
 
                         <div class="whitespace-normal break-words">
@@ -697,9 +745,9 @@
                 <tr>
                     <td
                         colspan="7"
-                        class="px-4 py-6 text-center text-gray-500 dark:text-gray-400"
+                        class="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                     >
-                        No lessons scheduled for {{ $today->format('F Y') }}.
+                        No additional lessons scheduled for {{ $today->format('F Y') }}.
                     </td>
                 </tr>
 
@@ -708,8 +756,6 @@
         </tbody>
 
     </table>
-
-</div>
 
 </div>
 
