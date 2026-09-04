@@ -249,7 +249,50 @@
     </div>
 @endif
 
+@if (session('meeting_response_participant_added'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+        <strong>
+            Attendance Participant added.
+        </strong>
 
+        {{ session('meeting_response_participant_name') }}
+
+        @if (
+            session('meeting_response_participant_scope')
+            === 'this_meeting'
+        )
+            was added for this meeting only.
+        @else
+            was added from this meeting onward.
+        @endif
+
+        Actual attendance has not been marked.
+    </div>
+@endif
+
+
+@if (session('meeting_response_participant_already'))
+    <div
+        class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200"
+    >
+        {{ session('meeting_response_participant_name') }}
+        is already an Attendance Participant for this meeting.
+        No changes were needed.
+    </div>
+@endif
+
+
+@if ($errors->has('meeting_response_participant'))
+    <div
+        class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+    >
+        {{ $errors->first(
+            'meeting_response_participant'
+        ) }}
+    </div>
+@endif
 
 
 
@@ -444,6 +487,13 @@
     ]
 )
 
+@include(
+    'filament.pages.partials.meeting-response-attendance-participant',
+    [
+        'response' => $response,
+    ]
+)
+
                                     </div>
 
                                     @if ($response->responded_at)
@@ -619,6 +669,13 @@
 
 @include(
     'filament.pages.partials.meeting-response-campus-promotion',
+    [
+        'response' => $response,
+    ]
+)
+
+@include(
+    'filament.pages.partials.meeting-response-attendance-participant',
     [
         'response' => $response,
     ]

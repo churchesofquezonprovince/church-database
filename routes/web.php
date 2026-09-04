@@ -15,6 +15,7 @@ use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
+use App\Http\Controllers\AttendanceMeetingResponseParticipantController;
 use App\Http\Controllers\AttendanceMeetingResponsePromotionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
 use App\Http\Controllers\AttendanceSheetController;
@@ -654,4 +655,16 @@ Route::middleware(['web', 'auth'])
     )
     ->name(
         'quezonprovinceactivities.attendance-meeting-responses.use-campus-linked-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/attendance-participant',
+        [
+            AttendanceMeetingResponseParticipantController::class,
+            'store',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.attendance-participant'
     );
