@@ -184,36 +184,35 @@
 
                                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
 
-                                        {{-- =============================================
-                                             TOP ROW:
-                                             TAG + TIME + HASH
-                                        ============================================== --}}
-                                        <div class="flex flex-wrap items-center justify-between gap-2">
+{{-- =============================================
+     TOP ROW:
+     TAG + TIME                         HASH
+============================================== --}}
+<div class="flex items-center justify-between gap-4">
 
-                                            <div class="flex flex-wrap items-center gap-2">
+    {{-- Left: Tag + Time --}}
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
 
-                                                {{-- Tag --}}
-                                                <span class="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
-                                                    {{ $note['tag'] }}
-                                                </span>
+        <span class="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
+            {{ $note['tag'] }}
+        </span>
 
-                                                {{-- Time --}}
-                                                <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                                                    {{
-                                                        \Carbon\CarbonImmutable::parse(
-                                                            $note['date_time']
-                                                        )->format('h:i A')
-                                                    }}
-                                                </span>
+        <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+            {{
+                \Carbon\CarbonImmutable::parse(
+                    $note['date_time']
+                )->format('h:i A')
+            }}
+        </span>
 
-                                                {{-- Commit Hash --}}
-                                                <span class="rounded-lg bg-white px-2.5 py-1 text-xs font-mono text-gray-500 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:ring-gray-700">
-                                                    {{ $note['hash'] }}
-                                                </span>
+    </div>
 
-                                            </div>
+    {{-- Right: Commit Hash --}}
+    <span class="shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-mono text-gray-500 ring-1 ring-gray-200 dark:bg-gray-900 dark:text-gray-400 dark:ring-gray-700">
+        {{ $note['hash'] }}
+    </span>
 
-                                        </div>
+</div>
 
 
                                         {{-- =============================================
