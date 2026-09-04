@@ -553,62 +553,491 @@
     </div>
 
 
-    <div
-        id="guest_panel"
-        hidden
+<div
+    id="guest_panel"
+    hidden
+    style="
+        margin-top: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 14px;
+        background: #eff6ff;
+        padding: 14px;
+    "
+>
+    <label
+        for="guest_name"
         style="
-            margin-top: 12px;
-            border: 1px solid #bfdbfe;
-            border-radius: 14px;
-            background: #eff6ff;
-            padding: 14px;
+            display: block;
+            margin-bottom: 8px;
+            color: #1e3a8a;
+            font-size: 14px;
+            font-weight: 750;
         "
     >
-        <label
-            for="guest_name"
-            style="
-                display: block;
-                margin-bottom: 8px;
-                color: #1e3a8a;
-                font-size: 14px;
-                font-weight: 750;
-            "
-        >
-            Enter your full name
-        </label>
+        Your Full Name
+    </label>
 
+    <input
+        id="guest_name"
+        name="guest_name"
+        type="text"
+        autocomplete="name"
+        value="{{ old('guest_name') }}"
+        placeholder="Your full name"
+        maxlength="255"
+        style="
+            width: 100%;
+            min-height: 52px;
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 0 14px;
+            font-size: 16px;
+        "
+    >
+
+    <p
+        style="
+            margin: 8px 0 0;
+            color: #1d4ed8;
+            font-size: 12px;
+            line-height: 1.45;
+        "
+    >
+        Your name will only be attached to this meeting
+        response. It will not automatically create a
+        People or Campus Database record.
+    </p>
+
+
+    <label
+        style="
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 18px;
+            border-top: 1px solid #bfdbfe;
+            padding-top: 16px;
+            cursor: pointer;
+        "
+    >
         <input
-            id="guest_name"
-            name="guest_name"
-            type="text"
-            autocomplete="name"
-            value="{{ old('guest_name') }}"
-            placeholder="Your full name"
-            maxlength="255"
+            id="guest_profile_enabled"
+            type="checkbox"
+            name="guest_profile_enabled"
+            value="1"
+            @checked(old('guest_profile_enabled'))
             style="
-                width: 100%;
-                min-height: 52px;
-                border: 1px solid #93c5fd;
-                border-radius: 12px;
-                background: #ffffff;
-                padding: 0 14px;
-                font-size: 16px;
+                width: 19px;
+                height: 19px;
+                margin-top: 2px;
+                flex: 0 0 auto;
             "
         >
 
-        <p
+        <span>
+            <strong
+                style="
+                    display: block;
+                    color: #1e3a8a;
+                    font-size: 14px;
+                "
+            >
+                Add optional information
+            </strong>
+
+            <span
+                style="
+                    display: block;
+                    margin-top: 3px;
+                    color: #1d4ed8;
+                    font-size: 12px;
+                    line-height: 1.4;
+                "
+            >
+                You may add locality, school, or contact
+                information. All fields below are optional.
+            </span>
+        </span>
+    </label>
+
+
+<div
+    id="guest_optional_fields"
+    hidden
+    style="
+        margin-top: 16px;
+    "
+>
+    <div
+        style="
+            display: grid;
+            gap: 14px;
+        "
+    >
+
+        <div
             style="
-                margin: 8px 0 0;
-                color: #1d4ed8;
-                font-size: 12px;
-                line-height: 1.45;
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
             "
         >
-            This will only be saved with this meeting
-            response. It will not create a record in the
-            People or Campus Database.
-        </p>
+            <div>
+                <label
+                    for="guest_firstname"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    First Name
+                </label>
+
+                <input
+                    id="guest_firstname"
+                    name="guest_profile[firstname]"
+                    type="text"
+                    maxlength="100"
+                    value="{{ old('guest_profile.firstname') }}"
+                    autocomplete="given-name"
+                    style="
+                        width:100%;
+                        min-height:48px;
+                        border:1px solid #93c5fd;
+                        border-radius:10px;
+                        padding:0 12px;
+                        font-size:16px;
+                        background:white;
+                    "
+                >
+            </div>
+
+            <div>
+                <label
+                    for="guest_lastname"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    Last Name
+                </label>
+
+                <input
+                    id="guest_lastname"
+                    name="guest_profile[lastname]"
+                    type="text"
+                    maxlength="100"
+                    value="{{ old('guest_profile.lastname') }}"
+                    autocomplete="family-name"
+                    style="
+                        width:100%;
+                        min-height:48px;
+                        border:1px solid #93c5fd;
+                        border-radius:10px;
+                        padding:0 12px;
+                        font-size:16px;
+                        background:white;
+                    "
+                >
+            </div>
+        </div>
+
+
+        <div
+            style="
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
+            "
+        >
+            <div>
+                <label
+                    for="guest_sex"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    Sex
+                </label>
+
+                <select
+                    id="guest_sex"
+                    name="guest_profile[sex]"
+                >
+                    <option value="">
+                        Select
+                    </option>
+
+                    <option
+                        value="Male"
+                        @selected(
+                            old('guest_profile.sex')
+                            === 'Male'
+                        )
+                    >
+                        Male
+                    </option>
+
+                    <option
+                        value="Female"
+                        @selected(
+                            old('guest_profile.sex')
+                            === 'Female'
+                        )
+                    >
+                        Female
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label
+                    for="guest_locality"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    Locality
+                </label>
+
+                <input
+                    id="guest_locality"
+                    name="guest_profile[locality]"
+                    type="text"
+                    maxlength="150"
+                    value="{{ old('guest_profile.locality') }}"
+                    style="
+                        width:100%;
+                        min-height:48px;
+                        border:1px solid #93c5fd;
+                        border-radius:10px;
+                        padding:0 12px;
+                        font-size:16px;
+                        background:white;
+                    "
+                >
+            </div>
+        </div>
+
+
+        <div>
+            <label
+                for="guest_school"
+                style="
+                    display:block;
+                    margin-bottom:6px;
+                    font-size:13px;
+                    font-weight:700;
+                "
+            >
+                School / Campus
+            </label>
+
+            <input
+                id="guest_school"
+                name="guest_profile[school_campus]"
+                type="text"
+                maxlength="255"
+                value="{{ old('guest_profile.school_campus') }}"
+                style="
+                    width:100%;
+                    min-height:48px;
+                    border:1px solid #93c5fd;
+                    border-radius:10px;
+                    padding:0 12px;
+                    font-size:16px;
+                    background:white;
+                "
+            >
+        </div>
+
+
+        <div
+            style="
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
+            "
+        >
+            <div>
+                <label
+                    for="guest_course"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    Course / Strand
+                </label>
+
+                <input
+                    id="guest_course"
+                    name="guest_profile[course_strand]"
+                    type="text"
+                    maxlength="255"
+                    value="{{ old('guest_profile.course_strand') }}"
+                    style="
+                        width:100%;
+                        min-height:48px;
+                        border:1px solid #93c5fd;
+                        border-radius:10px;
+                        padding:0 12px;
+                        font-size:16px;
+                        background:white;
+                    "
+                >
+            </div>
+
+            <div>
+                <label
+                    for="guest_grade"
+                    style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-size:13px;
+                        font-weight:700;
+                    "
+                >
+                    Grade Level
+                </label>
+
+                <input
+                    id="guest_grade"
+                    name="guest_profile[grade_level]"
+                    type="text"
+                    maxlength="100"
+                    value="{{ old('guest_profile.grade_level') }}"
+                    style="
+                        width:100%;
+                        min-height:48px;
+                        border:1px solid #93c5fd;
+                        border-radius:10px;
+                        padding:0 12px;
+                        font-size:16px;
+                        background:white;
+                    "
+                >
+            </div>
+        </div>
+
+
+        <div>
+            <label
+                for="guest_contact"
+                style="
+                    display:block;
+                    margin-bottom:6px;
+                    font-size:13px;
+                    font-weight:700;
+                "
+            >
+                Contact Number
+            </label>
+
+            <input
+                id="guest_contact"
+                name="guest_profile[contact_number]"
+                type="tel"
+                maxlength="20"
+                value="{{ old('guest_profile.contact_number') }}"
+                autocomplete="tel"
+                style="
+                    width:100%;
+                    min-height:48px;
+                    border:1px solid #93c5fd;
+                    border-radius:10px;
+                    padding:0 12px;
+                    font-size:16px;
+                    background:white;
+                "
+            >
+        </div>
+
+
+        <div>
+            <label
+                for="guest_email"
+                style="
+                    display:block;
+                    margin-bottom:6px;
+                    font-size:13px;
+                    font-weight:700;
+                "
+            >
+                Email
+            </label>
+
+            <input
+                id="guest_email"
+                name="guest_profile[email]"
+                type="email"
+                maxlength="255"
+                value="{{ old('guest_profile.email') }}"
+                autocomplete="email"
+                style="
+                    width:100%;
+                    min-height:48px;
+                    border:1px solid #93c5fd;
+                    border-radius:10px;
+                    padding:0 12px;
+                    font-size:16px;
+                    background:white;
+                "
+            >
+        </div>
+
+
+        <div>
+            <label
+                for="guest_facebook"
+                style="
+                    display:block;
+                    margin-bottom:6px;
+                    font-size:13px;
+                    font-weight:700;
+                "
+            >
+                Facebook
+            </label>
+
+            <input
+                id="guest_facebook"
+                name="guest_profile[facebook_account]"
+                type="text"
+                maxlength="255"
+                value="{{ old('guest_profile.facebook_account') }}"
+                style="
+                    width:100%;
+                    min-height:48px;
+                    border:1px solid #93c5fd;
+                    border-radius:10px;
+                    padding:0 12px;
+                    font-size:16px;
+                    background:white;
+                "
+            >
+        </div>
+
     </div>
+</div>
+</div>
 </div>
 
 <input
@@ -720,11 +1149,12 @@
     </main>
 
 
-    <p class="privacy">
-        This public form only displays participant names.
-        No contact information or other personal details
-        are shown.
-    </p>
+<p class="privacy">
+    Name search displays names only.
+    Optional information entered by a guest is stored
+    privately for authorized database users and is not
+    shown in public search results.
+</p>
 
 </div>
 
@@ -781,6 +1211,16 @@
     const guestInput =
         document.getElementById('guest_name');
 
+        const guestProfileEnabled =
+    document.getElementById(
+        'guest_profile_enabled'
+    );
+
+const guestOptionalFields =
+    document.getElementById(
+        'guest_optional_fields'
+    );
+
     const form =
         searchInput.closest('form');
 
@@ -828,6 +1268,25 @@
         searchStatus.textContent =
             'Name selected.';
     }
+
+    function syncGuestOptionalFields() {
+    const enabled =
+        guestProfileEnabled.checked;
+
+    guestOptionalFields.hidden =
+        ! enabled;
+
+    guestOptionalFields
+        .querySelectorAll('input, select')
+        .forEach((field) => {
+            field.disabled = ! enabled;
+        });
+        guestProfileEnabled.addEventListener(
+    'change',
+    syncGuestOptionalFields
+);
+}
+
 
 
     function useGuestMode() {
@@ -1118,6 +1577,7 @@
         searchStatus.textContent =
             'Name selected.';
     }
+syncGuestOptionalFields();
 })();
 </script>
 

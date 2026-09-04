@@ -194,6 +194,75 @@ class PublicMeetingFormController extends Controller
                 'max:255',
             ],
 
+'guest_profile_enabled' => [
+    'nullable',
+    'boolean',
+],
+
+'guest_profile' => [
+    'nullable',
+    'array',
+],
+
+'guest_profile.firstname' => [
+    'nullable',
+    'string',
+    'max:100',
+],
+
+'guest_profile.lastname' => [
+    'nullable',
+    'string',
+    'max:100',
+],
+
+'guest_profile.sex' => [
+    'nullable',
+    'in:Male,Female',
+],
+
+'guest_profile.locality' => [
+    'nullable',
+    'string',
+    'max:150',
+],
+
+'guest_profile.school_campus' => [
+    'nullable',
+    'string',
+    'max:255',
+],
+
+'guest_profile.course_strand' => [
+    'nullable',
+    'string',
+    'max:255',
+],
+
+'guest_profile.grade_level' => [
+    'nullable',
+    'string',
+    'max:100',
+],
+
+'guest_profile.contact_number' => [
+    'nullable',
+    'string',
+    'max:20',
+],
+
+'guest_profile.email' => [
+    'nullable',
+    'email',
+    'max:255',
+],
+
+'guest_profile.facebook_account' => [
+    'nullable',
+    'string',
+    'max:255',
+],
+
             'response' => [
                 'required',
                 'in:yes,no',
@@ -238,6 +307,11 @@ class PublicMeetingFormController extends Controller
                         'person_id' =>
                             $person->id,
                     ]);
+
+                    if (! $meetingResponse->exists) {
+    $meetingResponse->original_source =
+        AttendanceMeetingResponse::RESPONDENT_PERSON;
+}
 
             $meetingResponse->forceFill([
                 'respondent_type' =>
@@ -316,6 +390,7 @@ class PublicMeetingFormController extends Controller
                                 $person->id,
                         ]);
 
+
                 $meetingResponse->forceFill([
                     'respondent_type' =>
                         AttendanceMeetingResponse::RESPONDENT_PERSON,
@@ -355,7 +430,10 @@ class PublicMeetingFormController extends Controller
                         'campus_contact_id' =>
                             $contact->id,
                     ]);
-
+if (! $meetingResponse->exists) {
+    $meetingResponse->original_source =
+        AttendanceMeetingResponse::RESPONDENT_CAMPUS;
+}
             $meetingResponse->forceFill([
                 'respondent_type' =>
                     AttendanceMeetingResponse::RESPONDENT_CAMPUS,
@@ -409,52 +487,87 @@ class PublicMeetingFormController extends Controller
          * This is deliberately isolated from People and
          * Campus databases.
          */
-        $meetingResponse =
-            AttendanceMeetingResponse::query()
-                ->where(
-                    'attendance_session_id',
-                    $session->id
-                )
-                ->where(
-                    'respondent_type',
-                    AttendanceMeetingResponse::RESPONDENT_GUEST
-                )
-                ->whereRaw(
-                    'LOWER(guest_name) = ?',
-                    [mb_strtolower($guestName)]
-                )
-                ->first();
+$meetingResponse =
+    AttendanceMeetingResponse::query()
+        ->where(
+            'attendance_session_id',
+            $session->id
+        )
+        ->where(
+            'respondent_type',
+            AttendanceMeetingResponse::RESPONDENT_GUEST
+        )
+        ->whereRaw(
+            'LOWER(guest_name) = ?',
+            [mb_strtolower($guestName)]
+        )
+        ->first();
 
-        if (! $meetingResponse) {
-            $meetingResponse =
-                new AttendanceMeetingResponse();
-        }
+/*
+ * If optional information is not enabled during a
+ * resubmission, preserve whatever profile was already
+ * supplied previously.
+ */
+$guestProfile =
+    $meetingResponse?->guest_profile;
 
-        $meetingResponse->forceFill([
-            'attendance_session_id' =>
-                $session->id,
+if ($request->boolean('guest_profile_enabled')) {
+    $guestProfile = collect(
+        $data['guest_profile'] ?? []
+    )
+        ->map(
+            fn ($value) =>
+                is_string($value)
+                    ? trim($value)
+                    : $value
+        )
+        ->filter(
+            fn ($value): bool =>
+                filled($value)
+        )
+        ->all();
 
-            'respondent_type' =>
-                AttendanceMeetingResponse::RESPONDENT_GUEST,
+    if ($guestProfile === []) {
+        $guestProfile = null;
+    }
+}
 
-            'person_id' =>
-                null,
+if (! $meetingResponse) {
+    $meetingResponse =
+        new AttendanceMeetingResponse();
 
-            'campus_contact_id' =>
-                null,
+    $meetingResponse->original_source =
+        AttendanceMeetingResponse::RESPONDENT_GUEST;
+}
 
-            'guest_name' =>
-                $guestName,
+$meetingResponse->forceFill([
+    'attendance_session_id' =>
+        $session->id,
 
-            'respondent_name' =>
-                $guestName,
+    'respondent_type' =>
+        AttendanceMeetingResponse::RESPONDENT_GUEST,
 
-            'response' =>
-                $data['response'],
+    'person_id' =>
+        null,
 
-            'responded_at' =>
-                now(),
-        ])->save();
+    'campus_contact_id' =>
+        null,
+
+    'guest_name' =>
+        $guestName,
+
+    'guest_profile' =>
+        $guestProfile,
+
+    'respondent_name' =>
+        $guestName,
+
+    'response' =>
+        $data['response'],
+
+    'responded_at' =>
+        now(),
+])->save();
 
         return $this->savedResponseRedirect(
             $session,
