@@ -14,7 +14,21 @@
         $meetingResponses = $this->meetingResponses();
         $yesMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_YES);
         $noMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_NO);
-    @endphp
+        $preListedResponsesByPersonId =
+    $meetingResponses
+        ->filter(
+            fn ($response) =>
+                $response->respondent_type
+                ===
+                \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+                &&
+                filled($response->person_id)
+        )
+        ->keyBy(
+            fn ($response) =>
+                (int) $response->person_id
+        );
+        @endphp
 
     <div class="space-y-6">
         <div class="grid gap-6 xl:grid-cols-4">
@@ -818,10 +832,22 @@
                                     <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                         <thead class="bg-gray-50 dark:bg-gray-950">
                                             <tr>
-                                                <th class="w-20 px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">Present</th>
-                                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
-                                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
-                                                <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
+                                                <th class="w-20 px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">
+    Present
+</th>
+
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Name
+</th>
+
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Pre-listed
+</th>
+
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Locality
+</th>
+<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
 <th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
     Source
 </th>
@@ -835,10 +861,14 @@
 
                                         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                             @foreach ($participantRows as $participant)
-                                                @php
-                                                    $person = $participant->person;
-                                                    $personId = (int) $participant->person_id;
-                                                @endphp
+@php
+    $person = $participant->person;
+    $personId = (int) $participant->person_id;
+
+    $preListedResponse =
+        $preListedResponsesByPersonId
+            ->get($personId);
+@endphp
 
                                                 <tr>
                                                     <td class="px-4 py-3 text-center">
@@ -854,7 +884,81 @@
                                                     <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
                                                         {{ $person?->display_name ?? 'Unknown person' }}
                                                     </td>
+<td class="px-4 py-3">
+    @if (
+        $preListedResponse?->response
+        ===
+        \App\Models\AttendanceMeetingResponse::RESPONSE_YES
+    )
+        <div class="space-y-1">
+            <span
+                class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100"
+            >
+                YES
+            </span>
 
+            <p
+                class="text-xs text-gray-400 dark:text-gray-500"
+            >
+                Pre-listed
+            </p>
+            @if (
+    filled($preListedResponse->original_source)
+    &&
+    $preListedResponse->original_source
+    !==
+    \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+)
+    <p
+        class="text-xs text-gray-400 dark:text-gray-500"
+    >
+        Originally
+        {{ $preListedResponse->originalSourceLabel() }}
+    </p>
+@endif
+        </div>
+
+    @elseif (
+        $preListedResponse?->response
+        ===
+        \App\Models\AttendanceMeetingResponse::RESPONSE_NO
+    )
+        <div class="space-y-1">
+            <span
+                class="inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-800 dark:bg-red-900 dark:text-red-100"
+            >
+                NO
+            </span>
+
+            <p
+                class="text-xs text-gray-400 dark:text-gray-500"
+            >
+                Pre-listed
+            </p>
+            @if (
+    filled($preListedResponse->original_source)
+    &&
+    $preListedResponse->original_source
+    !==
+    \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+)
+    <p
+        class="text-xs text-gray-400 dark:text-gray-500"
+    >
+        Originally
+        {{ $preListedResponse->originalSourceLabel() }}
+    </p>
+@endif
+        </div>
+
+    @else
+        <span
+            class="text-xs text-gray-400 dark:text-gray-500"
+        >
+            Not pre-listed
+        </span>
+    @endif
+</td>
                                                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
                                                         {{ $person?->locality ?: 'No locality' }}
                                                     </td>
