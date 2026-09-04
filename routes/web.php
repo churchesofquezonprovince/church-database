@@ -606,3 +606,16 @@ Route::middleware(['web', 'auth'])
     ->name(
         'quezonprovinceactivities.attendance-meeting-responses.link-person'
     );
+
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/create-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'createGuestPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.create-person'
+    );

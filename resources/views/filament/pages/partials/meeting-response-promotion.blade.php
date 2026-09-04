@@ -3,33 +3,58 @@
     ===
     \App\Models\AttendanceMeetingResponse::RESPONDENT_GUEST
 )
-    @php
-        $guestProfile =
-            $response->guest_profile ?? [];
+@php
+    $guestProfile =
+        $response->guest_profile ?? [];
 
-        $isOldPromotion =
-            (int) old('promotion_response_id')
-            ===
-            (int) $response->id;
+    /*
+     * Guest -> Campus form state.
+     */
+    $isOldPromotion =
+        (int) old('promotion_response_id')
+        ===
+        (int) $response->id;
 
-        $promotionValue =
-            function (
-                string $key,
-                mixed $fallback = null
-            ) use (
-                $guestProfile,
-                $isOldPromotion
-            ): mixed {
-                if ($isOldPromotion) {
-                    return old(
-                        $key,
-                        $fallback
-                    );
-                }
+    $promotionValue =
+        function (
+            string $key,
+            mixed $fallback = null
+        ) use (
+            $isOldPromotion
+        ): mixed {
+            return $isOldPromotion
+                ? old($key, $fallback)
+                : $fallback;
+        };
 
-                return $fallback;
-            };
-    @endphp
+    /*
+     * Guest -> Existing Person form state.
+     */
+    $isOldPersonLink =
+        (int) old('link_response_id')
+        ===
+        (int) $response->id;
+
+    /*
+     * Guest -> New Person form state.
+     */
+    $isOldPersonCreate =
+        (int) old('create_person_response_id')
+        ===
+        (int) $response->id;
+
+    $personCreateValue =
+        function (
+            string $field,
+            mixed $fallback = null
+        ) use (
+            $isOldPersonCreate
+        ): mixed {
+            return $isOldPersonCreate
+                ? old($field, $fallback)
+                : $fallback;
+        };
+@endphp
 
     <details
         class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950"
@@ -149,7 +174,7 @@
                         <label
                             class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
                         >
-                            Sex
+                            Sex *
                         </label>
 
                         @php
@@ -160,10 +185,11 @@
                                 );
                         @endphp
 
-                        <select
-                            name="sex"
-                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-                        >
+<select
+    name="person_sex"
+    required
+    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+>
                             <option value="">
                                 Select
                             </option>
@@ -193,19 +219,21 @@
                         <label
                             class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
                         >
-                            Locality
+                            Locality *
                         </label>
 
-                        <input
-                            type="text"
-                            name="locality"
-                            maxlength="150"
-                            value="{{ $promotionValue(
-                                'locality',
-                                $guestProfile['locality'] ?? null
-                            ) }}"
-                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-                        >
+<input
+    type="text"
+    name="person_locality"
+    required
+    maxlength="150"
+    value="{{ $personCreateValue(
+        'person_locality',
+        $guestProfile['locality']
+            ?? null
+    ) }}"
+    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+>
                     </div>
 
                 </div>
@@ -384,14 +412,6 @@
     </p>
 
 
-    @php
-        $isOldPersonLink =
-            (int) old('link_response_id')
-            ===
-            (int) $response->id;
-    @endphp
-
-
     @if (
         $isOldPersonLink
         && $errors->has('meeting_response_person_link')
@@ -488,6 +508,327 @@
     </form>
 </div>
 
+
+
+<div
+    class="mt-5 border-t border-sky-200 pt-4 dark:border-sky-900"
+>
+
+<p
+        class="text-sm font-bold text-gray-900 dark:text-white"
+    >
+        Add Directly to People Database
+    </p>
+
+    <p
+        class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+    >
+        Use this only when this Guest is not already in
+        the People Database.
+    </p>
+
+    @if (
+        $isOldPersonCreate
+        && $errors->has(
+            'meeting_response_person_create'
+        )
+    )
+        <div
+            class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+        >
+            {{ $errors->first(
+                'meeting_response_person_create'
+            ) }}
+        </div>
+    @endif
+
+    <form
+        method="POST"
+        action="{{ route(
+            'quezonprovinceactivities.attendance-meeting-responses.create-person',
+            ['response' => $response]
+        ) }}"
+        class="mt-4 space-y-3"
+    >
+        @csrf
+
+        <input
+            type="hidden"
+            name="create_person_response_id"
+            value="{{ $response->id }}"
+        >
+
+        <div class="grid gap-3 sm:grid-cols-2">
+
+            <div>
+                <label
+                    class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+                >
+                    First Name *
+                </label>
+
+                <input
+                    type="text"
+                    name="person_firstname"
+                    required
+                    maxlength="100"
+                    value="{{ $personCreateValue(
+                        'person_firstname',
+                        $guestProfile['firstname']
+                            ?? null
+                    ) }}"
+                    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+            </div>
+
+            <div>
+                <label
+                    class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+                >
+                    Last Name *
+                </label>
+
+                <input
+                    type="text"
+                    name="person_lastname"
+                    required
+                    maxlength="100"
+                    value="{{ $personCreateValue(
+                        'person_lastname',
+                        $guestProfile['lastname']
+                            ?? null
+                    ) }}"
+                    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+            </div>
+
+        </div>
+
+@php
+    $personSex =
+        $personCreateValue(
+            'person_sex',
+            $guestProfile['sex'] ?? null
+        );
+@endphp
+
+<div class="grid gap-3 sm:grid-cols-2">
+
+    <div>
+        <label
+            class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+        >
+            Sex *
+        </label>
+
+        <select
+            name="person_sex"
+            required
+            class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+        >
+            <option value="">
+                Select
+            </option>
+
+            <option
+                value="Male"
+                @selected($personSex === 'Male')
+            >
+                Male
+            </option>
+
+            <option
+                value="Female"
+                @selected($personSex === 'Female')
+            >
+                Female
+            </option>
+        </select>
+    </div>
+
+
+    <div>
+        <label
+            class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+        >
+            Locality *
+        </label>
+
+        <input
+            type="text"
+            name="person_locality"
+            required
+            maxlength="150"
+            value="{{ $personCreateValue(
+                'person_locality',
+                $guestProfile['locality']
+                    ?? null
+            ) }}"
+            class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+        >
+    </div>
+
+</div>
+        <div>
+            <label
+                class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+            >
+                School / Campus
+            </label>
+
+            <input
+                type="text"
+                name="person_school_campus"
+                maxlength="255"
+                value="{{ $personCreateValue(
+                    'person_school_campus',
+                    $guestProfile['school_campus']
+                        ?? null
+                ) }}"
+                class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+        </div>
+
+
+        <div class="grid gap-3 sm:grid-cols-2">
+
+            <div>
+                <label
+                    class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+                >
+                    Course / Strand
+                </label>
+
+                <input
+                    type="text"
+                    name="person_course_strand"
+                    maxlength="255"
+                    value="{{ $personCreateValue(
+                        'person_course_strand',
+                        $guestProfile['course_strand']
+                            ?? null
+                    ) }}"
+                    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+            </div>
+
+
+            <div>
+                <label
+                    class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+                >
+                    Grade Level
+                </label>
+
+                <input
+                    type="text"
+                    name="person_grade_level"
+                    maxlength="100"
+                    value="{{ $personCreateValue(
+                        'person_grade_level',
+                        $guestProfile['grade_level']
+                            ?? null
+                    ) }}"
+                    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+            </div>
+
+        </div>
+
+
+        <div>
+            <label
+                class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+            >
+                Contact Number
+            </label>
+
+            <input
+                type="text"
+                name="person_contact_number"
+                maxlength="20"
+                value="{{ $personCreateValue(
+                    'person_contact_number',
+                    $guestProfile['contact_number']
+                        ?? null
+                ) }}"
+                class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+        </div>
+
+
+        <div>
+            <label
+                class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+            >
+                Email
+            </label>
+
+            <input
+                type="email"
+                name="person_email"
+                maxlength="255"
+                value="{{ $personCreateValue(
+                    'person_email',
+                    $guestProfile['email']
+                        ?? null
+                ) }}"
+                class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+        </div>
+
+
+        <div>
+            <label
+                class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+            >
+                Facebook
+            </label>
+
+            <input
+                type="text"
+                name="person_facebook_account"
+                maxlength="255"
+                value="{{ $personCreateValue(
+                    'person_facebook_account',
+                    $guestProfile['facebook_account']
+                        ?? null
+                ) }}"
+                class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+        </div>
+
+
+        <label
+            class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+            <input
+                type="checkbox"
+                name="create_person_anyway"
+                value="1"
+                @checked(
+                    $isOldPersonCreate
+                    && old('create_person_anyway')
+                )
+                class="mt-0.5 rounded border-gray-300"
+            >
+
+            <span>
+                Create anyway if a Person with the same
+                First and Last Name already exists.
+            </span>
+        </label>
+
+
+        <button
+            type="submit"
+            class="inline-flex rounded-lg bg-primary-600 px-3 py-2 text-xs font-bold text-white hover:bg-primary-500"
+        >
+            Add to People Database
+        </button>
+
+    </form>
+</div>
 
 
         </div>
