@@ -147,11 +147,15 @@ $presentWithoutPreListingCount =
                         @foreach ($sheets as $sheet)
                             <a
                                 href="{{ $this->sheetUrl($sheet) }}"
-                                @class([
-                                    'block rounded-xl border p-3 transition',
-                                    'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950' => $selectedSheet?->id === $sheet->id,
-                                    'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800' => $selectedSheet?->id !== $sheet->id,
-                                ])
+@class([
+    'block rounded-xl border p-3 transition',
+
+    'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950'
+        => $selectedSheet?->id === $sheet->id,
+
+    'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800'
+        => $selectedSheet?->id !== $sheet->id,
+])
                             >
                                 <p class="font-bold text-gray-900 dark:text-white">
                                     {{ $sheet->title }}
