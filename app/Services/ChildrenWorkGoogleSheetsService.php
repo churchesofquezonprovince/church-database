@@ -678,6 +678,15 @@ $payload = $this->payloadFromMappedRow(
     $metadata
 );
 
+/*
+ * Never use a resource URL as its visible title/text.
+ *
+ * Google Sheets may contain a link while the human-readable
+ * title cell is intentionally blank. In that case keep the URL
+ * in the *_url field and leave the visible field null.
+ */
+$payload = $this->separateResourceLabelsFromUrls($payload);
+
 $payload['google_sheet_smart_chip_fields']
     = $smartChipFields;
 
@@ -3167,4 +3176,52 @@ private function removeNormalLessonLayout(
             )
         );
     }
+
+private function separateResourceLabelsFromUrls(
+    array $payload
+): array {
+    $resourceFields = [
+        'lesson_title' => 'lesson_url',
+        'suggested_hymn' => 'suggested_hymn_url',
+        'story' => 'story_url',
+        'presentation_slides' => 'presentation_slides_url',
+        'activity' => 'activity_url',
+    ];
+
+    foreach ($resourceFields as $textField => $urlField) {
+        $text = trim(
+            (string) ($payload[$textField] ?? '')
+        );
+
+        /*
+         * Normal human-readable text stays untouched.
+         */
+        if (
+            $text === ''
+            || ! filter_var(
+                $text,
+                FILTER_VALIDATE_URL
+            )
+        ) {
+            continue;
+        }
+
+        /*
+         * If the parser found the URL in the visible/text field
+         * and the URL field is still empty, move it there.
+         */
+        if (! filled($payload[$urlField] ?? null)) {
+            $payload[$urlField] = $text;
+        }
+
+        /*
+         * The Google Sheet had no human-readable title,
+         * so do not manufacture one from the URL.
+         */
+        $payload[$textField] = null;
+    }
+
+    return $payload;
+}
+
 }
