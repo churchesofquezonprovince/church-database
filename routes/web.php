@@ -619,3 +619,39 @@ Route::middleware(['web', 'auth'])
     ->name(
         'quezonprovinceactivities.attendance-meeting-responses.create-person'
     );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/link-campus-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'linkCampusToPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.link-campus-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/create-campus-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'createPersonFromCampus',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.create-campus-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/use-campus-linked-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'useCampusLinkedPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.use-campus-linked-person'
+    );

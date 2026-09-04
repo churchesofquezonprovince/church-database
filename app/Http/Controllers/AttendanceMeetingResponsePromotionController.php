@@ -16,6 +16,85 @@ use Illuminate\Support\Facades\DB;
 class AttendanceMeetingResponsePromotionController extends Controller
 {
 
+private function assignCampusResponseToPerson(
+    AttendanceMeetingResponse $response,
+    CampusContact $contact,
+    Person $person
+): void {
+    $response->forceFill([
+        'respondent_type' =>
+            AttendanceMeetingResponse::RESPONDENT_PERSON,
+
+        'person_id' =>
+            $person->id,
+
+        /*
+         * Preserve the Campus Contact so the identity journey
+         * remains Guest -> Campus -> Person when applicable.
+         */
+        'campus_contact_id' =>
+            $contact->id,
+
+        'respondent_name' =>
+            $person->display_name,
+    ])->save();
+}
+
+private function possibleCampusPersonMatches(
+    array $data
+): Collection {
+    return Person::query()
+        ->whereRaw(
+            'LOWER(firstname) = ?',
+            [
+                mb_strtolower(
+                    trim(
+                        (string)
+                        $data['firstname']
+                    )
+                ),
+            ]
+        )
+        ->whereRaw(
+            'LOWER(lastname) = ?',
+            [
+                mb_strtolower(
+                    trim(
+                        (string)
+                        $data['lastname']
+                    )
+                ),
+            ]
+        )
+        ->when(
+            filled($data['sex'] ?? null),
+            fn ($query) =>
+                $query->where(
+                    'sex',
+                    $data['sex']
+                )
+        )
+        ->when(
+            filled($data['locality'] ?? null),
+            fn ($query) =>
+                $query->whereRaw(
+                    'LOWER(locality) = ?',
+                    [
+                        mb_strtolower(
+                            trim(
+                                (string)
+                                $data['locality']
+                            )
+                        ),
+                    ]
+                )
+        )
+        ->orderBy('lastname')
+        ->orderBy('firstname')
+        ->limit(10)
+        ->get();
+}
+
 public function createGuestPerson(
     Request $request,
     AttendanceMeetingResponse $response
@@ -895,6 +974,269 @@ public function searchPeople(
             );
     }
 
+
+public function linkCampusToPerson(
+    Request $request,
+    AttendanceMeetingResponse $response
+): RedirectResponse {
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
+
+    if (
+        $response->respondent_type
+        !== AttendanceMeetingResponse::RESPONDENT_CAMPUS
+    ) {
+        return back()->withErrors([
+            'meeting_response_campus_person_link' =>
+                'This response is no longer a Campus RSVP.',
+        ]);
+    }
+
+    $data = $request->validate([
+        'link_campus_response_id' => [
+            'required',
+            'integer',
+        ],
+
+        'person_id' => [
+            'required',
+            'integer',
+            'exists:persons,id',
+        ],
+    ]);
+
+    if (
+        (int) $data['link_campus_response_id']
+        !== (int) $response->id
+    ) {
+        abort(404);
+    }
+
+    $contact = $response
+        ->campusContact()
+        ->first();
+
+    if (! $contact) {
+        return back()->withErrors([
+            'meeting_response_campus_person_link' =>
+                'The Campus Contact for this RSVP could not be found.',
+        ]);
+    }
+
+    $person = Person::query()
+        ->with([
+            'churchProfile',
+            'educationProfile',
+        ])
+        ->findOrFail(
+            (int) $data['person_id']
+        );
+
+    /*
+     * If this Campus Contact was linked somewhere else after
+     * the RSVP was submitted, do not silently replace it.
+     */
+    if (
+        $contact->person_id
+        && (int) $contact->person_id !== (int) $person->id
+    ) {
+        return back()->withErrors([
+            'meeting_response_campus_person_link' =>
+                'This Campus Contact is already linked to another Person.',
+        ]);
+    }
+
+    /*
+     * One Person may only have one Campus Contact.
+     */
+    $otherCampusContact =
+        CampusContact::query()
+            ->where(
+                'person_id',
+                $person->id
+            )
+            ->where(
+                'id',
+                '!=',
+                $contact->id
+            )
+            ->first();
+
+    if ($otherCampusContact) {
+        return back()
+            ->withInput()
+            ->withErrors([
+                'meeting_response_campus_person_link' =>
+                    $person->display_name
+                    . ' is already linked to another Campus Contact. '
+                    . 'This RSVP was not changed.',
+            ]);
+    }
+
+    /*
+     * Never silently merge two independently submitted RSVPs.
+     */
+    $existingResponse =
+        $this->personResponseConflict(
+            $response,
+            $person
+        );
+
+    if ($existingResponse) {
+        return back()
+            ->withInput()
+            ->withErrors([
+                'meeting_response_campus_person_link' =>
+                    $person->display_name
+                    . ' already has an RSVP for this meeting. '
+                    . 'This Campus response was not changed.',
+            ]);
+    }
+
+    $oldValues = [
+        'respondent_type' =>
+            $response->respondent_type,
+
+        'original_source' =>
+            $response->original_source,
+
+        'person_id' =>
+            $response->person_id,
+
+        'campus_contact_id' =>
+            $response->campus_contact_id,
+
+        'respondent_name' =>
+            $response->respondent_name,
+    ];
+
+    DB::transaction(
+        function () use (
+            $response,
+            $contact,
+            $person
+        ): void {
+            /*
+             * Use the same rule as the Campus Database:
+             * fill only blank Person fields from Campus.
+             */
+            $person->firstname =
+                $person->firstname
+                    ?: $contact->firstname;
+
+            $person->lastname =
+                $person->lastname
+                    ?: $contact->lastname;
+
+            $person->sex =
+                $person->sex
+                    ?: $contact->sex;
+
+            $person->locality =
+                $person->locality
+                    ?: $contact->locality;
+
+            $person->contact_number =
+                $person->contact_number
+                    ?: $contact->contact_number;
+
+            $person->email =
+                $person->email
+                    ?: $contact->email;
+
+            $person->facebook_account =
+                $person->facebook_account
+                    ?: $contact->facebook_account;
+
+            $person->save();
+
+            if (
+                filled($contact->school_campus)
+                || filled($contact->course_strand)
+                || filled($contact->grade_level)
+                || $person->educationProfile()->exists()
+            ) {
+                $education = $person
+                    ->educationProfile()
+                    ->firstOrNew([]);
+
+                $education->school_workplace =
+                    $education->school_workplace
+                        ?: $contact->school_campus;
+
+                $education->course_strand =
+                    $education->course_strand
+                        ?: $contact->course_strand;
+
+                $education->grade_level =
+                    $education->grade_level
+                        ?: $contact->grade_level;
+
+                $education->save();
+            }
+
+            $person
+                ->refresh()
+                ->load('educationProfile');
+
+            $this->syncCampusContactMirror(
+                $contact,
+                $person
+            );
+
+            $this->assignCampusResponseToPerson(
+                $response,
+                $contact,
+                $person
+            );
+        }
+    );
+
+    ActivityLogger::log(
+        action:
+            'attendance_meeting_response.campus_linked_to_person',
+
+        subject:
+            $response,
+
+        description:
+            'Linked Campus RSVP to existing Person.',
+
+        oldValues:
+            $oldValues,
+
+        newValues: [
+            'respondent_type' =>
+                $response->respondent_type,
+
+            'original_source' =>
+                $response->original_source,
+
+            'person_id' =>
+                $response->person_id,
+
+            'campus_contact_id' =>
+                $response->campus_contact_id,
+
+            'respondent_name' =>
+                $response->respondent_name,
+        ],
+    );
+
+    return back()
+        ->with(
+            'meeting_response_campus_promoted_to_person',
+            true
+        )
+        ->with(
+            'meeting_response_campus_person_name',
+            $person->display_name
+        );
+}
+
+
 private function possiblePersonMatches(
     array $data
 ): Collection {
@@ -992,4 +1334,409 @@ private function possiblePersonMatches(
             ? null
             : $value;
     }
+
+
+public function createPersonFromCampus(
+    Request $request,
+    AttendanceMeetingResponse $response
+): RedirectResponse {
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
+
+    if (
+        $response->respondent_type
+        !== AttendanceMeetingResponse::RESPONDENT_CAMPUS
+    ) {
+        return back()->withErrors([
+            'meeting_response_campus_person_create' =>
+                'This response is no longer a Campus RSVP.',
+        ]);
+    }
+
+    $data = $request->validate([
+        'create_campus_person_response_id' => [
+            'required',
+            'integer',
+        ],
+
+        'campus_person_firstname' => [
+            'required',
+            'string',
+            'max:100',
+        ],
+
+        'campus_person_lastname' => [
+            'required',
+            'string',
+            'max:100',
+        ],
+
+        'campus_person_sex' => [
+            'required',
+            'in:Male,Female',
+        ],
+
+        'campus_person_locality' => [
+            'required',
+            'string',
+            'max:150',
+        ],
+
+        'campus_person_school_campus' => [
+            'nullable',
+            'string',
+            'max:255',
+        ],
+
+        'campus_person_course_strand' => [
+            'nullable',
+            'string',
+            'max:255',
+        ],
+
+        'campus_person_grade_level' => [
+            'nullable',
+            'string',
+            'max:100',
+        ],
+
+        'campus_person_contact_number' => [
+            'nullable',
+            'string',
+            'max:20',
+        ],
+
+        'campus_person_email' => [
+            'nullable',
+            'email',
+            'max:255',
+        ],
+
+        'campus_person_facebook_account' => [
+            'nullable',
+            'string',
+            'max:255',
+        ],
+
+        'create_campus_person_anyway' => [
+            'nullable',
+            'boolean',
+        ],
+    ]);
+
+    if (
+        (int) $data['create_campus_person_response_id']
+        !== (int) $response->id
+    ) {
+        abort(404);
+    }
+
+    $contact = $response
+        ->campusContact()
+        ->first();
+
+    if (! $contact) {
+        return back()->withErrors([
+            'meeting_response_campus_person_create' =>
+                'The Campus Contact for this RSVP could not be found.',
+        ]);
+    }
+
+    if ($contact->person_id) {
+        return back()->withErrors([
+            'meeting_response_campus_person_create' =>
+                'This Campus Contact is already linked to the People Database.',
+        ]);
+    }
+
+    /*
+     * Admin-reviewed Campus information.
+     */
+    $normalized = [
+        'firstname' =>
+            $this->nullIfBlank(
+                $data['campus_person_firstname']
+                    ?? null
+            ),
+
+        'lastname' =>
+            $this->nullIfBlank(
+                $data['campus_person_lastname']
+                    ?? null
+            ),
+
+        'sex' =>
+            $this->nullIfBlank(
+                $data['campus_person_sex']
+                    ?? null
+            ),
+
+        'locality' =>
+            $this->nullIfBlank(
+                $data['campus_person_locality']
+                    ?? null
+            ),
+
+        'school_campus' =>
+            $this->nullIfBlank(
+                $data['campus_person_school_campus']
+                    ?? null
+            ),
+
+        'course_strand' =>
+            $this->nullIfBlank(
+                $data['campus_person_course_strand']
+                    ?? null
+            ),
+
+        'grade_level' =>
+            $this->nullIfBlank(
+                $data['campus_person_grade_level']
+                    ?? null
+            ),
+
+        'contact_number' =>
+            $this->nullIfBlank(
+                $data['campus_person_contact_number']
+                    ?? null
+            ),
+
+        'email' =>
+            $this->nullIfBlank(
+                $data['campus_person_email']
+                    ?? null
+            ),
+
+        'facebook_account' =>
+            $this->nullIfBlank(
+                $data['campus_person_facebook_account']
+                    ?? null
+            ),
+    ];
+
+    /*
+     * Check People Database using the corrected values
+     * before creating anything.
+     */
+    if (
+        ! $request->boolean(
+            'create_campus_person_anyway'
+        )
+    ) {
+        $matches =
+            $this->possibleCampusPersonMatches(
+                $normalized
+            );
+
+        if ($matches->isNotEmpty()) {
+            $names = $matches
+                ->take(5)
+                ->map(
+                    fn (Person $person): string =>
+                        collect([
+                            $person->display_name,
+                            $person->locality,
+                        ])
+                            ->filter()
+                            ->implode(' · ')
+                )
+                ->implode(', ');
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'meeting_response_campus_person_create' =>
+                        'Possible Person already exists: '
+                        . $names
+                        . '. Use "Link to Existing Person" instead, '
+                        . 'or check "Create anyway" if this is a different person.',
+                ]);
+        }
+    }
+
+    $oldValues = [
+        'respondent_type' =>
+            $response->respondent_type,
+
+        'original_source' =>
+            $response->original_source,
+
+        'person_id' =>
+            $response->person_id,
+
+        'campus_contact_id' =>
+            $response->campus_contact_id,
+
+        'respondent_name' =>
+            $response->respondent_name,
+
+        'campus_contact' => [
+            'firstname' =>
+                $contact->firstname,
+
+            'lastname' =>
+                $contact->lastname,
+
+            'sex' =>
+                $contact->sex,
+
+            'locality' =>
+                $contact->locality,
+
+            'school_campus' =>
+                $contact->school_campus,
+
+            'course_strand' =>
+                $contact->course_strand,
+
+            'grade_level' =>
+                $contact->grade_level,
+        ],
+    ];
+
+    $person = DB::transaction(
+        function () use (
+            $response,
+            $contact,
+            $normalized
+        ): Person {
+            /*
+             * First save the administrator-reviewed information
+             * to the Campus Database.
+             */
+            $contact->update(
+                $normalized
+            );
+
+            /*
+             * Then create the canonical Person using the same
+             * reviewed information.
+             */
+            $person = new Person();
+
+            $person->firstname =
+                $normalized['firstname'];
+
+            $person->lastname =
+                $normalized['lastname'];
+
+            $person->sex =
+                $normalized['sex'];
+
+            $person->locality =
+                $normalized['locality'];
+
+            $person->contact_number =
+                $normalized['contact_number'];
+
+            $person->email =
+                $normalized['email'];
+
+            $person->facebook_account =
+                $normalized['facebook_account'];
+
+            $person->save();
+
+            $churchProfile = $person
+                ->churchProfile()
+                ->firstOrNew([]);
+
+            $churchProfile->status =
+                'Gospel Friend';
+
+            $churchProfile->save();
+
+            if (
+                filled($normalized['school_campus'])
+                || filled($normalized['course_strand'])
+                || filled($normalized['grade_level'])
+            ) {
+                $education = $person
+                    ->educationProfile()
+                    ->firstOrNew([]);
+
+                $education->school_workplace =
+                    $normalized['school_campus'];
+
+                $education->course_strand =
+                    $normalized['course_strand'];
+
+                $education->grade_level =
+                    $normalized['grade_level'];
+
+                $education->save();
+            }
+
+            /*
+             * Campus Contact remains part of the identity chain.
+             */
+            $contact->update([
+                'person_id' =>
+                    $person->id,
+            ]);
+
+            /*
+             * RSVP becomes Person-based, while retaining its
+             * Campus Contact and original Guest provenance.
+             */
+            $this->assignCampusResponseToPerson(
+                $response,
+                $contact,
+                $person
+            );
+
+            return $person;
+        }
+    );
+
+    ActivityLogger::log(
+        action:
+            'attendance_meeting_response.campus_created_person',
+
+        subject:
+            $response,
+
+        description:
+            'Created Person from Campus RSVP.',
+
+        oldValues:
+            $oldValues,
+
+        newValues: [
+            'respondent_type' =>
+                $response->respondent_type,
+
+            'original_source' =>
+                $response->original_source,
+
+            'person_id' =>
+                $response->person_id,
+
+            'campus_contact_id' =>
+                $response->campus_contact_id,
+
+            'respondent_name' =>
+                $response->respondent_name,
+
+            'person_status' =>
+                'Gospel Friend',
+
+            'campus_contact' =>
+                $normalized,
+        ],
+    );
+
+    return back()
+        ->with(
+            'meeting_response_campus_promoted_to_person',
+            true
+        )
+        ->with(
+            'meeting_response_campus_person_name',
+            $person->display_name
+        );
+}
+
 }

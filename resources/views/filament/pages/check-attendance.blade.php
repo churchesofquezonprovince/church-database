@@ -236,6 +236,26 @@
 @endif
 
 
+@if (session('meeting_response_campus_promoted_to_person'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+        <strong>
+            Campus RSVP linked to People Database.
+        </strong>
+
+        {{ session('meeting_response_campus_person_name') }}
+        is now the canonical identity for this RSVP.
+    </div>
+@endif
+
+
+
+
+
+
+
+
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -417,6 +437,13 @@
     ]
 )
 
+@include(
+    'filament.pages.partials.meeting-response-campus-promotion',
+    [
+        'response' => $response,
+    ]
+)
+
                                     </div>
 
                                     @if ($response->responded_at)
@@ -585,6 +612,13 @@
 
 @include(
     'filament.pages.partials.meeting-response-promotion',
+    [
+        'response' => $response,
+    ]
+)
+
+@include(
+    'filament.pages.partials.meeting-response-campus-promotion',
     [
         'response' => $response,
     ]
