@@ -28,6 +28,27 @@
             fn ($response) =>
                 (int) $response->person_id
         );
+        $immichPresentCount =
+    $attendanceRecords
+        ->filter(
+            fn ($record) =>
+                $record->attendance_source
+                    === \App\Models\AttendanceRecord::SOURCE_IMMICH
+                &&
+                $record->is_present
+        )
+        ->count();
+
+$presentWithoutPreListingCount =
+    $attendanceRecords
+        ->filter(
+            fn ($record) =>
+                $record->is_present
+                &&
+                ! $preListedResponsesByPersonId
+                    ->has((int) $record->person_id)
+        )
+        ->count();
         @endphp
 
     <div class="space-y-6">
@@ -807,6 +828,74 @@
                             </div>
                         </div>
 
+<div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Pre-listed YES
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+            {{ $yesMeetingResponses->count() }}
+        </p>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Pre-listed NO
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-red-600 dark:text-red-400">
+            {{ $noMeetingResponses->count() }}
+        </p>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Present
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+            {{ $recordCounts['present'] }}
+        </p>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Absent
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-red-600 dark:text-red-400">
+            {{ $recordCounts['absent'] }}
+        </p>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Immich Present
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-violet-600 dark:text-violet-400">
+            {{ $immichPresentCount }}
+        </p>
+
+        @if ($immichConfirmationCounts['pending'] > 0)
+            <p class="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-300">
+                {{ $immichConfirmationCounts['pending'] }} pending review
+            </p>
+        @endif
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-950">
+        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Present Without Pre-listing
+        </p>
+
+        <p class="mt-1 text-xl font-bold text-amber-600 dark:text-amber-400">
+            {{ $presentWithoutPreListingCount }}
+        </p>
+    </div>
+</div>
+
                         @if ($participantRows->isEmpty())
                             <div class="mt-5 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                                 No participants active for this date.
@@ -828,50 +917,187 @@
                             >
                                 @csrf
 
-                                <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                                    <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+<div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+    <table class="w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                                         <thead class="bg-gray-50 dark:bg-gray-950">
-                                            <tr>
-                                                <th class="w-20 px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">
-    Present
+<tr>
+    <th class="w-20 px-3 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">
+        Present
+    </th>
+
+    <th class="min-w-44 px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+        Name
+    </th>
+
+    <th class="px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+        Pre-listed
+    </th>
+
+    <th class="min-w-40 px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+        Participant
+    </th>
+
+<th class="min-w-40 px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+    Attendance
 </th>
 
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-    Name
-</th>
-
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-    Pre-listed
-</th>
-
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-    Locality
-</th>
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Category</th>
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-    Source
-</th>
-
-<th class="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
+<th class="min-w-40 px-3 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
     Review
 </th>
-
-                                            </tr>
+</tr>
                                         </thead>
 
                                         <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                                            @foreach ($participantRows as $participant)
-@php
-    $person = $participant->person;
-    $personId = (int) $participant->person_id;
+@foreach ($participantRows as $participant)
+    @php
+        $person =
+            $participant->person;
 
-    $preListedResponse =
-        $preListedResponsesByPersonId
-            ->get($personId);
-@endphp
+        $personId =
+            (int) $participant->person_id;
+
+        $preListedResponse =
+            $preListedResponsesByPersonId
+                ->get($personId);
+
+        $record =
+            $attendanceRecords
+                ->get($personId);
+
+        $sessionDate =
+            $selectedSession
+                ->session_date
+                ->format('Y-m-d');
+
+        /*
+         * PARTICIPANT STATUS
+         *
+         * participantRows() may create a temporary,
+         * unsaved AttendanceParticipant when a Person
+         * has an attendance record but is not formally
+         * enrolled as a participant.
+         */
+        if (! $participant->exists) {
+            $participantStatus =
+                'Not added';
+
+            $participantStatusDetail =
+                'Attendance record only';
+        } elseif (
+            $participant->starts_on?->format('Y-m-d')
+            === $sessionDate
+            &&
+            $participant->ends_on?->format('Y-m-d')
+            === $sessionDate
+        ) {
+            $participantStatus =
+                'This meeting only';
+
+            $participantStatusDetail =
+                null;
+        } elseif (
+            $participant->starts_on?->format('Y-m-d')
+            === $sessionDate
+            &&
+            blank($participant->ends_on)
+        ) {
+            $participantStatus =
+                'From this meeting onward';
+
+            $participantStatusDetail =
+                null;
+        } elseif (
+            blank($participant->starts_on)
+            &&
+            blank($participant->ends_on)
+        ) {
+            $participantStatus =
+                'All meetings';
+
+            $participantStatusDetail =
+                null;
+        } elseif (
+            blank($participant->ends_on)
+        ) {
+            $participantStatus =
+                'Ongoing';
+
+            $participantStatusDetail =
+                $participant->starts_on
+                    ? 'Since '
+                        . $participant
+                            ->starts_on
+                            ->format('M d, Y')
+                    : null;
+        } else {
+            $participantStatus =
+                'Date range';
+
+            $participantStatusDetail =
+                collect([
+                    $participant->starts_on
+                        ?->format('M d, Y'),
+
+                    $participant->ends_on
+                        ?->format('M d, Y'),
+                ])
+                    ->filter()
+                    ->implode(' → ');
+        }
+
+        /*
+         * ACTUAL ATTENDANCE STATUS
+         */
+        if (! $record) {
+            $attendanceStatus =
+                'Not recorded';
+        } elseif ($record->is_present) {
+            $attendanceStatus =
+                'Present';
+        } else {
+            $attendanceStatus =
+                'Absent';
+        }
+
+        /*
+         * Useful differences between intention
+         * and actual attendance.
+         */
+        $attendanceStatusNote =
+            null;
+
+        if (
+            $record?->is_present
+            &&
+            $preListedResponse?->response
+            ===
+            \App\Models\AttendanceMeetingResponse::RESPONSE_NO
+        ) {
+            $attendanceStatusNote =
+                'Present despite pre-listed NO';
+        } elseif (
+            $record?->is_present
+            &&
+            ! $preListedResponse
+        ) {
+            $attendanceStatusNote =
+                'Present without pre-listing';
+        } elseif (
+            $record
+            &&
+            ! $record->is_present
+            &&
+            $preListedResponse?->response
+            ===
+            \App\Models\AttendanceMeetingResponse::RESPONSE_YES
+        ) {
+            $attendanceStatusNote =
+                'Pre-listed YES but marked absent';
+        }
+    @endphp
 
                                                 <tr>
-                                                    <td class="px-4 py-3 text-center">
+                                                    <td class="px-3 py-3 text-center">
                                                         <input
                                                             type="checkbox"
                                                             name="present_person_ids[]"
@@ -881,10 +1107,23 @@
                                                         >
                                                     </td>
 
-                                                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">
-                                                        {{ $person?->display_name ?? 'Unknown person' }}
-                                                    </td>
-<td class="px-4 py-3">
+<td class="min-w-44 px-3 py-3">
+    <div class="space-y-1">
+        <p class="font-semibold text-gray-900 dark:text-white">
+            {{ $person?->display_name ?? 'Unknown person' }}
+        </p>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+            {{ $person?->locality ?: 'No locality' }}
+        </p>
+
+        <p class="text-xs text-gray-400 dark:text-gray-500">
+            {{ $person?->churchProfile?->category ?: 'No category' }}
+        </p>
+    </div>
+</td>
+
+<td class="px-3 py-3">
     @if (
         $preListedResponse?->response
         ===
@@ -959,74 +1198,134 @@
         </span>
     @endif
 </td>
-                                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
-                                                        {{ $person?->locality ?: 'No locality' }}
-                                                    </td>
 
-                                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
-                                                        {{ $person?->churchProfile?->category ?: 'No category' }}
-                                                    </td>
+<td class="px-3 py-3">
+    @if ($participant->exists)
+        <div class="space-y-1">
+            <span
+                class="inline-flex rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100"
+            >
+                {{ $participantStatus }}
+            </span>
 
-@php
-    $record = $attendanceRecords->get($personId);
-@endphp
-
-<td class="px-4 py-3">
-    @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
-        <span class="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-800 dark:bg-violet-900 dark:text-violet-100">
-            Immich
-        </span>
-    @elseif ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_MANUAL)
-        <span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-            Manual
-        </span>
+            @if ($participantStatusDetail)
+                <p
+                    class="text-xs text-gray-400 dark:text-gray-500"
+                >
+                    {{ $participantStatusDetail }}
+                </p>
+            @endif
+        </div>
     @else
-        <span class="text-xs text-gray-400">
-            —
-        </span>
+        <div class="space-y-1">
+            <span
+                class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+            >
+                Not added
+            </span>
+
+            <p
+                class="text-xs text-gray-400 dark:text-gray-500"
+            >
+                Attendance record only
+            </p>
+        </div>
     @endif
 </td>
 
-<td class="px-4 py-3">
-    @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
-
-    @if ($record->immich_confirmed)
-    <div class="space-y-1">
-        <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
-            Confirmed
-        </span>
-
-        @if ($record->immichConfirmedBy)
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                by {{ $record->immichConfirmedBy->name }}
-            </p>
-        @endif
-
-        @if ($record->immich_confirmed_at)
-            <p class="text-xs text-gray-400 dark:text-gray-500">
-                {{ $record->immich_confirmed_at->format('M d, Y · g:i A') }}
-            </p>
-        @endif
-    </div>
-@else
+<td class="px-3 py-3">
     <div class="space-y-2">
-        <span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100">
-            Pending Review
-        </span>
+        {{-- Actual attendance --}}
+        @if ($attendanceStatus === 'Present')
+            <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                Present
+            </span>
 
-        <button
-            type="button"
-            wire:click="confirmImmichAttendance({{ $personId }})"
-            wire:loading.attr="disabled"
-            wire:target="confirmImmichAttendance({{ $personId }})"
-            class="block rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
-        >
-            Confirm
-        </button>
+        @elseif ($attendanceStatus === 'Absent')
+            <span class="inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-800 dark:bg-red-900 dark:text-red-100">
+                Absent
+            </span>
+
+        @else
+            <span class="text-xs text-gray-400 dark:text-gray-500">
+                Not recorded
+            </span>
+        @endif
+
+        {{-- Difference between pre-listing and actual attendance --}}
+        @if ($attendanceStatusNote)
+            <p class="max-w-48 text-xs font-medium text-amber-600 dark:text-amber-300">
+                {{ $attendanceStatusNote }}
+            </p>
+        @endif
+
+        {{-- Attendance source --}}
+        @if ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_IMMICH)
+            <div>
+                <span class="inline-flex rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-800 dark:bg-violet-900 dark:text-violet-100">
+                    Immich
+                </span>
+            </div>
+
+
+        @elseif ($record?->attendance_source === \App\Models\AttendanceRecord::SOURCE_MANUAL)
+            <div>
+                <span class="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                    Manual
+                </span>
+            </div>
+        @endif
     </div>
-@endif
+</td>
 
-@endif
+
+<td class="px-3 py-3">
+    @if (
+        $record?->attendance_source
+        === \App\Models\AttendanceRecord::SOURCE_IMMICH
+        &&
+        $record->is_present
+    )
+        @if ($record->immich_confirmed)
+            <div class="space-y-1">
+                <span class="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                    Confirmed
+                </span>
+
+                @if ($record->immichConfirmedBy)
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        by {{ $record->immichConfirmedBy->name }}
+                    </p>
+                @endif
+
+                @if ($record->immich_confirmed_at)
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        {{ $record->immich_confirmed_at->format('M d, Y · g:i A') }}
+                    </p>
+                @endif
+            </div>
+        @else
+            <div class="space-y-2">
+                <span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100">
+                    Pending Review
+                </span>
+
+                <button
+                    type="button"
+                    wire:click="confirmImmichAttendance({{ $personId }})"
+                    wire:loading.attr="disabled"
+                    wire:target="confirmImmichAttendance({{ $personId }})"
+                    class="block rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200"
+                >
+                    Confirm
+                </button>
+            </div>
+        @endif
+    @else
+        <span class="text-xs text-gray-400 dark:text-gray-500">
+            —
+        </span>
+    @endif
 </td>
 
                                                 </tr>
