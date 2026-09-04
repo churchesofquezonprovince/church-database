@@ -62,8 +62,10 @@ class AttendanceSheetParticipantController extends Controller
             ->with('attendance_participants_updated', 0);
     }
 
-    public function destroy(AttendanceSheet $sheet, AttendanceParticipant $participant): RedirectResponse
-{
+public function destroy(
+    AttendanceSheet $sheet,
+    AttendanceParticipant $participant
+): RedirectResponse {
     abort_unless(auth()->user()?->canManageRecords(), 403);
 
     abort_unless(
@@ -78,57 +80,31 @@ class AttendanceSheetParticipantController extends Controller
         'person_id' => $participant->person_id,
         'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
         'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
+        'is_active' => $participant->is_active,
     ];
 
-    [$attendanceRecordCount, $immichDetectionCount] = DB::transaction(
-        function () use ($sheet, $participant): array {
-            $sessionIds = \App\Models\AttendanceSession::query()
-                ->where('attendance_sheet_id', $sheet->id)
-                ->pluck('id');
-
-            $attendanceRecordCount = AttendanceRecord::query()
-                ->whereIn('attendance_session_id', $sessionIds)
-                ->where('person_id', $participant->person_id)
-                ->count();
-
-            AttendanceRecord::query()
-                ->whereIn('attendance_session_id', $sessionIds)
-                ->where('person_id', $participant->person_id)
-                ->delete();
-
-            $immichDetectionCount = AttendanceImmichAssetDetection::query()
-                ->whereIn('attendance_session_id', $sessionIds)
-                ->where('person_id', $participant->person_id)
-                ->count();
-
-            AttendanceImmichAssetDetection::query()
-                ->whereIn('attendance_session_id', $sessionIds)
-                ->where('person_id', $participant->person_id)
-                ->delete();
-
+    DB::transaction(
+        function () use ($participant): void {
+            /*
+             * Removing a Person from the attendance sheet only removes
+             * their participant enrollment.
+             *
+             * Historical AttendanceRecord and Immich detection data must
+             * remain intact.
+             */
             $participant->delete();
-
-            return [
-                $attendanceRecordCount,
-                $immichDetectionCount,
-            ];
         },
     );
 
     ActivityLogger::log(
         action: 'attendance_sheet.participant.removed',
         subject: $sheet,
-        description: 'Removed participant and related attendance records from attendance sheet.',
-        oldValues: $oldValues + [
-            'attendance_records_deleted' => $attendanceRecordCount,
-            'immich_detections_deleted' => $immichDetectionCount,
-        ],
+        description: 'Removed participant from attendance sheet while preserving attendance and Immich history.',
+        oldValues: $oldValues,
     );
 
     return back()
-        ->with('attendance_participant_removed', true)
-        ->with('attendance_records_deleted', $attendanceRecordCount)
-        ->with('immich_detections_deleted', $immichDetectionCount);
+        ->with('attendance_participant_removed', true);
 }
 
 }

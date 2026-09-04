@@ -89,34 +89,15 @@
 
     <div class="space-y-6">
 
-        @if (session('attendance_participants_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
-                <p class="font-bold">Participants saved.</p>
-                <p class="mt-1 text-sm">
-                    Added {{ session('attendance_participants_added') }} participant(s), updated {{ session('attendance_participants_updated') }} participant(s).
-                </p>
-            </div>
-        @endif
-
 @if (session('attendance_participant_removed'))
     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
         <p class="font-bold">
             Participant removed from the attendance sheet.
         </p>
 
-        @if (session('attendance_records_deleted', 0) > 0)
-            <p class="mt-1 text-sm">
-                Removed {{ session('attendance_records_deleted') }}
-                related attendance record(s).
-            </p>
-        @endif
-
-        @if (session('immich_detections_deleted', 0) > 0)
-            <p class="mt-1 text-sm">
-                Removed {{ session('immich_detections_deleted') }}
-                related Immich detection record(s).
-            </p>
-        @endif
+        <p class="mt-1 text-sm">
+            Historical attendance and Immich records were preserved.
+        </p>
     </div>
 @endif
 
