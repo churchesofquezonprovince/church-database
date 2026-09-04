@@ -873,84 +873,25 @@ public function insertLessonChronologically(
         $insertRow,
         $values
     );
-
-if ($lesson->status === 'special_activity') {
-    $this->applySpecialActivityLayout(
-        $service,
-        $spreadsheetId,
-        $sheetId,
-        $firstRow
-    );
-} else {
-    $this->applyNormalLessonLayout(
-        $service,
-        $spreadsheetId,
-        $sheetId,
-        $insertRow
-    );
-}
-
-    if (
-    $currentRowCount === 2
-    && $desiredRowCount === 1
-) {
     /*
-     * Converting an existing normal lesson into a
-     * Special Activity removes its resource row.
-     *
-     * Never silently destroy native Smart Chips.
+     * Apply the correct Google Sheet layout
+     * to the newly inserted lesson.
      */
-    if (
-        ! empty(
-            $lesson->google_sheet_smart_chip_fields
-        )
-    ) {
-        throw new Exception(
-            'This lesson contains Google Sheets Smart Chips. '
-            . 'Convert or remove those Smart Chips in Google Sheets '
-            . 'before changing this lesson to Special Activity.'
+    if ($lesson->status === 'special_activity') {
+        $this->applySpecialActivityLayout(
+            $service,
+            $spreadsheetId,
+            $sheetId,
+            $insertRow
+        );
+    } else {
+        $this->applyNormalLessonLayout(
+            $service,
+            $spreadsheetId,
+            $sheetId,
+            $insertRow
         );
     }
-
-    /*
-     * First unmerge A and D.
-     */
-    $this->removeNormalLessonLayout(
-        $service,
-        $spreadsheetId,
-        $sheetId,
-        $firstRow
-    );
-
-    /*
-     * Physically remove row 2.
-     */
-    $this->deletePhysicalRows(
-        $service,
-        $spreadsheetId,
-        $sheetId,
-        $firstRow + 1,
-        1
-    );
-
-    /*
-     * Everything below moved upward.
-     */
-    ChildrenWorkLesson::query()
-        ->where('id', '!=', $lesson->id)
-        ->whereNotNull('google_sheet_row_number')
-        ->where(
-            'google_sheet_row_number',
-            '>',
-            $firstRow
-        )
-        ->decrement(
-            'google_sheet_row_number',
-            1
-        );
-
-    $currentRowCount = 1;
-}
 
     $lesson->forceFill([
         'google_sheet_row_hash' => null,
