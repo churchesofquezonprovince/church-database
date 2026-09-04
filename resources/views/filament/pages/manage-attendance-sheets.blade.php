@@ -118,20 +118,23 @@
                         </div>
 
                         <div class="flex flex-wrap gap-2">
-                            <form
-                                method="POST"
-                                action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.toggle-active', $sheet) }}"
-                            >
-                                @csrf
+<form
+    method="POST"
+    action="{{ route(
+        'quezonprovinceactivities.attendance-sheets.sheets.toggle-active',
+        $sheet
+    ) }}"
+>
+    @csrf
 
-                                <button
-                                    type="submit"
-                                    onclick="return confirm('{{ $sheet->is_active ? 'Archive this sheet?' : 'Restore this sheet?' }}')"
-                                    class="rounded-xl px-4 py-2 text-sm font-bold text-white {{ $sheet->is_active ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500' }}"
-                                >
-                                    {{ $sheet->is_active ? 'Archive' : 'Restore' }}
-                                </button>
-                            </form>
+    <button
+        type="submit"
+        onclick="return confirm('{{ $sheet->is_active ? 'Archive this sheet?' : 'Restore this sheet?' }}')"
+        class="rounded-xl px-4 py-2 text-sm font-bold text-white {{ $sheet->is_active ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500' }}"
+    >
+        {{ $sheet->is_active ? 'Archive' : 'Restore' }}
+    </button>
+</form>
 
                             @if (auth()->user()?->canDeleteRecords())
                                 <form
@@ -158,11 +161,15 @@
                             Edit sheet details
                         </summary>
 
-                        <form
-                            method="POST"
-                            action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.update', $sheet) }}"
-                            class="mt-5 grid gap-4 md:grid-cols-2"
-                        >
+<form
+    method="POST"
+    action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.update', $sheet) }}"
+    class="mt-5 grid gap-4 md:grid-cols-2"
+    x-data="{
+        oneTime:
+            {{ $sheet->is_one_time ? 'true' : 'false' }}
+    }"
+>
                             @csrf
                             @method('PATCH')
 
@@ -193,6 +200,32 @@
                                 >
                             </div>
 
+<div class="md:col-span-2">
+    <label
+        class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+    >
+        <input
+            type="checkbox"
+            name="is_one_time"
+            value="1"
+            x-model="oneTime"
+            @checked($sheet->is_one_time)
+            class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+        >
+
+        One-time attendance only
+    </label>
+
+    <p
+        class="mt-2 text-xs text-gray-500 dark:text-gray-400"
+    >
+        When enabled, Start Date becomes the single
+        meeting date. Empty extra dates can be removed,
+        but dates containing attendance, pre-listed,
+        or Immich history will never be deleted.
+    </p>
+</div>
+
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                                     Time
@@ -205,6 +238,94 @@
                                     class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                 >
                             </div>
+
+<div x-show="! oneTime">
+    <label
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
+    >
+        Meeting Day
+    </label>
+
+    <select
+        name="meeting_day"
+        :disabled="oneTime"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+    >
+        @php
+            $days = [
+                0 => 'Sunday',
+                1 => 'Monday',
+                2 => 'Tuesday',
+                3 => 'Wednesday',
+                4 => 'Thursday',
+                5 => 'Friday',
+                6 => 'Saturday',
+            ];
+        @endphp
+
+        @foreach ($days as $value => $label)
+            <option
+                value="{{ $value }}"
+                @selected(
+                    (int) $sheet->meeting_day
+                    === $value
+                )
+            >
+                {{ $label }}
+            </option>
+        @endforeach
+    </select>
+</div>
+
+<div>
+    <label
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
+    >
+        <span x-show="! oneTime">
+            Start Date
+        </span>
+
+        <span x-show="oneTime">
+            Meeting Date
+        </span>
+    </label>
+
+    <input
+        type="date"
+        name="start_date"
+        value="{{
+            $sheet->start_date?->format('Y-m-d')
+            ??
+            $sheet->sessions
+                ->min('session_date')
+                ?->format('Y-m-d')
+        }}"
+        required
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+    >
+</div>
+
+<div x-show="! oneTime">
+    <label
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
+    >
+        End Date
+    </label>
+
+    <input
+        type="date"
+        name="end_date"
+        :disabled="oneTime"
+        value="{{
+            $sheet->end_date?->format('Y-m-d')
+            ??
+            $sheet->sessions
+                ->max('session_date')
+                ?->format('Y-m-d')
+        }}"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+    >
+</div>
 
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">

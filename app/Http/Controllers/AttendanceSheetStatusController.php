@@ -10,6 +10,8 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\CarbonImmutable;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceSheetStatusController extends Controller
 {
@@ -128,13 +130,18 @@ public function update(
             'date_format:H:i',
         ],
 
+        'is_one_time' => [
+            'nullable',
+            'boolean',
+        ],
+
         'meeting_form_type' => [
             'required',
             'in:disabled,normal',
         ],
 
         'start_date' => [
-            'nullable',
+            'required',
             'date',
         ],
 
@@ -150,56 +157,255 @@ public function update(
         ],
     ]);
 
-    $oldValues = $sheet->only([
-        'title',
-        'locality',
-        'meeting_day',
-        'meeting_time',
-        'meeting_form_type',
-        'start_date',
-        'end_date',
-        'remarks',
-    ]);
+    $isOneTime =
+        $request->boolean('is_one_time');
+
+    $startDate =
+        CarbonImmutable::parse(
+            $data['start_date']
+        )->startOfDay();
+
+    if ($isOneTime) {
+        /*
+         * One-time sheets use exactly the selected
+         * Start Date / Meeting Date.
+         */
+        $meetingDay =
+            $startDate->dayOfWeek;
+
+        $endDate =
+            $startDate;
+
+        $desiredDates = [
+            $startDate->toDateString(),
+        ];
+    } else {
+        if (
+            blank($data['meeting_day'] ?? null)
+        ) {
+            throw ValidationException::withMessages([
+                'meeting_day' =>
+                    'Meeting day is required for recurring attendance sheets.',
+            ]);
+        }
+
+        if (
+            blank($data['end_date'] ?? null)
+        ) {
+            throw ValidationException::withMessages([
+                'end_date' =>
+                    'End date is required for recurring attendance sheets.',
+            ]);
+        }
+
+        $meetingDay =
+            (int) $data['meeting_day'];
+
+        $endDate =
+            CarbonImmutable::parse(
+                $data['end_date']
+            )->startOfDay();
+
+        if (
+            $startDate->diffInMonths($endDate)
+            > 18
+        ) {
+            throw ValidationException::withMessages([
+                'end_date' =>
+                    'Attendance sheet date range must not exceed 18 months.',
+            ]);
+        }
+
+        $desiredDates =
+            $this->sessionDates(
+                startDate: $startDate,
+                endDate: $endDate,
+                meetingDay: $meetingDay,
+            );
+
+        if ($desiredDates === []) {
+            throw ValidationException::withMessages([
+                'meeting_day' =>
+                    'No meeting dates were found in the selected date range.',
+            ]);
+        }
+    }
 
     $meetingTime =
         blank($data['meeting_time'] ?? null)
             ? null
             : $data['meeting_time'];
 
+    /*
+     * Work out which existing sessions would disappear
+     * before making ANY database changes.
+     */
+    $existingSessions =
+        $sheet->sessions()
+            ->withCount([
+                'records',
+                'meetingResponses',
+                'immichDetections',
+            ])
+            ->orderBy('session_date')
+            ->get();
+
+    $desiredDateLookup =
+        collect($desiredDates)
+            ->flip();
+
+    $sessionsToRemove =
+        $existingSessions
+            ->filter(
+                fn (AttendanceSession $session): bool =>
+                    ! $desiredDateLookup->has(
+                        $session->session_date
+                            ->format('Y-m-d')
+                    )
+            );
+
+    $protectedSessions =
+        $sessionsToRemove
+            ->filter(
+                fn (AttendanceSession $session): bool =>
+                    $session->records_count > 0
+                    ||
+                    $session->meeting_responses_count > 0
+                    ||
+                    $session->immich_detections_count > 0
+            );
+
+    if ($protectedSessions->isNotEmpty()) {
+        $dates =
+            $protectedSessions
+                ->map(function (
+                    AttendanceSession $session
+                ): string {
+                    $parts = [];
+
+                    if (
+                        $session->records_count > 0
+                    ) {
+                        $parts[] =
+                            $session->records_count
+                            . ' attendance';
+                    }
+
+                    if (
+                        $session
+                            ->meeting_responses_count > 0
+                    ) {
+                        $parts[] =
+                            $session
+                                ->meeting_responses_count
+                            . ' pre-listed';
+                    }
+
+                    if (
+                        $session
+                            ->immich_detections_count > 0
+                    ) {
+                        $parts[] =
+                            $session
+                                ->immich_detections_count
+                            . ' Immich';
+                    }
+
+                    return
+                        $session->session_date
+                            ->format('M d, Y')
+                        . ' ('
+                        . implode(', ', $parts)
+                        . ')';
+                })
+                ->implode('; ');
+
+        throw ValidationException::withMessages([
+            'is_one_time' =>
+                'The schedule cannot be changed because these meeting dates contain historical data: '
+                . $dates
+                . '. Historical attendance, pre-listed responses, and Immich records were preserved.',
+        ]);
+    }
+
+    $oldValues = [
+        'title' =>
+            $sheet->title,
+
+        'locality' =>
+            $sheet->locality,
+
+        'meeting_day' =>
+            $sheet->meeting_day,
+
+        'meeting_time' =>
+            $sheet->meeting_time,
+
+        'is_one_time' =>
+            (bool) $sheet->is_one_time,
+
+        'meeting_form_type' =>
+            $sheet->meeting_form_type,
+
+        'start_date' =>
+            $sheet->start_date
+                ?->format('Y-m-d'),
+
+        'end_date' =>
+            $sheet->end_date
+                ?->format('Y-m-d'),
+
+        'remarks' =>
+            $sheet->remarks,
+    ];
+
+    $sessionsCreated = 0;
+    $sessionsRemoved = 0;
+
     DB::transaction(
         function () use (
             $sheet,
             $data,
-            $meetingTime
+            $meetingTime,
+            $meetingDay,
+            $isOneTime,
+            $startDate,
+            $endDate,
+            $desiredDates,
+            $sessionsToRemove,
+            &$sessionsCreated,
+            &$sessionsRemoved,
         ): void {
             $sheet->forceFill([
                 'title' =>
                     $data['title'],
 
                 'locality' =>
-                    blank($data['locality'] ?? null)
+                    blank(
+                        $data['locality'] ?? null
+                    )
                         ? null
                         : $data['locality'],
 
                 'meeting_day' =>
-                    $data['meeting_day']
-                    ?? $sheet->meeting_day,
+                    $meetingDay,
 
                 'meeting_time' =>
                     $meetingTime,
+
+                'is_one_time' =>
+                    $isOneTime,
 
                 'meeting_form_type' =>
                     $data['meeting_form_type'],
 
                 'start_date' =>
-                    blank($data['start_date'] ?? null)
-                        ? null
-                        : $data['start_date'],
+                    $startDate->toDateString(),
 
                 'end_date' =>
-                    blank($data['end_date'] ?? null)
-                        ? null
-                        : $data['end_date'],
+                    $isOneTime
+                        ? $startDate->toDateString()
+                        : $endDate->toDateString(),
 
                 'remarks' =>
                     blank($data['remarks'] ?? null)
@@ -208,24 +414,76 @@ public function update(
             ])->save();
 
             /*
-             * AttendanceSession stores its own session_time.
-             * Keep every existing meeting date synchronized
-             * with the sheet's edited meeting time.
-             *
-             * Do not recreate sessions because their IDs may
-             * already be referenced by attendance, Immich,
-             * and pre-listed history.
+             * Remove only generated sessions that were
+             * proven above to contain no historical data.
              */
-            $sheet->sessions()->update([
-                'session_time' =>
-                    $meetingTime,
-            ]);
+            foreach (
+                $sessionsToRemove
+                as $session
+            ) {
+                $session->delete();
+
+                $sessionsRemoved++;
+            }
 
             /*
-             * Generate missing stable public meeting URLs
-             * when Normal Meeting Form is enabled.
-             *
-             * Existing slugs remain unchanged.
+             * Preserve existing session IDs whenever the
+             * date already exists. Create only missing dates.
+             */
+            foreach (
+                $desiredDates
+                as $date
+            ) {
+                $session =
+                    AttendanceSession::query()
+                        ->firstOrCreate(
+                            [
+                                'attendance_sheet_id' =>
+                                    $sheet->id,
+
+                                'session_date' =>
+                                    $date,
+                            ],
+                            [
+                                'session_time' =>
+                                    $meetingTime,
+
+                                'title' =>
+                                    $sheet->title
+                                    . ' - '
+                                    . CarbonImmutable::parse(
+                                        $date
+                                    )->format(
+                                        'M d, Y'
+                                    ),
+                            ]
+                        );
+
+                if (
+                    $session->wasRecentlyCreated
+                ) {
+                    $sessionsCreated++;
+                }
+
+                /*
+                 * Existing sessions keep their IDs and
+                 * history; only synchronize the meeting time.
+                 */
+                if (
+                    $session->session_time
+                    !== $meetingTime
+                ) {
+                    $session->forceFill([
+                        'session_time' =>
+                            $meetingTime,
+                    ])->save();
+                }
+            }
+
+            /*
+             * Existing public slugs remain stable.
+             * Newly-created sessions receive one when
+             * Normal Meeting Form is enabled.
              */
             $sheet->ensureMeetingFormSlugs();
         }
@@ -239,28 +497,86 @@ public function update(
             $sheet,
 
         description:
-            'Updated attendance sheet details and synchronized meeting session times.',
+            'Updated attendance sheet details and reconciled meeting schedule while preserving historical session data.',
 
         oldValues:
             $oldValues,
 
-        newValues:
-            $sheet->only([
-                'title',
-                'locality',
-                'meeting_day',
-                'meeting_time',
-                'meeting_form_type',
-                'start_date',
-                'end_date',
-                'remarks',
-            ]),
+        newValues: [
+            'title' =>
+                $sheet->title,
+
+            'locality' =>
+                $sheet->locality,
+
+            'meeting_day' =>
+                $sheet->meeting_day,
+
+            'meeting_time' =>
+                $sheet->meeting_time,
+
+            'is_one_time' =>
+                (bool) $sheet->is_one_time,
+
+            'meeting_form_type' =>
+                $sheet->meeting_form_type,
+
+            'start_date' =>
+                $sheet->start_date
+                    ?->format('Y-m-d'),
+
+            'end_date' =>
+                $sheet->end_date
+                    ?->format('Y-m-d'),
+
+            'remarks' =>
+                $sheet->remarks,
+
+            'sessions_created' =>
+                $sessionsCreated,
+
+            'empty_sessions_removed' =>
+                $sessionsRemoved,
+        ],
     );
 
     return back()->with(
         'attendance_sheet_updated',
         true
     );
+}
+
+
+private function sessionDates(
+    CarbonImmutable $startDate,
+    CarbonImmutable $endDate,
+    int $meetingDay
+): array {
+    $current = $startDate;
+
+    while (
+        $current->dayOfWeek
+        !== $meetingDay
+    ) {
+        $current =
+            $current->addDay();
+    }
+
+    $dates = [];
+
+    while (
+        $current->lessThanOrEqualTo(
+            $endDate
+        )
+    ) {
+        $dates[] =
+            $current->toDateString();
+
+        $current =
+            $current->addWeek();
+    }
+
+    return $dates;
 }
 
 }
