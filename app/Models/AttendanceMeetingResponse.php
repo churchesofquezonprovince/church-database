@@ -17,20 +17,40 @@ class AttendanceMeetingResponse extends Model
 
     public const RESPONDENT_GUEST = 'guest';
 
-    protected $fillable = [
-        'attendance_session_id',
-        'respondent_type',
-        'person_id',
-        'campus_contact_id',
-        'guest_name',
-        'respondent_name',
-        'response',
-        'responded_at',
-    ];
+protected $fillable = [
+    'attendance_session_id',
+    'respondent_type',
+    'original_source',
+    'person_id',
+    'campus_contact_id',
+    'guest_name',
+    'guest_profile',
+    'respondent_name',
+    'response',
+    'responded_at',
+];
 
-    protected $casts = [
-        'responded_at' => 'datetime',
-    ];
+protected $casts = [
+    'responded_at' => 'datetime',
+    'guest_profile' => 'array',
+];
+
+public function originalSourceLabel(): string
+{
+    return match ($this->original_source) {
+        self::RESPONDENT_PERSON =>
+            'People Database',
+
+        self::RESPONDENT_CAMPUS =>
+            'Campus Database',
+
+        self::RESPONDENT_GUEST =>
+            'Guest',
+
+        default =>
+            'Unknown',
+    };
+}
 
     public function session(): BelongsTo
     {
