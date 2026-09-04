@@ -14,6 +14,90 @@
         $meetingResponses = $this->meetingResponses();
         $yesMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_YES);
         $noMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_NO);
+        $meetingResponseWorkflowStatuses =
+    $this->meetingResponseWorkflowStatuses(
+        $meetingResponses
+    );
+
+$selectedPreListedFilter =
+    $this->selectedPreListedFilter();
+
+$preListedFilterOptions =
+    $this->preListedFilterOptions();
+
+$filteredMeetingResponses =
+    $meetingResponses
+        ->filter(
+            fn ($response) =>
+                $this->meetingResponseMatchesPreListedFilter(
+                    $response,
+                    $meetingResponseWorkflowStatuses
+                        ->get($response->id, []),
+                    $selectedPreListedFilter,
+                )
+        );
+
+$filteredYesMeetingResponses =
+    $filteredMeetingResponses
+        ->where(
+            'response',
+            \App\Models\AttendanceMeetingResponse::RESPONSE_YES
+        );
+
+$filteredNoMeetingResponses =
+    $filteredMeetingResponses
+        ->where(
+            'response',
+            \App\Models\AttendanceMeetingResponse::RESPONSE_NO
+        );
+
+$preListedFilterCounts = [
+    'all' =>
+        $meetingResponses->count(),
+
+    'needs_action' =>
+        $meetingResponseWorkflowStatuses
+            ->where('needs_action', true)
+            ->count(),
+
+    'yes' =>
+        $yesMeetingResponses->count(),
+
+    'no' =>
+        $noMeetingResponses->count(),
+
+    'needs_identity_review' =>
+        $meetingResponseWorkflowStatuses
+            ->where(
+                'key',
+                'needs_identity_review'
+            )
+            ->count(),
+
+    'ready_for_participant' =>
+        $meetingResponseWorkflowStatuses
+            ->where(
+                'key',
+                'ready_for_participant'
+            )
+            ->count(),
+
+    'participant_covered' =>
+        $meetingResponseWorkflowStatuses
+            ->where(
+                'key',
+                'participant_covered'
+            )
+            ->count(),
+
+    'participant_review' =>
+        $meetingResponseWorkflowStatuses
+            ->where(
+                'key',
+                'participant_review'
+            )
+            ->count(),
+];
         $preListedResponsesByPersonId =
     $meetingResponses
         ->filter(
@@ -358,6 +442,45 @@ $presentWithoutPreListingCount =
         </div>
 
 
+
+<div class="mt-5 flex flex-wrap gap-2">
+    @foreach (
+        $preListedFilterOptions
+        as $filterKey => $filterLabel
+    )
+        <a
+            href="{{ $this->preListedFilterUrl($filterKey) }}"
+            @class([
+                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition',
+
+                'border-indigo-600 bg-indigo-600 text-white'
+                    => $selectedPreListedFilter === $filterKey,
+
+                'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-gray-950 dark:text-indigo-200 dark:hover:bg-indigo-900'
+                    => $selectedPreListedFilter !== $filterKey,
+            ])
+        >
+            {{ $filterLabel }}
+
+            <span
+                @class([
+                    'rounded-full px-1.5 py-0.5 text-[10px]',
+
+                    'bg-white/20 text-white'
+                        => $selectedPreListedFilter === $filterKey,
+
+                    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
+                        => $selectedPreListedFilter !== $filterKey,
+                ])
+            >
+                {{ $preListedFilterCounts[$filterKey] ?? 0 }}
+            </span>
+        </a>
+    @endforeach
+</div>
+
+
+
         @if ($meetingResponses->isEmpty())
 
             <div
@@ -367,7 +490,15 @@ $presentWithoutPreListingCount =
                 for this date yet.
             </div>
 
-        @else
+@elseif ($filteredMeetingResponses->isEmpty())
+    <div
+        class="mt-5 rounded-xl border border-dashed border-indigo-300 bg-white/60 p-6 text-center text-sm text-indigo-700 dark:border-indigo-800 dark:bg-gray-950 dark:text-indigo-200"
+    >
+        No pre-listed responses match this filter.
+    </div>
+
+@else
+
 
             <div class="mt-6 grid gap-6 xl:grid-cols-2">
 
@@ -387,13 +518,13 @@ $presentWithoutPreListingCount =
                         <span
                             class="text-xs font-bold text-emerald-700 dark:text-emerald-300"
                         >
-                            {{ $yesMeetingResponses->count() }}
+                            {{ $filteredYesMeetingResponses->count() }}
                         </span>
                     </div>
 
                     <div class="mt-3 space-y-3">
 
-                        @forelse ($yesMeetingResponses as $response)
+                        @forelse ($filteredYesMeetingResponses as $response)
 
                             <div
                                 class="rounded-xl border border-emerald-200 bg-white p-4 dark:border-emerald-900 dark:bg-gray-950"
@@ -457,7 +588,14 @@ $presentWithoutPreListingCount =
                                                     {{ $response->originalSourceLabel() }}
                                                 </span>
                                             @endif
-
+@include(
+    'filament.pages.partials.meeting-response-workflow-status',
+    [
+        'workflow' =>
+            $meetingResponseWorkflowStatuses
+                ->get($response->id, []),
+    ]
+)
                                         </div>
 
                                         @if (
@@ -572,13 +710,13 @@ $presentWithoutPreListingCount =
                         <span
                             class="text-xs font-bold text-red-700 dark:text-red-300"
                         >
-                            {{ $noMeetingResponses->count() }}
+                            {{ $filteredNoMeetingResponses->count() }}
                         </span>
                     </div>
 
                     <div class="mt-3 space-y-3">
 
-                        @forelse ($noMeetingResponses as $response)
+                        @forelse ($filteredNoMeetingResponses as $response)
 
                             <div
                                 class="rounded-xl border border-red-200 bg-white p-4 dark:border-red-900 dark:bg-gray-950"
@@ -643,7 +781,14 @@ $presentWithoutPreListingCount =
                                                     {{ $response->originalSourceLabel() }}
                                                 </span>
                                             @endif
-
+@include(
+    'filament.pages.partials.meeting-response-workflow-status',
+    [
+        'workflow' =>
+            $meetingResponseWorkflowStatuses
+                ->get($response->id, []),
+    ]
+)
                                         </div>
 
 
@@ -709,12 +854,6 @@ $presentWithoutPreListingCount =
     ]
 )
 
-@include(
-    'filament.pages.partials.meeting-response-attendance-participant',
-    [
-        'response' => $response,
-    ]
-)
 
                                     </div>
 

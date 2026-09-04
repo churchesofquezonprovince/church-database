@@ -442,4 +442,237 @@ public function meetingResponses(): Collection
         ->get();
 }
 
+public function selectedPreListedFilter(): string
+{
+    $filter = (string) request(
+        'prelisted',
+        'all',
+    );
+
+    return in_array(
+        $filter,
+        array_keys($this->preListedFilterOptions()),
+        true,
+    )
+        ? $filter
+        : 'all';
+}
+
+public function preListedFilterOptions(): array
+{
+    return [
+        'all' => 'All',
+        'needs_action' => 'Needs Action',
+        'yes' => 'YES',
+        'no' => 'NO',
+        'needs_identity_review' => 'Needs Identity Review',
+        'ready_for_participant' => 'Ready for Participant',
+        'participant_covered' => 'Participant Covered',
+        'participant_review' => 'Participant Review',
+    ];
+}
+
+public function preListedFilterUrl(string $filter): string
+{
+    $query = request()->query();
+
+    if ($filter === 'all') {
+        unset($query['prelisted']);
+    } else {
+        $query['prelisted'] = $filter;
+    }
+
+    return self::getUrl()
+        . ($query
+            ? '?' . http_build_query($query)
+            : '');
+}
+
+/**
+ * Derive admin workflow state for each pre-listed response.
+ *
+ * This does not modify the response, participant enrollment,
+ * or actual attendance.
+ */
+public function meetingResponseWorkflowStatuses(
+    Collection $responses,
+): Collection {
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    $sessionDate =
+        $session->session_date->format('Y-m-d');
+
+    $personIds = $responses
+        ->filter(
+            fn (AttendanceMeetingResponse $response): bool =>
+                $response->respondent_type
+                    === AttendanceMeetingResponse::RESPONDENT_PERSON
+                &&
+                filled($response->person_id)
+        )
+        ->pluck('person_id')
+        ->map(fn ($id): int => (int) $id)
+        ->unique()
+        ->values();
+
+    $participants = AttendanceParticipant::query()
+        ->where(
+            'attendance_sheet_id',
+            $session->attendance_sheet_id,
+        )
+        ->whereIn('person_id', $personIds)
+        ->get()
+        ->keyBy(
+            fn (AttendanceParticipant $participant): int =>
+                (int) $participant->person_id
+        );
+
+    return $responses->mapWithKeys(
+        function (
+            AttendanceMeetingResponse $response
+        ) use (
+            $participants,
+            $sessionDate,
+        ): array {
+            /*
+             * Guest / Campus has not yet reached a canonical Person.
+             *
+             * This remains an identity-review action even if the
+             * response itself is NO.
+             */
+            if (
+                $response->respondent_type
+                    !== AttendanceMeetingResponse::RESPONDENT_PERSON
+                ||
+                blank($response->person_id)
+            ) {
+                return [
+                    $response->id => [
+                        'key' => 'needs_identity_review',
+                        'label' => 'Needs Identity Review',
+                        'needs_action' => true,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            /*
+             * A canonical Person who answered NO does not need to
+             * be enrolled from the pre-listed response.
+             */
+            if (
+                $response->response
+                === AttendanceMeetingResponse::RESPONSE_NO
+            ) {
+                return [
+                    $response->id => [
+                        'key' => 'no_participant_needed',
+                        'label' => 'No Participant Needed',
+                        'needs_action' => false,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            $participant = $participants->get(
+                (int) $response->person_id
+            );
+
+            if (! $participant) {
+                return [
+                    $response->id => [
+                        'key' => 'ready_for_participant',
+                        'label' => 'Ready for Participant',
+                        'needs_action' => true,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            if (! $participant->is_active) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_review',
+                        'label' => 'Participant Review',
+                        'needs_action' => true,
+                        'detail' => 'Existing participant record is inactive.',
+                    ],
+                ];
+            }
+
+            $startsOn =
+                $participant->starts_on?->format('Y-m-d');
+
+            $endsOn =
+                $participant->ends_on?->format('Y-m-d');
+
+            $coversSession =
+                (blank($startsOn) || $startsOn <= $sessionDate)
+                &&
+                (blank($endsOn) || $endsOn >= $sessionDate);
+
+            if ($coversSession) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_covered',
+                        'label' => 'Participant Covered',
+                        'needs_action' => false,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            return [
+                $response->id => [
+                    'key' => 'participant_review',
+                    'label' => 'Participant Review',
+                    'needs_action' => true,
+                    'detail' =>
+                        'Existing participant range does not cover this meeting.',
+                ],
+            ];
+        }
+    );
+}
+
+public function meetingResponseMatchesPreListedFilter(
+    AttendanceMeetingResponse $response,
+    array $workflow,
+    string $filter,
+): bool {
+    $workflowKey =
+        $workflow['key'] ?? null;
+
+    return match ($filter) {
+        'needs_action' =>
+            (bool) ($workflow['needs_action'] ?? false),
+
+        'yes' =>
+            $response->response
+            === AttendanceMeetingResponse::RESPONSE_YES,
+
+        'no' =>
+            $response->response
+            === AttendanceMeetingResponse::RESPONSE_NO,
+
+        'needs_identity_review' =>
+            $workflowKey === 'needs_identity_review',
+
+        'ready_for_participant' =>
+            $workflowKey === 'ready_for_participant',
+
+        'participant_covered' =>
+            $workflowKey === 'participant_covered',
+
+        'participant_review' =>
+            $workflowKey === 'participant_review',
+
+        default => true,
+    };
+}
+
 }
