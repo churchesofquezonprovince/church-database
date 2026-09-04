@@ -104,6 +104,10 @@ class AttendanceSheetStatusController extends Controller
             'locality' => ['nullable', 'string', 'max:150'],
             'meeting_day' => ['nullable', 'integer', 'between:0,6'],
             'meeting_time' => ['nullable', 'date_format:H:i'],
+            'meeting_form_type' => [
+    'required',
+    'in:disabled,normal',
+],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ]);
@@ -113,18 +117,44 @@ class AttendanceSheetStatusController extends Controller
             'locality',
             'meeting_day',
             'meeting_time',
+            'meeting_form_type',
             'start_date',
             'end_date',
         ]);
 
-        $sheet->forceFill([
-            'title' => $data['title'],
-            'locality' => blank($data['locality'] ?? null) ? null : $data['locality'],
-            'meeting_day' => $data['meeting_day'] ?? $sheet->meeting_day,
-            'meeting_time' => blank($data['meeting_time'] ?? null) ? null : $data['meeting_time'],
-            'start_date' => blank($data['start_date'] ?? null) ? null : $data['start_date'],
-            'end_date' => blank($data['end_date'] ?? null) ? null : $data['end_date'],
-        ])->save();
+$sheet->forceFill([
+    'title' => $data['title'],
+    'locality' => blank($data['locality'] ?? null)
+        ? null
+        : $data['locality'],
+    'meeting_day' =>
+        $data['meeting_day']
+        ?? $sheet->meeting_day,
+    'meeting_time' =>
+        blank($data['meeting_time'] ?? null)
+            ? null
+            : $data['meeting_time'],
+
+    'meeting_form_type' =>
+        $data['meeting_form_type'],
+
+    'start_date' =>
+        blank($data['start_date'] ?? null)
+            ? null
+            : $data['start_date'],
+    'end_date' =>
+        blank($data['end_date'] ?? null)
+            ? null
+            : $data['end_date'],
+])->save();
+
+/*
+ * Generate missing stable public URLs when the
+ * Normal Meeting Form is enabled.
+ *
+ * Existing slugs are preserved.
+ */
+$sheet->ensureMeetingFormSlugs();
 
         ActivityLogger::log(
             action: 'attendance_sheet.updated',
@@ -136,6 +166,7 @@ class AttendanceSheetStatusController extends Controller
                 'locality',
                 'meeting_day',
                 'meeting_time',
+                'meeting_form_type',
                 'start_date',
                 'end_date',
             ]),

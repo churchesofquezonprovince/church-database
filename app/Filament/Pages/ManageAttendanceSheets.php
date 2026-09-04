@@ -82,6 +82,11 @@ class ManageAttendanceSheets extends Page
             ->when($this->selectedStatus() === 'active', fn ($query) => $query->where('is_active', true))
             ->when($this->selectedStatus() === 'archived', fn ($query) => $query->where('is_active', false))
             ->withCount(['sessions', 'participants'])
+            ->with([
+    'sessions' => fn ($query) => $query
+        ->orderBy('session_date')
+        ->orderBy('id'),
+])
             ->orderByDesc('is_active')
             ->orderByDesc('created_at')
             ->get();

@@ -23,6 +23,10 @@ class AttendanceSheetController extends Controller
             'meeting_day' => ['nullable', 'integer', 'between:0,6'],
             'meeting_time' => ['nullable', 'date_format:H:i'],
             'is_one_time' => ['nullable', 'boolean'],
+            'meeting_form_type' => [
+    'nullable',
+    'in:disabled,normal',
+],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'remarks' => ['nullable', 'string'],
@@ -30,6 +34,10 @@ class AttendanceSheetController extends Controller
 
         $isOneTime = $request->boolean('is_one_time');
 
+        $meetingFormType =
+        $data['meeting_form_type']
+        ?? AttendanceSheet::MEETING_FORM_DISABLED;
+        
         $startDate = CarbonImmutable::parse($data['start_date'])->startOfDay();
 
         if ($isOneTime) {
@@ -104,7 +112,7 @@ class AttendanceSheetController extends Controller
             ]);
         }
 
-        $sheet = DB::transaction(function () use ($data, $sessionDates, $isOneTime, $startDate, $endDate, $meetingDay, $meetingTime): AttendanceSheet {
+        $sheet = DB::transaction(function () use ($data, $sessionDates, $isOneTime, $startDate, $endDate, $meetingDay, $meetingTime, $meetingFormType): AttendanceSheet {
             $sheet = AttendanceSheet::query()->create([
                 'title' => $data['title'],
                 'sheet_type' => AttendanceSheet::TYPE_CUSTOM,
@@ -112,6 +120,7 @@ class AttendanceSheetController extends Controller
                 'meeting_day' => $meetingDay,
                 'meeting_time' => $meetingTime,
                 'is_one_time' => $isOneTime,
+                'meeting_form_type' => $meetingFormType,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate->toDateString(),
                 'is_active' => true,
@@ -127,6 +136,12 @@ class AttendanceSheetController extends Controller
                 ]);
             }
 
+/*
+ * Generate stable public meeting URLs when
+ * Normal Meeting Form is enabled.
+ */
+$sheet->ensureMeetingFormSlugs();
+
             ActivityLogger::log(
                 action: 'attendance_sheet.created',
                 subject: $sheet,
@@ -137,6 +152,7 @@ class AttendanceSheetController extends Controller
                     'meeting_day' => $sheet->meeting_day,
                     'meeting_time' => $sheet->meeting_time,
                     'is_one_time' => $sheet->is_one_time,
+                    'meeting_form_type' => $sheet->meeting_form_type,
                     'start_date' => optional($sheet->start_date)->format('Y-m-d'),
                     'end_date' => optional($sheet->end_date)->format('Y-m-d'),
                     'sessions_created' => count($sessionDates),

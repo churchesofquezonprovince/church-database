@@ -15,6 +15,7 @@ class AttendanceSession extends Model
         'session_date',
         'session_time',
         'title',
+        'public_slug',
         'remarks',
     ];
 
@@ -66,4 +67,16 @@ public function immichDetections(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
     }
+
+public function publicMeetingUrl(): ?string
+{
+    if (blank($this->public_slug)) {
+        return null;
+    }
+
+    return secure_url(
+        '/meeting/' . $this->public_slug
+    );
+}
+
 }
