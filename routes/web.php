@@ -21,6 +21,7 @@ use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\PrayerMeetingItemController;
+use App\Http\Controllers\PublicMeetingFormController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
 
@@ -527,3 +528,32 @@ Route::middleware(['web', 'auth'])
             ->name('lessons.destroy');
     });
 
+
+
+    /*
+ * ============================================================
+ * PHASE 26C — PUBLIC MEETING RESPONSE FORM
+ * ============================================================
+ *
+ * No login required.
+ */
+Route::middleware(['web'])
+    ->group(function (): void {
+        Route::get(
+            '/meeting/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'show',
+            ]
+        )->name('meeting.show');
+
+        Route::post(
+            '/meeting/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'store',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.store');
+    });
