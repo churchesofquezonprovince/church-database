@@ -27,7 +27,7 @@ class AttendanceMeetingResponseParticipantController extends Controller
         ) {
             return back()->withErrors([
                 'meeting_response_participant' =>
-                    'This RSVP must be linked to the People Database before it can be added to Attendance Participants.',
+                    'This pre-listed entry must be linked to the People Database before it can be added to Attendance Participants.',
             ]);
         }
 
@@ -118,7 +118,7 @@ class AttendanceMeetingResponseParticipantController extends Controller
         if (! $participant->is_active) {
             return back()->withErrors([
                 'meeting_response_participant' =>
-                    'This Person already has an inactive Attendance Participant record for this sheet. Please manage that participant record before adding them from the RSVP.',
+                    'This Person already has an inactive Attendance Participant record for this sheet. Please manage that participant record before adding them from the pre-listed entry.',
             ]);
         }
 
@@ -229,7 +229,7 @@ class AttendanceMeetingResponseParticipantController extends Controller
                 $participant,
 
             description:
-                'Extended RSVP Person attendance participation from meeting onward.',
+                'Extended Pre-listed Person attendance participation from meeting onward.',
 
             oldValues:
                 $oldValues,
@@ -283,7 +283,7 @@ class AttendanceMeetingResponseParticipantController extends Controller
                 $participant,
 
             description:
-                'Added RSVP Person to Attendance Participants.',
+                'Added Pre-listed Person to Attendance Participants.',
 
             newValues: [
                 'attendance_sheet_id' =>

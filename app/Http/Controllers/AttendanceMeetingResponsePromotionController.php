@@ -110,7 +110,7 @@ public function createGuestPerson(
     ) {
         return back()->withErrors([
             'meeting_response_person_create' =>
-                'This response is no longer a Guest RSVP.',
+                'This response is no longer a Guest pre-listed entry.',
         ]);
     }
 
@@ -371,7 +371,7 @@ public function createGuestPerson(
             }
 
             /*
-             * Promote the RSVP's current identity.
+             * Promote the pre-listed entry's current identity.
              *
              * Preserve:
              * - original_source
@@ -459,7 +459,7 @@ public function linkGuestToPerson(
     ) {
         return back()->withErrors([
             'meeting_response_person_link' =>
-                'This response is no longer a Guest RSVP.',
+                'This response is no longer a Guest pre-listed entry.',
         ]);
     }
 
@@ -693,7 +693,7 @@ public function searchPeople(
         ) {
             return back()->withErrors([
                 'meeting_response_promotion' =>
-                    'This response is no longer a Guest RSVP.',
+                    'This response is no longer a Guest pre-listed entry.',
             ]);
         }
 
@@ -905,7 +905,7 @@ public function searchPeople(
                 /*
                  * Preserve guest_name and guest_profile.
                  *
-                 * They tell us how this RSVP originally entered
+                 * They tell us how this pre-listed entry originally entered
                  * the system.
                  */
                 $response->forceFill([
@@ -990,7 +990,7 @@ public function linkCampusToPerson(
     ) {
         return back()->withErrors([
             'meeting_response_campus_person_link' =>
-                'This response is no longer a Campus RSVP.',
+                'This response is no longer a Campus pre-listed entry.',
         ]);
     }
 
@@ -1021,7 +1021,7 @@ public function linkCampusToPerson(
     if (! $contact) {
         return back()->withErrors([
             'meeting_response_campus_person_link' =>
-                'The Campus Contact for this RSVP could not be found.',
+                'The Campus Contact for this pre-listed entry could not be found.',
         ]);
     }
 
@@ -1036,7 +1036,7 @@ public function linkCampusToPerson(
 
     /*
      * If this Campus Contact was linked somewhere else after
-     * the RSVP was submitted, do not silently replace it.
+     * the pre-listed entry was submitted, do not silently replace it.
      */
     if (
         $contact->person_id
@@ -1071,7 +1071,7 @@ public function linkCampusToPerson(
                 'meeting_response_campus_person_link' =>
                     $person->display_name
                     . ' is already linked to another Campus Contact. '
-                    . 'This RSVP was not changed.',
+                    . 'This pre-listed entry was not changed.',
             ]);
     }
 
@@ -1090,7 +1090,7 @@ public function linkCampusToPerson(
             ->withErrors([
                 'meeting_response_campus_person_link' =>
                     $person->display_name
-                    . ' already has an RSVP for this meeting. '
+                    . ' already has a pre-listed response for this meeting. '
                     . 'This Campus response was not changed.',
             ]);
     }
@@ -1202,7 +1202,7 @@ public function linkCampusToPerson(
             $response,
 
         description:
-            'Linked Campus RSVP to existing Person.',
+            'Linked Campus pre-listed entry to existing Person.',
 
         oldValues:
             $oldValues,
@@ -1351,7 +1351,7 @@ public function createPersonFromCampus(
     ) {
         return back()->withErrors([
             'meeting_response_campus_person_create' =>
-                'This response is no longer a Campus RSVP.',
+                'This response is no longer a Campus pre-listed entry.',
         ]);
     }
 
@@ -1440,7 +1440,7 @@ public function createPersonFromCampus(
     if (! $contact) {
         return back()->withErrors([
             'meeting_response_campus_person_create' =>
-                'The Campus Contact for this RSVP could not be found.',
+                'The Campus Contact for this pre-listed entry could not be found.',
         ]);
     }
 
@@ -1678,7 +1678,7 @@ public function createPersonFromCampus(
             ]);
 
             /*
-             * RSVP becomes Person-based, while retaining its
+             * Pre-listed entry becomes Person-based, while retaining its
              * Campus Contact and original Guest provenance.
              */
             $this->assignCampusResponseToPerson(
@@ -1699,7 +1699,7 @@ public function createPersonFromCampus(
             $response,
 
         description:
-            'Created Person from Campus RSVP.',
+            'Created Person from Campus pre-listed entry.',
 
         oldValues:
             $oldValues,

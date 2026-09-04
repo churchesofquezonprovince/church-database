@@ -192,7 +192,7 @@
                 <p
                     class="mt-1 text-sm text-indigo-700 dark:text-indigo-300"
                 >
-                    RSVP responses are separate from actual
+                    Pre-listed responses are separate from actual
                     attendance. A YES response does not mark a
                     person as present.
                 </p>
@@ -205,7 +205,7 @@
         </strong>
 
         {{ session('meeting_response_promoted_name') }}
-        is now linked to this RSVP through the Campus Database.
+        is now linked to this pre-listed entry through the Campus Database.
     </div>
 @endif
 
@@ -218,7 +218,7 @@
         </strong>
 
         {{ session('meeting_response_linked_person_name') }}
-        is now the canonical identity for this RSVP.
+        is now the canonical identity for this pre-listed entry.
     </div>
 @endif
 
@@ -231,7 +231,7 @@
         </strong>
 
         {{ session('meeting_response_created_person_name') }}
-        is now the canonical identity for this RSVP.
+        is now the canonical identity for this pre-listed entry.
     </div>
 @endif
 
@@ -241,11 +241,11 @@
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
-            Campus RSVP linked to People Database.
+            Campus pre-listed entry linked to People Database.
         </strong>
 
         {{ session('meeting_response_campus_person_name') }}
-        is now the canonical identity for this RSVP.
+        is now the canonical identity for this pre-listed entry.
     </div>
 @endif
 
