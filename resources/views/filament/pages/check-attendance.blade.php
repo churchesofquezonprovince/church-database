@@ -413,6 +413,23 @@ $presentWithoutPreListingCount =
     </div>
 @endif
 
+@if (session('meeting_response_deleted'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+    >
+        <strong>
+            Pre-listed response deleted.
+        </strong>
+
+        {{ session('meeting_response_deleted_name') }}
+
+        was removed from this meeting's pre-listed responses.
+
+        People, Campus, Participant, Attendance, and Immich
+        records were preserved.
+    </div>
+@endif
+
 
 
 
@@ -667,6 +684,13 @@ $presentWithoutPreListingCount =
     ]
 )
 
+@include(
+    'filament.pages.partials.meeting-response-delete',
+    [
+        'response' => $response,
+    ]
+)
+
                                     </div>
 
                                     @if ($response->responded_at)
@@ -854,6 +878,12 @@ $presentWithoutPreListingCount =
     ]
 )
 
+@include(
+    'filament.pages.partials.meeting-response-delete',
+    [
+        'response' => $response,
+    ]
+)
 
                                     </div>
 

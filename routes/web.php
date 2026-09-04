@@ -15,6 +15,7 @@ use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
+use App\Http\Controllers\AttendanceMeetingResponseController;
 use App\Http\Controllers\AttendanceMeetingResponseParticipantController;
 use App\Http\Controllers\AttendanceMeetingResponsePromotionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
@@ -668,3 +669,15 @@ Route::middleware(['web', 'auth'])
     ->name(
         'quezonprovinceactivities.attendance-meeting-responses.attendance-participant'
     );
+
+    Route::middleware(['web', 'auth'])
+->delete(
+    '/quezonprovinceactivities/attendance-meeting-responses/{response}',
+    [
+        AttendanceMeetingResponseController::class,
+        'destroy',
+    ]
+)
+->name(
+    'quezonprovinceactivities.attendance-meeting-responses.destroy'
+);
