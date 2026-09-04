@@ -1,6 +1,31 @@
 @php
     $lesson ??= null;
 
+        /*
+     * EDIT:
+     * Keep the lesson's existing date.
+     *
+     * ADD:
+     * Find the latest future schedule, including drafts,
+     * but excluding cancelled schedules, then add 7 days.
+     */
+    if ($lesson) {
+        $defaultScheduledOn = $lesson->scheduled_on?->format('Y-m-d');
+    } else {
+        $latestScheduledOn = \App\Models\ChildrenWorkLesson::query()
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '>=', today())
+            ->where('status', '!=', 'cancelled')
+            ->max('scheduled_on');
+
+        $defaultScheduledOn = $latestScheduledOn
+            ? \Carbon\Carbon::parse($latestScheduledOn)
+                ->addWeek()
+                ->format('Y-m-d')
+            : null;
+    }
+
+
     $smartChipFields =
         $lesson?->google_sheet_smart_chip_fields ?? [];
 
@@ -9,13 +34,22 @@
 @endphp
 
 <div>
-    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">Date</label>
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Date
+    </label>
+
     <input
         type="date"
         name="scheduled_on"
-        value="{{ old('scheduled_on', $lesson?->scheduled_on?->format('Y-m-d')) }}"
+        value="{{ old('scheduled_on', $defaultScheduledOn) }}"
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
     >
+
+    @if (! $lesson && $defaultScheduledOn)
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Automatically set one week after the latest future schedule.
+        </p>
+    @endif
 </div>
 
 <div>

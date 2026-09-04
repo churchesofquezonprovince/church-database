@@ -23,17 +23,17 @@
             ->find(request()->integer('edit_lesson'));
     }
 
-    $nextLesson = $lessons
-        ->filter(fn ($lesson) =>
-            ! in_array($lesson->status, ['cancelled'], true)
-            && $lesson->scheduled_on
-            && $lesson->scheduled_on->gte($today)
-        )
-        ->sortBy([
-            ['scheduled_on', 'asc'],
-            ['id', 'asc'],
-        ])
-        ->first();
+$nextLesson = $lessons
+    ->filter(fn ($lesson) =>
+        ! in_array($lesson->status, ['cancelled'], true)
+        && $lesson->scheduled_on
+        && $lesson->scheduled_on->gte($today)
+    )
+    ->sortBy([
+        ['scheduled_on', 'asc'],
+        ['id', 'asc'],
+    ])
+    ->first();
 
 $currentMonthLessons = $lessons
     ->filter(fn ($lesson) =>
@@ -114,10 +114,10 @@ $futureLessons = $lessons
                     @csrf
                     @method('PATCH')
 
-                    @include('filament.pages.partials.children-work-lesson-form-fields', [
-                        'lesson' => $editingLesson,
-                        'statusOptions' => $statusOptions,
-                    ])
+@include('filament.pages.partials.children-work-lesson-form-fields', [
+    'lesson' => null,
+    'statusOptions' => $statusOptions,
+])
 
                     <div class="flex flex-wrap gap-2 lg:col-span-2">
                         <button type="submit" class="rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500">
