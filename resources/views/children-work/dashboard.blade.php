@@ -204,14 +204,28 @@
             font-size: 19px;
         }
 
-        .schedule-item {
-            padding: 14px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
+.schedule-item {
+    display: block;
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition:
+        background-color .15s ease,
+        border-color .15s ease;
+}
 
-        .schedule-item:last-child {
-            border-bottom: 0;
-        }
+.schedule-item:hover {
+    background: #fdf2f8;
+    border-color: #f9a8d4;
+}
+
+.schedule-item:focus-visible {
+    outline: 2px solid #db2777;
+    outline-offset: 2px;
+}
 
         .schedule-date {
             color: #be185d;
@@ -495,63 +509,84 @@
 
         <section class="schedule-grid">
 
-            <article class="card schedule-card">
-                <h2>Upcoming Lessons</h2>
 
-                @forelse ($upcomingLessons as $lesson)
-                    <div class="schedule-item">
-                        <div class="schedule-date">
-                            {{ $lesson->displayDate() }}
-                        </div>
+<article class="card schedule-card">
+    <h2>Upcoming Lessons</h2>
 
-                        <div class="schedule-title">
-                            {{ $lesson->displayTitle() }}
-                        </div>
-                    </div>
-                @empty
-                    <p class="muted">
-                        No more lessons scheduled this month.
-                    </p>
-                @endforelse
-            </article>
+    @forelse ($upcomingLessons as $lesson)
+        <a
+            href="{{ route(
+                'children-work.dashboard.public',
+                ['lesson' => $lesson->id]
+            ) }}"
+            class="schedule-item"
+        >
+            <div class="schedule-date">
+                {{ $lesson->displayDate() }}
+            </div>
 
-            <article class="card schedule-card">
-                <h2>Recent Lessons</h2>
+            <div class="schedule-title">
+                {{ $lesson->displayTitle() }}
+            </div>
+        </a>
+    @empty
+        <p class="muted">
+            No more lessons scheduled this month.
+        </p>
+    @endforelse
+</article>
 
-                @forelse ($recentLessons as $lesson)
-                    <div class="schedule-item">
-                        <div class="schedule-date">
-                            {{ $lesson->displayDate() }}
-                        </div>
+<article class="card schedule-card">
+    <h2>Recent Lessons</h2>
 
-                        <div class="schedule-title">
-                            {{ $lesson->displayTitle() }}
-                        </div>
-                    </div>
-                @empty
-                    <p class="muted">No recent lessons.</p>
-                @endforelse
-            </article>
+    @forelse ($recentLessons as $lesson)
+        <a
+            href="{{ route(
+                'children-work.dashboard.public',
+                ['lesson' => $lesson->id]
+            ) }}"
+            class="schedule-item"
+        >
+            <div class="schedule-date">
+                {{ $lesson->displayDate() }}
+            </div>
 
-            <article class="card schedule-card">
-                <h2>Future Lessons</h2>
+            <div class="schedule-title">
+                {{ $lesson->displayTitle() }}
+            </div>
+        </a>
+    @empty
+        <p class="muted">
+            No recent lessons.
+        </p>
+    @endforelse
+</article>
 
-                @forelse ($futureLessons as $lesson)
-                    <div class="schedule-item">
-                        <div class="schedule-date">
-                            {{ $lesson->displayDate() }}
-                        </div>
+<article class="card schedule-card">
+    <h2>Future Lessons</h2>
 
-                        <div class="schedule-title">
-                            {{ $lesson->displayTitle() }}
-                        </div>
-                    </div>
-                @empty
-                    <p class="muted">
-                        No future lessons currently scheduled.
-                    </p>
-                @endforelse
-            </article>
+    @forelse ($futureLessons as $lesson)
+        <a
+            href="{{ route(
+                'children-work.dashboard.public',
+                ['lesson' => $lesson->id]
+            ) }}"
+            class="schedule-item"
+        >
+            <div class="schedule-date">
+                {{ $lesson->displayDate() }}
+            </div>
+
+            <div class="schedule-title">
+                {{ $lesson->displayTitle() }}
+            </div>
+        </a>
+    @empty
+        <p class="muted">
+            No future lessons currently scheduled.
+        </p>
+    @endforelse
+</article>
 
         </section>
     </main>

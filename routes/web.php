@@ -498,12 +498,25 @@ Route::middleware(['web'])
         $dashboardQuery = \App\Models\ChildrenWorkLesson::query()
             ->whereNotIn('status', ['draft', 'cancelled']);
 
-        $nextLesson = (clone $dashboardQuery)
-            ->whereNotNull('scheduled_on')
-            ->whereDate('scheduled_on', '>=', today())
-            ->orderBy('scheduled_on')
-            ->orderBy('id')
-            ->first();
+$selectedLessonId = request()->integer('lesson');
+
+$nextLesson = null;
+
+if ($selectedLessonId > 0) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereKey($selectedLessonId)
+        ->whereNotNull('scheduled_on')
+        ->first();
+}
+
+if (! $nextLesson) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereNotNull('scheduled_on')
+        ->whereDate('scheduled_on', '>=', today())
+        ->orderBy('scheduled_on')
+        ->orderBy('id')
+        ->first();
+}
 
         if (! $nextLesson) {
             $nextLesson = (clone $dashboardQuery)
@@ -522,14 +535,14 @@ Route::middleware(['web'])
                 '<=',
                 now()->endOfMonth()->toDateString()
             )
-            ->when(
-                $nextLesson?->scheduled_on?->gte(today()),
-                fn ($query) => $query->where(
-                    'id',
-                    '!=',
-                    $nextLesson->id
-                )
-            )
+->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderBy('scheduled_on')
             ->orderBy('id')
             ->limit(8)
@@ -538,6 +551,14 @@ Route::middleware(['web'])
         $recentLessons = (clone $dashboardQuery)
             ->whereNotNull('scheduled_on')
             ->whereDate('scheduled_on', '<', today())
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderByDesc('scheduled_on')
             ->orderByDesc('id')
             ->limit(5)
@@ -550,6 +571,14 @@ Route::middleware(['web'])
                 '>',
                 now()->endOfMonth()->toDateString()
             )
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderBy('scheduled_on')
             ->orderBy('id')
             ->limit(12)
