@@ -77,6 +77,24 @@ if (! $nextLesson) {
             ->orderByDesc('id')
             ->limit(5)
             ->get();
+$pastLessons = (clone $dashboardQuery)
+    ->whereNotNull('scheduled_on')
+    ->whereDate('scheduled_on', '<', today())
+    ->when(
+        $nextLesson,
+        fn ($query) => $query->where(
+            'id',
+            '!=',
+            $nextLesson->id
+        )
+    )
+    ->whereNotIn(
+        'id',
+        $recentLessons->pluck('id')
+    )
+    ->orderByDesc('scheduled_on')
+    ->orderByDesc('id')
+    ->get();
 
         $futureLessons = (clone $dashboardQuery)
             ->whereNotNull('scheduled_on')
@@ -463,5 +481,39 @@ if (! $nextLesson) {
                 </div>
             </div>
         </section>
+{{-- All Past Lessons --}}
+<section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div>
+        <h3 class="text-lg font-bold text-gray-950 dark:text-white">
+            All Past Lessons
+        </h3>
+
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Complete lesson history, newest first.
+        </p>
+    </div>
+
+    <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        @forelse ($pastLessons as $lesson)
+            <a
+                href="{{ \App\Filament\Pages\ChildrenWorkDashboard::getUrl() }}?lesson={{ $lesson->id }}"
+                class="block rounded-xl border border-gray-200 p-4 transition hover:border-pink-300 hover:bg-pink-50 dark:border-gray-700 dark:hover:border-pink-800 dark:hover:bg-pink-950"
+            >
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {{ $lesson->displayDate() }}
+                </p>
+
+                <p class="mt-1 font-semibold text-gray-900 dark:text-white">
+                    {{ $lesson->displayTitle() }}
+                </p>
+            </a>
+        @empty
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                No past lessons.
+            </p>
+        @endforelse
+    </div>
+</section>
+
     </div>
 </x-filament-panels::page>

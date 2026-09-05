@@ -564,6 +564,25 @@ if (! $nextLesson) {
             ->limit(5)
             ->get();
 
+$pastLessons = (clone $dashboardQuery)
+    ->whereNotNull('scheduled_on')
+    ->whereDate('scheduled_on', '<', today())
+    ->when(
+        $nextLesson,
+        fn ($query) => $query->where(
+            'id',
+            '!=',
+            $nextLesson->id
+        )
+    )
+    ->whereNotIn(
+        'id',
+        $recentLessons->pluck('id')
+    )
+    ->orderByDesc('scheduled_on')
+    ->orderByDesc('id')
+    ->get();
+
         $futureLessons = (clone $dashboardQuery)
             ->whereNotNull('scheduled_on')
             ->whereDate(
@@ -589,6 +608,7 @@ if (! $nextLesson) {
             'upcomingLessons' => $upcomingLessons,
             'recentLessons' => $recentLessons,
             'futureLessons' => $futureLessons,
+            'pastLessons' => $pastLessons,
         ]);
     })
     ->name('children-work.dashboard.public');

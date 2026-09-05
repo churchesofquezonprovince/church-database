@@ -241,6 +241,27 @@
             line-height: 1.4;
         }
 
+.past-lessons-card {
+    grid-column: 1 / -1;
+}
+
+.past-lessons-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.past-lessons-list .schedule-item {
+    margin-top: 0;
+}
+
+@media (max-width: 850px) {
+    .past-lessons-list {
+        grid-template-columns: 1fr;
+    }
+}
+
         @media (max-width: 850px) {
             .lesson-card,
             .verse-card,
@@ -586,6 +607,38 @@
             No future lessons currently scheduled.
         </p>
     @endforelse
+</article>
+
+<article class="card schedule-card past-lessons-card">
+    <h2>All Past Lessons</h2>
+
+    <p class="muted">
+        Complete lesson history, newest first.
+    </p>
+
+    <div class="past-lessons-list">
+        @forelse ($pastLessons as $lesson)
+            <a
+                href="{{ route(
+                    'children-work.dashboard.public',
+                    ['lesson' => $lesson->id]
+                ) }}"
+                class="schedule-item"
+            >
+                <div class="schedule-date">
+                    {{ $lesson->displayDate() }}
+                </div>
+
+                <div class="schedule-title">
+                    {{ $lesson->displayTitle() }}
+                </div>
+            </a>
+        @empty
+            <p class="muted">
+                No past lessons.
+            </p>
+        @endforelse
+    </div>
 </article>
 
         </section>
