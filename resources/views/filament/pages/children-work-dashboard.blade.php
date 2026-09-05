@@ -1,16 +1,38 @@
 <x-filament-panels::page>
     @php
-        $dashboardQuery = \App\Models\ChildrenWorkLesson::query()
-            ->whereNotIn('status', ['draft', 'cancelled']);
+$dashboardQuery = \App\Models\ChildrenWorkLesson::query()
+    ->whereNotIn('status', ['draft', 'cancelled']);
 
-        $nextLesson = (clone $dashboardQuery)
-            ->whereNotNull('scheduled_on')
-            ->whereDate('scheduled_on', '>=', today())
-            ->orderBy('scheduled_on')
-            ->orderBy('id')
-            ->first();
+/*
+ * Phase 26F
+ *
+ * A lesson clicked from Upcoming / Recent / Future
+ * becomes the lesson flashed at the top of the dashboard.
+ *
+ * If no valid lesson was requested, retain the normal
+ * automatic current/next lesson behavior.
+ */
+$selectedLessonId = request()->integer('lesson');
 
-        if (! $nextLesson) {
+$nextLesson = null;
+
+if ($selectedLessonId > 0) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereKey($selectedLessonId)
+        ->whereNotNull('scheduled_on')
+        ->first();
+}
+
+if (! $nextLesson) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereNotNull('scheduled_on')
+        ->whereDate('scheduled_on', '>=', today())
+        ->orderBy('scheduled_on')
+        ->orderBy('id')
+        ->first();
+}
+
+if (! $nextLesson) {
             $nextLesson = (clone $dashboardQuery)
                 ->whereNotNull('scheduled_on')
                 ->whereDate('scheduled_on', '<', today())
@@ -27,14 +49,14 @@
                 '<=',
                 now()->endOfMonth()->toDateString()
             )
-            ->when(
-                $nextLesson?->scheduled_on?->gte(today()),
-                fn ($query) => $query->where(
-                    'id',
-                    '!=',
-                    $nextLesson->id
-                )
-            )
+->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderBy('scheduled_on')
             ->orderBy('id')
             ->limit(8)
@@ -43,6 +65,14 @@
         $recentLessons = (clone $dashboardQuery)
             ->whereNotNull('scheduled_on')
             ->whereDate('scheduled_on', '<', today())
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderByDesc('scheduled_on')
             ->orderByDesc('id')
             ->limit(5)
@@ -55,6 +85,14 @@
                 '>',
                 now()->endOfMonth()->toDateString()
             )
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
             ->orderBy('scheduled_on')
             ->orderBy('id')
             ->limit(12)
@@ -351,7 +389,10 @@
 
                 <div class="mt-5 space-y-3">
                     @forelse ($upcomingLessons as $lesson)
-                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <a
+    href="{{ \App\Filament\Pages\ChildrenWorkDashboard::getUrl() }}?lesson={{ $lesson->id }}"
+    class="block rounded-xl border border-gray-200 p-4 transition hover:border-pink-300 hover:bg-pink-50 dark:border-gray-700 dark:hover:border-pink-800 dark:hover:bg-pink-950"
+>
                             <p class="text-xs font-bold uppercase tracking-wide text-pink-600 dark:text-pink-300">
                                 {{ $lesson->displayDate() }}
                             </p>
@@ -359,7 +400,7 @@
                             <p class="mt-1 font-semibold text-gray-900 dark:text-white">
                                 {{ $lesson->displayTitle() }}
                             </p>
-                        </div>
+</a>
                     @empty
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             No more lessons scheduled this month.
@@ -375,7 +416,10 @@
 
                 <div class="mt-5 space-y-3">
                     @forelse ($recentLessons as $lesson)
-                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <a
+    href="{{ \App\Filament\Pages\ChildrenWorkDashboard::getUrl() }}?lesson={{ $lesson->id }}"
+    class="block rounded-xl border border-gray-200 p-4 transition hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-800"
+>
                             <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {{ $lesson->displayDate() }}
                             </p>
@@ -383,7 +427,7 @@
                             <p class="mt-1 font-semibold text-gray-900 dark:text-white">
                                 {{ $lesson->displayTitle() }}
                             </p>
-                        </div>
+</a>
                     @empty
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             No recent lessons.
@@ -399,7 +443,10 @@
 
                 <div class="mt-5 space-y-3">
                     @forelse ($futureLessons as $lesson)
-                        <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <a
+    href="{{ \App\Filament\Pages\ChildrenWorkDashboard::getUrl() }}?lesson={{ $lesson->id }}"
+    class="block rounded-xl border border-gray-200 p-4 transition hover:border-violet-300 hover:bg-violet-50 dark:border-gray-700 dark:hover:border-violet-800 dark:hover:bg-violet-950"
+>
                             <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
                                 {{ $lesson->displayDate() }}
                             </p>
@@ -407,7 +454,7 @@
                             <p class="mt-1 font-semibold text-gray-900 dark:text-white">
                                 {{ $lesson->displayTitle() }}
                             </p>
-                        </div>
+</a>
                     @empty
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             No future lessons currently scheduled.
