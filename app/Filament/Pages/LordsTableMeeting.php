@@ -6,6 +6,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
@@ -79,22 +80,7 @@ class LordsTableMeeting extends Page
 
     public function localities(): Collection
     {
-        $localities = Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality');
-
-        $hasNoLocality = Person::query()
-            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-            ->exists();
-
-        if ($hasNoLocality) {
-            $localities->push('__no_locality');
-        }
-
-        return $localities;
+        return LocalityOptions::primaryProvinceNames();
     }
 
     public function selectedLocality(): ?string
@@ -102,7 +88,13 @@ class LordsTableMeeting extends Page
         $locality = request()->query('locality');
 
         if (filled($locality)) {
-            return (string) $locality;
+            $localityRecord = LocalityOptions::primaryProvinceLocality(
+                (string) $locality
+            );
+
+            if ($localityRecord) {
+                return $localityRecord->name;
+            }
         }
 
         return $this->localities()->first();
@@ -131,16 +123,18 @@ class LordsTableMeeting extends Page
             return collect();
         }
 
+        $localityRecord = LocalityOptions::primaryProvinceLocality($locality);
+
+        if (! $localityRecord) {
+            return collect();
+        }
+
         return Person::query()
             ->with(['churchProfile'])
+            ->where('locality_id', $localityRecord->id)
             ->whereHas(
                 'churchProfile',
                 fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
-            )
-            ->when(
-                $locality === '__no_locality',
-                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
-                fn ($query) => $query->where('locality', $locality),
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
@@ -155,8 +149,15 @@ class LordsTableMeeting extends Page
             return collect();
         }
 
+        $localityRecord = LocalityOptions::primaryProvinceLocality($locality);
+
+        if (! $localityRecord) {
+            return collect();
+        }
+
         return Person::query()
             ->with(['churchProfile'])
+            ->where('locality_id', $localityRecord->id)
             ->where(function ($query): void {
                 $query
                     ->whereDoesntHave('churchProfile')
@@ -165,11 +166,6 @@ class LordsTableMeeting extends Page
                         fn ($query) => $query->whereNotIn('status', self::MAIN_ATTENDANCE_STATUSES)
                     );
             })
-            ->when(
-                $locality === '__no_locality',
-                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
-                fn ($query) => $query->where('locality', $locality),
-            )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->get();

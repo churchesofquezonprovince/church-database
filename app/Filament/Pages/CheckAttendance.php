@@ -9,6 +9,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
@@ -31,32 +32,21 @@ public function mount(): void
             ->where('is_active', true)
             ->withCount(['sessions', 'participants'])
             ->get()
-            ->keyBy(fn (AttendanceSheet $sheet): string => $sheet->locality ?: '__no_locality');
+            ->filter(fn (AttendanceSheet $sheet): bool => filled($sheet->locality))
+            ->keyBy(
+                fn (AttendanceSheet $sheet): string =>
+                    mb_strtolower(trim((string) $sheet->locality))
+            );
 
-        $localities = Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality')
-            ->values();
-
-        $hasNoLocality = Person::query()
-            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-            ->exists();
-
-        if ($hasNoLocality) {
-            $localities->push('__no_locality');
-        }
-
-        return $localities
-            ->unique()
+        return LocalityOptions::primaryProvinceNames()
             ->map(function (string $locality) use ($sheets): array {
-                $sheet = $sheets->get($locality);
+                $sheet = $sheets->get(
+                    mb_strtolower(trim($locality))
+                );
 
                 return [
                     'locality' => $locality,
-                    'label' => $this->localityLabel($locality),
+                    'label' => $locality,
                     'sheet' => $sheet,
                     'sessions_count' => $sheet?->sessions_count ?? 0,
                     'participants_count' => $sheet?->participants_count ?? 0,

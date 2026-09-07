@@ -47,6 +47,31 @@ class LocalityOptions
             ->pluck('name');
     }
 
+    public static function primaryProvinceLocality(?string $name): ?Locality
+    {
+        $name = trim((string) $name);
+
+        if ($name === '') {
+            return null;
+        }
+
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
+
+        if (! $provinceId) {
+            return null;
+        }
+
+        return Locality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->whereRaw(
+                'LOWER(name) = ?',
+                [mb_strtolower($name)]
+            )
+            ->first();
+    }
+
     /**
      * Compatibility alias while older screens are migrated.
      */

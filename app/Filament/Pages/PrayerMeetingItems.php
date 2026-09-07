@@ -6,7 +6,7 @@ use App\Models\AttendanceSheet;
 use App\Models\PrayerMeetingItem;
 use App\Models\PrayerMeetingItemLine;
 use App\Models\PrayerMeetingItemSnapshot;
-use App\Models\Person;
+use App\Support\LocalityOptions;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
@@ -29,72 +29,23 @@ class PrayerMeetingItems extends Page
 
     public function localities(): Collection
     {
-        $rows = collect();
-
-        Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality')
-            ->each(function (string $locality) use ($rows): void {
+        return LocalityOptions::primaryProvinceNames()
+            ->map(function (string $locality): array {
                 $sheet = AttendanceSheet::query()
-                    ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
+                    ->where(
+                        'sheet_type',
+                        AttendanceSheet::TYPE_PRAYER_MEETING
+                    )
                     ->where('locality', $locality)
                     ->first();
 
-                $rows->put($locality, [
+                return [
                     'value' => $locality,
                     'label' => $locality,
-                    'source' => 'people',
+                    'source' => 'primary_province',
                     'sheet' => $sheet,
-                ]);
-            });
-
-        $hasNoLocality = Person::query()
-            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-            ->exists();
-
-        if ($hasNoLocality) {
-            $sheet = AttendanceSheet::query()
-                ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-                ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-                ->first();
-
-            $rows->put('__no_locality', [
-                'value' => '__no_locality',
-                'label' => 'No Locality',
-                'source' => 'people',
-                'sheet' => $sheet,
-            ]);
-        }
-
-        PrayerMeetingItem::query()
-            ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
-            ->orderBy('locality')
-            ->get()
-            ->each(function (PrayerMeetingItem $item) use ($rows): void {
-                if (blank($item->locality)) {
-                    return;
-                }
-
-                $value = $item->locality;
-
-                if ($rows->has($value)) {
-                    return;
-                }
-
-                $rows->put($value, [
-                    'value' => $value,
-                    'label' => $item->locality,
-                    'source' => 'prayer_items',
-                    'sheet' => null,
-                ]);
-            });
-
-        return $rows
-            ->values()
-            ->sortBy(fn (array $row): string => $row['label'])
+                ];
+            })
             ->values();
     }
 
@@ -103,7 +54,13 @@ class PrayerMeetingItems extends Page
         $locality = request()->query('locality');
 
         if (filled($locality)) {
-            return (string) $locality;
+            $localityRecord = LocalityOptions::primaryProvinceLocality(
+                (string) $locality
+            );
+
+            if ($localityRecord) {
+                return $localityRecord->name;
+            }
         }
 
         return $this->localities()->first()['value'] ?? null;

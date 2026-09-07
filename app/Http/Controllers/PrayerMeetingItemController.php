@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LocalityOptions;
 use App\Models\AttendanceSheet;
 use App\Models\PrayerMeetingItem;
 use App\Models\PrayerMeetingItemLine;
@@ -64,15 +65,18 @@ class PrayerMeetingItemController extends Controller
         $requestedLocality = $request->query('locality');
 
         if (blank($requestedLocality)) {
-            $requestedLocality = PrayerMeetingItem::query()
-                ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
-                ->orderBy('locality')
-                ->value('locality');
+            $requestedLocality = LocalityOptions::primaryProvinceNames()
+                ->first();
         }
 
-        $storedLocality = $requestedLocality === '__no_locality'
-            ? null
-            : $requestedLocality;
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            (string) $requestedLocality
+        );
+
+        abort_unless($localityRecord, 404);
+
+        $requestedLocality = $localityRecord->name;
+        $storedLocality = $requestedLocality;
 
         $sheet = $this->sheetForLocality($requestedLocality);
 
@@ -232,16 +236,17 @@ class PrayerMeetingItemController extends Controller
             return null;
         }
 
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            $locality
+        );
+
+        if (! $localityRecord) {
+            return null;
+        }
+
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->where(function ($query) use ($locality): void {
-                if ($locality === '__no_locality') {
-                    $query->whereNull('locality')
-                        ->orWhere('locality', '');
-                } else {
-                    $query->where('locality', $locality);
-                }
-            })
+            ->where('locality', $localityRecord->name)
             ->first();
     }
 

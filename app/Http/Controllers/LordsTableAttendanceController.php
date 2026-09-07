@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LocalityOptions;
 use App\Filament\Pages\LordsTableMeeting;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
@@ -46,10 +47,20 @@ class LordsTableAttendanceController extends Controller
             ]);
         }
 
-        $locality = $data['locality'];
-        $storedLocality = $locality === '__no_locality' ? null : $locality;
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            $data['locality']
+        );
 
-        $people = $this->peopleForLocality($locality);
+        if (! $localityRecord) {
+            throw ValidationException::withMessages([
+                'locality' => 'Select an active Locality from the configured Primary Province.',
+            ]);
+        }
+
+        $locality = $localityRecord->name;
+        $storedLocality = $locality;
+
+        $people = $this->peopleForLocality($localityRecord->id);
 
         if ($people->isEmpty()) {
             throw ValidationException::withMessages([
@@ -248,18 +259,14 @@ class LordsTableAttendanceController extends Controller
             ->with('lords_table_absent_count', $absentCount);
     }
 
-    private function peopleForLocality(string $locality)
+    private function peopleForLocality(int $localityId)
     {
         return Person::query()
             ->with(['churchProfile'])
+            ->where('locality_id', $localityId)
             ->whereHas(
                 'churchProfile',
                 fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
-            )
-            ->when(
-                $locality === '__no_locality',
-                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
-                fn ($query) => $query->where('locality', $locality),
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
