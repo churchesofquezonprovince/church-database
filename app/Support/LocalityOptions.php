@@ -92,6 +92,87 @@ class LocalityOptions
     /**
      * Compatibility alias while older screens are migrated.
      */
+    public static function groupedActiveConfigured(): array
+    {
+        $settings = ProvinceSetting::query()
+            ->with('primaryProvince')
+            ->first();
+
+        $primaryProvinceId = $settings?->primary_province_id;
+
+        $localities = Locality::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $groups = [];
+
+        if ($primaryProvinceId) {
+            $primary = $localities
+                ->where('province_id', $primaryProvinceId)
+                ->sortBy(fn (Locality $locality) => mb_strtolower($locality->name));
+
+            if ($primary->isNotEmpty()) {
+                $groups[
+                    $settings?->primaryProvince?->name ?? 'Primary Province'
+                ] = $primary
+                    ->mapWithKeys(
+                        fn (Locality $locality): array => [
+                            $locality->id => $locality->name,
+                        ]
+                    )
+                    ->all();
+            }
+        }
+
+        $outsideGroups = $localities
+            ->reject(
+                fn (Locality $locality): bool =>
+                    $primaryProvinceId
+                    && (int) $locality->province_id === (int) $primaryProvinceId
+            )
+            ->groupBy('province_id')
+            ->sortBy(
+                fn (Collection $items): string =>
+                    mb_strtolower(
+                        (string) ($items->first()?->province?->name ?? '')
+                    )
+            );
+
+        foreach ($outsideGroups as $items) {
+            $provinceName =
+                $items->first()?->province?->name ?? 'Other Province';
+
+            $label = $primaryProvinceId
+                ? 'Outside — ' . $provinceName
+                : $provinceName;
+
+            $groups[$label] = $items
+                ->sortBy(fn (Locality $locality) => mb_strtolower($locality->name))
+                ->mapWithKeys(
+                    fn (Locality $locality): array => [
+                        $locality->id => $locality->name,
+                    ]
+                )
+                ->all();
+        }
+
+        return $groups;
+    }
+
+    public static function activeConfiguredLocality(?int $id): ?Locality
+    {
+        if (! $id) {
+            return null;
+        }
+
+        return Locality::query()
+            ->whereKey($id)
+            ->where('is_active', true)
+            ->first();
+    }
+
     public static function quezonProvince(): array
     {
         return self::primaryProvince();

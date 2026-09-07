@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AttendanceSheet;
+use App\Support\LocalityOptions;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -52,6 +53,11 @@ class ManageAttendanceSheets extends Page
         return in_array($status, ['active', 'archived', 'all'], true)
             ? $status
             : 'active';
+    }
+
+    public function localityOptions(): array
+    {
+        return LocalityOptions::groupedActiveConfigured();
     }
 
     public function statusOptions(): array

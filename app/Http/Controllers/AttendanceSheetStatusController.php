@@ -7,6 +7,7 @@ use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Support\ActivityLogger;
+use App\Support\LocalityOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -112,11 +113,10 @@ public function update(
             'string',
             'max:255',
         ],
-
-        'locality' => [
+        'locality_id' => [
             'nullable',
-            'string',
-            'max:150',
+            'integer',
+            'exists:localities,id',
         ],
 
         'meeting_day' => [
@@ -156,6 +156,20 @@ public function update(
             'string',
         ],
     ]);
+
+    $locality = null;
+
+    if (filled($data['locality_id'] ?? null)) {
+        $locality = LocalityOptions::activeConfiguredLocality(
+            (int) $data['locality_id']
+        );
+
+        if (! $locality) {
+            throw ValidationException::withMessages([
+                'locality_id' => 'Select an active configured Locality.',
+            ]);
+        }
+    }
 
     $isOneTime =
         $request->boolean('is_one_time');
@@ -373,19 +387,18 @@ public function update(
             $endDate,
             $desiredDates,
             $sessionsToRemove,
+            $locality,
             &$sessionsCreated,
             &$sessionsRemoved,
         ): void {
             $sheet->forceFill([
                 'title' =>
                     $data['title'],
+                  'locality_id' =>
+                      $locality?->id,
 
-                'locality' =>
-                    blank(
-                        $data['locality'] ?? null
-                    )
-                        ? null
-                        : $data['locality'],
+                  'locality' =>
+                      $locality?->name,
 
                 'meeting_day' =>
                     $meetingDay,

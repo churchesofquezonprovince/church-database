@@ -94,6 +94,7 @@ class PrayerMeetingAttendanceController extends Controller
                     'title' => 'Prayer Meeting - ' . ($storedLocality ?: 'No Locality'),
                     'sheet_type' => AttendanceSheet::TYPE_PRAYER_MEETING,
                     'locality' => $storedLocality,
+                    'locality_id' => $locality->id,
                     'meeting_day' => $meetingDay,
                 'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
@@ -103,6 +104,7 @@ class PrayerMeetingAttendanceController extends Controller
                 ]);
             } else {
                 $updates = [
+                'locality_id' => $locality->id,
                     'is_active' => true,
                     'meeting_day' => $meetingDay,
                     'end_date' => null,

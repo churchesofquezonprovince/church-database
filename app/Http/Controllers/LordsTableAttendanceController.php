@@ -108,6 +108,7 @@ class LordsTableAttendanceController extends Controller
                     'title' => "Lord's Table Meeting - " . ($storedLocality ?: 'No Locality'),
                     'sheet_type' => AttendanceSheet::TYPE_LORDS_TABLE,
                     'locality' => $storedLocality,
+                    'locality_id' => $locality->id,
                     'meeting_day' => 0,
                 'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
@@ -117,6 +118,7 @@ class LordsTableAttendanceController extends Controller
                 ]);
             } else {
                 $updates = [
+                'locality_id' => $locality->id,
                     'is_active' => true,
                     'meeting_day' => 0,
                     'end_date' => null,

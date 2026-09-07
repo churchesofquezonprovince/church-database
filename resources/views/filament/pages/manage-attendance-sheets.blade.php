@@ -192,12 +192,28 @@
                                     Locality
                                 </label>
 
-                                <input
-                                    type="text"
-                                    name="locality"
-                                    value="{{ $sheet->locality }}"
+                                <select
+                                    name="locality_id"
                                     class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                 >
+                                    <option value="">No Locality / Not locality-specific</option>
+
+                                    @foreach ($this->localityOptions() as $group => $options)
+                                        <optgroup label="{{ $group }}">
+                                            @foreach ($options as $localityId => $locality)
+                                                <option
+                                                    value="{{ $localityId }}"
+                                                    @selected(
+                                                        (int) $sheet->locality_id
+                                                        === (int) $localityId
+                                                    )
+                                                >
+                                                    {{ $locality }}
+                                                </option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endforeach
+                                </select>
                             </div>
 
 <div class="md:col-span-2">

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\LocalityOptions;
 use Filament\Pages\Page;
 
 class AddAttendanceSheet extends Page
@@ -11,6 +12,11 @@ class AddAttendanceSheet extends Page
     protected static ?string $slug = 'attendance-sheets/add-attendance-sheet';
 
     protected string $view = 'filament.pages.add-attendance-sheet';
+
+    public function localityOptions(): array
+    {
+        return LocalityOptions::groupedActiveConfigured();
+    }
 
     public function getTitle(): string
     {

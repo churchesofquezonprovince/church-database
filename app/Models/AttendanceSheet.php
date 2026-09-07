@@ -26,6 +26,7 @@ class AttendanceSheet extends Model
         'title',
         'sheet_type',
         'locality',
+        'locality_id',
         'meeting_day',
         'meeting_time',
         'is_one_time',
@@ -51,6 +52,24 @@ public function immichAlbum(): HasOne
         'attendance_sheet_id',
     );
 }
+
+    protected static function booted(): void
+    {
+        static::saving(function (AttendanceSheet $sheet): void {
+            if (filled($sheet->locality_id)) {
+                $locality = Locality::query()->find($sheet->locality_id);
+
+                if ($locality) {
+                    $sheet->locality = $locality->name;
+                }
+            }
+        });
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(Locality::class, 'locality_id');
+    }
 
     public function creator(): BelongsTo
     {
