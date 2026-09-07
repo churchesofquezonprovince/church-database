@@ -28,6 +28,16 @@ class ProvinceSetup extends Page
 
     public string $massLocalities = '';
 
+    public string $outsideCountryName = '';
+
+    public string $outsideCountryCode = '';
+
+    public string $outsideProvinceName = '';
+
+    public string $outsideProvinceCode = '';
+
+    public string $outsideMassLocalities = '';
+
     public function mount(): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
@@ -54,6 +64,12 @@ class ProvinceSetup extends Page
 
         $this->provinceCode =
             (string) ($settings->primaryProvince?->code ?? '');
+
+        $this->outsideCountryName =
+            (string) ($settings->primaryCountry?->name ?? '');
+
+        $this->outsideCountryCode =
+            (string) ($settings->primaryCountry?->code ?? '');
     }
 
     public function getTitle(): string
@@ -571,5 +587,383 @@ public function deleteLocality(int $localityId): void
         ->success()
         ->send();
 }
+
+
+    public function outsideLocalityGroups()
+    {
+        $primaryProvinceId =
+            $this->primarySetting()?->primary_province_id;
+
+        if (! $primaryProvinceId) {
+            return collect();
+        }
+
+        return Province::query()
+            ->with([
+                'country',
+                'localities' => fn ($query) =>
+                    $query
+                        ->orderByDesc('is_active')
+                        ->orderBy('name'),
+            ])
+            ->where('id', '!=', $primaryProvinceId)
+            ->whereHas('localities')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function addOutsideLocalities(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $settings = $this->primarySetting();
+
+        if (! $settings?->primary_province_id) {
+            Notification::make()
+                ->title('Set the primary province first')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $data = $this->validate([
+            'outsideCountryName' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+
+            'outsideCountryCode' => [
+                'nullable',
+                'string',
+                'max:3',
+            ],
+
+            'outsideProvinceName' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+
+            'outsideProvinceCode' => [
+                'nullable',
+                'string',
+                'max:30',
+            ],
+
+            'outsideMassLocalities' => [
+                'required',
+                'string',
+                'max:10000',
+            ],
+        ]);
+
+        $countryName =
+            trim($data['outsideCountryName']);
+
+        $countryCode =
+            filled($data['outsideCountryCode'] ?? null)
+                ? strtoupper(trim($data['outsideCountryCode']))
+                : null;
+
+        $provinceName =
+            trim($data['outsideProvinceName']);
+
+        $provinceCode =
+            filled($data['outsideProvinceCode'] ?? null)
+                ? strtoupper(trim($data['outsideProvinceCode']))
+                : null;
+
+        $names = collect(
+            preg_split(
+                '/[\r\n,]+/',
+                $data['outsideMassLocalities']
+            )
+        )
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique(fn ($name) => mb_strtolower($name))
+            ->values();
+
+        if ($names->isEmpty()) {
+            Notification::make()
+                ->title('No Localities found')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $added = 0;
+        $existing = 0;
+        $restored = 0;
+
+        DB::transaction(function () use (
+            $settings,
+            $countryName,
+            $countryCode,
+            $provinceName,
+            $provinceCode,
+            $names,
+            &$added,
+            &$existing,
+            &$restored
+        ): void {
+            $country = Country::query()
+                ->firstOrCreate(
+                    [
+                        'name' => $countryName,
+                    ],
+                    [
+                        'code' => $countryCode,
+                        'is_active' => true,
+                    ]
+                );
+
+            if (
+                $country->code !== $countryCode
+                || ! $country->is_active
+            ) {
+                $country->forceFill([
+                    'code' => $countryCode,
+                    'is_active' => true,
+                ])->save();
+            }
+
+            $province = Province::query()
+                ->firstOrCreate(
+                    [
+                        'country_id' => $country->id,
+                        'name' => $provinceName,
+                    ],
+                    [
+                        'code' => $provinceCode,
+                        'is_active' => true,
+                    ]
+                );
+
+            if (
+                (int) $province->id
+                === (int) $settings->primary_province_id
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'outsideProvinceName' =>
+                        'The Primary Province cannot be added as an outside province.',
+                ]);
+            }
+
+            if (
+                $province->code !== $provinceCode
+                || ! $province->is_active
+            ) {
+                $province->forceFill([
+                    'code' => $provinceCode,
+                    'is_active' => true,
+                ])->save();
+            }
+
+            foreach ($names as $name) {
+                $locality = Locality::query()
+                    ->where('province_id', $province->id)
+                    ->where('name', $name)
+                    ->first();
+
+                if ($locality) {
+                    if (! $locality->is_active) {
+                        $locality->forceFill([
+                            'is_active' => true,
+                        ])->save();
+
+                        $restored++;
+                    } else {
+                        $existing++;
+                    }
+
+                    continue;
+                }
+
+                $locality = Locality::query()->create([
+                    'province_id' => $province->id,
+                    'name' => $name,
+                    'is_active' => true,
+                ]);
+
+                ActivityLogger::log(
+                    action: 'outside_locality.created',
+                    subject: $locality,
+                    description: 'Added an outside-primary-province Locality.',
+                    newValues: [
+                        'locality' => $locality->name,
+                        'province' => $province->name,
+                        'country' => $country->name,
+                    ],
+                );
+
+                $added++;
+            }
+        });
+
+        $this->outsideProvinceName = '';
+        $this->outsideProvinceCode = '';
+        $this->outsideMassLocalities = '';
+
+        Notification::make()
+            ->title('Outside Localities processed')
+            ->body(
+                "{$added} added, {$restored} restored, {$existing} already existed."
+            )
+            ->success()
+            ->send();
+    }
+
+    public function toggleOutsideLocality(int $localityId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $settings = $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_province_id,
+            404
+        );
+
+        $locality = Locality::query()
+            ->with('province')
+            ->whereHas(
+                'province',
+                fn ($query) =>
+                    $query->where(
+                        'id',
+                        '!=',
+                        $settings->primary_province_id
+                    )
+            )
+            ->findOrFail($localityId);
+
+        $wasActive =
+            (bool) $locality->is_active;
+
+        $locality->forceFill([
+            'is_active' => ! $wasActive,
+        ])->save();
+
+        ActivityLogger::log(
+            action:
+                $wasActive
+                    ? 'outside_locality.archived'
+                    : 'outside_locality.restored',
+
+            subject: $locality,
+
+            description:
+                $wasActive
+                    ? 'Archived an outside Locality.'
+                    : 'Restored an outside Locality.',
+
+            oldValues: [
+                'is_active' => $wasActive,
+            ],
+
+            newValues: [
+                'is_active' => ! $wasActive,
+            ],
+        );
+
+        Notification::make()
+            ->title(
+                $wasActive
+                    ? 'Outside Locality archived'
+                    : 'Outside Locality restored'
+            )
+            ->success()
+            ->send();
+    }
+
+    public function deleteOutsideLocality(int $localityId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $settings = $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_province_id,
+            404
+        );
+
+        $locality = Locality::query()
+            ->with([
+                'province.country',
+            ])
+            ->whereHas(
+                'province',
+                fn ($query) =>
+                    $query->where(
+                        'id',
+                        '!=',
+                        $settings->primary_province_id
+                    )
+            )
+            ->findOrFail($localityId);
+
+        $usedByLocalityId =
+            DB::table('persons')
+                ->where('locality_id', $locality->id)
+                ->exists();
+
+        $tablesUsingLocality = collect(
+            DB::select("
+                SELECT TABLE_NAME AS table_name
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND COLUMN_NAME = 'locality'
+            ")
+        )
+            ->pluck('table_name')
+            ->filter()
+            ->values();
+
+        $usedByText = $tablesUsingLocality
+            ->contains(
+                fn (string $table): bool =>
+                    DB::table($table)
+                        ->where('locality', $locality->name)
+                        ->exists()
+            );
+
+        if ($usedByLocalityId || $usedByText) {
+            Notification::make()
+                ->title('Outside Locality cannot be deleted')
+                ->body(
+                    'This Locality is already used in database records. Archive it instead.'
+                )
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        ActivityLogger::log(
+            action: 'outside_locality.deleted',
+            subject: $locality,
+            description: 'Deleted an unused outside Locality.',
+            oldValues: [
+                'locality' => $locality->name,
+                'province' => $locality->province?->name,
+                'country' => $locality->province?->country?->name,
+            ],
+        );
+
+        $name = $locality->name;
+
+        $locality->delete();
+
+        Notification::make()
+            ->title('Outside Locality deleted')
+            ->body("{$name} was deleted.")
+            ->success()
+            ->send();
+    }
 
 }

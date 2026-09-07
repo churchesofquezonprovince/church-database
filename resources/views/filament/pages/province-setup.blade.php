@@ -2,6 +2,7 @@
     @php
         $settings = $this->primarySetting();
         $localities = $this->localities();
+        $outsideGroups = $this->outsideLocalityGroups();
     @endphp
 
     <div class="space-y-6">
@@ -259,5 +260,201 @@
                 </div>
             @endif
         </div>
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div>
+                <h3 class="text-lg font-bold text-gray-950 dark:text-white">
+                    Outside Primary Province Localities
+                </h3>
+
+                <p class="mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+                    Configure Localities for saints whose church Locality is outside
+                    {{ $settings?->primaryProvince?->name ?? 'the Primary Province' }}.
+                    These Localities remain separate from the Primary Province list.
+                </p>
+            </div>
+
+            @if ($settings?->primary_province_id)
+                <form
+                    wire:submit="addOutsideLocalities"
+                    class="mt-6 space-y-4"
+                >
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Country
+                            </label>
+
+                            <input
+                                type="text"
+                                wire:model="outsideCountryName"
+                                placeholder="Philippines"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            @error('outsideCountryName')
+                                <p class="mt-1 text-xs text-red-600">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Country Code
+                            </label>
+
+                            <input
+                                type="text"
+                                wire:model="outsideCountryCode"
+                                maxlength="3"
+                                placeholder="PH"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm uppercase text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            @error('outsideCountryCode')
+                                <p class="mt-1 text-xs text-red-600">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Province / Region
+                            </label>
+
+                            <input
+                                type="text"
+                                wire:model="outsideProvinceName"
+                                placeholder="Example: Cavite"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            @error('outsideProvinceName')
+                                <p class="mt-1 text-xs text-red-600">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Province / Region Code
+                            </label>
+
+                            <input
+                                type="text"
+                                wire:model="outsideProvinceCode"
+                                maxlength="30"
+                                placeholder="Optional"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm uppercase text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            @error('outsideProvinceCode')
+                                <p class="mt-1 text-xs text-red-600">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            Localities
+                        </label>
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Enter one Locality per line, or separate names with commas.
+                        </p>
+
+                        <textarea
+                            wire:model="outsideMassLocalities"
+                            rows="6"
+                            placeholder="Imus City&#10;Dasmariñas City"
+                            class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                        ></textarea>
+
+                        @error('outsideMassLocalities')
+                            <p class="mt-1 text-xs text-red-600">
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            class="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-500"
+                        >
+                            Add Outside Localities
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-8 space-y-5">
+                    @forelse ($outsideGroups as $province)
+                        <div class="rounded-xl border border-gray-200 p-5 dark:border-gray-700">
+                            <div>
+                                <h4 class="font-bold text-gray-900 dark:text-white">
+                                    {{ $province->name }}
+                                </h4>
+
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $province->country?->name }}
+                                </p>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                @foreach ($province->localities as $locality)
+                                    <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                                        <div class="min-w-0">
+                                            <p class="font-semibold text-gray-900 dark:text-white">
+                                                {{ $locality->name }}
+                                            </p>
+
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $province->name }}
+                                            </p>
+                                        </div>
+
+                                        <div class="flex shrink-0 items-center gap-2">
+                                            <button
+                                                type="button"
+                                                wire:click="toggleOutsideLocality({{ $locality->id }})"
+                                                class="rounded-full px-3 py-1 text-xs font-bold
+                                                    {{ $locality->is_active
+                                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
+                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
+                                            >
+                                                {{ $locality->is_active ? 'Active' : 'Archived' }}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                wire:click="deleteOutsideLocality({{ $locality->id }})"
+                                                wire:confirm="Delete {{ $locality->name }}? This is only allowed when it is not used by database records."
+                                                class="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-200"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            No outside-province Localities have been configured yet.
+                        </div>
+                    @endforelse
+                </div>
+            @else
+                <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                    Configure the Primary Province first.
+                </div>
+            @endif
+        </div>
+
     </div>
 </x-filament-panels::page>
