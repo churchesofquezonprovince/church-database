@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
+use App\Models\Locality;
 use App\Models\Person;
+use App\Models\ProvinceSetting;
 use App\Support\ChurchProfileOptions;
-use App\Support\LocalityOptions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -164,17 +165,8 @@ class PersonForm
                     ->columns(2),
 
                 Section::make('Address')
-                    ->description('Locality, home address, permanent address, and optional map coordinates.')
+                    ->description('Home address, permanent address, and optional map coordinates.')
                     ->schema([
-                        Select::make('locality')
-                            ->label('Locality')
-                            ->options(LocalityOptions::quezonProvince())
-                            ->required()
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->placeholder('Select locality'),
-
                         TextInput::make('geocoordinates')
                             ->label('GPS Coordinates')
                             ->maxLength(255)
@@ -193,71 +185,99 @@ class PersonForm
                     ->columns(2),
 
                 Section::make('Church Information')
-                    ->description('Church status, shepherding group, shepherd, and gospel contact information.')
-                    ->relationship('churchProfile')
+                    ->description('Locality, church status, shepherding group, shepherd, and gospel contact information.')
                     ->schema([
-                        TextInput::make('category')
-                            ->label('Category')
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->helperText('Automatically calculated from birthdate / age after saving.'),
+                        Select::make('locality_id')
+                            ->label('Locality')
+                            ->options(function (): array {
+                                $provinceId = ProvinceSetting::query()
+                                    ->value('primary_province_id');
 
-                        Select::make('status')
-                            ->label('Status')
-                            ->options(ChurchProfileOptions::statuses())
-                            ->default('Active')
-                            ->required()
-                            ->native(false),
+                                if (! $provinceId) {
+                                    return [];
+                                }
 
-                        Select::make('baptism_year')
-                            ->label('Baptism Year')
-                            ->options(self::yearOptions())
-                            ->searchable()
-                            ->native(false)
-                            ->placeholder('Unknown year')
-                            ->helperText('Use this if the exact baptism date is not known.'),
-
-                        Select::make('baptism_month')
-                            ->label('Baptism Month')
-                            ->options(self::monthOptions())
-                            ->searchable()
-                            ->native(false)
-                            ->placeholder('Unknown month')
-                            ->disabled(fn ($get): bool => blank($get('baptism_year'))),
-
-                        Select::make('baptism_day')
-                            ->label('Baptism Day')
-                            ->options(fn ($get): array => self::dayOptions($get('baptism_year'), $get('baptism_month')))
-                            ->searchable()
-                            ->native(false)
-                            ->placeholder('Unknown day')
-                            ->disabled(fn ($get): bool => blank($get('baptism_year')) || blank($get('baptism_month')))
-                            ->helperText('Optional. Leave blank if only the month or year is known.'),
-
-                        Select::make('service')
-                            ->label('Shepherding Groups')
-                            ->options(ChurchProfileOptions::shepherdingServices())
-                            ->multiple()
+                                return Locality::query()
+                                    ->where('province_id', $provinceId)
+                                    ->where('is_active', true)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all();
+                            })
                             ->searchable()
                             ->preload()
                             ->native(false)
-                            ->placeholder('Select one or more shepherding groups'),
+                            ->placeholder('Select locality')
+                            ->helperText('Shows active Localities configured for the Primary Province.'),
 
-                        Select::make('shepherd_id')
-                            ->label('Shepherd')
-                            ->options(fn (): array => self::personOptions())
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->placeholder('Select shepherd'),
+                        Section::make('Church Profile')
+                            ->relationship('churchProfile')
+                            ->schema([
+                                TextInput::make('category')
+                                    ->label('Category')
+                                    ->disabled()
+                                    ->dehydrated(false)
+                                    ->helperText('Automatically calculated from birthdate / age after saving.'),
 
-                        Select::make('introduced_by_id')
-                            ->label('Introduced By')
-                            ->options(fn (): array => self::personOptions())
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->placeholder('Select introducer'),
+                                Select::make('status')
+                                    ->label('Status')
+                                    ->options(ChurchProfileOptions::statuses())
+                                    ->default('Active')
+                                    ->required()
+                                    ->native(false),
+
+                                Select::make('baptism_year')
+                                    ->label('Baptism Year')
+                                    ->options(self::yearOptions())
+                                    ->searchable()
+                                    ->native(false)
+                                    ->placeholder('Unknown year')
+                                    ->helperText('Use this if the exact baptism date is not known.'),
+
+                                Select::make('baptism_month')
+                                    ->label('Baptism Month')
+                                    ->options(self::monthOptions())
+                                    ->searchable()
+                                    ->native(false)
+                                    ->placeholder('Unknown month')
+                                    ->disabled(fn ($get): bool => blank($get('baptism_year'))),
+
+                                Select::make('baptism_day')
+                                    ->label('Baptism Day')
+                                    ->options(fn ($get): array => self::dayOptions($get('baptism_year'), $get('baptism_month')))
+                                    ->searchable()
+                                    ->native(false)
+                                    ->placeholder('Unknown day')
+                                    ->disabled(fn ($get): bool => blank($get('baptism_year')) || blank($get('baptism_month')))
+                                    ->helperText('Optional. Leave blank if only the month or year is known.'),
+
+                                Select::make('service')
+                                    ->label('Shepherding Groups')
+                                    ->options(ChurchProfileOptions::shepherdingServices())
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->placeholder('Select one or more shepherding groups'),
+
+                                Select::make('shepherd_id')
+                                    ->label('Shepherd')
+                                    ->options(fn (): array => self::personOptions())
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->placeholder('Select shepherd'),
+
+                                Select::make('introduced_by_id')
+                                    ->label('Introduced By')
+                                    ->options(fn (): array => self::personOptions())
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->placeholder('Select introducer'),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 

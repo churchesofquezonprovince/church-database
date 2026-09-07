@@ -174,11 +174,6 @@ class PersonInfolist
 
                 Section::make('Address')
                     ->schema([
-                        TextEntry::make('locality')
-                            ->label('Locality')
-                            ->state(fn (Person $record): HtmlString => self::value($record->locality))
-                            ->html(),
-
                         TextEntry::make('geocoordinates')
                             ->label('Geocoordinates')
                             ->state(fn (Person $record): HtmlString => self::value($record->geocoordinates))
@@ -200,6 +195,11 @@ class PersonInfolist
 
                 Section::make('Church Information')
                     ->schema([
+                        TextEntry::make('locality')
+                            ->label('Locality')
+                            ->state(fn (Person $record): HtmlString => self::value($record->locality))
+                            ->html(),
+
                         TextEntry::make('churchProfile.category')
                             ->label('Category')
                             ->badge()
