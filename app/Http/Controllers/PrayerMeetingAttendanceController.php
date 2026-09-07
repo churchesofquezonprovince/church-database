@@ -80,13 +80,7 @@ class PrayerMeetingAttendanceController extends Controller
         [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-                ->where(function ($query) use ($storedLocality): void {
-                    if ($storedLocality === null) {
-                        $query->whereNull('locality');
-                    } else {
-                        $query->where('locality', $storedLocality);
-                    }
-                })
+                ->where('locality_id', $locality->id)
                 ->first();
 
             if (! $sheet) {

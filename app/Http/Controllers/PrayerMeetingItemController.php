@@ -246,7 +246,7 @@ class PrayerMeetingItemController extends Controller
 
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->where('locality', $localityRecord->name)
+            ->where('locality_id', $localityRecord->id)
             ->first();
     }
 

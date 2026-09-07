@@ -94,13 +94,7 @@ class LordsTableAttendanceController extends Controller
         [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $prophesiedPersonIds, $otherProphesiedPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
-                ->where(function ($query) use ($storedLocality): void {
-                    if ($storedLocality === null) {
-                        $query->whereNull('locality');
-                    } else {
-                        $query->where('locality', $storedLocality);
-                    }
-                })
+                ->where('locality_id', $locality->id)
                 ->first();
 
             if (! $sheet) {

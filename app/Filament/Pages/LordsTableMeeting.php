@@ -173,21 +173,17 @@ class LordsTableMeeting extends Page
 
     public function selectedSheet(): ?AttendanceSheet
     {
-        $locality = $this->selectedLocality();
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            $this->selectedLocality()
+        );
 
-        if (! $locality) {
+        if (! $localityRecord) {
             return null;
         }
 
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
-            ->where(function ($query) use ($locality): void {
-                if ($locality === '__no_locality') {
-                    $query->whereNull('locality');
-                } else {
-                    $query->where('locality', $locality);
-                }
-            })
+            ->where('locality_id', $localityRecord->id)
             ->first();
     }
 

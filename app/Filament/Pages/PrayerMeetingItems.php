@@ -31,13 +31,19 @@ class PrayerMeetingItems extends Page
     {
         return LocalityOptions::primaryProvinceNamesWithPeople()
             ->map(function (string $locality): array {
-                $sheet = AttendanceSheet::query()
-                    ->where(
-                        'sheet_type',
-                        AttendanceSheet::TYPE_PRAYER_MEETING
-                    )
-                    ->where('locality', $locality)
-                    ->first();
+                $localityRecord = LocalityOptions::primaryProvinceLocality(
+                    $locality
+                );
+
+                $sheet = $localityRecord
+                    ? AttendanceSheet::query()
+                        ->where(
+                            'sheet_type',
+                            AttendanceSheet::TYPE_PRAYER_MEETING
+                        )
+                        ->where('locality_id', $localityRecord->id)
+                        ->first()
+                    : null;
 
                 return [
                     'value' => $locality,
@@ -68,22 +74,17 @@ class PrayerMeetingItems extends Page
 
     public function selectedSheet(): ?AttendanceSheet
     {
-        $locality = $this->selectedLocality();
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            $this->selectedLocality()
+        );
 
-        if (! $locality) {
+        if (! $localityRecord) {
             return null;
         }
 
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->where(function ($query) use ($locality): void {
-                if ($locality === '__no_locality') {
-                    $query->whereNull('locality')
-                        ->orWhere('locality', '');
-                } else {
-                    $query->where('locality', $locality);
-                }
-            })
+            ->where('locality_id', $localityRecord->id)
             ->first();
     }
 
