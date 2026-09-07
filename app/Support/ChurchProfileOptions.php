@@ -22,16 +22,17 @@ class ChurchProfileOptions
 
     public static function statuses(): array
     {
-        return [
-            'Active' => 'Active',
-            'Full-Timer' => 'Full-Timer',
-            'New One' => 'New One',
-            'Gospel Friend' => 'Gospel Friend',
-            'Dormant' => 'Dormant',
-            'Moved' => 'Moved',
-            'Deceased' => 'Deceased',
-            'Unknown' => 'Unknown',
-        ];
+return [
+    'Active' => 'Active',
+    'Full-Timer' => 'Full-Timer',
+    'New One' => 'New One',
+    'Gospel Friend' => 'Gospel Friend',
+    'Visiting' => 'Visiting',
+    'Dormant' => 'Dormant',
+    'Moved' => 'Moved',
+    'Deceased' => 'Deceased',
+    'Unknown' => 'Unknown',
+];
     }
 
     public static function shepherdingServices(): array
@@ -71,17 +72,18 @@ class ChurchProfileOptions
 
 public static function statusColor(?string $status): string
 {
-    return match ($status) {
-        'Active' => 'success',
-        'Full-Timer' => 'info',
-        'New One' => 'sky',
-        'Gospel Friend' => 'warning',
-        'Dormant' => 'gray',
-        'Moved' => 'purple',
-        'Deceased' => 'danger',
-        'Unknown' => 'gray',
-        default => 'gray',
-    };
+return match ($status) {
+    'Active' => 'success',
+    'Full-Timer' => 'info',
+    'New One' => 'sky',
+    'Gospel Friend' => 'warning',
+    'Visiting' => 'info',
+    'Dormant' => 'gray',
+    'Moved' => 'purple',
+    'Deceased' => 'danger',
+    'Unknown' => 'gray',
+    default => 'gray',
+};
 }
 
 public static function categoryColor(?string $category): string
