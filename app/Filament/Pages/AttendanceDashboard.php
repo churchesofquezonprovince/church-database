@@ -63,7 +63,7 @@ class AttendanceDashboard extends Page
 
     public function localities(): Collection
     {
-        return LocalityOptions::primaryProvinceNames();
+        return LocalityOptions::primaryProvinceNamesWithPeople();
     }
 
     public function localityLabel(?string $locality): string

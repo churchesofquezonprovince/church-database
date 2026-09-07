@@ -47,6 +47,23 @@ class LocalityOptions
             ->pluck('name');
     }
 
+    public static function primaryProvinceNamesWithPeople(): Collection
+    {
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
+
+        if (! $provinceId) {
+            return collect();
+        }
+
+        return Locality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->whereHas('people')
+            ->orderBy('name')
+            ->pluck('name');
+    }
+
     public static function primaryProvinceLocality(?string $name): ?Locality
     {
         $name = trim((string) $name);

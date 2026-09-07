@@ -29,7 +29,7 @@ class PrayerMeetingItems extends Page
 
     public function localities(): Collection
     {
-        return LocalityOptions::primaryProvinceNames()
+        return LocalityOptions::primaryProvinceNamesWithPeople()
             ->map(function (string $locality): array {
                 $sheet = AttendanceSheet::query()
                     ->where(

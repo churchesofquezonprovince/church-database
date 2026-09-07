@@ -80,7 +80,7 @@ class LordsTableMeeting extends Page
 
     public function localities(): Collection
     {
-        return LocalityOptions::primaryProvinceNames();
+        return LocalityOptions::primaryProvinceNamesWithPeople();
     }
 
     public function selectedLocality(): ?string

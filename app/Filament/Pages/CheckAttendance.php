@@ -38,7 +38,7 @@ public function mount(): void
                     mb_strtolower(trim((string) $sheet->locality))
             );
 
-        return LocalityOptions::primaryProvinceNames()
+        return LocalityOptions::primaryProvinceNamesWithPeople()
             ->map(function (string $locality) use ($sheets): array {
                 $sheet = $sheets->get(
                     mb_strtolower(trim($locality))
