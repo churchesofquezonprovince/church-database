@@ -4,6 +4,7 @@ namespace App\Filament\Resources\People\Schemas;
 
 use App\Models\Locality;
 use App\Models\Person;
+use App\Models\Province;
 use App\Models\ProvinceSetting;
 use App\Support\ChurchProfileOptions;
 use Filament\Forms\Components\DatePicker;
@@ -190,25 +191,75 @@ class PersonForm
                         Select::make('locality_id')
                             ->label('Locality')
                             ->options(function (): array {
-                                $provinceId = ProvinceSetting::query()
-                                    ->value('primary_province_id');
+                                $settings = ProvinceSetting::query()
+                                    ->with('primaryProvince')
+                                    ->first();
 
-                                if (! $provinceId) {
+                                if (! $settings?->primary_province_id) {
                                     return [];
                                 }
 
-                                return Locality::query()
-                                    ->where('province_id', $provinceId)
+                                $options = [];
+
+                                $primaryLocalities = Locality::query()
+                                    ->where(
+                                        'province_id',
+                                        $settings->primary_province_id
+                                    )
                                     ->where('is_active', true)
                                     ->orderBy('name')
                                     ->pluck('name', 'id')
                                     ->all();
+
+                                if ($primaryLocalities !== []) {
+                                    $options[
+                                        $settings->primaryProvince?->name
+                                            ?? 'Primary Province'
+                                    ] = $primaryLocalities;
+                                }
+
+                                $outsideProvinces = Province::query()
+                                    ->with([
+                                        'localities' => fn ($query) =>
+                                            $query
+                                                ->where('is_active', true)
+                                                ->orderBy('name'),
+                                    ])
+                                    ->where(
+                                        'id',
+                                        '!=',
+                                        $settings->primary_province_id
+                                    )
+                                    ->whereHas(
+                                        'localities',
+                                        fn ($query) =>
+                                            $query->where('is_active', true)
+                                    )
+                                    ->orderBy('name')
+                                    ->get();
+
+                                foreach ($outsideProvinces as $province) {
+                                    $localities = $province->localities
+                                        ->pluck('name', 'id')
+                                        ->all();
+
+                                    if ($localities === []) {
+                                        continue;
+                                    }
+
+                                    $options[
+                                        'Outside — ' . $province->name
+                                    ] = $localities;
+                                }
+
+                                return $options;
                             })
+                            ->required()
                             ->searchable()
                             ->preload()
                             ->native(false)
                             ->placeholder('Select locality')
-                            ->helperText('Shows active Localities configured for the Primary Province.'),
+                            ->helperText('Primary Province and configured outside-province Localities are grouped separately.'),
 
                         Section::make('Church Profile')
                             ->relationship('churchProfile')
