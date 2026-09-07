@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\CampusContact;
 use App\Models\CampusWorkStudentCenter;
 use App\Models\CampusWorkStudentCenterMember;
+use App\Models\Locality;
+use App\Models\ProvinceSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CampusWorkStudentCenterController extends Controller
 {
@@ -87,10 +90,25 @@ class CampusWorkStudentCenterController extends Controller
     {
         $validated = $request->validate([
             'school_campus' => ['nullable', 'string', 'max:255'],
-            'locality' => ['required', 'string', 'max:150'],
+            'locality_id' => ['required', 'integer', 'exists:localities,id'],
             'place' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
+
+        $locality = Locality::query()
+            ->whereKey($validated['locality_id'])
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $locality) {
+            throw ValidationException::withMessages([
+                'locality_id' => 'Select an active Locality from the configured Primary Province.',
+            ]);
+        }
 
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
@@ -98,7 +116,8 @@ class CampusWorkStudentCenterController extends Controller
             }
         }
 
-        $validated['name'] = 'Student Center - ' . $validated['locality'];
+        $validated['locality'] = $locality->name;
+        $validated['name'] = 'Student Center - ' . $locality->name;
 
         return $validated;
     }
