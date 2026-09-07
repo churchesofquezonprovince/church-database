@@ -2,52 +2,56 @@
 
 namespace App\Support;
 
+use App\Models\Locality;
+use App\Models\ProvinceSetting;
+use Illuminate\Support\Collection;
+
 class LocalityOptions
 {
+    /**
+     * Active Localities belonging to the configured Primary Province.
+     *
+     * Format:
+     * [
+     *     'Lucban' => 'Lucban',
+     *     'Lucena City' => 'Lucena City',
+     * ]
+     */
+    public static function primaryProvince(): array
+    {
+        return self::primaryProvinceNames()
+            ->mapWithKeys(
+                fn (string $locality): array => [
+                    $locality => $locality,
+                ]
+            )
+            ->all();
+    }
+
+    /**
+     * Active Primary Province Locality names.
+     */
+    public static function primaryProvinceNames(): Collection
+    {
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
+
+        if (! $provinceId) {
+            return collect();
+        }
+
+        return Locality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name');
+    }
+
+    /**
+     * Compatibility alias while older screens are migrated.
+     */
     public static function quezonProvince(): array
     {
-        return [
-            'Agdangan' => 'Agdangan',
-            'Alabat' => 'Alabat',
-            'Atimonan' => 'Atimonan',
-            'Buenavista' => 'Buenavista',
-            'Burdeos' => 'Burdeos',
-            'Calauag' => 'Calauag',
-            'Candelaria' => 'Candelaria',
-            'Catanauan' => 'Catanauan',
-            'Dolores' => 'Dolores',
-            'General Luna' => 'General Luna',
-            'General Nakar' => 'General Nakar',
-            'Guinayangan' => 'Guinayangan',
-            'Gumaca' => 'Gumaca',
-            'Infanta' => 'Infanta',
-            'Jomalig' => 'Jomalig',
-            'Lopez' => 'Lopez',
-            'Lucban' => 'Lucban',
-            'Lucena City' => 'Lucena City',
-            'Macalelon' => 'Macalelon',
-            'Mauban' => 'Mauban',
-            'Mulanay' => 'Mulanay',
-            'Padre Burgos' => 'Padre Burgos',
-            'Pagbilao' => 'Pagbilao',
-            'Panukulan' => 'Panukulan',
-            'Patnanungan' => 'Patnanungan',
-            'Perez' => 'Perez',
-            'Pitogo' => 'Pitogo',
-            'Plaridel' => 'Plaridel',
-            'Polillo' => 'Polillo',
-            'Quezon' => 'Quezon',
-            'Real' => 'Real',
-            'Sampaloc' => 'Sampaloc',
-            'San Andres' => 'San Andres',
-            'San Antonio' => 'San Antonio',
-            'San Francisco' => 'San Francisco',
-            'San Narciso' => 'San Narciso',
-            'Sariaya' => 'Sariaya',
-            'Tagkawayan' => 'Tagkawayan',
-            'Tayabas' => 'Tayabas',
-            'Tiaong' => 'Tiaong',
-            'Unisan' => 'Unisan',
-        ];
+        return self::primaryProvince();
     }
 }
