@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\People\Tables;
 
 use App\Filament\Pages\FamilyTree;
+use App\Models\Locality;
 use App\Models\Person;
+use App\Models\Province;
+use App\Models\ProvinceSetting;
 use App\Support\ChurchProfileOptions;
-use App\Support\LocalityOptions;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -223,9 +225,81 @@ class PeopleTable
                         });
                     }),
 
-                SelectFilter::make('locality')
+                SelectFilter::make('locality_id')
                     ->label('Locality')
-                    ->options(LocalityOptions::quezonProvince())
+                    ->options(function (): array {
+                        $settings = ProvinceSetting::query()
+                            ->with('primaryProvince')
+                            ->first();
+
+                        if (! $settings?->primary_province_id) {
+                            return [];
+                        }
+
+                        $options = [];
+
+                        $primaryLocalities = Locality::query()
+                            ->where(
+                                'province_id',
+                                $settings->primary_province_id
+                            )
+                            ->orderByDesc('is_active')
+                            ->orderBy('name')
+                            ->get()
+                            ->mapWithKeys(
+                                fn (Locality $locality): array => [
+                                    $locality->id =>
+                                        $locality->name
+                                        . ($locality->is_active ? '' : ' (Archived)'),
+                                ]
+                            )
+                            ->all();
+
+                        if ($primaryLocalities !== []) {
+                            $options[
+                                $settings->primaryProvince?->name
+                                    ?? 'Primary Province'
+                            ] = $primaryLocalities;
+                        }
+
+                        $outsideProvinces = Province::query()
+                            ->with([
+                                'localities' => fn ($query) =>
+                                    $query
+                                        ->orderByDesc('is_active')
+                                        ->orderBy('name'),
+                            ])
+                            ->where(
+                                'id',
+                                '!=',
+                                $settings->primary_province_id
+                            )
+                            ->whereHas('localities')
+                            ->orderBy('name')
+                            ->get();
+
+                        foreach ($outsideProvinces as $province) {
+                            $localities = $province->localities
+                                ->mapWithKeys(
+                                    fn (Locality $locality): array => [
+                                        $locality->id =>
+                                            $locality->name
+                                            . ($locality->is_active ? '' : ' (Archived)'),
+                                    ]
+                                )
+                                ->all();
+
+                            if ($localities === []) {
+                                continue;
+                            }
+
+                            $options[
+                                'Outside — ' . $province->name
+                            ] = $localities;
+                        }
+
+                        return $options;
+                    })
                     ->searchable(),
 
                 SelectFilter::make('shepherd_status')
