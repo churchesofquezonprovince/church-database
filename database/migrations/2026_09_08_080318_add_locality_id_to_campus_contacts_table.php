@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('campus_contacts', function (Blueprint $table): void {
+            $table->foreignId('locality_id')
+                ->nullable()
+                ->after('locality')
+                ->constrained('localities')
+                ->restrictOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('campus_contacts', function (Blueprint $table): void {
+            $table->dropConstrainedForeignId('locality_id');
+        });
+    }
+};
