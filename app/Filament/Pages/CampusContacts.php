@@ -19,6 +19,28 @@ class CampusContacts extends Page
 
     public string $existingPeopleSearch = '';
 
+    public string $statusFilter = 'all';
+
+    public function mount(): void
+    {
+        $status = (string) request()->query(
+            'status',
+            'all'
+        );
+
+        $this->statusFilter = in_array(
+            $status,
+            [
+                'all',
+                'linked',
+                'unlinked',
+            ],
+            true
+        )
+            ? $status
+            : 'all';
+    }
+
     public function getTitle(): string
     {
         return 'Campus Contacts';
@@ -66,6 +88,20 @@ class CampusContacts extends Page
                 'person.churchProfile',
                 'person.educationProfile',
             ])
+            ->when(
+                $this->statusFilter === 'linked',
+                fn ($query) =>
+                    $query->whereNotNull(
+                        'person_id'
+                    )
+            )
+            ->when(
+                $this->statusFilter === 'unlinked',
+                fn ($query) =>
+                    $query->whereNull(
+                        'person_id'
+                    )
+            )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->get();

@@ -309,7 +309,10 @@ class ShepherdingDashboard extends Page
                     $monthRows->count(),
 
                 'url' =>
-                    ShepherdingContacts::getUrl(),
+                    ShepherdingContacts::getUrl([
+                        'from' => $monthStart,
+                        'to' => $monthEnd,
+                    ]),
             ],
 
             'follow_up_outcomes' => [
@@ -320,7 +323,11 @@ class ShepherdingDashboard extends Page
                     $followUpOutcomes,
 
                 'url' =>
-                    ShepherdingContacts::getUrl(),
+                    ShepherdingContacts::getUrl([
+                        'mode' => 'follow-up',
+                        'from' => $monthStart,
+                        'to' => $monthEnd,
+                    ]),
             ],
 
             'gospel_contacts' => [
@@ -345,7 +352,9 @@ class ShepherdingDashboard extends Page
                         ->count(),
 
                 'url' =>
-                    GospelContacts::getUrl(),
+                    GospelContacts::getUrl([
+                        'status' => 'unlinked',
+                    ]),
             ],
 
             'campus_contacts' => [
@@ -357,7 +366,7 @@ class ShepherdingDashboard extends Page
                         ->count(),
 
                 'url' =>
-                    null,
+                    CampusContacts::getUrl(),
             ],
 
             'unlinked_campus' => [
@@ -370,7 +379,9 @@ class ShepherdingDashboard extends Page
                         ->count(),
 
                 'url' =>
-                    null,
+                    CampusContacts::getUrl([
+                        'status' => 'unlinked',
+                    ]),
             ],
 
             'households' => [

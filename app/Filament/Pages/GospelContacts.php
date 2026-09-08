@@ -23,6 +23,26 @@ class GospelContacts extends Page
 
     public string $existingPeopleSearch = '';
 
+    public function mount(): void
+    {
+        $status = (string) request()->query(
+            'status',
+            'all'
+        );
+
+        $this->statusFilter = in_array(
+            $status,
+            [
+                'all',
+                'linked',
+                'unlinked',
+            ],
+            true
+        )
+            ? $status
+            : 'all';
+    }
+
     public function getTitle(): string
     {
         return 'Gospel Contacts';

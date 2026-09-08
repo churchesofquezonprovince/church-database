@@ -85,9 +85,52 @@ class ShepherdingContacts extends Page
 
     public string $historyOutcome = 'all';
 
+    public string $historyMode = 'all';
+
+    public string $historyFrom = '';
+
+    public string $historyTo = '';
+
     public function mount(): void
     {
-        $this->contactDate = now()->toDateString();
+        $this->contactDate =
+            now()->toDateString();
+
+        $mode = (string) request()->query(
+            'mode',
+            'all'
+        );
+
+        $this->historyMode =
+            $mode === 'follow-up'
+                ? 'follow-up'
+                : 'all';
+
+        $from = (string) request()->query(
+            'from',
+            ''
+        );
+
+        $to = (string) request()->query(
+            'to',
+            ''
+        );
+
+        $this->historyFrom =
+            preg_match(
+                '/^\\d{4}-\\d{2}-\\d{2}$/',
+                $from
+            )
+                ? $from
+                : '';
+
+        $this->historyTo =
+            preg_match(
+                '/^\\d{4}-\\d{2}-\\d{2}$/',
+                $to
+            )
+                ? $to
+                : '';
     }
 
     public function getTitle(): string
@@ -1093,6 +1136,36 @@ class ShepherdingContacts extends Page
                     $query->where(
                         'outcome',
                         $this->historyOutcome
+                    )
+            )
+            ->when(
+                $this->historyMode === 'follow-up',
+                fn ($query) =>
+                    $query->whereIn(
+                        'outcome',
+                        [
+                            ShepherdingContact::OUTCOME_UNAVAILABLE,
+                            ShepherdingContact::OUTCOME_RESCHEDULE,
+                            ShepherdingContact::OUTCOME_DECLINED,
+                        ]
+                    )
+            )
+            ->when(
+                filled($this->historyFrom),
+                fn ($query) =>
+                    $query->whereDate(
+                        'contact_date',
+                        '>=',
+                        $this->historyFrom
+                    )
+            )
+            ->when(
+                filled($this->historyTo),
+                fn ($query) =>
+                    $query->whereDate(
+                        'contact_date',
+                        '<=',
+                        $this->historyTo
                     )
             )
             ->orderByDesc('contact_date')
