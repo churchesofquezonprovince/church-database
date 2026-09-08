@@ -27,6 +27,7 @@ class CampusWorkActivity extends Model
         'start_time',
         'end_time',
         'school_campus',
+        'school_id',
         'venue',
         'locality',
         'locality_id',
@@ -55,18 +56,33 @@ class CampusWorkActivity extends Model
         static::saving(function (CampusWorkActivity $activity): void {
             if (blank($activity->locality_id)) {
                 $activity->locality = null;
+            } else {
+                $locality = Locality::query()->find(
+                    $activity->locality_id
+                );
 
-                return;
+                if ($locality) {
+                    $activity->locality = $locality->name;
+                }
             }
 
-            $locality = Locality::query()->find(
-                $activity->locality_id
-            );
+            if (blank($activity->school_id)) {
+                $activity->school_campus = null;
+            } else {
+                $school = School::query()->find(
+                    $activity->school_id
+                );
 
-            if ($locality) {
-                $activity->locality = $locality->name;
+                if ($school) {
+                    $activity->school_campus = $school->name;
+                }
             }
         });
+    }
+
+    public function school(): BelongsTo
+    {
+        return $this->belongsTo(School::class);
     }
 
     public function localityRecord(): BelongsTo

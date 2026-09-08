@@ -203,20 +203,34 @@
                         School / Campus
                     </label>
 
-                    <input
-                        type="text"
-                        name="school_campus"
-                        value="{{ old('school_campus') }}"
-                        list="campus-school-options"
-                        placeholder="Enter or select school..."
+                    <select
+                        name="school_id"
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
+                        <option value="">
+                            Not specified
+                        </option>
 
-                    <datalist id="campus-school-options">
                         @foreach ($schoolOptions as $school)
-                            <option value="{{ $school }}"></option>
+                            <option
+                                value="{{ $school->id }}"
+                                @selected(
+                                    (string) old('school_id')
+                                    === (string) $school->id
+                                )
+                            >
+                                {{ $school->name }}
+
+                                @if ($school->city_municipality || $school->province)
+                                    —
+                                    {{ collect([
+                                        $school->city_municipality,
+                                        $school->province?->name,
+                                    ])->filter()->implode(', ') }}
+                                @endif
+                            </option>
                         @endforeach
-                    </datalist>
+                    </select>
                 </div>
 
                 <div>
@@ -388,7 +402,7 @@
 
                             <p>
                                 <strong>School:</strong>
-                                {{ $activity->school_campus ?: 'Not specified' }}
+                                {{ $activity->school?->name ?: $activity->school_campus ?: 'Not specified' }}
                             </p>
 
                             <p>
@@ -467,7 +481,7 @@
                                 </td>
 
                                 <td class="max-w-[240px] break-words px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ $activity->school_campus ?: 'Not specified' }}
+                                    {{ $activity->school?->name ?: $activity->school_campus ?: 'Not specified' }}
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
@@ -671,13 +685,34 @@
                                 School / Campus
                             </label>
 
-                            <input
-                                type="text"
-                                name="school_campus"
-                                value="{{ $activity->school_campus }}"
-                                list="campus-school-options"
+                            <select
+                                name="school_id"
                                 class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950"
                             >
+                                <option value="">
+                                    Not specified
+                                </option>
+
+                                @foreach ($schoolOptions as $school)
+                                    <option
+                                        value="{{ $school->id }}"
+                                        @selected(
+                                            (int) $activity->school_id
+                                            === (int) $school->id
+                                        )
+                                    >
+                                        {{ $school->name }}
+
+                                        @if ($school->city_municipality || $school->province)
+                                            —
+                                            {{ collect([
+                                                $school->city_municipality,
+                                                $school->province?->name,
+                                            ])->filter()->implode(', ') }}
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div>

@@ -5,7 +5,7 @@ namespace App\Filament\Pages;
 use App\Support\LocalityOptions;
 use App\Models\CampusWorkActivity;
 use App\Models\CampusWorkTerm;
-use App\Models\Person;
+use App\Models\School;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -100,7 +100,7 @@ class CampusActivities extends Page
         $term = $this->selectedTerm();
 
         return CampusWorkActivity::query()
-            ->with(['term'])
+            ->with(['term', 'school'])
             ->when(
                 $term,
                 fn ($query) =>
@@ -155,23 +155,11 @@ class CampusActivities extends Page
 
     public function schoolOptions(): Collection
     {
-        return Person::query()
-            ->whereHas(
-                'educationProfile',
-                fn ($query) =>
-                    $query->whereNotNull('school_workplace')
-                        ->where('school_workplace', '!=', '')
-            )
-            ->with(['educationProfile'])
-            ->get()
-            ->map(
-                fn (Person $person): ?string =>
-                    $person->educationProfile?->school_workplace
-            )
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
+        return School::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function localityOptions(): array

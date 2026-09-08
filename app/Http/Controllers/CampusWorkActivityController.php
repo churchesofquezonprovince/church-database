@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Filament\Pages\CampusActivities;
 use App\Models\CampusWorkActivity;
+use App\Models\School;
 use App\Support\LocalityOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -105,10 +106,10 @@ class CampusWorkActivityController extends Controller
                 'date_format:H:i',
             ],
 
-            'school_campus' => [
+            'school_id' => [
                 'nullable',
-                'string',
-                'max:255',
+                'integer',
+                'exists:schools,id',
             ],
 
             'venue' => [
@@ -150,6 +151,22 @@ class CampusWorkActivityController extends Controller
             }
         }
 
+        $school = null;
+
+        if (filled($data['school_id'] ?? null)) {
+            $school = School::query()
+                ->whereKey((int) $data['school_id'])
+                ->where('is_active', true)
+                ->first();
+
+            if (! $school) {
+                throw ValidationException::withMessages([
+                    'school_id' =>
+                        'Select an active configured School.',
+                ]);
+            }
+        }
+
         return [
             'campus_work_term_id' => $data['campus_work_term_id'] ?? null,
 
@@ -168,9 +185,9 @@ class CampusWorkActivityController extends Controller
 
             'end_time' => $this->nullIfBlank($data['end_time'] ?? null),
 
-            'school_campus' => $this->nullIfBlank(
-                $data['school_campus'] ?? null
-            ),
+            'school_id' => $school?->id,
+
+            'school_campus' => $school?->name,
 
             'venue' => $this->nullIfBlank($data['venue'] ?? null),
 
