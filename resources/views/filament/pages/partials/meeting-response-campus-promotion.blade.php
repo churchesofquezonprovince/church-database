@@ -42,6 +42,14 @@
                   )
               );
 
+      $selectedCampusPersonSchoolId =
+          $isOldCampusCreate
+              ? old('campus_person_school_id')
+              : $contact?->school_id;
+
+      $campusPersonSchoolOptions =
+          $this->schoolOptions();
+
 @endphp
 
     <details
@@ -432,19 +440,27 @@
         <label
             class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
         >
-            School / Campus
+            School
         </label>
 
-        <input
-            type="text"
-            name="campus_person_school_campus"
-            maxlength="255"
-            value="{{ $campusCreateValue(
-                'campus_person_school_campus',
-                $contact->school_campus
-            ) }}"
+        <select
+            name="campus_person_school_id"
             class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
         >
+            <option value="">Not specified</option>
+
+            @foreach ($campusPersonSchoolOptions as $schoolId => $schoolLabel)
+                <option
+                    value="{{ $schoolId }}"
+                    @selected(
+                        (string) $selectedCampusPersonSchoolId
+                        === (string) $schoolId
+                    )
+                >
+                    {{ $schoolLabel }}
+                </option>
+            @endforeach
+        </select>
     </div>
 
 

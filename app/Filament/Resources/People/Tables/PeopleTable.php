@@ -146,7 +146,7 @@ class PeopleTable
                     ])
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('educationProfile.school_workplace')
+                TextColumn::make('educationProfile.school.name')
                     ->label('School')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),

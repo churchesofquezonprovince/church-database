@@ -7,6 +7,7 @@ use App\Models\Person;
 use App\Models\AttendanceMeetingResponse;
 use App\Models\CampusContact;
 use App\Models\Locality;
+use App\Models\School;
 use App\Support\ActivityLogger;
 use App\Support\LocalityOptions;
 use Illuminate\Http\JsonResponse;
@@ -91,6 +92,28 @@ private function possibleCampusPersonMatches(
         ->get();
 }
 
+private function configuredSchool(
+    mixed $schoolId,
+    string $field
+): ?School {
+    if (blank($schoolId)) {
+        return null;
+    }
+
+    $school = School::query()
+        ->whereKey((int) $schoolId)
+        ->where('is_active', true)
+        ->first();
+
+    if (! $school) {
+        throw ValidationException::withMessages([
+            $field => 'Select an active configured School.',
+        ]);
+    }
+
+    return $school;
+}
+
 public function createGuestPerson(
     Request $request,
     AttendanceMeetingResponse $response
@@ -139,10 +162,10 @@ public function createGuestPerson(
     'exists:localities,id',
 ],
 
-        'person_school_campus' => [
+        'person_school_id' => [
             'nullable',
-            'string',
-            'max:255',
+            'integer',
+            'exists:schools,id',
         ],
 
         'person_course_strand' => [
@@ -193,6 +216,11 @@ public function createGuestPerson(
         'person_locality_id'
     );
 
+    $school = $this->configuredSchool(
+        $data['person_school_id'] ?? null,
+        'person_school_id'
+    );
+
     $normalized = [
         'firstname' =>
             $this->nullIfBlank(
@@ -215,10 +243,8 @@ public function createGuestPerson(
         'locality' =>
             $locality?->name,
 
-        'school_campus' =>
-            $this->nullIfBlank(
-                $data['person_school_campus'] ?? null
-            ),
+        'school_id' =>
+            $school?->id,
 
         'course_strand' =>
             $this->nullIfBlank(
@@ -352,7 +378,7 @@ public function createGuestPerson(
              * Person's Education Profile.
              */
             if (
-                filled($normalized['school_campus'])
+                filled($normalized['school_id'])
                 || filled($normalized['course_strand'])
                 || filled($normalized['grade_level'])
             ) {
@@ -360,8 +386,8 @@ public function createGuestPerson(
                     ->educationProfile()
                     ->firstOrNew([]);
 
-                $education->school_workplace =
-                    $normalized['school_campus'];
+                $education->school_id =
+                    $normalized['school_id'];
 
                 $education->course_strand =
                     $normalized['course_strand'];
@@ -728,10 +754,10 @@ public function searchPeople(
                 'exists:localities,id',
             ],
 
-            'school_campus' => [
+            'school_id' => [
                 'nullable',
-                'string',
-                'max:255',
+                'integer',
+                'exists:schools,id',
             ],
 
             'course_strand' => [
@@ -782,6 +808,11 @@ public function searchPeople(
             'locality_id'
         );
 
+        $school = $this->configuredSchool(
+            $data['school_id'] ?? null,
+            'school_id'
+        );
+
         $normalized = [
             'firstname' =>
                 $this->nullIfBlank(
@@ -804,10 +835,8 @@ public function searchPeople(
             'locality' =>
                 $locality?->name,
 
-            'school_campus' =>
-                $this->nullIfBlank(
-                    $data['school_campus'] ?? null
-                ),
+            'school_id' =>
+                $school?->id,
 
             'course_strand' =>
                 $this->nullIfBlank(
@@ -1161,7 +1190,7 @@ public function linkCampusToPerson(
             $person->save();
 
             if (
-                filled($contact->school_campus)
+                filled($contact->school_id)
                 || filled($contact->course_strand)
                 || filled($contact->grade_level)
                 || $person->educationProfile()->exists()
@@ -1170,9 +1199,9 @@ public function linkCampusToPerson(
                     ->educationProfile()
                     ->firstOrNew([]);
 
-                $education->school_workplace =
-                    $education->school_workplace
-                        ?: $contact->school_campus;
+                $education->school_id =
+                    $education->school_id
+                        ?: $contact->school_id;
 
                 $education->course_strand =
                     $education->course_strand
@@ -1415,10 +1444,10 @@ public function createPersonFromCampus(
             'exists:localities,id',
         ],
 
-        'campus_person_school_campus' => [
+        'campus_person_school_id' => [
             'nullable',
-            'string',
-            'max:255',
+            'integer',
+            'exists:schools,id',
         ],
 
         'campus_person_course_strand' => [
@@ -1490,6 +1519,11 @@ public function createPersonFromCampus(
         'campus_person_locality_id'
     );
 
+    $school = $this->configuredSchool(
+        $data['campus_person_school_id'] ?? null,
+        'campus_person_school_id'
+    );
+
     $normalized = [
         'firstname' =>
             $this->nullIfBlank(
@@ -1515,11 +1549,8 @@ public function createPersonFromCampus(
         'locality' =>
             $locality?->name,
 
-        'school_campus' =>
-            $this->nullIfBlank(
-                $data['campus_person_school_campus']
-                    ?? null
-            ),
+        'school_id' =>
+            $school?->id,
 
         'course_strand' =>
             $this->nullIfBlank(
@@ -1685,7 +1716,7 @@ public function createPersonFromCampus(
             $churchProfile->save();
 
             if (
-                filled($normalized['school_campus'])
+                filled($normalized['school_id'])
                 || filled($normalized['course_strand'])
                 || filled($normalized['grade_level'])
             ) {
@@ -1693,8 +1724,8 @@ public function createPersonFromCampus(
                     ->educationProfile()
                     ->firstOrNew([]);
 
-                $education->school_workplace =
-                    $normalized['school_campus'];
+                $education->school_id =
+                    $normalized['school_id'];
 
                 $education->course_strand =
                     $normalized['course_strand'];

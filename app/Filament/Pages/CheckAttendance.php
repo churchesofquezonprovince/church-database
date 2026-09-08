@@ -9,6 +9,7 @@ use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Models\School;
 use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
@@ -17,6 +18,8 @@ use Illuminate\Support\Collection;
 class CheckAttendance extends Page
 {
     protected string $view = 'filament.pages.check-attendance';
+
+    protected ?Collection $activeSchoolsCache = null;
 
 public ?int $selectedSessionId = null;
 
@@ -446,6 +449,61 @@ public function selectedPreListedFilter(): string
     )
         ? $filter
         : 'all';
+}
+
+private function activeSchools(): Collection
+{
+    return $this->activeSchoolsCache ??= School::query()
+        ->with('province:id,name')
+        ->where('is_active', true)
+        ->orderBy('name')
+        ->get();
+}
+
+public function schoolOptions(): array
+{
+    return $this->activeSchools()
+        ->mapWithKeys(function (School $school): array {
+            $location = collect([
+                $school->city_municipality,
+                $school->province?->name,
+            ])
+                ->filter()
+                ->implode(', ');
+
+            $label = $school->name;
+
+            if (filled($location)) {
+                $label .= ' — ' . $location;
+            }
+
+            return [$school->id => $label];
+        })
+        ->all();
+}
+
+public function schoolIdForName(?string $name): ?int
+{
+    $name = trim((string) $name);
+
+    if ($name === '') {
+        return null;
+    }
+
+    $matches = $this->activeSchools()
+        ->filter(
+            fn (School $school): bool =>
+                strcasecmp($school->name, $name) === 0
+                || (
+                    filled($school->short_name)
+                    && strcasecmp($school->short_name, $name) === 0
+                )
+        )
+        ->values();
+
+    return $matches->count() === 1
+        ? (int) $matches->first()->id
+        : null;
 }
 
 public function preListedFilterOptions(): array

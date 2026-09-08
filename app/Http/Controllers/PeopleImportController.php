@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Household;
 use App\Models\Locality;
 use App\Models\Person;
+use App\Models\School;
 use App\Support\ActivityLogger;
 use App\Support\ChurchProfileOptions;
 use DateTime;
@@ -213,6 +214,36 @@ class PeopleImportController extends Controller
                 }
             }
 
+            if (filled($row['school_workplace'] ?? null)) {
+                $schoolMatches = $this->matchingSchools(
+                    (string) $row['school_workplace']
+                );
+
+                if ($schoolMatches->isEmpty()) {
+                    $errors[] =
+                        "Line {$line}: school_workplace '{$row['school_workplace']}' is not configured. "
+                        . "Add it in School Setup before importing.";
+                } elseif ($schoolMatches->count() > 1) {
+                    $matches = $schoolMatches
+                        ->map(function (School $school): string {
+                            $location = collect([
+                                $school->city_municipality,
+                                $school->province?->name,
+                            ])
+                                ->filter()
+                                ->implode(', ');
+
+                            return $school->name
+                                . (filled($location) ? ' — ' . $location : '');
+                        })
+                        ->implode(', ');
+
+                    $errors[] =
+                        "Line {$line}: school_workplace '{$row['school_workplace']}' is ambiguous. "
+                        . "Configured matches: {$matches}.";
+                }
+            }
+
             if (! in_array($row['sex'] ?? '', $allowedSex, true)) {
                 $errors[] = "Line {$line}: sex must be Male or Female.";
             }
@@ -342,6 +373,31 @@ class PeopleImportController extends Controller
     }
 
 
+    private function matchingSchools(string $name)
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return collect();
+        }
+
+        return School::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->where(function ($query) use ($name): void {
+                $query
+                    ->whereRaw(
+                        'LOWER(name) = ?',
+                        [mb_strtolower($name)]
+                    )
+                    ->orWhereRaw(
+                        'LOWER(short_name) = ?',
+                        [mb_strtolower($name)]
+                    );
+            })
+            ->get();
+    }
+
     private function importPersonRow(array $row): Person
     {
         $localityMatches = $this->matchingLocalities(
@@ -356,6 +412,23 @@ class PeopleImportController extends Controller
 
         /** @var Locality $locality */
         $locality = $localityMatches->first();
+
+        $school = null;
+
+        if (filled($row['school_workplace'] ?? null)) {
+            $schoolMatches = $this->matchingSchools(
+                (string) $row['school_workplace']
+            );
+
+            if ($schoolMatches->count() !== 1) {
+                throw new \RuntimeException(
+                    'Validated import School could not be resolved uniquely.'
+                );
+            }
+
+            /** @var School $school */
+            $school = $schoolMatches->first();
+        }
 
         $household = null;
 
@@ -445,7 +518,7 @@ class PeopleImportController extends Controller
         ) {
             $education = $person->educationProfile()->firstOrNew([]);
             $education->occupation = $this->nullable($row['occupation'] ?? null);
-            $education->school_workplace = $this->nullable($row['school_workplace'] ?? null);
+            $education->school_id = $school?->id;
             $education->workplace = $this->nullable($row['workplace'] ?? null);
             $education->grade_level = $this->nullable($row['grade_level'] ?? null);
             $education->course_strand = $this->nullable($row['course_strand'] ?? null);

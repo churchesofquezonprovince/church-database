@@ -6,6 +6,7 @@ use App\Models\Locality;
 use App\Models\Person;
 use App\Models\Province;
 use App\Models\ProvinceSetting;
+use App\Models\School;
 use App\Support\ChurchProfileOptions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -353,70 +354,13 @@ class PersonForm
                             ->maxLength(100)
                             ->placeholder('Student, Teacher, Engineer'),
 
-                        TextInput::make('school_workplace')
+                        Select::make('school_id')
                             ->label('School')
-                            ->datalist([
-                                'Southern Luzon State University',
-                                'Southern Luzon State University, Alabat Campus',
-                                'Southern Luzon State University, Catanauan Campus',
-                                'Southern Luzon State University, Gumaca Campus',
-                                'Southern Luzon State University, Infanta Campus',
-                                'Southern Luzon State University, Lucena Campus',
-                                'Southern Luzon State University, Polillo Campus',
-                                'Southern Luzon State University, Tagkawayan Campus',
-                                'Southern Luzon State University, Tayabas Campus',
-                                'Southern Luzon State University, Tiaong Campus',
-                                'Polytechnic University of the Philippines, Lopez Branch',
-                                'Polytechnic University of the Philippines, General Luna Campus',
-                                'Polytechnic University of the Philippines, Mulanay Campus',
-                                'Polytechnic University of the Philippines, Unisan Campus',
-                                'Dalubhasaan ng Lungsod ng Lucena',
-                                'Manuel S. Enverga University Foundation',
-                                'Manuel S. Enverga University Foundation, Inc. – Candelaria',
-                                'Manuel S. Enverga University Foundation, Inc. – Calauag',
-                                'Manuel S. Enverga University Foundation, Inc. – Catanauan',
-                                'Manuel S. Enverga Academy Foundation, Inc. – Sampaloc',
-                                'Manuel S. Enverga Institute Foundation, Inc. – San Antonio',
-                                'Sacred Heart College of Lucena City, Inc.',
-                                'Maryhill College',
-                                'Calayan Educational Foundation, Inc.',
-                                'St. Anne College Lucena, Inc.',
-                                'College of Sciences, Technology and Communications, Inc.',
-                                'Paaralang Sekundarya ng Lucban',
-                                'Nagsinamo National High School',
-                                'Luis Palad Integrated High School',
-                                'Quezon Science High School',
-                                'Quezon National High School',
-                                'Manuel S. Enverga Memorial School of Arts and Trades',
-                                'Dr. Maria D. Pastrana National High School',
-                                'Pagbilao National High School',
-                                'Talipan National High School',
-                                'Dr. Panfilo Castro National High School',
-                                'Bukal Sur National High School',
-                                'Sta. Catalina National High School',
-                                'Sariaya National High School',
-                                'Lutucan National High School',
-                                'Canda National High School',
-                                'Recto Memorial National High School',
-                                'Lusacan National High School',
-                                'San Antonio National High School',
-                                'Infanta National High School',
-                                'Polillo National High School',
-                                'Sampaloc National High School',
-                                'Alabat Island National High School',
-                                'Atimonan National Comprehensive High School',
-                                'Calauag National High School',
-                                'Guinayangan National High School',
-                                'Gumaca National High School',
-                                'Lopez National Comprehensive High School',
-                                'Tagkawayan National High School',
-                                'Catanauan National High School',
-                                'Bondoc Peninsula Agricultural High School',
-                                'Pitogo Community High School',
-                                'Unisan National High School',
-                            ])
-                            ->maxLength(255)
-                            ->placeholder('Select or type school name'),
+                            ->options(fn (): array => self::schoolOptions())
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->placeholder('Select school'),
 
                         TextInput::make('workplace')
                             ->label('Workplace')
@@ -575,6 +519,32 @@ class PersonForm
             ->mapWithKeys(fn (Person $person): array => [
                 $person->id => $person->display_name,
             ])
+            ->toArray();
+    }
+
+    private static function schoolOptions(): array
+    {
+        return School::query()
+            ->with('province:id,name')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(function (School $school): array {
+                $location = collect([
+                    $school->city_municipality,
+                    $school->province?->name,
+                ])
+                    ->filter(fn ($value): bool => filled($value))
+                    ->implode(', ');
+
+                $label = $school->name;
+
+                if (filled($location)) {
+                    $label .= ' — ' . $location;
+                }
+
+                return [$school->id => $label];
+            })
             ->toArray();
     }
 

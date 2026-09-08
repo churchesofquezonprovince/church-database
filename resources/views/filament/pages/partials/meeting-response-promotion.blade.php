@@ -62,12 +62,32 @@
                 $guestProfile['locality'] ?? null
             );
 
+    $selectedPromotionSchoolId =
+        $isOldPromotion
+            ? old('school_id')
+            : $this->schoolIdForName(
+                $guestProfile['school_campus'] ?? null
+            );
+
+    $promotionSchoolOptions =
+        $this->schoolOptions();
+
     $selectedPersonLocalityId =
         $isOldPersonCreate
             ? old('person_locality_id')
             : $promotionLocalityIdForName(
                 $guestProfile['locality'] ?? null
             );
+
+    $selectedPersonSchoolId =
+        $isOldPersonCreate
+            ? old('person_school_id')
+            : $this->schoolIdForName(
+                $guestProfile['school_campus'] ?? null
+            );
+
+    $personSchoolOptions =
+        $this->schoolOptions();
 
 @endphp
 
@@ -274,19 +294,27 @@
                     <label
                         class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
                     >
-                        School / Campus
+                        School
                     </label>
 
-                    <input
-                        type="text"
-                        name="school_campus"
-                        maxlength="255"
-                        value="{{ $promotionValue(
-                            'school_campus',
-                            $guestProfile['school_campus'] ?? null
-                        ) }}"
+                    <select
+                        name="school_id"
                         class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
                     >
+                        <option value="">Not specified</option>
+
+                        @foreach ($promotionSchoolOptions as $schoolId => $schoolLabel)
+                            <option
+                                value="{{ $schoolId }}"
+                                @selected(
+                                    (string) $selectedPromotionSchoolId
+                                    === (string) $schoolId
+                                )
+                            >
+                                {{ $schoolLabel }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
 
@@ -716,20 +744,27 @@
             <label
                 class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
             >
-                School / Campus
+                School
             </label>
 
-            <input
-                type="text"
-                name="person_school_campus"
-                maxlength="255"
-                value="{{ $personCreateValue(
-                    'person_school_campus',
-                    $guestProfile['school_campus']
-                        ?? null
-                ) }}"
+            <select
+                name="person_school_id"
                 class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
             >
+                <option value="">Not specified</option>
+
+                @foreach ($personSchoolOptions as $schoolId => $schoolLabel)
+                    <option
+                        value="{{ $schoolId }}"
+                        @selected(
+                            (string) $selectedPersonSchoolId
+                            === (string) $schoolId
+                        )
+                    >
+                        {{ $schoolLabel }}
+                    </option>
+                @endforeach
+            </select>
         </div>
 
 
