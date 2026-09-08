@@ -22,6 +22,9 @@ class ChurchProfile extends Model
         'baptism_day',
         'shepherd_id',
         'introduced_by_id',
+        'contact_origin',
+        'first_contact_date',
+        'contact_origin_details',
         'service',
         'status',
     ];
@@ -31,6 +34,7 @@ class ChurchProfile extends Model
         'baptism_year' => 'integer',
         'baptism_month' => 'integer',
         'baptism_day' => 'integer',
+        'first_contact_date' => 'date',
         'service' => 'array',
     ];
 

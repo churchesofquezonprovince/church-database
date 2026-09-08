@@ -227,10 +227,51 @@ class PersonInfolist
                             ->state(fn (Person $record): HtmlString => self::personLink($record->churchProfile?->shepherd))
                             ->html(),
 
-                        TextEntry::make('church_introduced_by')
-                            ->label('Introduced By')
-                            ->state(fn (Person $record): HtmlString => self::personLink($record->churchProfile?->introducedBy))
-                            ->html(),
+                        Section::make('Contact Origin')
+                            ->schema([
+                                TextEntry::make('church_contact_origin')
+                                    ->label('How First Contacted')
+                                    ->state(
+                                        fn (Person $record): HtmlString =>
+                                            self::value(
+                                                $record->churchProfile?->contact_origin
+                                            )
+                                    )
+                                    ->html(),
+
+                                TextEntry::make('church_first_contact_date')
+                                    ->label('First Contact Date')
+                                    ->state(
+                                        fn (Person $record): HtmlString =>
+                                            self::dateValue(
+                                                $record->churchProfile?->first_contact_date
+                                            )
+                                    )
+                                    ->html(),
+
+                                TextEntry::make('church_introduced_by')
+                                    ->label('Introduced By')
+                                    ->state(
+                                        fn (Person $record): HtmlString =>
+                                            self::personLink(
+                                                $record->churchProfile?->introducedBy
+                                            )
+                                    )
+                                    ->html(),
+
+                                TextEntry::make('church_contact_origin_details')
+                                    ->label('Origin Details')
+                                    ->state(
+                                        fn (Person $record): HtmlString =>
+                                            self::value(
+                                                $record->churchProfile?->contact_origin_details
+                                            )
+                                    )
+                                    ->html()
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 

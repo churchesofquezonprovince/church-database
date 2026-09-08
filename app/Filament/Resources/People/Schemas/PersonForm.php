@@ -320,13 +320,53 @@ class PersonForm
                                     ->native(false)
                                     ->placeholder('Select shepherd'),
 
-                                Select::make('introduced_by_id')
-                                    ->label('Introduced By')
-                                    ->options(fn (): array => self::personOptions())
-                                    ->searchable()
-                                    ->preload()
-                                    ->native(false)
-                                    ->placeholder('Select introducer'),
+                                Section::make('Contact Origin')
+                                    ->description(
+                                        'How this person first came into contact with the church or gospel work.'
+                                    )
+                                    ->schema([
+                                        Select::make('contact_origin')
+                                            ->label('How First Contacted')
+                                            ->options(
+                                                ChurchProfileOptions::contactOrigins()
+                                            )
+                                            ->searchable()
+                                            ->native(false)
+                                            ->placeholder('Select contact origin'),
+
+                                        DatePicker::make('first_contact_date')
+                                            ->label('First Contact Date')
+                                            ->maxDate(now())
+                                            ->helperText(
+                                                'Optional. For a Church Kid, leave blank if there is no meaningful first contact date.'
+                                            ),
+
+                                        Select::make('introduced_by_id')
+                                            ->label('Introduced By')
+                                            ->options(
+                                                fn ($livewire): array =>
+                                                    self::personOptionsExceptCurrent(
+                                                        $livewire->record?->id
+                                                    )
+                                            )
+                                            ->searchable()
+                                            ->preload()
+                                            ->native(false)
+                                            ->placeholder('Select introducer')
+                                            ->helperText(
+                                                'Optional. The current person cannot be selected as their own introducer.'
+                                            ),
+
+                                        Textarea::make('contact_origin_details')
+                                            ->label('Origin Details')
+                                            ->rows(3)
+                                            ->placeholder(
+                                                'Optional details about how, where, or through whom the first contact happened.'
+                                            )
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->columnSpanFull(),
                             ])
                             ->columns(2)
                             ->columnSpanFull(),

@@ -146,6 +146,13 @@ class PeopleTable
                     ])
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('churchProfile.contact_origin')
+                    ->label('Contact Origin')
+                    ->badge()
+                    ->placeholder('Not recorded')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('educationProfile.school.name')
                     ->label('School')
                     ->searchable()
@@ -369,6 +376,25 @@ class PeopleTable
                         return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
                             $query->where('shepherd_id', $value);
                         });
+                    }),
+
+                SelectFilter::make('contact_origin')
+                    ->label('Contact Origin')
+                    ->options(ChurchProfileOptions::contactOrigins())
+                    ->searchable()
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->whereHas(
+                            'churchProfile',
+                            function (Builder $query) use ($value): void {
+                                $query->where('contact_origin', $value);
+                            }
+                        );
                     }),
 
                 SelectFilter::make('introduced_by_id')

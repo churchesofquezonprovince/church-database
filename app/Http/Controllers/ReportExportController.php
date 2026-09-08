@@ -36,7 +36,10 @@ class ReportExportController extends Controller
                 $person->churchProfile?->category,
                 $person->churchProfile?->service,
                 $person->churchProfile?->shepherd?->display_name,
+                $person->churchProfile?->contact_origin,
+                $person->churchProfile?->first_contact_date,
                 $person->churchProfile?->introducedBy?->display_name,
+                $person->churchProfile?->contact_origin_details,
                 $person->household?->household_name,
                 $person->home_address,
                 $person->permanent_address,
@@ -59,7 +62,10 @@ class ReportExportController extends Controller
             'Category',
             'Shepherding Group',
             'Shepherd',
+            'Contact Origin',
+            'First Contact Date',
             'Introduced By',
+            'Origin Details',
             'Household',
             'Home Address',
             'Permanent Address',
@@ -197,7 +203,10 @@ class ReportExportController extends Controller
                 $person->churchProfile?->category,
                 $person->churchProfile?->service,
                 $person->churchProfile?->shepherd?->display_name,
+                $person->churchProfile?->contact_origin,
+                $person->churchProfile?->first_contact_date,
                 $person->churchProfile?->introducedBy?->display_name,
+                $person->churchProfile?->contact_origin_details,
                 $person->household?->household_name,
             ]);
 
@@ -209,7 +218,10 @@ class ReportExportController extends Controller
             'Category',
             'Shepherding Group',
             'Shepherd',
+            'Contact Origin',
+            'First Contact Date',
             'Introduced By',
+            'Origin Details',
             'Household',
         ], $rows);
     }
@@ -301,7 +313,7 @@ class ReportExportController extends Controller
         $this->authorizeImportTemplate();
 
         $rows = collect([
-            array_fill(0, 32, ''),
+            array_fill(0, 35, ''),
         ]);
 
         return $this->csv('people_import_template', [
@@ -321,9 +333,12 @@ class ReportExportController extends Controller
             'geocoordinates',
             'church_status',
             'baptism_date',
+            'contact_origin',
+            'first_contact_date',
             'shepherding_group',
             'shepherd_full_name',
             'introduced_by_full_name',
+            'contact_origin_details',
             'household_name',
             'occupation',
             'school_workplace',

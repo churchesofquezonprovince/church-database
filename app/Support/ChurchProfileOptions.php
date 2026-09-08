@@ -35,6 +35,24 @@ return [
 ];
     }
 
+    public static function contactOrigins(): array
+    {
+        return [
+            'Church Kid' => 'Church Kid',
+            'Gospel Preaching' => 'Gospel Preaching',
+            'Personal Introduction' => 'Personal Introduction',
+            'Family / Relative' => 'Family / Relative',
+            'Campus Work' => 'Campus Work',
+            'Children Work' => 'Children Work',
+            'Meeting / Church Gathering' => 'Meeting / Church Gathering',
+            'Propagation' => 'Propagation',
+            'Online / Social Media' => 'Online / Social Media',
+            'Previous Church Contact' => 'Previous Church Contact',
+            'Other' => 'Other',
+            'Unknown' => 'Unknown',
+        ];
+    }
+
     public static function shepherdingServices(): array
     {
         return [

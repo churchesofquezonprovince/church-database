@@ -168,6 +168,9 @@ class PeopleImportController extends Controller
         $allowedStatuses = array_keys(ChurchProfileOptions::statuses());
         $allowedCategories = array_keys(ChurchProfileOptions::categories());
         $allowedGroups = array_keys(ChurchProfileOptions::shepherdingServices());
+        $allowedContactOrigins = array_keys(
+            ChurchProfileOptions::contactOrigins()
+        );
 
         $seenPersonIdentities = [];
 
@@ -280,6 +283,33 @@ class PeopleImportController extends Controller
 
             if (filled($group) && ! in_array($group, $allowedGroups, true)) {
                 $errors[] = "Line {$line}: service is invalid.";
+            }
+
+            $contactOrigin = $this->importValue(
+                $row,
+                'contact_origin'
+            );
+
+            if (
+                filled($contactOrigin)
+                && ! in_array(
+                    $contactOrigin,
+                    $allowedContactOrigins,
+                    true
+                )
+            ) {
+                $errors[] =
+                    "Line {$line}: contact_origin is invalid.";
+            }
+
+            $firstContactDate = $row['first_contact_date'] ?? '';
+
+            if (
+                filled($firstContactDate)
+                && ! $this->isValidDate($firstContactDate)
+            ) {
+                $errors[] =
+                    "Line {$line}: first_contact_date must use YYYY-MM-DD format.";
             }
 
             if (filled($row['email'] ?? '') && ! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
@@ -501,6 +531,15 @@ class PeopleImportController extends Controller
         $profile->baptism_month = $baptismParts['month'];
         $profile->baptism_day = $baptismParts['day'];
         $profile->service = $this->nullable($this->importValue($row, 'shepherding_group', 'service'));
+        $profile->contact_origin = $this->nullable(
+            $this->importValue($row, 'contact_origin')
+        );
+        $profile->first_contact_date = $this->nullable(
+            $row['first_contact_date'] ?? null
+        );
+        $profile->contact_origin_details = $this->nullable(
+            $row['contact_origin_details'] ?? null
+        );
         $profile->shepherd_id = filled($row['shepherd_full_name'] ?? null)
             ? $this->findPersonByFullName($row['shepherd_full_name'])?->id
             : null;
