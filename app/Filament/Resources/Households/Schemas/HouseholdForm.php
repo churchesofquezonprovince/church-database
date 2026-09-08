@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
-use App\Support\LocalityOptions;
 use App\Models\Household;
+use App\Models\Locality;
 use App\Models\Person;
+use App\Models\Province;
+use App\Models\ProvinceSetting;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -68,13 +70,16 @@ class HouseholdForm
                             ->helperText('Select all people who belong to this household. The household head is included automatically after saving.')
                             ->columnSpanFull(),
 
-                        Select::make('locality')
+                        Select::make('locality_id')
                             ->label('Locality')
-                            ->options(LocalityOptions::quezonProvince())
+                            ->options(fn (): array => self::localityOptions())
+                            ->required()
                             ->searchable()
                             ->preload()
                             ->native(false)
-                            ->placeholder('Select locality'),
+                            ->live()
+                            ->placeholder('Select locality')
+                            ->helperText('Primary Province and configured outside-province Localities are grouped separately.'),
 
                         Placeholder::make('duplicate_household_warning')
                             ->label('')
@@ -160,20 +165,82 @@ class HouseholdForm
     private static function duplicateHouseholdFromForm($get, $livewire): ?Household
     {
         $householdName = trim((string) $get('household_name'));
-        $locality = trim((string) $get('locality'));
+        $localityId = (int) ($get('locality_id') ?? 0);
 
-        if ($householdName === '' || $locality === '') {
+        if ($householdName === '' || $localityId <= 0) {
             return null;
         }
 
         $currentId = $livewire->record?->id ?? null;
 
         return Household::query()
-            ->whereRaw('LOWER(household_name) = ?', [strtolower($householdName)])
-            ->whereRaw('LOWER(locality) = ?', [strtolower($locality)])
-            ->when($currentId, fn ($query) => $query->where('id', '!=', $currentId))
+            ->whereRaw(
+                'LOWER(household_name) = ?',
+                [mb_strtolower($householdName)]
+            )
+            ->where('locality_id', $localityId)
+            ->when(
+                $currentId,
+                fn ($query) => $query->where('id', '!=', $currentId)
+            )
             ->first();
     }
+
+    private static function localityOptions(): array
+    {
+        $settings = ProvinceSetting::query()
+            ->with('primaryProvince')
+            ->first();
+
+        if (! $settings?->primary_province_id) {
+            return [];
+        }
+
+        $options = [];
+
+        $primaryLocalities = Locality::query()
+            ->where('province_id', $settings->primary_province_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+
+        if ($primaryLocalities !== []) {
+            $options[
+                $settings->primaryProvince?->name ?? 'Primary Province'
+            ] = $primaryLocalities;
+        }
+
+        $outsideProvinces = Province::query()
+            ->with([
+                'localities' => fn ($query) =>
+                    $query
+                        ->where('is_active', true)
+                        ->orderBy('name'),
+            ])
+            ->where('id', '!=', $settings->primary_province_id)
+            ->whereHas(
+                'localities',
+                fn ($query) => $query->where('is_active', true)
+            )
+            ->orderBy('name')
+            ->get();
+
+        foreach ($outsideProvinces as $province) {
+            $localities = $province->localities
+                ->pluck('name', 'id')
+                ->all();
+
+            if ($localities === []) {
+                continue;
+            }
+
+            $options['Outside — ' . $province->name] = $localities;
+        }
+
+        return $options;
+    }
+
 
     private static function personOptions(): array
     {

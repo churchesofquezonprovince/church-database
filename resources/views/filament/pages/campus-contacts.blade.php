@@ -190,13 +190,28 @@
                         Locality
                     </label>
 
-                    <input
-                        type="text"
-                        name="locality"
-                        value="{{ old('locality') }}"
-                        list="campus-contact-localities"
+                    <select
+                        name="locality_id"
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
+                        <option value="">Not recorded</option>
+
+                        @foreach ($localityOptions as $group => $options)
+                            <optgroup label="{{ $group }}">
+                                @foreach ($options as $localityId => $locality)
+                                    <option
+                                        value="{{ $localityId }}"
+                                        @selected(
+                                            (string) old('locality_id')
+                                            === (string) $localityId
+                                        )
+                                    >
+                                        {{ $locality }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="md:col-span-2">
@@ -515,7 +530,9 @@
                     Upload a CSV file containing Campus Contacts.
                     Incomplete contacts are allowed. The four People
                     fields are required only when adding a contact
-                    to the People Database.
+                    to the People Database. When Locality is provided,
+                    it must match an active Locality configured in
+                    Province Setup.
                 </p>
 
                 <div class="mt-4">
@@ -563,12 +580,6 @@
         <datalist id="campus-contact-schools">
             @foreach ($schoolOptions as $school)
                 <option value="{{ $school }}"></option>
-            @endforeach
-        </datalist>
-
-        <datalist id="campus-contact-localities">
-            @foreach ($localityOptions as $locality)
-                <option value="{{ $locality }}"></option>
             @endforeach
         </datalist>
 
@@ -1368,14 +1379,34 @@
                                 Locality
                             </label>
 
-                            <input
-                                type="text"
-                                name="locality"
-                                value="{{ $contact->effective_locality ?: 'Not recorded' }}"
-                                list="campus-contact-localities"
-                                maxlength="150"
+                            <select
+                                name="locality_id"
                                 class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                             >
+                                <option value="">Not recorded</option>
+
+                                @php
+                                    $selectedLocalityId =
+                                        $contact->person?->locality_id
+                                        ?: $contact->locality_id;
+                                @endphp
+
+                                @foreach ($localityOptions as $group => $options)
+                                    <optgroup label="{{ $group }}">
+                                        @foreach ($options as $localityId => $locality)
+                                            <option
+                                                value="{{ $localityId }}"
+                                                @selected(
+                                                    (int) $selectedLocalityId
+                                                    === (int) $localityId
+                                                )
+                                            >
+                                                {{ $locality }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
                         </div>
 
                         {{-- School / Campus --}}

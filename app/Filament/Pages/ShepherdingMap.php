@@ -134,7 +134,7 @@ class ShepherdingMap extends Page
 
     public function localityOptions(): array
     {
-        return LocalityOptions::quezonProvince();
+        return LocalityOptions::primaryProvince();
     }
 
     public function statusOptions(): array

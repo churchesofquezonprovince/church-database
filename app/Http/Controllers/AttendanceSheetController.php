@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Filament\Pages\AddAttendanceSheet;
 use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
+use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,17 +20,39 @@ class AttendanceSheetController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'locality' => ['nullable', 'string', 'max:150'],
+            'locality_id' => ['nullable', 'integer', 'exists:localities,id'],
             'meeting_day' => ['nullable', 'integer', 'between:0,6'],
             'meeting_time' => ['nullable', 'date_format:H:i'],
             'is_one_time' => ['nullable', 'boolean'],
+            'meeting_form_type' => [
+    'nullable',
+    'in:disabled,normal',
+],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'remarks' => ['nullable', 'string'],
         ]);
 
+        $locality = null;
+
+        if (filled($data['locality_id'] ?? null)) {
+            $locality = LocalityOptions::activeConfiguredLocality(
+                (int) $data['locality_id']
+            );
+
+            if (! $locality) {
+                throw ValidationException::withMessages([
+                    'locality_id' => 'Select an active configured Locality.',
+                ]);
+            }
+        }
+
         $isOneTime = $request->boolean('is_one_time');
 
+        $meetingFormType =
+        $data['meeting_form_type']
+        ?? AttendanceSheet::MEETING_FORM_DISABLED;
+        
         $startDate = CarbonImmutable::parse($data['start_date'])->startOfDay();
 
         if ($isOneTime) {
@@ -67,12 +90,11 @@ class AttendanceSheetController extends Controller
             ->where('meeting_day', $meetingDay)
             ->whereDate('start_date', $startDate->toDateString())
             ->whereDate('end_date', $endDate->toDateString())
-            ->where(function ($query) use ($data): void {
-                if (blank($data['locality'] ?? null)) {
-                    $query->whereNull('locality')
-                        ->orWhere('locality', '');
+            ->where(function ($query) use ($locality): void {
+                if (! $locality) {
+                    $query->whereNull('locality_id');
                 } else {
-                    $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $data['locality']))]);
+                    $query->where('locality_id', $locality->id);
                 }
             })
             ->where(function ($query) use ($meetingTime): void {
@@ -104,14 +126,16 @@ class AttendanceSheetController extends Controller
             ]);
         }
 
-        $sheet = DB::transaction(function () use ($data, $sessionDates, $isOneTime, $startDate, $endDate, $meetingDay, $meetingTime): AttendanceSheet {
+        $sheet = DB::transaction(function () use ($data, $locality, $sessionDates, $isOneTime, $startDate, $endDate, $meetingDay, $meetingTime, $meetingFormType): AttendanceSheet {
             $sheet = AttendanceSheet::query()->create([
                 'title' => $data['title'],
                 'sheet_type' => AttendanceSheet::TYPE_CUSTOM,
-                'locality' => blank($data['locality'] ?? null) ? null : $data['locality'],
+                'locality_id' => $locality?->id,
+                'locality' => $locality?->name,
                 'meeting_day' => $meetingDay,
                 'meeting_time' => $meetingTime,
                 'is_one_time' => $isOneTime,
+                'meeting_form_type' => $meetingFormType,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate->toDateString(),
                 'is_active' => true,
@@ -127,6 +151,12 @@ class AttendanceSheetController extends Controller
                 ]);
             }
 
+/*
+ * Generate stable public meeting URLs when
+ * Normal Meeting Form is enabled.
+ */
+$sheet->ensureMeetingFormSlugs();
+
             ActivityLogger::log(
                 action: 'attendance_sheet.created',
                 subject: $sheet,
@@ -137,6 +167,7 @@ class AttendanceSheetController extends Controller
                     'meeting_day' => $sheet->meeting_day,
                     'meeting_time' => $sheet->meeting_time,
                     'is_one_time' => $sheet->is_one_time,
+                    'meeting_form_type' => $sheet->meeting_form_type,
                     'start_date' => optional($sheet->start_date)->format('Y-m-d'),
                     'end_date' => optional($sheet->end_date)->format('Y-m-d'),
                     'sessions_created' => count($sessionDates),

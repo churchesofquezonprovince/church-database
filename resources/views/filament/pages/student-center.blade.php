@@ -93,19 +93,24 @@
                     </div>
 
                     <div>
-                        <label for="locality" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                        <label for="locality_id" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                             Locality / Place of Student Center
                         </label>
 
-                        <input
-                            id="locality"
-                            name="locality"
-                            type="text"
-                            list="student_center_localities"
+                        <select
+                            id="locality_id"
+                            name="locality_id"
                             required
-                            placeholder="Example: Lucban"
                             class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-gray-100"
                         >
+                            <option value="">Select Locality</option>
+
+                            @foreach ($localityOptions as $localityId => $locality)
+                                <option value="{{ $localityId }}">
+                                    {{ $locality }}
+                                </option>
+                            @endforeach
+                        </select>
 
                         <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-200">
                             Name will be created automatically, for example: Student Center - Lucban.
@@ -152,12 +157,6 @@
         <datalist id="student_center_schools">
             @foreach ($schoolOptions as $school)
                 <option value="{{ $school }}"></option>
-            @endforeach
-        </datalist>
-
-        <datalist id="student_center_localities">
-            @foreach ($localityOptions as $locality)
-                <option value="{{ $locality }}"></option>
             @endforeach
         </datalist>
 
@@ -208,12 +207,16 @@
 
                     <select
                         id="locality_filter"
-                        name="locality"
+                        name="locality_id"
                         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                     >
                         <option value="">All localities</option>
-                        @foreach ($localityOptions as $locality)
-                            <option value="{{ $locality }}" @selected(request('locality') === $locality)>
+
+                        @foreach ($localityOptions as $localityId => $locality)
+                            <option
+                                value="{{ $localityId }}"
+                                @selected((string) request('locality_id') === (string) $localityId)
+                            >
                                 {{ $locality }}
                             </option>
                         @endforeach
@@ -306,14 +309,20 @@
                                             Locality / Place of Student Center
                                         </label>
 
-                                        <input
-                                            name="locality"
-                                            type="text"
-                                            list="student_center_localities"
+                                        <select
+                                            name="locality_id"
                                             required
-                                            value="{{ $center->locality }}"
                                             class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                         >
+                                            @foreach ($localityOptions as $localityId => $locality)
+                                                <option
+                                                    value="{{ $localityId }}"
+                                                    @selected((int) $center->locality_id === (int) $localityId)
+                                                >
+                                                    {{ $locality }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
 
                                     <div>

@@ -6,11 +6,13 @@ use App\Filament\Pages\CampusContacts;
 use App\Models\CampusContact;
 use App\Models\Person;
 use App\Support\ActivityLogger;
+use App\Support\LocalityOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CampusContactController extends Controller
 {
@@ -111,7 +113,7 @@ class CampusContactController extends Controller
                 'firstname' => 'First Name',
                 'lastname' => 'Last Name',
                 'sex' => 'Sex',
-                'locality' => 'Locality',
+                'locality_id' => 'Locality',
             ];
 
             $missingFields = collect($requiredPeopleFields)
@@ -158,7 +160,7 @@ class CampusContactController extends Controller
             $person->firstname = $normalized['firstname'];
             $person->lastname = $normalized['lastname'];
             $person->sex = $normalized['sex'];
-            $person->locality = $normalized['locality'];
+            $person->locality_id = $normalized['locality_id'];
             $person->contact_number = $normalized['contact_number'];
             $person->email = $normalized['email'];
             $person->facebook_account = $normalized['facebook_account'];
@@ -356,8 +358,8 @@ class CampusContactController extends Controller
             $person->sex = $person->sex
                 ?: $contact->sex;
 
-            $person->locality = $person->locality
-                ?: $contact->locality;
+            $person->locality_id = $person->locality_id
+                ?: $contact->locality_id;
 
             $person->contact_number = $person->contact_number
                 ?: $contact->contact_number;
@@ -467,6 +469,9 @@ class CampusContactController extends Controller
                     'sex' =>
                         $person->sex,
 
+                    'locality_id' =>
+                        $person->locality_id,
+
                     'locality' =>
                         $person->locality,
 
@@ -567,7 +572,7 @@ class CampusContactController extends Controller
                 $person->firstname = $contact->firstname;
                 $person->lastname = $contact->lastname;
                 $person->sex = $contact->sex;
-                $person->locality = $contact->locality;
+                $person->locality_id = $contact->locality_id;
 
                 $person->contact_number =
                     $contact->contact_number;
@@ -693,18 +698,11 @@ class CampusContactController extends Controller
                     )
             )
             ->when(
-                filled($contact->locality),
+                filled($contact->locality_id),
                 fn (Builder $query): Builder =>
-                    $query->whereRaw(
-                        'LOWER(locality) = ?',
-                        [
-                            mb_strtolower(
-                                trim(
-                                    (string)
-                                    $contact->locality
-                                )
-                            ),
-                        ]
+                    $query->where(
+                        'locality_id',
+                        $contact->locality_id
                     )
             )
             ->orderBy('lastname')
@@ -720,7 +718,7 @@ class CampusContactController extends Controller
             'firstname' => 'First Name',
             'lastname' => 'Last Name',
             'sex' => 'Sex',
-            'locality' => 'Locality',
+            'locality_id' => 'Locality',
         ])
             ->filter(
                 fn (
@@ -747,6 +745,9 @@ class CampusContactController extends Controller
 
             'sex' =>
                 $person->sex,
+
+            'locality_id' =>
+                $person->locality_id,
 
             'locality' =>
                 $person->locality,
@@ -801,10 +802,10 @@ class CampusContactController extends Controller
                 ]),
             ],
 
-            'locality' => [
+            'locality_id' => [
                 'nullable',
-                'string',
-                'max:150',
+                'integer',
+                'exists:localities,id',
             ],
 
             'school_campus' => [
@@ -854,6 +855,21 @@ class CampusContactController extends Controller
     private function normalizedData(
         array $data
     ): array {
+        $locality = null;
+
+        if (filled($data['locality_id'] ?? null)) {
+            $locality = LocalityOptions::activeConfiguredLocality(
+                (int) $data['locality_id']
+            );
+
+            if (! $locality) {
+                throw ValidationException::withMessages([
+                    'locality_id' =>
+                        'Select an active configured Locality.',
+                ]);
+            }
+        }
+
         return [
             'firstname' =>
                 $this->nullIfBlank(
@@ -870,10 +886,11 @@ class CampusContactController extends Controller
                     $data['sex'] ?? null
                 ),
 
+            'locality_id' =>
+                $locality?->id,
+
             'locality' =>
-                $this->nullIfBlank(
-                    $data['locality'] ?? null
-                ),
+                $locality?->name,
 
             'school_campus' =>
                 $this->nullIfBlank(

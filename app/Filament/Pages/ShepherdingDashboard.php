@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Resources\People\PersonResource;
 use App\Models\Person;
+use App\Support\LocalityOptions;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -31,12 +32,7 @@ class ShepherdingDashboard extends Page
 
     public function mount(): void
     {
-        $this->localities = Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality')
+        $this->localities = LocalityOptions::primaryProvinceNamesWithPeople()
             ->values()
             ->all();
 
@@ -205,7 +201,12 @@ $this->listUrls = [
         return Person::query()
             ->when(
                 filled($this->locality),
-                fn (Builder $query) => $query->where('locality', $this->locality)
+                fn (Builder $query) => $query->where(
+                    'locality_id',
+                    LocalityOptions::primaryProvinceLocality(
+                        $this->locality
+                    )?->id ?? 0
+                )
             );
     }
 

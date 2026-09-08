@@ -2,11 +2,14 @@
 
 namespace App\Filament\Pages;
 
+use Filament\Notifications\Notification;
+use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
@@ -15,6 +18,13 @@ class CheckAttendance extends Page
 {
     protected string $view = 'filament.pages.check-attendance';
 
+public ?int $selectedSessionId = null;
+
+public function mount(): void
+{
+    $this->selectedSessionId = request()->integer('sessionId') ?: null;
+}
+
     public function permanentMeetingLocalities(string $sheetType): Collection
     {
         $sheets = AttendanceSheet::query()
@@ -22,32 +32,21 @@ class CheckAttendance extends Page
             ->where('is_active', true)
             ->withCount(['sessions', 'participants'])
             ->get()
-            ->keyBy(fn (AttendanceSheet $sheet): string => $sheet->locality ?: '__no_locality');
+            ->filter(fn (AttendanceSheet $sheet): bool => filled($sheet->locality))
+            ->keyBy(
+                fn (AttendanceSheet $sheet): string =>
+                    mb_strtolower(trim((string) $sheet->locality))
+            );
 
-        $localities = Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality')
-            ->values();
-
-        $hasNoLocality = Person::query()
-            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-            ->exists();
-
-        if ($hasNoLocality) {
-            $localities->push('__no_locality');
-        }
-
-        return $localities
-            ->unique()
+        return LocalityOptions::primaryProvinceNamesWithPeople()
             ->map(function (string $locality) use ($sheets): array {
-                $sheet = $sheets->get($locality);
+                $sheet = $sheets->get(
+                    mb_strtolower(trim($locality))
+                );
 
                 return [
                     'locality' => $locality,
-                    'label' => $this->localityLabel($locality),
+                    'label' => $locality,
                     'sheet' => $sheet,
                     'sessions_count' => $sheet?->sessions_count ?? 0,
                     'participants_count' => $sheet?->participants_count ?? 0,
@@ -164,57 +163,91 @@ class CheckAttendance extends Page
             ->get();
     }
 
-    public function selectedSession(): ?AttendanceSession
-    {
-        $sheet = $this->selectedSheet();
+public function selectedSession(): ?AttendanceSession
+{
+    $sheet = $this->selectedSheet();
 
-        if (! $sheet) {
-            return null;
-        }
-
-        $sessionId = request()->integer('sessionId');
-
-        $query = AttendanceSession::query()
-            ->where('attendance_sheet_id', $sheet->id);
-
-        if ($sessionId) {
-            return $query->find($sessionId);
-        }
-
-        return $query
-            ->orderByRaw('CASE WHEN session_date >= CURDATE() THEN 0 ELSE 1 END')
-            ->orderBy('session_date')
-            ->first();
+    if (! $sheet) {
+        return null;
     }
 
-    public function participantRows(): Collection
-    {
-        $session = $this->selectedSession();
+    $query = AttendanceSession::query()
+        ->where('attendance_sheet_id', $sheet->id);
 
-        if (! $session) {
-            return collect();
-        }
-
-        $sessionDate = $session->session_date->format('Y-m-d');
-
-        return AttendanceParticipant::query()
-            ->with(['person.churchProfile'])
-            ->where('attendance_sheet_id', $session->attendance_sheet_id)
-            ->where('is_active', true)
-            ->where(function ($query) use ($sessionDate): void {
-                $query->whereNull('starts_on')
-                    ->orWhere('starts_on', '<=', $sessionDate);
-            })
-            ->where(function ($query) use ($sessionDate): void {
-                $query->whereNull('ends_on')
-                    ->orWhere('ends_on', '>=', $sessionDate);
-            })
-            ->get()
-            ->sortBy(fn (AttendanceParticipant $participant): string => $participant->person?->display_name ?? '')
-            ->values();
+    if ($this->selectedSessionId) {
+        return $query->find($this->selectedSessionId);
     }
 
-    public function presentPersonIds(): array
+    return $query
+        ->orderByRaw('CASE WHEN session_date >= CURDATE() THEN 0 ELSE 1 END')
+        ->orderBy('session_date')
+        ->first();
+}
+
+
+public function participantRows(): Collection
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    $sessionDate = $session->session_date->format('Y-m-d');
+
+    $participants = AttendanceParticipant::query()
+        ->with(['person.churchProfile'])
+        ->where('attendance_sheet_id', $session->attendance_sheet_id)
+        ->where('is_active', true)
+        ->where(function ($query) use ($sessionDate): void {
+            $query->whereNull('starts_on')
+                ->orWhere('starts_on', '<=', $sessionDate);
+        })
+        ->where(function ($query) use ($sessionDate): void {
+            $query->whereNull('ends_on')
+                ->orWhere('ends_on', '>=', $sessionDate);
+        })
+        ->get();
+
+    $recordPersonIds = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->pluck('person_id');
+
+    $recordPeople = Person::query()
+        ->with('churchProfile')
+        ->whereIn('id', $recordPersonIds)
+        ->get();
+
+    $rows = $participants->keyBy(
+        fn (AttendanceParticipant $participant): int =>
+            (int) $participant->person_id
+    );
+
+    foreach ($recordPeople as $person) {
+        $personId = (int) $person->id;
+
+        if ($rows->has($personId)) {
+            continue;
+        }
+
+        $participant = new AttendanceParticipant([
+            'person_id' => $personId,
+        ]);
+
+        $participant->setRelation('person', $person);
+
+        $rows->put($personId, $participant);
+    }
+
+    return $rows
+        ->sortBy(
+            fn (AttendanceParticipant $participant): string =>
+                $participant->person?->display_name ?? ''
+        )
+        ->values();
+}
+
+public function presentPersonIds(): array
     {
         $session = $this->selectedSession();
 
@@ -268,4 +301,368 @@ class CheckAttendance extends Page
     {
         return self::getUrl() . '?sheetId=' . $sheet->id . '&sessionId=' . $session->id;
     }
+
+public function attendanceRecords(): Collection
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    return AttendanceRecord::query()
+        ->with(['person', 'immichConfirmedBy'])
+        ->where('attendance_session_id', $session->id)
+        ->get()
+        ->keyBy('person_id');
+}
+
+public function immichConfirmationCounts(): array
+{
+    $records = $this->attendanceRecords()
+        ->filter(
+            fn (AttendanceRecord $record): bool =>
+                $record->attendance_source === AttendanceRecord::SOURCE_IMMICH
+                && $record->is_present
+        );
+
+    return [
+        'detected' => $records->count(),
+        'pending' => $records
+            ->where('immich_confirmed', false)
+            ->count(),
+        'confirmed' => $records
+            ->where('immich_confirmed', true)
+            ->count(),
+    ];
+}
+
+public function confirmImmichAttendance(int $personId): void
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        Notification::make()
+            ->title('No attendance session selected')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+$record = AttendanceRecord::query()
+    ->where('attendance_session_id', $session->id)
+    ->where('person_id', $personId)
+    ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+    ->where('is_present', true)
+    ->where('immich_confirmed', false)
+    ->first();
+
+    if (! $record) {
+        Notification::make()
+            ->title('Immich attendance record not found')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    $record->update([
+        'immich_confirmed' => true,
+        'immich_confirmed_at' => now(),
+        'immich_confirmed_by_id' => auth()->id(),
+    ]);
+
+    Notification::make()
+        ->title('Immich attendance confirmed')
+        ->success()
+        ->send();
+}
+
+public function confirmAllImmichAttendance(): void
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        Notification::make()
+            ->title('No attendance session selected')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    $count = AttendanceRecord::query()
+        ->where('attendance_session_id', $session->id)
+        ->where('attendance_source', AttendanceRecord::SOURCE_IMMICH)
+        ->where('is_present', true)
+        ->where('immich_confirmed', false)
+        ->update([
+            'immich_confirmed' => true,
+            'immich_confirmed_at' => now(),
+            'immich_confirmed_by_id' => auth()->id(),
+        ]);
+
+    Notification::make()
+        ->title('Immich attendance reviewed')
+        ->body("{$count} Immich attendance record(s) confirmed.")
+        ->success()
+        ->send();
+}
+
+public function meetingResponses(): Collection
+{
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    return AttendanceMeetingResponse::query()
+        ->with([
+            'person',
+            'campusContact',
+        ])
+        ->where(
+            'attendance_session_id',
+            $session->id
+        )
+        ->orderByDesc('responded_at')
+        ->orderByDesc('id')
+        ->get();
+}
+
+public function selectedPreListedFilter(): string
+{
+    $filter = (string) request(
+        'prelisted',
+        'all',
+    );
+
+    return in_array(
+        $filter,
+        array_keys($this->preListedFilterOptions()),
+        true,
+    )
+        ? $filter
+        : 'all';
+}
+
+public function preListedFilterOptions(): array
+{
+    return [
+        'all' => 'All',
+        'needs_action' => 'Needs Action',
+        'yes' => 'YES',
+        'no' => 'NO',
+        'needs_identity_review' => 'Needs Identity Review',
+        'ready_for_participant' => 'Ready for Participant',
+        'participant_covered' => 'Participant Covered',
+        'participant_review' => 'Participant Review',
+    ];
+}
+
+public function preListedFilterUrl(string $filter): string
+{
+    $query = request()->query();
+
+    if ($filter === 'all') {
+        unset($query['prelisted']);
+    } else {
+        $query['prelisted'] = $filter;
+    }
+
+    return self::getUrl()
+        . ($query
+            ? '?' . http_build_query($query)
+            : '');
+}
+
+/**
+ * Derive admin workflow state for each pre-listed response.
+ *
+ * This does not modify the response, participant enrollment,
+ * or actual attendance.
+ */
+public function meetingResponseWorkflowStatuses(
+    Collection $responses,
+): Collection {
+    $session = $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    $sessionDate =
+        $session->session_date->format('Y-m-d');
+
+    $personIds = $responses
+        ->filter(
+            fn (AttendanceMeetingResponse $response): bool =>
+                $response->respondent_type
+                    === AttendanceMeetingResponse::RESPONDENT_PERSON
+                &&
+                filled($response->person_id)
+        )
+        ->pluck('person_id')
+        ->map(fn ($id): int => (int) $id)
+        ->unique()
+        ->values();
+
+    $participants = AttendanceParticipant::query()
+        ->where(
+            'attendance_sheet_id',
+            $session->attendance_sheet_id,
+        )
+        ->whereIn('person_id', $personIds)
+        ->get()
+        ->keyBy(
+            fn (AttendanceParticipant $participant): int =>
+                (int) $participant->person_id
+        );
+
+    return $responses->mapWithKeys(
+        function (
+            AttendanceMeetingResponse $response
+        ) use (
+            $participants,
+            $sessionDate,
+        ): array {
+            /*
+             * Guest / Campus has not yet reached a canonical Person.
+             *
+             * This remains an identity-review action even if the
+             * response itself is NO.
+             */
+            if (
+                $response->respondent_type
+                    !== AttendanceMeetingResponse::RESPONDENT_PERSON
+                ||
+                blank($response->person_id)
+            ) {
+                return [
+                    $response->id => [
+                        'key' => 'needs_identity_review',
+                        'label' => 'Needs Identity Review',
+                        'needs_action' => true,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            /*
+             * A canonical Person who answered NO does not need to
+             * be enrolled from the pre-listed response.
+             */
+            if (
+                $response->response
+                === AttendanceMeetingResponse::RESPONSE_NO
+            ) {
+                return [
+                    $response->id => [
+                        'key' => 'no_participant_needed',
+                        'label' => 'No Participant Needed',
+                        'needs_action' => false,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            $participant = $participants->get(
+                (int) $response->person_id
+            );
+
+            if (! $participant) {
+                return [
+                    $response->id => [
+                        'key' => 'ready_for_participant',
+                        'label' => 'Ready for Participant',
+                        'needs_action' => true,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            if (! $participant->is_active) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_review',
+                        'label' => 'Participant Review',
+                        'needs_action' => true,
+                        'detail' => 'Existing participant record is inactive.',
+                    ],
+                ];
+            }
+
+            $startsOn =
+                $participant->starts_on?->format('Y-m-d');
+
+            $endsOn =
+                $participant->ends_on?->format('Y-m-d');
+
+            $coversSession =
+                (blank($startsOn) || $startsOn <= $sessionDate)
+                &&
+                (blank($endsOn) || $endsOn >= $sessionDate);
+
+            if ($coversSession) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_covered',
+                        'label' => 'Participant Covered',
+                        'needs_action' => false,
+                        'detail' => null,
+                    ],
+                ];
+            }
+
+            return [
+                $response->id => [
+                    'key' => 'participant_review',
+                    'label' => 'Participant Review',
+                    'needs_action' => true,
+                    'detail' =>
+                        'Existing participant range does not cover this meeting.',
+                ],
+            ];
+        }
+    );
+}
+
+public function meetingResponseMatchesPreListedFilter(
+    AttendanceMeetingResponse $response,
+    array $workflow,
+    string $filter,
+): bool {
+    $workflowKey =
+        $workflow['key'] ?? null;
+
+    return match ($filter) {
+        'needs_action' =>
+            (bool) ($workflow['needs_action'] ?? false),
+
+        'yes' =>
+            $response->response
+            === AttendanceMeetingResponse::RESPONSE_YES,
+
+        'no' =>
+            $response->response
+            === AttendanceMeetingResponse::RESPONSE_NO,
+
+        'needs_identity_review' =>
+            $workflowKey === 'needs_identity_review',
+
+        'ready_for_participant' =>
+            $workflowKey === 'ready_for_participant',
+
+        'participant_covered' =>
+            $workflowKey === 'participant_covered',
+
+        'participant_review' =>
+            $workflowKey === 'participant_review',
+
+        default => true,
+    };
+}
+
 }

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AttendanceSheet;
+use App\Support\LocalityOptions;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -54,6 +55,11 @@ class ManageAttendanceSheets extends Page
             : 'active';
     }
 
+    public function localityOptions(): array
+    {
+        return LocalityOptions::groupedActiveConfigured();
+    }
+
     public function statusOptions(): array
     {
         return [
@@ -82,6 +88,11 @@ class ManageAttendanceSheets extends Page
             ->when($this->selectedStatus() === 'active', fn ($query) => $query->where('is_active', true))
             ->when($this->selectedStatus() === 'archived', fn ($query) => $query->where('is_active', false))
             ->withCount(['sessions', 'participants'])
+            ->with([
+    'sessions' => fn ($query) => $query
+        ->orderBy('session_date')
+        ->orderBy('id'),
+])
             ->orderByDesc('is_active')
             ->orderByDesc('created_at')
             ->get();

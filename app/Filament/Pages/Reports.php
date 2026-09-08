@@ -121,7 +121,7 @@ class Reports extends Page
                 'label' => 'People Without Locality',
                 'description' => 'People with no locality set.',
                 'count' => Person::query()
-                    ->where(fn (Builder $query) => $query->whereNull('locality')->orWhere('locality', ''))
+                    ->whereNull('locality_id')
                     ->count(),
                 'url' => $this->peopleTableUrl([
                     'missing_data' => 'no_locality',
@@ -160,7 +160,7 @@ class Reports extends Page
                 'label' => 'Households Without Locality',
                 'description' => 'Households with no locality set.',
                 'count' => Household::query()
-                    ->where(fn (Builder $query) => $query->whereNull('locality')->orWhere('locality', ''))
+                    ->whereNull('locality_id')
                     ->count(),
                 'url' => $this->householdTableUrl([
                     'missing_data' => 'no_locality',

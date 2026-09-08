@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceImmichAssetDetection;
+use App\Models\AttendanceRecord;
+use Illuminate\Support\Facades\DB;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
@@ -59,30 +62,49 @@ class AttendanceSheetParticipantController extends Controller
             ->with('attendance_participants_updated', 0);
     }
 
-    public function destroy(AttendanceSheet $sheet, AttendanceParticipant $participant): RedirectResponse
-    {
-        abort_unless(auth()->user()?->canManageRecords(), 403);
+public function destroy(
+    AttendanceSheet $sheet,
+    AttendanceParticipant $participant
+): RedirectResponse {
+    abort_unless(auth()->user()?->canManageRecords(), 403);
 
-        abort_unless((int) $participant->attendance_sheet_id === (int) $sheet->id, 404);
+    abort_unless(
+        (int) $participant->attendance_sheet_id === (int) $sheet->id,
+        404,
+    );
 
-        $oldValues = [
-            'sheet_id' => $sheet->id,
-            'sheet_title' => $sheet->title,
-            'participant_id' => $participant->id,
-            'person_id' => $participant->person_id,
-            'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
-            'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
-        ];
+    $oldValues = [
+        'sheet_id' => $sheet->id,
+        'sheet_title' => $sheet->title,
+        'participant_id' => $participant->id,
+        'person_id' => $participant->person_id,
+        'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
+        'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
+        'is_active' => $participant->is_active,
+    ];
 
-        $participant->delete();
+    DB::transaction(
+        function () use ($participant): void {
+            /*
+             * Removing a Person from the attendance sheet only removes
+             * their participant enrollment.
+             *
+             * Historical AttendanceRecord and Immich detection data must
+             * remain intact.
+             */
+            $participant->delete();
+        },
+    );
 
-        ActivityLogger::log(
-            action: 'attendance_sheet.participant.removed',
-            subject: $sheet,
-            description: 'Removed participant from attendance sheet.',
-            oldValues: $oldValues,
-        );
+    ActivityLogger::log(
+        action: 'attendance_sheet.participant.removed',
+        subject: $sheet,
+        description: 'Removed participant from attendance sheet while preserving attendance and Immich history.',
+        oldValues: $oldValues,
+    );
 
-        return back()->with('attendance_participant_removed', true);
-    }
+    return back()
+        ->with('attendance_participant_removed', true);
+}
+
 }

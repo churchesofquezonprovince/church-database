@@ -5,7 +5,9 @@ namespace App\Filament\Pages;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\People\PersonResource;
 use App\Models\Household;
+use App\Models\Locality;
 use App\Models\Person;
+use App\Models\ProvinceSetting;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -49,83 +51,100 @@ class LocalityDashboard extends Page
 
     private function loadDashboard(): void
     {
-        $peopleByLocality = Person::query()
-            ->selectRaw("COALESCE(NULLIF(locality, ''), 'No Locality') as locality_name, COUNT(*) as total")
-            ->groupBy('locality_name')
-            ->orderBy('locality_name')
-            ->pluck('total', 'locality_name');
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
+
+        if (! $provinceId) {
+            $this->summary = [
+                'total_people' => 0,
+                'total_households' => 0,
+                'total_localities' => 0,
+                'people_without_locality' => Person::query()
+                    ->whereNull('locality_id')
+                    ->count(),
+                'households_without_locality' => Household::query()
+                    ->whereNull('locality_id')
+                    ->count(),
+            ];
+
+            $this->localities = [];
+
+            return;
+        }
+
+        $localities = Locality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->withCount('people')
+            ->orderBy('name')
+            ->get();
+
+        $localityIds = $localities->pluck('id');
 
         $householdsByLocality = Household::query()
-            ->selectRaw("COALESCE(NULLIF(locality, ''), 'No Locality') as locality_name, COUNT(*) as total")
-            ->groupBy('locality_name')
-            ->orderBy('locality_name')
-            ->pluck('total', 'locality_name');
+            ->whereIn('locality_id', $localityIds)
+            ->selectRaw('locality_id, COUNT(*) as total')
+            ->groupBy('locality_id')
+            ->pluck('total', 'locality_id');
 
-        $allLocalities = collect()
-            ->merge($peopleByLocality->keys())
-            ->merge($householdsByLocality->keys())
-            ->unique()
-            ->sort()
-            ->values();
-
-        $this->summary = [
-            'total_people' => Person::query()->count(),
-            'total_households' => Household::query()->count(),
-            'total_localities' => $allLocalities->reject(fn (string $locality): bool => $locality === 'No Locality')->count(),
-            'people_without_locality' => Person::query()
-                ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-                ->count(),
-            'households_without_locality' => Household::query()
-                ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-                ->count(),
-        ];
-
-        $this->localities = $allLocalities
-            ->map(function (string $locality) use ($peopleByLocality, $householdsByLocality): array {
-                $peopleCount = (int) ($peopleByLocality[$locality] ?? 0);
-                $householdCount = (int) ($householdsByLocality[$locality] ?? 0);
+        $rows = $localities
+            ->map(function (Locality $locality) use ($householdsByLocality): array {
+                $peopleCount = (int) $locality->people_count;
+                $householdCount = (int) (
+                    $householdsByLocality[$locality->id] ?? 0
+                );
 
                 return [
-                    'name' => $locality,
+                    'id' => $locality->id,
+                    'name' => $locality->name,
                     'people_count' => $peopleCount,
                     'household_count' => $householdCount,
                     'total_count' => $peopleCount + $householdCount,
-                    'people_url' => $this->peopleUrl($locality),
-                    'households_url' => $this->householdsUrl($locality),
+                    'people_url' => $this->peopleUrl($locality->id),
+                    'households_url' => $this->householdsUrl($locality->id),
                 ];
             })
+            ->filter(
+                fn (array $row): bool => $row['total_count'] > 0
+            )
             ->sortByDesc('total_count')
-            ->values()
-            ->all();
+            ->values();
+
+        $this->summary = [
+            'total_people' => (int) $localities->sum('people_count'),
+            'total_households' => (int) $householdsByLocality->sum(),
+            'total_localities' => $rows->count(),
+            'people_without_locality' => Person::query()
+                ->whereNull('locality_id')
+                ->count(),
+            'households_without_locality' => Household::query()
+                ->whereNull('locality_id')
+                ->count(),
+        ];
+
+        $this->localities = $rows->all();
     }
 
-    private function peopleUrl(string $locality): string
+    private function peopleUrl(int $localityId): string
     {
-        if ($locality === 'No Locality') {
-            return PersonResource::getUrl('index');
-        }
-
         return PersonResource::getUrl('index') . '?' . http_build_query([
             'filters' => [
-                'locality' => [
-                    'value' => $locality,
+                'locality_id' => [
+                    'value' => $localityId,
                 ],
             ],
         ]);
     }
 
-    private function householdsUrl(string $locality): string
+    private function householdsUrl(int $localityId): string
     {
-        if ($locality === 'No Locality') {
-            return HouseholdResource::getUrl('index');
-        }
-
         return HouseholdResource::getUrl('index') . '?' . http_build_query([
             'filters' => [
-                'locality' => [
-                    'value' => $locality,
+                'locality_id' => [
+                    'value' => $localityId,
                 ],
             ],
         ]);
     }
+
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Household;
+use App\Models\Locality;
 use App\Models\Person;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -103,27 +104,73 @@ class ReportExportController extends Controller
         $this->authorizeExport();
 
         $peopleByLocality = Person::query()
-            ->selectRaw("COALESCE(NULLIF(locality, ''), 'No Locality') as locality_name, COUNT(*) as total")
-            ->groupBy('locality_name')
-            ->pluck('total', 'locality_name');
+            ->whereNotNull('locality_id')
+            ->selectRaw('locality_id, COUNT(*) as total')
+            ->groupBy('locality_id')
+            ->pluck('total', 'locality_id');
 
         $householdsByLocality = Household::query()
-            ->selectRaw("COALESCE(NULLIF(locality, ''), 'No Locality') as locality_name, COUNT(*) as total")
-            ->groupBy('locality_name')
-            ->pluck('total', 'locality_name');
+            ->whereNotNull('locality_id')
+            ->selectRaw('locality_id, COUNT(*) as total')
+            ->groupBy('locality_id')
+            ->pluck('total', 'locality_id');
 
-        $rows = collect()
+        $localityIds = collect()
             ->merge($peopleByLocality->keys())
             ->merge($householdsByLocality->keys())
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
             ->unique()
-            ->sort()
-            ->values()
-            ->map(fn (string $locality): array => [
-                $locality,
-                (int) ($peopleByLocality[$locality] ?? 0),
-                (int) ($householdsByLocality[$locality] ?? 0),
-                (int) ($peopleByLocality[$locality] ?? 0) + (int) ($householdsByLocality[$locality] ?? 0),
+            ->values();
+
+        $rows = Locality::query()
+            ->with('province')
+            ->whereIn('id', $localityIds)
+            ->orderBy('name')
+            ->get()
+            ->map(function (Locality $locality) use (
+                $peopleByLocality,
+                $householdsByLocality
+            ): array {
+                $peopleCount =
+                    (int) ($peopleByLocality[$locality->id] ?? 0);
+
+                $householdCount =
+                    (int) ($householdsByLocality[$locality->id] ?? 0);
+
+                $label = $locality->name;
+
+                if (filled($locality->province?->name)) {
+                    $label .= ' — ' . $locality->province->name;
+                }
+
+                return [
+                    $label,
+                    $peopleCount,
+                    $householdCount,
+                    $peopleCount + $householdCount,
+                ];
+            });
+
+        $peopleWithoutLocality = Person::query()
+            ->whereNull('locality_id')
+            ->count();
+
+        $householdsWithoutLocality = Household::query()
+            ->whereNull('locality_id')
+            ->count();
+
+        if (
+            $peopleWithoutLocality > 0
+            || $householdsWithoutLocality > 0
+        ) {
+            $rows->push([
+                'No Locality',
+                $peopleWithoutLocality,
+                $householdsWithoutLocality,
+                $peopleWithoutLocality + $householdsWithoutLocality,
             ]);
+        }
 
         return $this->csv('locality_summary', [
             'Locality',
@@ -177,8 +224,7 @@ class ReportExportController extends Controller
                 $query
                     ->whereNull('contact_number')
                     ->orWhere('contact_number', '')
-                    ->orWhereNull('locality')
-                    ->orWhere('locality', '')
+                    ->orWhereNull('locality_id')
                     ->orWhereNull('household_id')
                     ->orWhereDoesntHave('churchProfile')
                     ->orWhereHas('churchProfile', function (Builder $query): void {
@@ -226,8 +272,7 @@ class ReportExportController extends Controller
             ->where(function (Builder $query): void {
                 $query
                     ->whereNull('household_head_id')
-                    ->orWhereNull('locality')
-                    ->orWhere('locality', '');
+                    ->orWhereNull('locality_id');
             })
             ->orderBy('household_name')
             ->lazy(100)
@@ -313,7 +358,7 @@ class ReportExportController extends Controller
             $missing[] = 'Contact Number';
         }
 
-        if (blank($person->locality)) {
+        if (blank($person->locality_id)) {
             $missing[] = 'Locality';
         }
 
@@ -346,7 +391,7 @@ class ReportExportController extends Controller
             $missing[] = 'Household Head';
         }
 
-        if (blank($household->locality)) {
+        if (blank($household->locality_id)) {
             $missing[] = 'Locality';
         }
 

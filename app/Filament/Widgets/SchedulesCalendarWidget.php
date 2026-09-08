@@ -155,12 +155,75 @@ class SchedulesCalendarWidget extends CalendarWidget
         return $this->visibleScheduleCalendarIds;
     }
 
+
     public function editScheduleAction(): EditAction
     {
         return $this
             ->editAction()
             ->modalHeading('Edit Schedule')
             ->extraModalFooterActions([
+                
+                // THE NEW GENERATE BUTTON
+                Action::make('generateAttendance')
+                    ->label('Generate Attendance Sheet')
+                    ->color('success')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->requiresConfirmation()
+                    ->modalHeading('Generate Attendance')
+                    ->modalDescription('This will create an Attendance Sheet and Session for this specific schedule. Proceed?')
+                    ->action(function (Schedule $record): void {
+                        
+                        $start = \Carbon\CarbonImmutable::parse($record->starts_at);
+                        $meetingTime = $record->is_all_day ? null : $start->format('H:i');
+
+                        $sheetType = \App\Models\AttendanceSheet::TYPE_CUSTOM;
+                        $masterSheetTitle = $record->title;
+
+                        // The Funnel: Group LTM and Prayer Meetings
+                        if ($record->category === "Lord's Table") {
+                            $sheetType = \App\Models\AttendanceSheet::TYPE_LORDS_TABLE;
+                            $masterSheetTitle = "Lord's Table Meeting";
+                        } elseif ($record->category === 'Prayer Meeting') {
+                            $sheetType = \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING;
+                            $masterSheetTitle = "Prayer Meeting";
+                        }
+
+                        // Create or Find Master Sheet
+                        $sheet = \App\Models\AttendanceSheet::firstOrCreate(
+                            [
+                                'title' => $masterSheetTitle,
+                                'locality' => $record->locality,
+                            ],
+                            [
+                                'sheet_type' => $sheetType,
+                                'meeting_day' => $start->dayOfWeek,
+                                'meeting_time' => $meetingTime,
+                                'is_one_time' => false, 
+                                'is_active' => true,
+                                'created_by_id' => auth()->id() ?? 1, 
+                            ]
+                        );
+
+                        // Create the Session
+                        \App\Models\AttendanceSession::updateOrCreate(
+                            [
+                                'attendance_sheet_id' => $sheet->id,
+                                'session_date' => $start->toDateString(),
+                            ],
+                            [
+                                'session_time' => $meetingTime,
+                                'title' => $record->title . ' - ' . $start->format('M d, Y'),
+                                'remarks' => $record->description,
+                            ]
+                        );
+
+                        Notification::make()
+                            ->title('Attendance Generated Successfully')
+                            ->success()
+                            ->send();
+                    }),
+
+                // YOUR EXISTING DELETE BUTTON
                 Action::make('deleteSchedule')
                     ->label('Delete')
                     ->color('danger')
@@ -176,7 +239,7 @@ class SchedulesCalendarWidget extends CalendarWidget
             ]);
     }
 
-    public function createScheduleAction(): CreateAction
+public function createScheduleAction(): CreateAction
     {
         return $this
             ->createAction(Schedule::class)
@@ -188,7 +251,71 @@ class SchedulesCalendarWidget extends CalendarWidget
                 $data['updated_by'] = auth()->id();
 
                 return $data;
-            });
+            })
+            ->extraModalFooterActions([
+                Action::make('saveAndGenerateAttendance')
+                    ->label('Create & Generate Attendance Sheet')
+                    ->color('success')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->action(function ($livewire, array $data): void {
+                        // 1. Validate and save the schedule using the modal data
+                        $schedule = Schedule::create(array_merge($data, [
+                            'source' => 'local',
+                            'created_by' => auth()->id(),
+                            'updated_by' => auth()->id(),
+                        ]));
+
+                        // 2. Generate the Attendance Sheet logic
+                        $start = \Carbon\CarbonImmutable::parse($schedule->starts_at);
+                        $meetingTime = $schedule->is_all_day ? null : $start->format('H:i');
+
+                        $sheetType = \App\Models\AttendanceSheet::TYPE_CUSTOM;
+                        $masterSheetTitle = $schedule->title;
+
+                        if ($schedule->category === "Lord's Table") {
+                            $sheetType = \App\Models\AttendanceSheet::TYPE_LORDS_TABLE;
+                            $masterSheetTitle = "Lord's Table Meeting";
+                        } elseif ($schedule->category === 'Prayer Meeting') {
+                            $sheetType = \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING;
+                            $masterSheetTitle = "Prayer Meeting";
+                        }
+
+                        $sheet = \App\Models\AttendanceSheet::firstOrCreate(
+                            [
+                                'title' => $masterSheetTitle,
+                                'locality' => $schedule->locality,
+                            ],
+                            [
+                                'sheet_type' => $sheetType,
+                                'meeting_day' => $start->dayOfWeek,
+                                'meeting_time' => $meetingTime,
+                                'is_one_time' => false, 
+                                'is_active' => true,
+                                'created_by_id' => auth()->id() ?? 1, 
+                            ]
+                        );
+
+                        \App\Models\AttendanceSession::updateOrCreate(
+                            [
+                                'attendance_sheet_id' => $sheet->id,
+                                'session_date' => $start->toDateString(),
+                            ],
+                            [
+                                'session_time' => $meetingTime,
+                                'title' => $schedule->title . ' - ' . $start->format('M d, Y'),
+                                'remarks' => $schedule->description,
+                            ]
+                        );
+
+                        Notification::make()
+                            ->title('Schedule Saved & Attendance Generated')
+                            ->success()
+                            ->send();
+
+                        $livewire->refreshRecords();
+                        $livewire->unmountAction();
+                    }),
+            ]);
     }
 
     public function defaultSchema(Schema $schema): Schema

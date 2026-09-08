@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Models\CampusContact;
 use App\Models\CampusWorkStudentCenter;
+use App\Models\Locality;
+use App\Models\ProvinceSetting;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -53,7 +55,7 @@ class StudentCenter extends Page
     {
         $search = trim((string) request('search', ''));
         $school = trim((string) request('school', ''));
-        $locality = trim((string) request('locality', ''));
+        $localityId = (int) request('locality_id', 0);
 
         return CampusWorkStudentCenter::query()
             ->with([
@@ -71,7 +73,7 @@ class StudentCenter extends Page
                 });
             })
             ->when($school !== '', fn ($query) => $query->where('school_campus', $school))
-            ->when($locality !== '', fn ($query) => $query->where('locality', $locality))
+            ->when($localityId > 0, fn ($query) => $query->where('locality_id', $localityId))
             ->orderBy('locality')
             ->orderBy('school_campus')
             ->orderBy('name')
@@ -102,24 +104,18 @@ class StudentCenter extends Page
 
     public function localityOptions(): Collection
     {
-        $fromContacts = CampusContact::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->pluck('locality');
+        $provinceId = ProvinceSetting::query()
+            ->value('primary_province_id');
 
-        $fromCenters = CampusWorkStudentCenter::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->pluck('locality');
+        if (! $provinceId) {
+            return collect();
+        }
 
-        return $fromCenters
-            ->merge($fromContacts)
-            ->filter()
-            ->unique()
-            ->sort(fn ($a, $b) => strcasecmp((string) $a, (string) $b))
-            ->values();
+        return Locality::query()
+            ->where('province_id', $provinceId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name', 'id');
     }
 
     public function availableContactsForCenter(CampusWorkStudentCenter $center): Collection

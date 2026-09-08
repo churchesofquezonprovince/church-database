@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\LocalityOptions;
 use App\Models\CampusWorkActivity;
 use App\Models\CampusWorkTerm;
 use App\Models\Person;
@@ -173,13 +174,8 @@ class CampusActivities extends Page
             ->values();
     }
 
-    public function localityOptions(): Collection
+    public function localityOptions(): array
     {
-        return Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality');
+        return LocalityOptions::groupedActiveConfigured();
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\LocalityOptions;
 use App\Filament\Resources\People\PersonResource;
 use App\Models\CampusContact;
 use App\Models\Person;
@@ -328,14 +329,9 @@ class CampusContacts extends Page
             ->values();
     }
 
-    public function localityOptions(): Collection
+    public function localityOptions(): array
     {
-        return Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality');
+        return LocalityOptions::groupedActiveConfigured();
     }
 
     public function personUrl(Person $person): string

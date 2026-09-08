@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LocalityOptions;
 use App\Filament\Pages\LordsTableMeeting;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
@@ -46,10 +47,20 @@ class LordsTableAttendanceController extends Controller
             ]);
         }
 
-        $locality = $data['locality'];
-        $storedLocality = $locality === '__no_locality' ? null : $locality;
+        $localityRecord = LocalityOptions::primaryProvinceLocality(
+            $data['locality']
+        );
 
-        $people = $this->peopleForLocality($locality);
+        if (! $localityRecord) {
+            throw ValidationException::withMessages([
+                'locality' => 'Select an active Locality from the configured Primary Province.',
+            ]);
+        }
+
+        $locality = $localityRecord->name;
+        $storedLocality = $locality;
+
+        $people = $this->peopleForLocality($localityRecord->id);
 
         if ($people->isEmpty()) {
             throw ValidationException::withMessages([
@@ -83,13 +94,7 @@ class LordsTableAttendanceController extends Controller
         [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $prophesiedPersonIds, $otherProphesiedPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
-                ->where(function ($query) use ($storedLocality): void {
-                    if ($storedLocality === null) {
-                        $query->whereNull('locality');
-                    } else {
-                        $query->where('locality', $storedLocality);
-                    }
-                })
+                ->where('locality_id', $locality->id)
                 ->first();
 
             if (! $sheet) {
@@ -97,6 +102,7 @@ class LordsTableAttendanceController extends Controller
                     'title' => "Lord's Table Meeting - " . ($storedLocality ?: 'No Locality'),
                     'sheet_type' => AttendanceSheet::TYPE_LORDS_TABLE,
                     'locality' => $storedLocality,
+                    'locality_id' => $locality->id,
                     'meeting_day' => 0,
                 'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
@@ -106,6 +112,7 @@ class LordsTableAttendanceController extends Controller
                 ]);
             } else {
                 $updates = [
+                'locality_id' => $locality->id,
                     'is_active' => true,
                     'meeting_day' => 0,
                     'end_date' => null,
@@ -248,18 +255,14 @@ class LordsTableAttendanceController extends Controller
             ->with('lords_table_absent_count', $absentCount);
     }
 
-    private function peopleForLocality(string $locality)
+    private function peopleForLocality(int $localityId)
     {
         return Person::query()
             ->with(['churchProfile'])
+            ->where('locality_id', $localityId)
             ->whereHas(
                 'churchProfile',
                 fn ($query) => $query->whereIn('status', self::MAIN_ATTENDANCE_STATUSES)
-            )
-            ->when(
-                $locality === '__no_locality',
-                fn ($query) => $query->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', '')),
-                fn ($query) => $query->where('locality', $locality),
             )
             ->orderBy('lastname')
             ->orderBy('firstname')

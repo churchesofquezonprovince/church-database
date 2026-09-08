@@ -20,6 +20,7 @@ class Household extends Model
         'household_head_id',
         'address',
         'locality',
+        'locality_id',
         'remarks',
     ];
 
@@ -30,6 +31,14 @@ class Household extends Model
     protected static function booted(): void
     {
         static::saving(function (Household $household): void {
+            if (filled($household->locality_id)) {
+                $locality = Locality::query()->find($household->locality_id);
+
+                if ($locality) {
+                    $household->locality = $locality->name;
+                }
+            }
+
             $household->validateBeforeSave();
         });
 
@@ -44,6 +53,11 @@ class Household extends Model
                     'household_id' => $household->id,
                 ]);
         });
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(Locality::class, 'locality_id');
     }
 
     public function head(): BelongsTo
@@ -85,8 +99,13 @@ class Household extends Model
             $query = self::query()
                 ->whereRaw('LOWER(household_name) = ?', [strtolower(trim((string) $this->household_name))]);
 
-            if (filled($this->locality)) {
-                $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $this->locality))]);
+            if (filled($this->locality_id)) {
+                $query->where('locality_id', $this->locality_id);
+            } elseif (filled($this->locality)) {
+                $query->whereRaw(
+                    'LOWER(locality) = ?',
+                    [mb_strtolower(trim((string) $this->locality))]
+                );
             } else {
                 $query->where(function ($query): void {
                     $query->whereNull('locality')

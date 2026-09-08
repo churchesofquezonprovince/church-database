@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceSession extends Model
@@ -14,6 +15,7 @@ class AttendanceSession extends Model
         'session_date',
         'session_time',
         'title',
+        'public_slug',
         'remarks',
     ];
 
@@ -21,6 +23,21 @@ class AttendanceSession extends Model
         'session_date' => 'date',
     ];
 
+    public function meetingResponses(): HasMany
+{
+    return $this->hasMany(
+        AttendanceMeetingResponse::class,
+        'attendance_session_id',
+    );
+}
+
+public function immichDetections(): HasMany
+{
+    return $this->hasMany(
+        AttendanceImmichAssetDetection::class,
+        'attendance_session_id',
+    );
+}
 
     public function sessionTimeLabel(): ?string
     {
@@ -50,4 +67,16 @@ class AttendanceSession extends Model
     {
         return $this->hasMany(AttendanceRecord::class);
     }
+
+public function publicMeetingUrl(): ?string
+{
+    if (blank($this->public_slug)) {
+        return null;
+    }
+
+    return secure_url(
+        '/meeting/' . $this->public_slug
+    );
+}
+
 }

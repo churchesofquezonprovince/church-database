@@ -15,12 +15,16 @@ use App\Http\Controllers\AttendanceSheetParticipantController;
 use App\Http\Controllers\AttendanceSheetStatusController;
 use App\Http\Controllers\AttendanceReportExportController;
 use App\Http\Controllers\AttendanceReportSessionController;
+use App\Http\Controllers\AttendanceMeetingResponseController;
+use App\Http\Controllers\AttendanceMeetingResponseParticipantController;
+use App\Http\Controllers\AttendanceMeetingResponsePromotionController;
 use App\Http\Controllers\PermanentMeetingOtherAttendeeController;
 use App\Http\Controllers\AttendanceSheetController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\PrayerMeetingItemController;
+use App\Http\Controllers\PublicMeetingFormController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
 
@@ -31,6 +35,47 @@ Route::middleware(['web'])
         return view('test-site.manila-clock');
     })
     ->name('quezonprovinceactivities.test-site');
+
+/*
+ * ============================================================
+ * SHORT PUBLIC MEETING LINKS
+ * ============================================================
+ *
+ * Example:
+ * https://m.overcomers.win/9-4-26-ceficoccampusmeeting
+ */
+Route::domain('m.overcomers.win')
+    ->middleware(['web'])
+    ->group(function (): void {
+        Route::get(
+            '/{slug}/name-search',
+            [
+                PublicMeetingFormController::class,
+                'search',
+            ]
+        )
+            ->middleware('throttle:120,1')
+            ->name('meeting.short.search');
+
+        Route::get(
+            '/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'show',
+            ]
+        )
+            ->name('meeting.short.show');
+
+        Route::post(
+            '/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'store',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.short.store');
+    });
 
 
 Route::redirect('/', '/quezonprovinceactivities');
@@ -275,6 +320,18 @@ Route::middleware(['web', 'auth'])
             ->name('store');
     });
 
+Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/promote-to-campus',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'promoteGuestToCampus',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.promote-to-campus'
+    );
+
 
 Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/campus-work/student-nucleus')
@@ -438,13 +495,120 @@ Route::middleware(['web', 'auth'])
 // Children's Work public dashboard and protected lesson actions.
 Route::middleware(['web'])
     ->get('/children-work', function () {
-        $nextLesson = \App\Models\ChildrenWorkLesson::query()->upcoming()->first()
-            ?: \App\Models\ChildrenWorkLesson::query()->past()->first();
+        $dashboardQuery = \App\Models\ChildrenWorkLesson::query()
+            ->whereNotIn('status', ['draft', 'cancelled']);
+
+$selectedLessonId = request()->integer('lesson');
+
+$nextLesson = null;
+
+if ($selectedLessonId > 0) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereKey($selectedLessonId)
+        ->whereNotNull('scheduled_on')
+        ->first();
+}
+
+if (! $nextLesson) {
+    $nextLesson = (clone $dashboardQuery)
+        ->whereNotNull('scheduled_on')
+        ->whereDate('scheduled_on', '>=', today())
+        ->orderBy('scheduled_on')
+        ->orderBy('id')
+        ->first();
+}
+
+        if (! $nextLesson) {
+            $nextLesson = (clone $dashboardQuery)
+                ->whereNotNull('scheduled_on')
+                ->whereDate('scheduled_on', '<', today())
+                ->orderByDesc('scheduled_on')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $upcomingLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '>=', today())
+            ->whereDate(
+                'scheduled_on',
+                '<=',
+                now()->endOfMonth()->toDateString()
+            )
+->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
+            ->orderBy('scheduled_on')
+            ->orderBy('id')
+            ->limit(8)
+            ->get();
+
+        $recentLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate('scheduled_on', '<', today())
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
+            ->orderByDesc('scheduled_on')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get();
+
+$pastLessons = (clone $dashboardQuery)
+    ->whereNotNull('scheduled_on')
+    ->whereDate('scheduled_on', '<', today())
+    ->when(
+        $nextLesson,
+        fn ($query) => $query->where(
+            'id',
+            '!=',
+            $nextLesson->id
+        )
+    )
+    ->whereNotIn(
+        'id',
+        $recentLessons->pluck('id')
+    )
+    ->orderByDesc('scheduled_on')
+    ->orderByDesc('id')
+    ->get();
+
+        $futureLessons = (clone $dashboardQuery)
+            ->whereNotNull('scheduled_on')
+            ->whereDate(
+                'scheduled_on',
+                '>',
+                now()->endOfMonth()->toDateString()
+            )
+            ->when(
+    $nextLesson,
+    fn ($query) => $query->where(
+        'id',
+        '!=',
+        $nextLesson->id
+    )
+)
+            ->orderBy('scheduled_on')
+            ->orderBy('id')
+            ->limit(12)
+            ->get();
 
         return view('children-work.dashboard', [
             'nextLesson' => $nextLesson,
-            'upcomingLessons' => \App\Models\ChildrenWorkLesson::query()->upcoming()->limit(8)->get(),
-            'recentLessons' => \App\Models\ChildrenWorkLesson::query()->past()->limit(5)->get(),
+            'upcomingLessons' => $upcomingLessons,
+            'recentLessons' => $recentLessons,
+            'futureLessons' => $futureLessons,
+            'pastLessons' => $pastLessons,
         ]);
     })
     ->name('children-work.dashboard.public');
@@ -469,3 +633,141 @@ Route::middleware(['web', 'auth'])
             ->name('lessons.destroy');
     });
 
+
+
+    /*
+ * ============================================================
+ * PHASE 26C — PUBLIC MEETING RESPONSE FORM
+ * ============================================================
+ *
+ * No login required.
+ */
+    Route::middleware(['web'])
+    ->group(function (): void {
+        Route::get(
+            '/meeting/{slug}/name-search',
+            [
+                PublicMeetingFormController::class,
+                'search',
+            ]
+        )
+            ->middleware('throttle:120,1')
+            ->name('meeting.search');
+
+        Route::get(
+            '/meeting/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'show',
+            ]
+        )->name('meeting.show');
+
+        Route::post(
+            '/meeting/{slug}',
+            [
+                PublicMeetingFormController::class,
+                'store',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.store');
+    });
+
+
+    Route::middleware(['web', 'auth'])
+    ->get(
+        '/quezonprovinceactivities/attendance-meeting-responses/person-search',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'searchPeople',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.person-search'
+    );
+
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/link-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'linkGuestToPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.link-person'
+    );
+
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/create-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'createGuestPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.create-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/link-campus-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'linkCampusToPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.link-campus-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/create-campus-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'createPersonFromCampus',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.create-campus-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/use-campus-linked-person',
+        [
+            AttendanceMeetingResponsePromotionController::class,
+            'useCampusLinkedPerson',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.use-campus-linked-person'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/{response}/attendance-participant',
+        [
+            AttendanceMeetingResponseParticipantController::class,
+            'store',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.attendance-participant'
+    );
+
+    Route::middleware(['web', 'auth'])
+->delete(
+    '/quezonprovinceactivities/attendance-meeting-responses/{response}',
+    [
+        AttendanceMeetingResponseController::class,
+        'destroy',
+    ]
+)
+->name(
+    'quezonprovinceactivities.attendance-meeting-responses.destroy'
+);

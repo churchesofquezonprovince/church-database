@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Str;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\AttendanceSheetImmichAlbum;
 
 class AttendanceSheet extends Model
 {
@@ -15,16 +18,22 @@ class AttendanceSheet extends Model
 
     public const TYPE_PRAYER_MEETING = 'prayer_meeting';
 
+    public const MEETING_FORM_DISABLED = 'disabled';
+
+    public const MEETING_FORM_NORMAL = 'normal';
+
     protected $fillable = [
         'title',
         'sheet_type',
         'locality',
+        'locality_id',
         'meeting_day',
         'meeting_time',
         'is_one_time',
         'start_date',
         'end_date',
         'is_active',
+        'meeting_form_type',
         'remarks',
         'created_by_id',
     ];
@@ -35,6 +44,32 @@ class AttendanceSheet extends Model
         'is_one_time' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+public function immichAlbum(): HasOne
+{
+    return $this->hasOne(
+        AttendanceSheetImmichAlbum::class,
+        'attendance_sheet_id',
+    );
+}
+
+    protected static function booted(): void
+    {
+        static::saving(function (AttendanceSheet $sheet): void {
+            if (filled($sheet->locality_id)) {
+                $locality = Locality::query()->find($sheet->locality_id);
+
+                if ($locality) {
+                    $sheet->locality = $locality->name;
+                }
+            }
+        });
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(Locality::class, 'locality_id');
+    }
 
     public function creator(): BelongsTo
     {
@@ -95,4 +130,102 @@ class AttendanceSheet extends Model
     {
         return $this->sheet_type === self::TYPE_LORDS_TABLE;
     }
+
+    public function meetingFormEnabled(): bool
+{
+    return $this->meeting_form_type === self::MEETING_FORM_NORMAL;
+}
+
+public function meetingFormLabel(): string
+{
+    return match ($this->meeting_form_type) {
+        self::MEETING_FORM_NORMAL => 'Normal Meeting Form',
+        default => 'Disabled',
+    };
+}
+
+public function ensureMeetingFormSlugs(): void
+{
+    /*
+     * Disabled sheets do not need new public URLs.
+     *
+     * Existing slugs are deliberately NOT deleted when the
+     * form is disabled. This allows a shared URL to remain
+     * stable if the form is enabled again later.
+     */
+    if (! $this->meetingFormEnabled()) {
+        return;
+    }
+
+    $this->sessions()
+        ->orderBy('session_date')
+        ->orderBy('id')
+        ->get()
+        ->each(function (AttendanceSession $session): void {
+            /*
+             * Never change an existing public URL.
+             */
+            if (filled($session->public_slug)) {
+                return;
+            }
+
+            $baseSlug = $this->meetingFormSlugBase(
+                $session
+            );
+
+            $slug = $baseSlug;
+            $suffix = 2;
+
+            /*
+             * public_slug has a UNIQUE database index,
+             * so resolve any collision before saving.
+             */
+            while (
+                AttendanceSession::query()
+                    ->where('public_slug', $slug)
+                    ->where('id', '!=', $session->id)
+                    ->exists()
+            ) {
+                $slug = $baseSlug . '-' . $suffix;
+                $suffix++;
+            }
+
+            $session->forceFill([
+                'public_slug' => $slug,
+            ])->save();
+        });
+}
+
+private function meetingFormSlugBase(
+    AttendanceSession $session
+): string {
+    /*
+     * Example:
+     *
+     * August 15, 2026
+     * Church Meeting
+     *
+     * becomes:
+     *
+     * 8-15-26-churchmeeting
+     */
+    $datePart = $session->session_date
+        ?->format('n-j-y')
+        ?? 'meeting';
+
+    $titlePart = Str::of(
+        (string) $this->title
+    )
+        ->ascii()
+        ->lower()
+        ->replaceMatches('/[^a-z0-9]+/', '')
+        ->toString();
+
+    if ($titlePart === '') {
+        $titlePart = 'meeting';
+    }
+
+    return $datePart . '-' . $titlePart;
+}
+
 }

@@ -2,10 +2,22 @@
 
 namespace App\Filament\Pages;
 
+use Filament\Notifications\Notification;
+use App\Models\DriveMeetingDocument;
 use Filament\Pages\Page;
+use Filament\Tables\Table;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Actions\Action;
+use Google\Client;
+use Google\Service\Drive;
+use Google\Service\Drive\DriveFile;
 
-class ServiceMeetingMinutes extends Page
+class ServiceMeetingMinutes extends Page implements HasTable
 {
+    use InteractsWithTable;
+
     protected string $view = 'filament.pages.service-meeting-minutes';
 
     public function getTitle(): string
@@ -18,7 +30,7 @@ class ServiceMeetingMinutes extends Page
         return 'Service Meeting Minutes';
     }
 
-    public static function getNavigationGroup(): ?string
+    public static function getNavigationGroup(): string|\UnitEnum|null
     {
         return 'Posts';
     }
@@ -33,13 +45,47 @@ class ServiceMeetingMinutes extends Page
         return 2;
     }
 
-    public static function shouldRegisterNavigation(): bool
+    protected function getHeaderActions(): array
     {
-        return auth()->user()?->canManageRecords() ?? false;
+        return [
+            Action::make('new_document')
+                ->label('New Document')
+                ->color('primary')
+                ->icon('heroicon-o-plus')
+                ->url(
+                    'https://drive.google.com/drive/folders/1HXwJXNAlss1h8IFa0rp1B13IxFv6RIbV',
+                    true
+                ),
+        ];
     }
 
-    public static function canAccess(): bool
+    public function table(Table $table): Table
     {
-        return auth()->user()?->canManageRecords() ?? false;
+        return $table
+            ->query(DriveMeetingDocument::query())
+            ->columns([
+                TextColumn::make('name')
+                    ->label('Document Title')
+                    ->searchable()
+                    ->sortable()
+                    ->url(fn (DriveMeetingDocument $record) => $record->view_link)
+                    ->openUrlInNewTab()
+                    ->color('primary'),
+                    
+                TextColumn::make('created_time')
+                    ->label('Meeting Date')
+                    ->date('F j, Y')
+                    ->sortable(),
+
+                TextColumn::make('file_type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'PDF' => 'danger',
+                        'Google Doc' => 'info',
+                        default => 'gray',
+                    }),
+            ])
+            ->defaultSort('created_time', 'desc');
     }
 }

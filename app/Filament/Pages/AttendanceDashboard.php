@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\LocalityOptions;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
@@ -62,22 +63,7 @@ class AttendanceDashboard extends Page
 
     public function localities(): Collection
     {
-        $localities = Person::query()
-            ->whereNotNull('locality')
-            ->where('locality', '!=', '')
-            ->distinct()
-            ->orderBy('locality')
-            ->pluck('locality');
-
-        $hasNoLocality = Person::query()
-            ->where(fn ($query) => $query->whereNull('locality')->orWhere('locality', ''))
-            ->exists();
-
-        if ($hasNoLocality) {
-            $localities->push('__no_locality');
-        }
-
-        return $localities;
+        return LocalityOptions::primaryProvinceNamesWithPeople();
     }
 
     public function localityLabel(?string $locality): string

@@ -17,6 +17,7 @@ class CampusContact extends Model
         'lastname',
         'sex',
         'locality',
+        'locality_id',
         'school_campus',
         'course_strand',
         'grade_level',
@@ -39,6 +40,33 @@ class CampusContact extends Model
         'effective_email',
         'effective_facebook_account',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (CampusContact $contact): void {
+            if (blank($contact->locality_id)) {
+                $contact->locality = null;
+
+                return;
+            }
+
+            $locality = Locality::query()->find(
+                $contact->locality_id
+            );
+
+            if ($locality) {
+                $contact->locality = $locality->name;
+            }
+        });
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(
+            Locality::class,
+            'locality_id'
+        );
+    }
 
     public function person(): BelongsTo
     {

@@ -10,35 +10,129 @@ use Illuminate\Http\Request;
 
 class ChildrenWorkLessonController extends Controller
 {
-    public function store(Request $request): RedirectResponse
-    {
-        $this->authorizeManager();
+public function store(
+    Request $request,
+    ChildrenWorkGoogleSheetsService $service
+): RedirectResponse {
+    $this->authorizeManager();
 
-        ChildrenWorkLesson::query()->create($this->validatedData($request));
+    $lesson = ChildrenWorkLesson::query()->create(
+        $this->validatedData($request, true)
+    );
 
-        return redirect(ChildrenWorkLessons::getUrl())
-            ->with('children_work_saved', 'Lesson created.');
+    try {
+        $service->insertLessonChronologically($lesson);
+
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_saved',
+            'Lesson created and added to Google Sheet.'
+        );
+    } catch (\Throwable $exception) {
+        $lesson->forceFill([
+            'sync_status' => 'failed',
+            'sync_error' => $exception->getMessage(),
+        ])->save();
+
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_error',
+            'Lesson was saved on the website, but Google Sheet update failed: '
+            . $exception->getMessage()
+        );
+    }
+}
+
+public function update(
+    Request $request,
+    ChildrenWorkLesson $lesson,
+    ChildrenWorkGoogleSheetsService $service
+): RedirectResponse {
+    $this->authorizeManager();
+
+    $data = $this->validatedData(
+        $request,
+        false
+    );
+
+    /*
+     * Never accept changes to native Smart Chip URLs.
+     */
+    foreach (
+        $lesson->google_sheet_smart_chip_fields ?? []
+        as $lockedField
+    ) {
+        unset($data[$lockedField]);
     }
 
-    public function update(Request $request, ChildrenWorkLesson $lesson): RedirectResponse
-    {
-        $this->authorizeManager();
+    $data['sync_status'] = 'local';
+    $data['sync_error'] = null;
 
-        $lesson->update($this->validatedData($request));
+    $lesson->update($data);
 
-        return redirect(ChildrenWorkLessons::getUrl())
-            ->with('children_work_saved', 'Lesson updated.');
+    try {
+        $service->updateLessonInGoogleSheet(
+            $lesson
+        );
+
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_saved',
+            'Lesson updated on website and Google Sheet.'
+        );
+    } catch (\Throwable $exception) {
+        $lesson->forceFill([
+            'sync_status' => 'failed',
+            'sync_error' => $exception->getMessage(),
+        ])->save();
+
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_error',
+            'Website changes were saved, but Google Sheet update failed: '
+            . $exception->getMessage()
+        );
     }
+}
 
-    public function destroy(ChildrenWorkLesson $lesson): RedirectResponse
-    {
-        $this->authorizeManager();
+public function destroy(
+    ChildrenWorkLesson $lesson,
+    ChildrenWorkGoogleSheetsService $service
+): RedirectResponse {
+    $this->authorizeManager();
+
+    try {
+        /*
+         * Google first.
+         *
+         * If Google fails, do NOT delete the website record.
+         */
+        $service->deleteLessonFromGoogleSheet(
+            $lesson
+        );
 
         $lesson->delete();
 
-        return redirect(ChildrenWorkLessons::getUrl())
-            ->with('children_work_saved', 'Lesson deleted.');
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_saved',
+            'Lesson deleted from website and Google Sheet.'
+        );
+    } catch (\Throwable $exception) {
+        return redirect(
+            ChildrenWorkLessons::getUrl()
+        )->with(
+            'children_work_error',
+            'Lesson was NOT deleted because Google Sheet could not be updated: '
+            . $exception->getMessage()
+        );
     }
+}
 
     public function syncGoogleSheet(ChildrenWorkGoogleSheetsService $service): RedirectResponse
     {
@@ -87,7 +181,10 @@ class ChildrenWorkLessonController extends Controller
         abort_unless(auth()->user()?->canManageRecords(), 403);
     }
 
-    private function validatedData(Request $request): array
+private function validatedData(
+    Request $request,
+    bool $forCreate = false
+): array
     {
         $validated = $request->validate([
             'scheduled_on' => ['nullable', 'date'],
@@ -98,6 +195,7 @@ class ChildrenWorkLessonController extends Controller
             'suggested_hymn_url' => ['nullable', 'string'],
             'memory_verse' => ['nullable', 'string'],
             'story' => ['nullable', 'string'],
+            'story_url' => ['nullable', 'string'],
             'presentation_slides' => ['nullable', 'string'],
             'presentation_slides_url' => ['nullable', 'string'],
             'activity' => ['nullable', 'string'],
@@ -113,10 +211,14 @@ class ChildrenWorkLessonController extends Controller
             }
         }
 
-        $validated['status'] = $validated['status'] ?: 'scheduled';
-        $validated['source'] = 'local';
-        $validated['sync_status'] = 'local';
+$validated['status']
+    = $validated['status'] ?? 'scheduled';
 
-        return $validated;
+if ($forCreate) {
+    $validated['source'] = 'local';
+    $validated['sync_status'] = 'local';
+}
+
+return $validated;
     }
 }

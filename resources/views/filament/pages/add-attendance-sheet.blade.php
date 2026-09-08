@@ -1,19 +1,5 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
-            <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Attendance Module
-            </p>
-
-            <h2 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                Add Attendance Sheet
-            </h2>
-
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Create recurring attendance sheets such as Campus Meeting, Young People Meeting, or other weekly gatherings.
-            </p>
-        </div>
-
         @if (session('attendance_sheet_created'))
             <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Attendance sheet created.</p>
@@ -73,18 +59,30 @@
                         </div>
 
                         <div>
-                            <label for="locality" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            <label for="locality_id" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                                 Locality
                             </label>
 
-                            <input
-                                id="locality"
-                                name="locality"
-                                type="text"
-                                value="{{ old('locality') }}"
-                                placeholder="Lucban, Lucena, Pagbilao"
+                            <select
+                                id="locality_id"
+                                name="locality_id"
                                 class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                             >
+                                <option value="">No Locality / Not locality-specific</option>
+
+                                @foreach ($this->localityOptions() as $group => $options)
+                                    <optgroup label="{{ $group }}">
+                                        @foreach ($options as $localityId => $locality)
+                                            <option
+                                                value="{{ $localityId }}"
+                                                @selected((string) old('locality_id') === (string) $localityId)
+                                            >
+                                                {{ $locality }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="md:col-span-2">
@@ -104,6 +102,113 @@
                                 If checked, only the Start Date will be used as the meeting date. End Date and Meeting Day will be ignored.
                             </p>
                         </div>
+
+{{-- =========================================================
+     MEETING FORM
+========================================================== --}}
+<div class="md:col-span-2">
+
+    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Meeting Form
+    </label>
+
+    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        Choose whether this attendance sheet should provide a public meeting response form.
+    </p>
+
+
+    <div class="mt-3 grid gap-3 md:grid-cols-3">
+
+        {{-- Disabled --}}
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800"
+        >
+            <input
+                type="radio"
+                name="meeting_form_type"
+                value="disabled"
+                @checked(
+                    old(
+                        'meeting_form_type',
+                        \App\Models\AttendanceSheet::MEETING_FORM_DISABLED
+                    )
+                    === \App\Models\AttendanceSheet::MEETING_FORM_DISABLED
+                )
+                class="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+            >
+
+            <span>
+                <span class="block font-bold text-gray-900 dark:text-white">
+                    Disabled
+                </span>
+
+                <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                    Do not create a public meeting form.
+                </span>
+            </span>
+        </label>
+
+
+        {{-- Normal Meeting Form --}}
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:hover:bg-emerald-900"
+        >
+            <input
+                type="radio"
+                name="meeting_form_type"
+                value="normal"
+                @checked(
+                    old('meeting_form_type')
+                    === \App\Models\AttendanceSheet::MEETING_FORM_NORMAL
+                )
+                class="mt-1 h-4 w-4 border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            >
+
+            <span>
+                <span class="block font-bold text-emerald-900 dark:text-emerald-100">
+                    Normal Meeting Form
+                </span>
+
+                <span class="mt-1 block text-xs text-emerald-700 dark:text-emerald-300">
+                    Creates one public response URL for every meeting date.
+                </span>
+            </span>
+        </label>
+
+
+        {{-- Future option --}}
+        <div
+            class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-100 p-4 opacity-60 dark:border-gray-700 dark:bg-gray-800"
+        >
+            <input
+                type="radio"
+                disabled
+                class="mt-1 h-4 w-4"
+            >
+
+            <span>
+                <span class="block font-bold text-gray-600 dark:text-gray-300">
+                    Google Form-like
+                </span>
+
+                <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                    Future feature.
+                </span>
+            </span>
+        </div>
+
+    </div>
+
+
+    <div class="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200">
+        Normal Meeting Form generates stable addresses such as
+        <span class="font-mono font-semibold">
+            /meeting/8-15-26-churchmeeting
+        </span>.
+        The public page itself will be activated in Phase 26C.
+    </div>
+
+</div>
 
                         <div>
                             <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">

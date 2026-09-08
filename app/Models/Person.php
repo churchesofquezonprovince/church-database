@@ -33,6 +33,7 @@ class Person extends Model
         'household_id',
         'spouse_id',
         'locality',
+        'locality_id',
         'permanent_address',
         'home_address',
         'geocoordinates',
@@ -56,6 +57,14 @@ class Person extends Model
     protected static function booted(): void
     {
         static::saving(function (Person $person): void {
+            if (filled($person->locality_id)) {
+                $locality = Locality::query()->find($person->locality_id);
+
+                if ($locality) {
+                    $person->locality = $locality->name;
+                }
+            }
+
             $person->validateBeforeSave();
         });
 
@@ -69,10 +78,20 @@ class Person extends Model
         });
     }
 
+public function immichMapping(): HasOne
+{
+    return $this->hasOne(ImmichPersonMapping::class);
+}
+
     public function household(): BelongsTo
     {
         return $this->belongsTo(Household::class, 'household_id');
     }
+
+    public function localityRecord(): BelongsTo
+{
+    return $this->belongsTo(Locality::class, 'locality_id');
+}
 
     public function spouse(): BelongsTo
     {

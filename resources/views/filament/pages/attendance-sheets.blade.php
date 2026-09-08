@@ -88,34 +88,18 @@
     @endphp
 
     <div class="space-y-6">
-        <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
-            <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Attendance Module
-            </p>
 
-            <h2 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                Attendance Sheets
-            </h2>
+@if (session('attendance_participant_removed'))
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <p class="font-bold">
+            Participant removed from the attendance sheet.
+        </p>
 
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Manage attendance sheets and add participants. Attendance checking will be added in the next phase.
-            </p>
-        </div>
-
-        @if (session('attendance_participants_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
-                <p class="font-bold">Participants saved.</p>
-                <p class="mt-1 text-sm">
-                    Added {{ session('attendance_participants_added') }} participant(s), updated {{ session('attendance_participants_updated') }} participant(s).
-                </p>
-            </div>
-        @endif
-
-        @if (session('attendance_participant_removed'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                <p class="font-bold">Participant removed from the sheet.</p>
-            </div>
-        @endif
+        <p class="mt-1 text-sm">
+            Historical attendance and Immich records were preserved.
+        </p>
+    </div>
+@endif
 
         @if ($errors->any())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
@@ -169,7 +153,8 @@
                                     href="{{ $this->sheetUrl($sheet) }}"
                                     @class([
                                         'block min-w-0 rounded-xl border p-3 transition',
-                                        'border-primary-300 bg-primary-50 dark:border-primary-800 dark:bg-primary-950' => $selectedSheet->id === $sheet->id,
+                                        'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950'
+    => $selectedSheet?->id === $sheet->id,
                                         'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800' => $selectedSheet->id !== $sheet->id,
                                     ])
                                 >
@@ -214,12 +199,15 @@
                             </div>
 
                             <div class="flex flex-wrap gap-2">
-                                <a
-                                    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?sheetId=' . $selectedSheet->id }}"
-                                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
-                                >
-                                    Check Attendance
-                                </a>
+<a
+    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?' . http_build_query([
+        'sheetId' => $selectedSheet->id,
+        'sessionId' => $this->selectedSession()?->id,
+    ]) }}"
+    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
+>
+    Check Attendance
+</a>
 
                                 <span class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white">
                                     {{ $selectedSheet->sessions_count }} session(s)
@@ -231,19 +219,282 @@
                             </div>
                         </div>
 
-                        <div class="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            @foreach ($selectedSheet->sessions->take(8) as $session)
-                                <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200">
-                                    {{ $session->session_date->format('M d, Y') }}
-                                </div>
-                            @endforeach
-                        </div>
+<div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    @foreach ($selectedSheet->sessions->take(8) as $session)
+        @php
+            $sessionAttendance = $this->sessionAttendanceSummary($session);
+        @endphp
+
+        <a
+            href="{{ $this->sessionUrl($session) }}"
+            @class([
+                'block rounded-xl border p-3 text-sm transition',
+                'border-primary-300 bg-primary-50 text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200'
+                    => $this->selectedSession()?->id === $session->id,
+                'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800'
+                    => $this->selectedSession()?->id !== $session->id,
+            ])
+        >
+            <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold">
+                    {{ $session->session_date->format('M d, Y') }}
+                </span>
+
+                @if ($session->immichAlbum)
+                    <span class="rounded-full bg-violet-600 px-2 py-1 text-[10px] font-bold text-white">
+                        Immich
+                    </span>
+                @endif
+            </div>
+
+            @if ($sessionAttendance['marked'] > 0)
+                <div class="mt-3 space-y-1 text-xs">
+                    <p class="font-semibold text-emerald-700 dark:text-emerald-300">
+                        {{ $sessionAttendance['present'] }} Present
+                    </p>
+
+                    <div class="flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-gray-400">
+                        @if ($sessionAttendance['immich'] > 0)
+                            <span>
+                                {{ $sessionAttendance['immich'] }} Immich
+                            </span>
+                        @endif
+
+                        @if ($sessionAttendance['manual'] > 0)
+                            <span>
+                                {{ $sessionAttendance['manual'] }} Manual
+                            </span>
+                        @endif
+
+                        @if ($sessionAttendance['immich_pending'] > 0)
+                            <span class="font-semibold text-amber-600 dark:text-amber-300">
+                                {{ $sessionAttendance['immich_pending'] }} pending
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            @else
+                <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                    No attendance recorded
+                </p>
+            @endif
+        </a>
+    @endforeach
+</div>
 
                         @if ($selectedSheet->sessions_count > 8)
                             <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
                                 Showing first 8 dates only. Full attendance grid will be added in the next phase.
                             </p>
                         @endif
+
+@php
+    $selectedSession = $this->selectedSession();
+    $immichAlbums = $this->immichAlbums();
+    $selectedSessionAttendance = $selectedSession
+        ? $this->sessionAttendanceSummary($selectedSession)
+        : null;
+@endphp
+
+@php
+    $selectedSession = $this->selectedSession();
+    $immichAlbums = $this->immichAlbums();
+@endphp
+
+@if ($selectedSession)
+
+<div class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+        <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Recorded Attendance
+        </p>
+
+        <h4 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+            {{ $selectedSession->session_date->format('M d, Y') }}
+        </h4>
+    </div>
+
+    <div class="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                Present
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-200">
+                {{ $selectedSessionAttendance['present'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Marked
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">
+                {{ $selectedSessionAttendance['marked'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                Immich
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-violet-700 dark:text-violet-200">
+                {{ $selectedSessionAttendance['immich'] }}
+            </p>
+        </div>
+
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+            <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
+                Immich Pending
+            </p>
+
+            <p class="mt-1 text-2xl font-bold text-amber-700 dark:text-amber-200">
+                {{ $selectedSessionAttendance['immich_pending'] }}
+            </p>
+        </div>
+    </div>
+
+    @if ($selectedSessionAttendance['immich_confirmed'] > 0)
+        <div class="px-5 pb-5">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                {{ $selectedSessionAttendance['immich_confirmed'] }}
+                Immich attendance record(s) confirmed by an administrator.
+            </p>
+        </div>
+    @endif
+</div>
+
+    <div class="mt-6 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950">
+        <div class="border-b border-violet-200 px-5 py-4 dark:border-violet-900 sm:px-6">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                        Immich Attendance
+                    </p>
+
+                    <h4 class="mt-1 break-words text-lg font-bold text-violet-950 dark:text-white">
+                        {{ $selectedSession->session_date->format('M d, Y') }}
+                    </h4>
+
+                    <p class="mt-1 text-xs text-violet-700 dark:text-violet-300">
+                        This connects an Immich album to this attendance session.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 sm:p-6">
+
+@if ($selectedSheet->immichAlbum)
+
+    <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+
+            <div class="min-w-0">
+                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Linked Immich Album
+                </p>
+
+                <p class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                    {{ $selectedSheet->immichAlbum->immich_album_name }}
+                </p>
+
+                <p class="mt-2 break-all text-xs text-gray-500 dark:text-gray-400">
+                    {{ $selectedSheet->immichAlbum->immich_album_id }}
+                </p>
+
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Last sync:
+                    {{ optional($selectedSheet->immichAlbum->last_synced_at)->format('M d, Y g:i A') ?? 'Never' }}
+                </p>
+            </div>
+
+            <button
+                type="button"
+                wire:click="unlinkImmichAlbum({{ $selectedSheet->id }})"
+                wire:confirm="Unlink this Immich album from the entire attendance sheet?"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+            >
+                Unlink Album
+            </button>
+
+        </div>
+
+    </div>
+
+
+            @else
+
+                <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
+
+                    <div class="min-w-0">
+                        <label
+                            for="immich_album_id"
+                            class="block text-sm font-bold text-violet-950 dark:text-violet-100"
+                        >
+                            Select Immich Album
+                        </label>
+
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Choose the album containing photographs from this specific meeting date.
+                        </p>
+
+                        @if (count($immichAlbums) > 0)
+
+                            <select
+                                id="immich_album_id"
+                                wire:model="immichAlbumId"
+                                class="mt-3 block w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-violet-900 dark:bg-gray-950 dark:text-white"
+                            >
+                                <option value="">
+                                    Select an Immich album...
+                                </option>
+
+                                @foreach ($immichAlbums as $album)
+                                    <option value="{{ $album['id'] }}">
+                                        {{ $album['albumName'] ?? 'Unnamed album' }}
+                                        @if (isset($album['assetCount']))
+                                            — {{ $album['assetCount'] }} photo(s)
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <button
+                                type="button"
+                                wire:click="linkImmichAlbum({{ $selectedSession->id }}, @js($immichAlbumId))"
+                                wire:loading.attr="disabled"
+                                class="mt-4 w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+                            >
+                                <span wire:loading.remove>
+                                    Link Album to This Session
+                                </span>
+
+                                <span wire:loading>
+                                    Linking...
+                                </span>
+                            </button>
+
+                        @else
+
+                            <div class="mt-4 rounded-xl border border-dashed border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                                Unable to load Immich albums.
+                            </div>
+
+                        @endif
+
+                    </div>
+                </div>
+
+            @endif
+
+        </div>
+    </div>
+@endif
+                        
                     </div>
 
 
@@ -514,6 +765,7 @@
                             </table>
                         </div>
                     </div>
+
 
                 </div>
             </div>

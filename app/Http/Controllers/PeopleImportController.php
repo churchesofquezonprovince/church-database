@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Household;
+use App\Models\Locality;
 use App\Models\Person;
 use App\Support\ActivityLogger;
 use App\Support\ChurchProfileOptions;
@@ -187,6 +188,29 @@ class PeopleImportController extends Controller
 
             if (blank($row['locality'] ?? null)) {
                 $errors[] = "Line {$line}: locality is required.";
+            } else {
+                $localityMatches = $this->matchingLocalities(
+                    (string) $row['locality']
+                );
+
+                if ($localityMatches->isEmpty()) {
+                    $errors[] =
+                        "Line {$line}: locality '{$row['locality']}' is not configured. "
+                        . "Add it in Province Setup before importing.";
+                } elseif ($localityMatches->count() > 1) {
+                    $matches = $localityMatches
+                        ->map(
+                            fn (Locality $locality): string =>
+                                $locality->name
+                                . ' — '
+                                . ($locality->province?->name ?? 'Unknown Province')
+                        )
+                        ->implode(', ');
+
+                    $errors[] =
+                        "Line {$line}: locality '{$row['locality']}' is ambiguous. "
+                        . "Configured matches: {$matches}.";
+                }
             }
 
             if (! in_array($row['sex'] ?? '', $allowedSex, true)) {
@@ -299,25 +323,71 @@ class PeopleImportController extends Controller
             ->first();
     }
 
+    private function matchingLocalities(string $name)
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return collect();
+        }
+
+        return Locality::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->whereRaw(
+                'LOWER(name) = ?',
+                [mb_strtolower($name)]
+            )
+            ->get();
+    }
+
+
     private function importPersonRow(array $row): Person
     {
+        $localityMatches = $this->matchingLocalities(
+            (string) ($row['locality'] ?? '')
+        );
+
+        if ($localityMatches->count() !== 1) {
+            throw new \RuntimeException(
+                'Validated import Locality could not be resolved uniquely.'
+            );
+        }
+
+        /** @var Locality $locality */
+        $locality = $localityMatches->first();
+
         $household = null;
 
         if (filled($row['household_name'] ?? null)) {
             $household = Household::query()
-                ->whereRaw('LOWER(household_name) = ?', [strtolower(trim((string) $row['household_name']))])
-                ->when(
-                    filled($row['locality'] ?? null),
-                    fn (Builder $query): Builder => $query->whereRaw('LOWER(locality) = ?', [strtolower(trim((string) $row['locality']))]),
-                    fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereNull('locality')->orWhere('locality', ''))
+                ->whereRaw(
+                    'LOWER(household_name) = ?',
+                    [
+                        strtolower(
+                            trim(
+                                (string) $row['household_name']
+                            )
+                        ),
+                    ]
                 )
+                ->where('locality_id', $locality->id)
                 ->first();
 
             if (! $household) {
                 $household = new Household();
-                $household->household_name = $row['household_name'];
-                $household->locality = $this->nullable($row['locality'] ?? null);
-                $household->address = $this->nullable($row['home_address'] ?? null);
+                $household->household_name =
+                    $row['household_name'];
+
+                $household->locality_id =
+                    $locality->id;
+
+                $household->locality =
+                    $locality->name;
+
+                $household->address = $this->nullable(
+                    $row['home_address'] ?? null
+                );
                 $household->save();
             }
         }
@@ -335,7 +405,8 @@ class PeopleImportController extends Controller
         $person->nickname = $this->nullable($row['nickname'] ?? null);
         $person->birthdate = $this->nullable($row['birthdate'] ?? null);
         $person->birthplace = $this->nullable($row['birthplace'] ?? null);
-        $person->locality = $this->nullable($row['locality'] ?? null);
+        $person->locality_id = $locality->id;
+        $person->locality = $locality->name;
         $person->contact_number = $this->nullable($row['contact_number'] ?? null);
         $person->email = $this->nullable($row['email'] ?? null);
         $person->facebook_account = $this->nullable($row['facebook_account'] ?? null);
