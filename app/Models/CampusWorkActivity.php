@@ -30,6 +30,7 @@ class CampusWorkActivity extends Model
         'venue',
         'locality',
         'locality_id',
+        'attendance_session_id',
         'description',
     ];
 
@@ -97,6 +98,14 @@ class CampusWorkActivity extends Model
         return $this->belongsTo(
             CampusWorkTerm::class,
             'campus_work_term_id'
+        );
+    }
+
+    public function attendanceSession(): BelongsTo
+    {
+        return $this->belongsTo(
+            AttendanceSession::class,
+            'attendance_session_id'
         );
     }
 

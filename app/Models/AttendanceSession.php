@@ -68,6 +68,14 @@ public function immichDetections(): HasMany
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    public function campusActivity(): HasOne
+    {
+        return $this->hasOne(
+            CampusWorkActivity::class,
+            'attendance_session_id'
+        );
+    }
+
 public function publicMeetingUrl(): ?string
 {
     if (blank($this->public_slug)) {
