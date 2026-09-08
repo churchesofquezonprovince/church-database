@@ -37,7 +37,7 @@ class ShepherdingMap extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 2;
+        return 4;
     }
 
     public static function shouldRegisterNavigation(): bool

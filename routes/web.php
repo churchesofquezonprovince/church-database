@@ -4,6 +4,7 @@ use App\Http\Controllers\CampusWorkStudentCenterController;
 
 use App\Http\Controllers\CampusContactImportController;
 use App\Http\Controllers\CampusContactController;
+use App\Http\Controllers\GospelContactController;
 use App\Http\Controllers\CampusWorkDashboardController;
 use App\Http\Controllers\CampusWorkActivityController;
 use App\Http\Controllers\StudentNucleusExportController;
@@ -469,6 +470,47 @@ Route::middleware(['web', 'auth'])
 
         Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
             ->name('add-to-people');
+    });
+
+
+Route::middleware(['web', 'auth'])
+    ->prefix('quezonprovinceactivities/gospel-work/contacts')
+    ->name('quezonprovinceactivities.gospel-work.contacts.')
+    ->group(function (): void {
+        Route::post(
+            '/existing-people',
+            [GospelContactController::class, 'addExistingPeople']
+        )->name('existing-people.store');
+
+        Route::post(
+            '/',
+            [GospelContactController::class, 'store']
+        )->name('store');
+
+        Route::patch(
+            '/{contact}',
+            [GospelContactController::class, 'update']
+        )->name('update');
+
+        Route::delete(
+            '/{contact}',
+            [GospelContactController::class, 'destroy']
+        )->name('destroy');
+
+        Route::post(
+            '/{contact}/add-to-people',
+            [GospelContactController::class, 'addToPeople']
+        )->name('add-to-people');
+
+        Route::post(
+            '/{contact}/link-existing-person',
+            [GospelContactController::class, 'linkExistingPerson']
+        )->name('link-existing-person');
+
+        Route::post(
+            '/{contact}/create-new-person-anyway',
+            [GospelContactController::class, 'createNewPersonAnyway']
+        )->name('create-new-person-anyway');
     });
 
 

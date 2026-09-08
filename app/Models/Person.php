@@ -118,6 +118,14 @@ public function immichMapping(): HasOne
         return $this->hasOne(CampusContact::class, 'person_id');
     }
 
+    public function gospelContact(): HasOne
+    {
+        return $this->hasOne(
+            GospelContact::class,
+            'person_id'
+        );
+    }
+
     public function parentRelationships(): HasMany
     {
         return $this->hasMany(ParentRelationship::class, 'person_id');

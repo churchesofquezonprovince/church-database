@@ -30,7 +30,7 @@ class TraineesSection extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 3;
+        return 5;
     }
 
     public static function shouldRegisterNavigation(): bool

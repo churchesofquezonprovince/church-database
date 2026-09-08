@@ -16,6 +16,12 @@
         $selectedContactedHouseholds =
             $this->selectedContactedHouseholds();
 
+        $campusContacts =
+            $this->campusContacts();
+
+        $selectedCampusContacts =
+            $this->selectedCampusContacts();
+
         $householdMembers =
             $this->householdMembers();
 
@@ -55,7 +61,7 @@
                 class="mt-2 text-3xl font-bold
                        text-gray-900 dark:text-white"
             >
-                Shepherding Contacts
+                Shepherding Records
             </h2>
 
             <p
@@ -128,9 +134,40 @@
                         </p>
                     </div>
 
+                    <div class="mt-4">
+                        <label
+                            class="block text-sm font-semibold
+                                   text-gray-700 dark:text-gray-200"
+                        >
+                            Search Contact Targets
+                        </label>
+
+                        <input
+                            type="search"
+                            wire:model.live.debounce.300ms="targetSearch"
+                            placeholder="Search People, Households, or Campus Contacts..."
+                            class="mt-2 block w-full rounded-xl
+                                   border border-gray-300 bg-white
+                                   px-4 py-3 text-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-950
+                                   dark:text-gray-100"
+                        >
+
+                        @if (filled($targetSearch))
+                            <p
+                                class="mt-1 text-xs
+                                       text-gray-500 dark:text-gray-400"
+                            >
+                                Showing matching results across
+                                all Contact Target databases.
+                            </p>
+                        @endif
+                    </div>
+
                     <div
-                        class="mt-3 grid gap-4
-                               lg:grid-cols-2"
+                        class="mt-4 grid gap-4
+                               lg:grid-cols-3"
                     >
 
                         {{-- People Contacted --}}
@@ -175,20 +212,7 @@
                                     @endforeach
                                 </div>
                             @endif
-
-                            <input
-                                type="search"
-                                wire:model.live.debounce.300ms="personSearch"
-                                placeholder="Search Person..."
-                                class="mt-3 block w-full rounded-xl
-                                       border border-gray-300 bg-white
-                                       px-4 py-2.5 text-sm
-                                       dark:border-gray-700
-                                       dark:bg-gray-950
-                                       dark:text-gray-100"
-                            >
-
-                            <div
+<div
                                 class="mt-2 space-y-1 overflow-y-auto
                                        rounded-xl border border-gray-200
                                        p-2 dark:border-gray-700"
@@ -272,20 +296,7 @@
                                     @endforeach
                                 </div>
                             @endif
-
-                            <input
-                                type="search"
-                                wire:model.live.debounce.300ms="householdSearch"
-                                placeholder="Search Household..."
-                                class="mt-3 block w-full rounded-xl
-                                       border border-gray-300 bg-white
-                                       px-4 py-2.5 text-sm
-                                       dark:border-gray-700
-                                       dark:bg-gray-950
-                                       dark:text-gray-100"
-                            >
-
-                            <div
+<div
                                 class="mt-2 space-y-1 overflow-y-auto
                                        rounded-xl border border-gray-200
                                        p-2 dark:border-gray-700"
@@ -334,6 +345,127 @@
                                                dark:text-gray-400"
                                     >
                                         No matching Households found.
+                                    </p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        {{-- Campus Contacts --}}
+                        <div
+                            class="rounded-xl border border-gray-200 p-4
+                                   dark:border-gray-700"
+                        >
+                            <label
+                                class="block text-sm font-semibold
+                                       text-gray-700 dark:text-gray-200"
+                            >
+                                Campus Contacts
+                            </label>
+
+                            <p
+                                class="mt-1 text-xs
+                                       text-gray-500 dark:text-gray-400"
+                            >
+                                Unlinked Campus Contacts only.
+                                Once linked to the People Database,
+                                use People Contacted instead.
+                            </p>
+
+                            @if ($selectedCampusContacts->isNotEmpty())
+                                <div
+                                    class="mt-3 flex flex-wrap gap-2"
+                                >
+                                    @foreach ($selectedCampusContacts as $campusContact)
+                                        <button
+                                            type="button"
+                                            wire:click="removeContactedCampusContact({{ $campusContact->id }})"
+                                            title="Remove {{ $campusContact->display_name }}"
+                                            class="rounded-full
+                                                   bg-cyan-50
+                                                   px-3 py-1.5
+                                                   text-xs font-bold
+                                                   text-cyan-700
+                                                   dark:bg-cyan-950
+                                                   dark:text-cyan-300"
+                                        >
+                                            {{ $campusContact->display_name }}
+                                            ×
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+<div
+                                class="mt-2 space-y-1
+                                       overflow-y-auto
+                                       rounded-xl border
+                                       border-gray-200 p-2
+                                       dark:border-gray-700"
+                                style="max-height: 12rem;"
+                            >
+                                @forelse ($campusContacts as $campusContact)
+                                    <label
+                                        class="flex cursor-pointer
+                                               items-start gap-3
+                                               rounded-lg px-2 py-2
+                                               hover:bg-gray-50
+                                               dark:hover:bg-gray-800"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            value="{{ $campusContact->id }}"
+                                            wire:model.live="contactedCampusContactIds"
+                                            class="mt-1 rounded
+                                                   border-gray-300"
+                                        >
+
+                                        <span class="min-w-0">
+                                            <strong
+                                                class="block text-sm
+                                                       text-gray-900
+                                                       dark:text-gray-100"
+                                            >
+                                                {{ $campusContact->display_name }}
+                                            </strong>
+
+                                            @if (
+                                                $campusContact->school
+                                                || $campusContact->school_campus
+                                                || $campusContact->localityRecord
+                                            )
+                                                <span
+                                                    class="block text-xs
+                                                           text-gray-500
+                                                           dark:text-gray-400"
+                                                >
+                                                    @if ($campusContact->school)
+                                                        {{ $campusContact->school->name }}
+                                                    @elseif ($campusContact->school_campus)
+                                                        {{ $campusContact->school_campus }}
+                                                    @endif
+
+                                                    @if (
+                                                        ($campusContact->school
+                                                            || $campusContact->school_campus)
+                                                        && $campusContact->localityRecord
+                                                    )
+                                                        ·
+                                                    @endif
+
+                                                    @if ($campusContact->localityRecord)
+                                                        {{ $campusContact->localityRecord->name }}
+                                                    @endif
+                                                </span>
+                                            @endif
+                                        </span>
+                                    </label>
+                                @empty
+                                    <p
+                                        class="px-2 py-3 text-sm
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        No matching unlinked
+                                        Campus Contacts.
                                     </p>
                                 @endforelse
                             </div>
@@ -1002,8 +1134,8 @@
                                hover:bg-primary-500"
                     >
                         {{ $editingContactId
-                            ? 'Update Shepherding Contact'
-                            : 'Record Shepherding Contact' }}
+                            ? 'Update Shepherding Record'
+                            : 'Record Shepherding Record' }}
                     </button>
                 </div>
             </form>
@@ -1173,9 +1305,25 @@
                                         </span>
                                     @endforeach
 
+                                    @foreach ($contact->contactedCampusContacts as $campusContact)
+                                        <span
+                                            class="rounded-full
+                                                   bg-cyan-50
+                                                   px-2.5 py-1
+                                                   text-xs font-bold
+                                                   text-cyan-700
+                                                   dark:bg-cyan-950
+                                                   dark:text-cyan-300"
+                                        >
+                                            Campus ·
+                                            {{ $campusContact->display_name }}
+                                        </span>
+                                    @endforeach
+
                                     @if (
                                         $contact->contactedPeople->isEmpty()
                                         && $contact->contactedHouseholds->isEmpty()
+                                        && $contact->contactedCampusContacts->isEmpty()
                                     )
                                         <span
                                             class="text-sm font-bold
@@ -1435,7 +1583,7 @@
                                dark:border-gray-700
                                dark:text-gray-400"
                     >
-                        No Shepherding Contacts found.
+                        No Shepherding Records found.
                     </div>
                 @endforelse
             </div>

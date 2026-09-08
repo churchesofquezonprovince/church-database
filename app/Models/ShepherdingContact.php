@@ -73,6 +73,16 @@ class ShepherdingContact extends Model
         )->withTimestamps();
     }
 
+    public function contactedCampusContacts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CampusContact::class,
+            'shepherding_contact_campus_contacts',
+            'shepherding_contact_id',
+            'campus_contact_id'
+        )->withTimestamps();
+    }
+
     public function householdMembers(): BelongsToMany
     {
         return $this->belongsToMany(
