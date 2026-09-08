@@ -174,8 +174,8 @@ class CampusActivities extends Page
             ->values();
     }
 
-    public function localityOptions(): Collection
+    public function localityOptions(): array
     {
-        return LocalityOptions::primaryProvinceNames();
+        return LocalityOptions::groupedActiveConfigured();
     }
 }

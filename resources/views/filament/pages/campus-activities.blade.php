@@ -224,20 +224,28 @@
                         Locality
                     </label>
 
-                    <input
-                        type="text"
-                        name="locality"
-                        value="{{ old('locality') }}"
-                        list="campus-locality-options"
-                        placeholder="Enter or select locality..."
+                    <select
+                        name="locality_id"
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
+                        <option value="">Not specified</option>
 
-                    <datalist id="campus-locality-options">
-                        @foreach ($localityOptions as $locality)
-                            <option value="{{ $locality }}"></option>
+                        @foreach ($localityOptions as $group => $options)
+                            <optgroup label="{{ $group }}">
+                                @foreach ($options as $localityId => $locality)
+                                    <option
+                                        value="{{ $localityId }}"
+                                        @selected(
+                                            (string) old('locality_id')
+                                            === (string) $localityId
+                                        )
+                                    >
+                                        {{ $locality }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
-                    </datalist>
+                    </select>
                 </div>
 
                 <div class="md:col-span-2">
@@ -677,13 +685,28 @@
                                 Locality
                             </label>
 
-                            <input
-                                type="text"
-                                name="locality"
-                                value="{{ $activity->locality }}"
-                                list="campus-locality-options"
+                            <select
+                                name="locality_id"
                                 class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950"
                             >
+                                <option value="">Not specified</option>
+
+                                @foreach ($localityOptions as $group => $options)
+                                    <optgroup label="{{ $group }}">
+                                        @foreach ($options as $localityId => $locality)
+                                            <option
+                                                value="{{ $localityId }}"
+                                                @selected(
+                                                    (int) $activity->locality_id
+                                                    === (int) $localityId
+                                                )
+                                            >
+                                                {{ $locality }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="md:col-span-2">

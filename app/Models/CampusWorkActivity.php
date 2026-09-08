@@ -29,6 +29,7 @@ class CampusWorkActivity extends Model
         'school_campus',
         'venue',
         'locality',
+        'locality_id',
         'description',
     ];
 
@@ -47,6 +48,33 @@ class CampusWorkActivity extends Model
             self::TYPE_BIBLE_PURSUIT => self::TYPE_BIBLE_PURSUIT,
             self::TYPE_OTHER_ACTIVITY => self::TYPE_OTHER_ACTIVITY,
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (CampusWorkActivity $activity): void {
+            if (blank($activity->locality_id)) {
+                $activity->locality = null;
+
+                return;
+            }
+
+            $locality = Locality::query()->find(
+                $activity->locality_id
+            );
+
+            if ($locality) {
+                $activity->locality = $locality->name;
+            }
+        });
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(
+            Locality::class,
+            'locality_id'
+        );
     }
 
     public function term(): BelongsTo

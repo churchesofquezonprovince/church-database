@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Filament\Pages\CampusActivities;
 use App\Models\CampusWorkActivity;
+use App\Support\LocalityOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CampusWorkActivityController extends Controller
 {
@@ -115,10 +117,10 @@ class CampusWorkActivityController extends Controller
                 'max:255',
             ],
 
-            'locality' => [
+            'locality_id' => [
                 'nullable',
-                'string',
-                'max:150',
+                'integer',
+                'exists:localities,id',
             ],
 
             'description' => [
@@ -132,6 +134,21 @@ class CampusWorkActivityController extends Controller
     private function normalizedData(array $data): array
     {
         $activityType = $data['activity_type'];
+
+        $locality = null;
+
+        if (filled($data['locality_id'] ?? null)) {
+            $locality = LocalityOptions::activeConfiguredLocality(
+                (int) $data['locality_id']
+            );
+
+            if (! $locality) {
+                throw ValidationException::withMessages([
+                    'locality_id' =>
+                        'Select an active configured Locality.',
+                ]);
+            }
+        }
 
         return [
             'campus_work_term_id' => $data['campus_work_term_id'] ?? null,
@@ -157,7 +174,9 @@ class CampusWorkActivityController extends Controller
 
             'venue' => $this->nullIfBlank($data['venue'] ?? null),
 
-            'locality' => $this->nullIfBlank($data['locality'] ?? null),
+            'locality_id' => $locality?->id,
+
+            'locality' => $locality?->name,
 
             'description' => $this->nullIfBlank(
                 $data['description'] ?? null
