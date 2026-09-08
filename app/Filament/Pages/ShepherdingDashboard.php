@@ -3,20 +3,35 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\People\PersonResource;
+use App\Models\CampusContact;
+use App\Models\GospelContact;
+use App\Models\Household;
 use App\Models\Person;
+use App\Models\ShepherdingActivityType;
+use App\Models\ShepherdingContact;
 use App\Support\LocalityOptions;
+use App\Support\ShepherdingHistoryQuery;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 
 class ShepherdingDashboard extends Page
 {
-    protected string $view = 'filament.pages.shepherding-dashboard';
+    protected string $view =
+        'filament.pages.shepherding-dashboard';
 
     public ?string $locality = null;
 
     public array $localities = [];
 
-    public array $stats = [];
+    public array $operationalStats = [];
+
+    public array $peopleStats = [];
+
+    public array $recentShepherding = [];
+
+    public array $activitySummary = [];
+
+    public array $localitySummary = [];
 
     public array $peopleWithoutShepherd = [];
 
@@ -32,9 +47,10 @@ class ShepherdingDashboard extends Page
 
     public function mount(): void
     {
-        $this->localities = LocalityOptions::primaryProvinceNamesWithPeople()
-            ->values()
-            ->all();
+        $this->localities =
+            LocalityOptions::primaryProvinceNamesWithPeople()
+                ->values()
+                ->all();
 
         $this->loadDashboard();
     }
@@ -59,6 +75,11 @@ class ShepherdingDashboard extends Page
         return 'heroicon-o-heart';
     }
 
+    public static function getNavigationSort(): ?int
+    {
+        return 1;
+    }
+
     public function updatedLocality(): void
     {
         $this->loadDashboard();
@@ -66,199 +87,750 @@ class ShepherdingDashboard extends Page
 
     public function loadDashboard(): void
     {
-        $baseQuery = $this->basePeopleQuery();
+        $localityId =
+            $this->selectedLocalityId();
 
+        $monthStart =
+            now()
+                ->startOfMonth()
+                ->toDateString();
 
-$this->stats = [
-    'total' => [
-        'label' => 'Total People',
-        'count' => (clone $baseQuery)->count(),
-        'url' => $this->peopleTableUrl(),
-    ],
+        $monthEnd =
+            now()
+                ->endOfMonth()
+                ->toDateString();
 
-    'active' => [
-        'label' => 'Active',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Active'))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'church_status' => 'Active',
-        ]),
-    ],
+        /*
+         * -----------------------------------------------------
+         * Shepherding history for the selected month/locality.
+         * -----------------------------------------------------
+         */
 
-    'new_ones' => [
-        'label' => 'New Ones',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'New One'))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'church_status' => 'New One',
-        ]),
-    ],
+        $monthHistory =
+            ShepherdingHistoryQuery::make()
+                ->from($monthStart)
+                ->to($monthEnd);
 
-    'gospel_friends' => [
-        'label' => 'Gospel Friends',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Gospel Friend'))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'church_status' => 'Gospel Friend',
-        ]),
-    ],
+        if ($localityId !== null) {
+            $monthHistory->locality(
+                $localityId
+            );
+        }
 
-    'dormant' => [
-        'label' => 'Dormant',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Dormant'))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'church_status' => 'Dormant',
-        ]),
-    ],
+        $monthRows =
+            $monthHistory->shepherdingRows();
 
-    'without_shepherd' => [
-        'label' => 'No Shepherd',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'shepherd_status' => 'without_shepherd',
-        ]),
-    ],
+        /*
+         * -----------------------------------------------------
+         * Recent Shepherding Records.
+         * -----------------------------------------------------
+         */
 
-    'without_service' => [
-        'label' => 'No Shepherding Group',
-        'count' => (clone $baseQuery)
-            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
-            ->count(),
-        'url' => $this->peopleTableUrl([
-            'shepherding_group' => '__none',
-        ]),
-    ],
-];
+        $recentHistory =
+            ShepherdingHistoryQuery::make()
+                ->limit(8);
 
+        if ($localityId !== null) {
+            $recentHistory->locality(
+                $localityId
+            );
+        }
 
-$this->listUrls = [
-    'without_shepherd' => $this->peopleTableUrl([
-        'shepherd_status' => 'without_shepherd',
-    ]),
+        $this->recentShepherding =
+            $recentHistory
+                ->shepherdingRows()
+                ->all();
 
-    'dormant' => $this->peopleTableUrl([
-        'church_status' => 'Dormant',
-    ]),
+        /*
+         * -----------------------------------------------------
+         * Activity summary.
+         * -----------------------------------------------------
+         */
 
-    'new_ones' => $this->peopleTableUrl([
-        'church_status' => 'New One',
-    ]),
+        $activityCounts =
+            $monthRows
+                ->flatMap(
+                    fn (array $row): array =>
+                        $row['activity_codes']
+                )
+                ->countBy();
 
-    'gospel_friends' => $this->peopleTableUrl([
-        'church_status' => 'Gospel Friend',
-    ]),
+        $this->activitySummary =
+            ShepherdingActivityType::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('code')
+                ->get()
+                ->map(
+                    fn (
+                        ShepherdingActivityType $type
+                    ): array => [
+                        'code' =>
+                            $type->code,
 
-    'without_service' => $this->peopleTableUrl([
-        'shepherding_group' => '__none',
-    ]),
-];
+                        'name' =>
+                            $type->name,
 
-        $this->peopleWithoutShepherd = $this->peopleQuery()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('shepherd_id'))
-            ->limit(10)
-            ->get()
-            ->map(fn (Person $person) => $this->personRow($person))
-            ->all();
+                        'count' =>
+                            (int) (
+                                $activityCounts[
+                                    $type->code
+                                ]
+                                ?? 0
+                            ),
+                    ]
+                )
+                ->all();
 
-        $this->dormantPeople = $this->peopleQuery()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Dormant'))
-            ->limit(10)
-            ->get()
-            ->map(fn (Person $person) => $this->personRow($person))
-            ->all();
+        /*
+         * -----------------------------------------------------
+         * Locality activity summary.
+         * -----------------------------------------------------
+         */
 
-        $this->newOnes = $this->peopleQuery()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'New One'))
-            ->limit(10)
-            ->get()
-            ->map(fn (Person $person) => $this->personRow($person))
-            ->all();
+        $this->localitySummary =
+            ShepherdingContact::query()
+                ->with('locality')
+                ->whereBetween(
+                    'contact_date',
+                    [
+                        $monthStart,
+                        $monthEnd,
+                    ]
+                )
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                )
+                ->select('locality_id')
+                ->selectRaw(
+                    'COUNT(*) as total'
+                )
+                ->groupBy('locality_id')
+                ->orderByDesc('total')
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (
+                        ShepherdingContact $record
+                    ): array => [
+                        'locality' =>
+                            $record
+                                ->locality
+                                ?->name
+                                ?? 'No Locality',
 
-        $this->gospelFriends = $this->peopleQuery()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('status', 'Gospel Friend'))
-            ->limit(10)
-            ->get()
-            ->map(fn (Person $person) => $this->personRow($person))
-            ->all();
+                        'count' =>
+                            (int)
+                            $record->total,
+                    ]
+                )
+                ->all();
 
-        $this->peopleWithoutService = $this->peopleQuery()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
-            ->limit(10)
-            ->get()
-            ->map(fn (Person $person) => $this->personRow($person))
-            ->all();
+        /*
+         * -----------------------------------------------------
+         * Operational overview.
+         * -----------------------------------------------------
+         */
+
+        $gospelQuery =
+            GospelContact::query()
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                );
+
+        $campusQuery =
+            CampusContact::query()
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                );
+
+        $householdQuery =
+            Household::query()
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                );
+
+        $peopleQuery =
+            $this->basePeopleQuery();
+
+        $followUpOutcomes =
+            ShepherdingContact::query()
+                ->whereBetween(
+                    'contact_date',
+                    [
+                        $monthStart,
+                        $monthEnd,
+                    ]
+                )
+                ->whereIn(
+                    'outcome',
+                    [
+                        ShepherdingContact::OUTCOME_UNAVAILABLE,
+                        ShepherdingContact::OUTCOME_RESCHEDULE,
+                        ShepherdingContact::OUTCOME_DECLINED,
+                    ]
+                )
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                )
+                ->count();
+
+        $this->operationalStats = [
+            'records_this_month' => [
+                'label' =>
+                    'Records This Month',
+
+                'count' =>
+                    $monthRows->count(),
+
+                'url' =>
+                    ShepherdingContacts::getUrl(),
+            ],
+
+            'follow_up_outcomes' => [
+                'label' =>
+                    'Follow-up Outcomes',
+
+                'count' =>
+                    $followUpOutcomes,
+
+                'url' =>
+                    ShepherdingContacts::getUrl(),
+            ],
+
+            'gospel_contacts' => [
+                'label' =>
+                    'Gospel Contacts',
+
+                'count' =>
+                    (clone $gospelQuery)
+                        ->count(),
+
+                'url' =>
+                    GospelContacts::getUrl(),
+            ],
+
+            'unlinked_gospel' => [
+                'label' =>
+                    'Unlinked Gospel',
+
+                'count' =>
+                    (clone $gospelQuery)
+                        ->whereNull('person_id')
+                        ->count(),
+
+                'url' =>
+                    GospelContacts::getUrl(),
+            ],
+
+            'campus_contacts' => [
+                'label' =>
+                    'Campus Contacts',
+
+                'count' =>
+                    (clone $campusQuery)
+                        ->count(),
+
+                'url' =>
+                    null,
+            ],
+
+            'unlinked_campus' => [
+                'label' =>
+                    'Unlinked Campus',
+
+                'count' =>
+                    (clone $campusQuery)
+                        ->whereNull('person_id')
+                        ->count(),
+
+                'url' =>
+                    null,
+            ],
+
+            'households' => [
+                'label' =>
+                    'Households',
+
+                'count' =>
+                    (clone $householdQuery)
+                        ->count(),
+
+                'url' =>
+                    null,
+            ],
+
+            'people' => [
+                'label' =>
+                    'People',
+
+                'count' =>
+                    (clone $peopleQuery)
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl(),
+            ],
+        ];
+
+        /*
+         * -----------------------------------------------------
+         * Existing People shepherding needs.
+         * -----------------------------------------------------
+         */
+
+        $this->peopleStats = [
+            'active' => [
+                'label' => 'Active',
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query->where(
+                                    'status',
+                                    'Active'
+                                )
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'church_status' =>
+                            'Active',
+                    ]),
+            ],
+
+            'new_ones' => [
+                'label' => 'New Ones',
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query->where(
+                                    'status',
+                                    'New One'
+                                )
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'church_status' =>
+                            'New One',
+                    ]),
+            ],
+
+            'gospel_friends' => [
+                'label' =>
+                    'Gospel Friends',
+
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query->where(
+                                    'status',
+                                    'Gospel Friend'
+                                )
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'church_status' =>
+                            'Gospel Friend',
+                    ]),
+            ],
+
+            'dormant' => [
+                'label' =>
+                    'Dormant',
+
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query->where(
+                                    'status',
+                                    'Dormant'
+                                )
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'church_status' =>
+                            'Dormant',
+                    ]),
+            ],
+
+            'without_shepherd' => [
+                'label' =>
+                    'No Shepherd',
+
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query->whereNull(
+                                    'shepherd_id'
+                                )
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'shepherd_status' =>
+                            'without_shepherd',
+                    ]),
+            ],
+
+            'without_service' => [
+                'label' =>
+                    'No Shepherding Group',
+
+                'count' =>
+                    (clone $peopleQuery)
+                        ->whereHas(
+                            'churchProfile',
+                            fn (Builder $query) =>
+                                $query
+                                    ->whereNull(
+                                        'service'
+                                    )
+                                    ->orWhere(
+                                        'service',
+                                        ''
+                                    )
+                                    ->orWhere('service', '[]')
+                        )
+                        ->count(),
+
+                'url' =>
+                    $this->peopleTableUrl([
+                        'shepherding_group' =>
+                            '__none',
+                    ]),
+            ],
+        ];
+
+        $this->listUrls = [
+            'without_shepherd' =>
+                $this->peopleTableUrl([
+                    'shepherd_status' =>
+                        'without_shepherd',
+                ]),
+
+            'dormant' =>
+                $this->peopleTableUrl([
+                    'church_status' =>
+                        'Dormant',
+                ]),
+
+            'new_ones' =>
+                $this->peopleTableUrl([
+                    'church_status' =>
+                        'New One',
+                ]),
+
+            'gospel_friends' =>
+                $this->peopleTableUrl([
+                    'church_status' =>
+                        'Gospel Friend',
+                ]),
+
+            'without_service' =>
+                $this->peopleTableUrl([
+                    'shepherding_group' =>
+                        '__none',
+                ]),
+        ];
+
+        $this->peopleWithoutShepherd =
+            $this->peopleQuery()
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query->whereNull(
+                            'shepherd_id'
+                        )
+                )
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (Person $person) =>
+                        $this->personRow(
+                            $person
+                        )
+                )
+                ->all();
+
+        $this->dormantPeople =
+            $this->peopleQuery()
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query->where(
+                            'status',
+                            'Dormant'
+                        )
+                )
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (Person $person) =>
+                        $this->personRow(
+                            $person
+                        )
+                )
+                ->all();
+
+        $this->newOnes =
+            $this->peopleQuery()
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query->where(
+                            'status',
+                            'New One'
+                        )
+                )
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (Person $person) =>
+                        $this->personRow(
+                            $person
+                        )
+                )
+                ->all();
+
+        $this->gospelFriends =
+            $this->peopleQuery()
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query->where(
+                            'status',
+                            'Gospel Friend'
+                        )
+                )
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (Person $person) =>
+                        $this->personRow(
+                            $person
+                        )
+                )
+                ->all();
+
+        $this->peopleWithoutService =
+            $this->peopleQuery()
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query
+                            ->whereNull(
+                                'service'
+                            )
+                            ->orWhere(
+                                'service',
+                                ''
+                            )
+                                    ->orWhere('service', '[]')
+                )
+                ->limit(10)
+                ->get()
+                ->map(
+                    fn (Person $person) =>
+                        $this->personRow(
+                            $person
+                        )
+                )
+                ->all();
+    }
+
+    private function selectedLocalityId(): ?int
+    {
+        if (blank($this->locality)) {
+            return null;
+        }
+
+        $locality =
+            LocalityOptions::primaryProvinceLocality(
+                $this->locality
+            );
+
+        return $locality
+            ? (int) $locality->id
+            : 0;
     }
 
     private function basePeopleQuery(): Builder
     {
+        $localityId =
+            $this->selectedLocalityId();
+
         return Person::query()
             ->when(
-                filled($this->locality),
-                fn (Builder $query) => $query->where(
-                    'locality_id',
-                    LocalityOptions::primaryProvinceLocality(
-                        $this->locality
-                    )?->id ?? 0
-                )
+                $localityId !== null,
+                fn (Builder $query) =>
+                    $query->where(
+                        'locality_id',
+                        $localityId
+                    )
             );
     }
 
     private function peopleQuery(): Builder
     {
-        return $this->basePeopleQuery()
-            ->with(['churchProfile.shepherd', 'household'])
+        return $this
+            ->basePeopleQuery()
+            ->with([
+                'churchProfile.shepherd',
+                'household',
+            ])
             ->orderBy('lastname')
             ->orderBy('firstname');
     }
 
-    private function personRow(Person $person): array
-    {
+    private function personRow(
+        Person $person
+    ): array {
         return [
-            'id' => $person->id,
-            'name' => $person->display_name,
-            'category' => $person->churchProfile?->category ?? 'Unknown',
-            'status' => $person->churchProfile?->status ?? 'Unknown',
-            'service' => $person->churchProfile?->service ?? 'None recorded',
-            'shepherd' => $person->churchProfile?->shepherd?->display_name ?? 'None recorded',
-            'locality' => $person->locality ?? 'None recorded',
-            'url' => PersonResource::getUrl('view', [
-                'record' => $person->id,
-            ]),
+            'id' =>
+                $person->id,
+
+            'name' =>
+                $person->display_name,
+
+            'category' =>
+                $person
+                    ->churchProfile
+                    ?->category
+                ?? 'Unknown',
+
+            'status' =>
+                $person
+                    ->churchProfile
+                    ?->status
+                ?? 'Unknown',
+
+            'service' =>
+                $this->serviceLabel(
+                    $person
+                        ->churchProfile
+                        ?->service
+                ),
+
+            'shepherd' =>
+                $person
+                    ->churchProfile
+                    ?->shepherd
+                    ?->display_name
+                ?? 'None recorded',
+
+            'locality' =>
+                $person->locality
+                ?? 'None recorded',
+
+            'url' =>
+                PersonResource::getUrl(
+                    'view',
+                    [
+                        'record' =>
+                            $person->id,
+                    ]
+                ),
         ];
     }
 
+    private function serviceLabel(
+        mixed $service
+    ): string {
+        if (is_array($service)) {
+            $values = collect($service)
+                ->flatten()
+                ->filter(
+                    fn ($value): bool =>
+                        filled($value)
+                )
+                ->map(
+                    fn ($value): string =>
+                        (string) $value
+                )
+                ->values();
 
-    private function peopleTableUrl(array $filters = []): string
-{
-    $queryFilters = [];
+            return $values->isNotEmpty()
+                ? $values->join(', ')
+                : 'None recorded';
+        }
 
-    if (filled($this->locality)) {
-        $queryFilters['locality'] = [
-            'value' => $this->locality,
-        ];
+        return filled($service)
+            ? (string) $service
+            : 'None recorded';
     }
 
-    foreach ($filters as $filter => $value) {
-        $queryFilters[$filter] = [
-            'value' => (string) $value,
-        ];
-    }
+    private function peopleTableUrl(
+        array $filters = []
+    ): string {
+        $queryFilters = [];
 
-    return PersonResource::getUrl('index') . '?' . http_build_query([
-        'filters' => $queryFilters,
-    ]);
-}
+        if (filled($this->locality)) {
+            $queryFilters['locality'] = [
+                'value' =>
+                    $this->locality,
+            ];
+        }
 
+        foreach (
+            $filters
+            as $filter => $value
+        ) {
+            $queryFilters[$filter] = [
+                'value' =>
+                    (string) $value,
+            ];
+        }
 
-    public static function getNavigationSort(): ?int
-    {
-        return 1;
+        return PersonResource::getUrl(
+            'index'
+        )
+            . '?'
+            . http_build_query([
+                'filters' =>
+                    $queryFilters,
+            ]);
     }
 }

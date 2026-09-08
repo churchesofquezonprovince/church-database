@@ -173,12 +173,26 @@ class Reports extends Page
     {
         if ($group === '__none') {
             return Person::query()
-                ->whereHas('churchProfile', fn (Builder $query) => $query->whereNull('service')->orWhere('service', ''))
+                ->whereHas(
+                    'churchProfile',
+                    fn (Builder $query) =>
+                        $query
+                            ->whereNull('service')
+                            ->orWhere('service', '')
+                            ->orWhere('service', '[]')
+                )
                 ->count();
         }
 
         return Person::query()
-            ->whereHas('churchProfile', fn (Builder $query) => $query->where('service', $group))
+            ->whereHas(
+                'churchProfile',
+                fn (Builder $query) =>
+                    $query->whereJsonContains(
+                        'service',
+                        $group
+                    )
+            )
             ->count();
     }
 

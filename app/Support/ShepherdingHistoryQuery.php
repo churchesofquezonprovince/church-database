@@ -293,6 +293,15 @@ class ShepherdingHistoryQuery
      * ---------------------------------------------------------
      */
 
+    public function limit(int $limit): self
+    {
+        $this->query->limit(
+            max(1, $limit)
+        );
+
+        return $this;
+    }
+
     public function query(): Builder
     {
         return clone $this->query;

@@ -353,12 +353,16 @@ class PeopleTable
                         if ($value === '__none') {
                             return $query->whereHas('churchProfile', function (Builder $query): void {
                                 $query->whereNull('service')
-                                    ->orWhere('service', '');
+                                    ->orWhere('service', '')
+                                    ->orWhere('service', '[]');
                             });
                         }
 
                         return $query->whereHas('churchProfile', function (Builder $query) use ($value): void {
-                            $query->where('service', $value);
+                            $query->whereJsonContains(
+                                'service',
+                                $value
+                            );
                         });
                     }),
 
