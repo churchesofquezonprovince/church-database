@@ -60,6 +60,10 @@
                     ⏱️ {{ $this->getTotalCodingTime() }}
                 </span>
 
+                <span class="rounded-full bg-white px-3 py-1 font-semibold text-gray-700 ring-1 ring-primary-200 dark:bg-gray-900 dark:text-gray-200 dark:ring-primary-900">
+                    🧮 {{ $this->getTotalLinesOfCode() }}
+                </span>
+
             </div>
         </div>
 

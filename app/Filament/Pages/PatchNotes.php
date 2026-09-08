@@ -439,4 +439,83 @@ class PatchNotes extends Page
 
         return $totalHours . ' hrs Coded';
     }
+
+    public function getTotalLinesOfCode(): string
+    {
+        $command = 'git -C '
+            . escapeshellarg(base_path())
+            . ' ls-files -z 2>/dev/null';
+
+        $output = shell_exec($command);
+
+        if (! is_string($output) || $output === '') {
+            return '0 Lines of Code';
+        }
+
+        $extensions = [
+            'php',
+            'js',
+            'jsx',
+            'ts',
+            'tsx',
+            'css',
+            'scss',
+            'vue',
+            'html',
+        ];
+
+        $files = collect(
+            explode("\0", $output)
+        )
+            ->filter()
+            ->filter(function (string $file) use (
+                $extensions
+            ): bool {
+                $extension = strtolower(
+                    pathinfo(
+                        $file,
+                        PATHINFO_EXTENSION
+                    )
+                );
+
+                return in_array(
+                    $extension,
+                    $extensions,
+                    true
+                );
+            });
+
+        $totalLines = $files->sum(
+            function (string $file): int {
+                $path = base_path($file);
+
+                if (
+                    ! is_file($path)
+                    || ! is_readable($path)
+                ) {
+                    return 0;
+                }
+
+                $handle = fopen($path, 'rb');
+
+                if ($handle === false) {
+                    return 0;
+                }
+
+                $lines = 0;
+
+                while (fgets($handle) !== false) {
+                    $lines++;
+                }
+
+                fclose($handle);
+
+                return $lines;
+            }
+        );
+
+        return number_format($totalLines)
+            . ' Lines of Code';
+    }
+
 }
