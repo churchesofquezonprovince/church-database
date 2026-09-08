@@ -895,9 +895,6 @@ class CampusContactController extends Controller
             'school_id' =>
                 $school?->id,
 
-            'school_campus' =>
-                $school?->name,
-
             'course_strand' =>
                 $this->nullIfBlank(
                     $data['course_strand'] ?? null

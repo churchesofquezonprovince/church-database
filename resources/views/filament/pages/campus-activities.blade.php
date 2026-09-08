@@ -122,7 +122,7 @@
                         type="text"
                         name="title"
                         value="{{ old('title') }}"
-                        placeholder="Example: SLSU Bible Pursuit with Students"
+                        placeholder="Example: Campus Bible Pursuit with Students"
                         class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
                     >
                 </div>
@@ -402,7 +402,7 @@
 
                             <p>
                                 <strong>School:</strong>
-                                {{ $activity->school?->name ?: $activity->school_campus ?: 'Not specified' }}
+                                {{ $activity->school?->name ?: 'Not specified' }}
                             </p>
 
                             <p>
@@ -481,7 +481,7 @@
                                 </td>
 
                                 <td class="max-w-[240px] break-words px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ $activity->school?->name ?: $activity->school_campus ?: 'Not specified' }}
+                                    {{ $activity->school?->name ?: 'Not specified' }}
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">

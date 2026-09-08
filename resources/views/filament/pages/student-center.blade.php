@@ -78,7 +78,7 @@
 
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
-                        <label for="school_campus" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                        <label for="school_id" class="block text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                             School
                         </label>
 
@@ -274,7 +274,7 @@
                                 </h3>
 
                                 <p class="mt-2 break-words text-sm text-gray-600 dark:text-gray-300">
-                                    {{ $center->school_campus ?: 'School not recorded' }}
+                                    {{ $center->school?->name ?: 'School not recorded' }}
                                     · {{ $center->locality ?: 'Locality not recorded' }}
                                 </p>
 
@@ -443,7 +443,7 @@
                                                 </p>
 
                                                 <p class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
-                                                    {{ $this->contactField($contact, 'school_campus') ?: 'School not recorded' }}
+                                                    {{ $this->contactSchoolName($contact) ?: 'School not recorded' }}
                                                     · {{ $this->contactField($contact, 'locality') ?: 'Locality not recorded' }}
                                                 </p>
 
@@ -555,7 +555,7 @@
                                                     </span>
 
                                                     <span class="mt-1 block break-words text-xs text-gray-500 dark:text-gray-400">
-                                                        {{ $this->contactField($contact, 'school_campus') ?: 'School not recorded' }}
+                                                        {{ $this->contactSchoolName($contact) ?: 'School not recorded' }}
                                                         · {{ $this->contactField($contact, 'locality') ?: 'Locality not recorded' }}
                                                     </span>
 

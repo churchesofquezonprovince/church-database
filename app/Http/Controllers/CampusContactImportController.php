@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CampusContact;
 use App\Models\Locality;
+use App\Models\School;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -114,6 +115,26 @@ class CampusContactImportController extends Controller
                 $locality = $localityMatches->first();
             }
 
+            $school = null;
+            $schoolName = $this->nullable(
+                $row['school_campus'] ?? null
+            );
+
+            if ($schoolName !== null) {
+                $schoolMatches = $this->matchingSchools(
+                    $schoolName
+                );
+
+                if ($schoolMatches->count() !== 1) {
+                    throw new \RuntimeException(
+                        'Validated Campus Contact School '
+                        . 'could not be resolved uniquely.'
+                    );
+                }
+
+                $school = $schoolMatches->first();
+            }
+
             CampusContact::query()->create([
                 'firstname' => $this->nullable(
                     $row['firstname'] ?? null
@@ -131,9 +152,7 @@ class CampusContactImportController extends Controller
 
                 'locality' => $locality?->name,
 
-                'school_campus' => $this->nullable(
-                    $row['school_campus'] ?? null
-                ),
+                'school_id' => $school?->id,
 
                 'course_strand' => $this->nullable(
                     $row['course_strand'] ?? null
@@ -193,8 +212,13 @@ class CampusContactImportController extends Controller
     {
         abort_unless(auth()->user()?->canImportRecords(), 403);
 
+        $exampleSchool = School::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->value('name') ?? '';
+
         return response()->streamDownload(
-            function (): void {
+            function () use ($exampleSchool): void {
                 $output = fopen('php://output', 'w');
 
                 if ($output === false) {
@@ -210,7 +234,7 @@ class CampusContactImportController extends Controller
                     'Santos',
                     'Male',
                     'Lucban',
-                    'Southern Luzon State University',
+                    $exampleSchool,
                     'BSECE',
                     '3rd Year',
                     '09171234567',
@@ -407,6 +431,45 @@ class CampusContactImportController extends Controller
                 }
             }
 
+            $schoolName = trim(
+                (string) ($row['school_campus'] ?? '')
+            );
+
+            if ($schoolName !== '') {
+                $schoolMatches = $this->matchingSchools(
+                    $schoolName
+                );
+
+                if ($schoolMatches->isEmpty()) {
+                    $errors[] =
+                        "Line {$line}: school_campus '{$schoolName}' "
+                        . 'is not configured. Add it in School '
+                        . 'Setup before importing.';
+                } elseif ($schoolMatches->count() > 1) {
+                    $matches = $schoolMatches
+                        ->map(function (School $school): string {
+                            $location = collect([
+                                $school->city_municipality,
+                                $school->province?->name,
+                            ])
+                                ->filter()
+                                ->implode(', ');
+
+                            return $school->name
+                                . (
+                                    $location !== ''
+                                        ? " — {$location}"
+                                        : ''
+                                );
+                        })
+                        ->implode(', ');
+
+                    $errors[] =
+                        "Line {$line}: school_campus '{$schoolName}' "
+                        . "is ambiguous. Configured matches: {$matches}.";
+                }
+            }
+
             $maximumLengths = [
                 'firstname' => 100,
                 'lastname' => 100,
@@ -436,6 +499,33 @@ class CampusContactImportController extends Controller
         }
 
         return $errors;
+    }
+
+    private function matchingSchools(string $name)
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return collect();
+        }
+
+        $nameKey = mb_strtolower($name);
+
+        return School::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->where(function ($query) use ($nameKey): void {
+                $query
+                    ->whereRaw(
+                        'LOWER(name) = ?',
+                        [$nameKey]
+                    )
+                    ->orWhereRaw(
+                        'LOWER(short_name) = ?',
+                        [$nameKey]
+                    );
+            })
+            ->get();
     }
 
     private function matchingLocalities(string $name)

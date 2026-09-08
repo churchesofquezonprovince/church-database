@@ -60,14 +60,22 @@ class StudentCenter extends Page
 
         return CampusWorkStudentCenter::query()
             ->with([
-                'members.contact',
+                'school',
+                'members.contact.school',
             ])
             ->withCount('members')
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('name', 'like', "%{$search}%")
-                        ->orWhere('school_campus', 'like', "%{$search}%")
+                        ->orWhereHas(
+                            'school',
+                            function ($schoolQuery) use ($search): void {
+                                $schoolQuery
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere('short_name', 'like', "%{$search}%");
+                            }
+                        )
                         ->orWhere('locality', 'like', "%{$search}%")
                         ->orWhere('place', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%");
@@ -79,7 +87,15 @@ class StudentCenter extends Page
             )
             ->when($localityId > 0, fn ($query) => $query->where('locality_id', $localityId))
             ->orderBy('locality')
-            ->orderBy('school_campus')
+            ->orderBy(
+                School::query()
+                    ->select('name')
+                    ->whereColumn(
+                        'schools.id',
+                        'campus_work_student_centers.school_id'
+                    )
+                    ->limit(1)
+            )
             ->orderBy('name')
             ->get();
     }
@@ -116,8 +132,17 @@ class StudentCenter extends Page
             ->all();
 
         return CampusContact::query()
+            ->with('school')
             ->whereNotIn('id', $addedContactIds)
-            ->orderBy('school_campus')
+            ->orderBy(
+                School::query()
+                    ->select('name')
+                    ->whereColumn(
+                        'schools.id',
+                        'campus_contacts.school_id'
+                    )
+                    ->limit(1)
+            )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->limit(300)
@@ -149,11 +174,17 @@ class StudentCenter extends Page
         return data_get($contact, $effectiveField) ?: data_get($contact, $field);
     }
 
+    public function contactSchoolName(
+        ?CampusContact $contact
+    ): ?string {
+        return $contact?->school?->name;
+    }
+
     public function contactSearchText(CampusContact $contact): string
     {
         return Str::lower(collect([
             $this->contactName($contact),
-            $this->contactField($contact, 'school_campus'),
+            $this->contactSchoolName($contact),
             $this->contactField($contact, 'locality'),
             $this->contactField($contact, 'course_strand'),
             $this->contactField($contact, 'grade_level'),

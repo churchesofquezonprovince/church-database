@@ -16,7 +16,6 @@ use HasFactory;
         'grade_level',
         'course_strand',
         'occupation',
-        'school_workplace',
         'school_id',
         'workplace',
     ];
@@ -24,16 +23,18 @@ use HasFactory;
     protected static function booted(): void
     {
         static::saving(function (EducationProfile $profile): void {
-            if (filled($profile->school_id)) {
-                $school = School::query()->find(
-                    $profile->school_id
-                );
-
-                if ($school) {
-                    $profile->school_workplace = $school->name;
-                }
-            } elseif ($profile->isDirty('school_id')) {
+            if (blank($profile->school_id)) {
                 $profile->school_workplace = null;
+
+                return;
+            }
+
+            $school = School::query()->find(
+                $profile->school_id
+            );
+
+            if ($school) {
+                $profile->school_workplace = $school->name;
             }
         });
     }

@@ -26,7 +26,6 @@ class CampusWorkActivity extends Model
         'activity_date',
         'start_time',
         'end_time',
-        'school_campus',
         'school_id',
         'venue',
         'locality',

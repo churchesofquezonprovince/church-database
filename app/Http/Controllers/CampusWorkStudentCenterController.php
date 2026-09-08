@@ -138,7 +138,6 @@ class CampusWorkStudentCenterController extends Controller
         }
 
         $validated['school_id'] = $school?->id;
-        $validated['school_campus'] = $school?->name;
         $validated['locality'] = $locality->name;
         $validated['name'] = 'Student Center - ' . $locality->name;
 

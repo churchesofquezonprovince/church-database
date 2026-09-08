@@ -187,8 +187,6 @@ class CampusWorkActivityController extends Controller
 
             'school_id' => $school?->id,
 
-            'school_campus' => $school?->name,
-
             'venue' => $this->nullIfBlank($data['venue'] ?? null),
 
             'locality_id' => $locality?->id,

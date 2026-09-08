@@ -1652,8 +1652,11 @@ public function createPersonFromCampus(
             'locality' =>
                 $contact->locality,
 
-            'school_campus' =>
-                $contact->school_campus,
+            'school_id' =>
+                $contact->school_id,
+
+            'school' =>
+                $contact->school?->name,
 
             'course_strand' =>
                 $contact->course_strand,

@@ -10,7 +10,6 @@ class CampusWorkStudentCenter extends Model
 {
     protected $fillable = [
         'name',
-        'school_campus',
         'school_id',
         'locality',
         'locality_id',

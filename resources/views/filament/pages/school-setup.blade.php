@@ -190,7 +190,7 @@
                     <textarea
                         wire:model="massSchools"
                         rows="14"
-                        placeholder="SLSU — Southern Luzon State University — Lucban, Quezon"
+                        placeholder="ABC — Example University — Example City, Example Province"
                         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-mono text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                     ></textarea>
 

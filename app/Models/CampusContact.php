@@ -18,7 +18,6 @@ class CampusContact extends Model
         'sex',
         'locality',
         'locality_id',
-        'school_campus',
         'school_id',
         'course_strand',
         'grade_level',
@@ -151,8 +150,7 @@ class CampusContact extends Model
     {
         return Attribute::make(
             get: fn (): ?string =>
-                $this->school?->name
-                    ?: $this->school_campus,
+                $this->school?->name,
         );
     }
 
