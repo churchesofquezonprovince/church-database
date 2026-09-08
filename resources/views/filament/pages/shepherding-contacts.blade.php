@@ -1,51 +1,4 @@
 <x-filament-panels::page>
-    @if (
-        $historyMode === 'follow-up'
-        || filled($historyFrom)
-        || filled($historyTo)
-    )
-        <div
-            class="mb-6 flex flex-col gap-3 rounded-2xl
-                   border border-amber-200 bg-amber-50 p-4
-                   text-amber-900 shadow-sm
-                   dark:border-amber-900 dark:bg-amber-950
-                   dark:text-amber-100
-                   sm:flex-row sm:items-center sm:justify-between"
-        >
-            <div>
-                <p class="font-semibold">
-                    Dashboard history filter active
-                </p>
-
-                <p class="mt-1 text-sm">
-                    @if ($historyMode === 'follow-up')
-                        Showing follow-up outcomes:
-                        Out / Unavailable, Reschedule, and Declined.
-                    @else
-                        Showing Shepherding Records from the dashboard.
-                    @endif
-
-                    @if (filled($historyFrom) || filled($historyTo))
-                        Date range:
-                        {{ filled($historyFrom) ? $historyFrom : 'Beginning' }}
-                        →
-                        {{ filled($historyTo) ? $historyTo : 'Today' }}.
-                    @endif
-                </p>
-            </div>
-
-            <a
-                href="{{ \App\Filament\Pages\ShepherdingContacts::getUrl() }}"
-                class="shrink-0 rounded-xl border border-amber-300
-                       bg-white px-4 py-2 text-sm font-semibold
-                       text-amber-800 hover:bg-amber-100
-                       dark:border-amber-800 dark:bg-gray-950
-                       dark:text-amber-200 dark:hover:bg-gray-900"
-            >
-                Clear dashboard filter
-            </a>
-        </div>
-    @endif
     @php
         $people = $this->people();
 
@@ -1321,8 +1274,8 @@
         >
             <div
                 class="flex flex-col gap-3
-                       lg:flex-row lg:items-end
-                       lg:justify-between"
+                       sm:flex-row sm:items-start
+                       sm:justify-between"
             >
                 <div>
                     <h3
@@ -1338,69 +1291,20 @@
                                text-gray-500
                                dark:text-gray-400"
                     >
-                        Most recent 50 Shepherding
-                        Contact records.
+                        Most recent 10 Shepherding Contact records.
                     </p>
                 </div>
 
-                <div
-                    class="grid gap-3
-                           sm:grid-cols-3"
+                <a
+                    href="{{ \App\Filament\Pages\ShepherdingHistory::getUrl() }}"
+                    class="shrink-0 text-sm font-semibold
+                           text-primary-600
+                           hover:text-primary-500
+                           dark:text-primary-400"
                 >
-                    <input
-                        type="search"
-                        wire:model.live.debounce.300ms="historySearch"
-                        placeholder="Search history..."
-                        class="rounded-xl border
-                               border-gray-300 bg-white
-                               px-3 py-2 text-sm
-                               dark:border-gray-700
-                               dark:bg-gray-950
-                               dark:text-gray-100"
-                    >
-
-                    <select
-                        wire:model.live="historyPersonId"
-                        class="rounded-xl border
-                               border-gray-300 bg-white
-                               px-3 py-2 text-sm
-                               dark:border-gray-700
-                               dark:bg-gray-950
-                               dark:text-gray-100"
-                    >
-                        <option value="">
-                            All People
-                        </option>
-
-                        @foreach ($people as $person)
-                            <option value="{{ $person->id }}">
-                                {{ $person->display_name }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <select
-                        wire:model.live="historyOutcome"
-                        class="rounded-xl border
-                               border-gray-300 bg-white
-                               px-3 py-2 text-sm
-                               dark:border-gray-700
-                               dark:bg-gray-950
-                               dark:text-gray-100"
-                    >
-                        <option value="all">
-                            All Outcomes
-                        </option>
-
-                        @foreach ($this->outcomeOptions() as $value => $label)
-                            <option value="{{ $value }}">
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                    Open Shepherding History →
+                </a>
             </div>
-
 
             <div class="mt-5 space-y-3">
                 @forelse ($contacts as $contact)

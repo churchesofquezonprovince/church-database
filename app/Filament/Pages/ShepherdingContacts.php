@@ -79,58 +79,29 @@ class ShepherdingContacts extends Page
 
     public string $notes = '';
 
-    public string $historySearch = '';
-
-    public ?int $historyPersonId = null;
-
-    public string $historyOutcome = 'all';
-
-    public string $historyMode = 'all';
-
-    public string $historyFrom = '';
-
-    public string $historyTo = '';
-
     public function mount(): void
     {
         $this->contactDate =
             now()->toDateString();
 
-        $mode = (string) request()->query(
-            'mode',
-            'all'
-        );
+        $requestedRecordId =
+            (int) request()->query(
+                'record',
+                0
+            );
 
-        $this->historyMode =
-            $mode === 'follow-up'
-                ? 'follow-up'
-                : 'all';
-
-        $from = (string) request()->query(
-            'from',
-            ''
-        );
-
-        $to = (string) request()->query(
-            'to',
-            ''
-        );
-
-        $this->historyFrom =
-            preg_match(
-                '/^\\d{4}-\\d{2}-\\d{2}$/',
-                $from
-            )
-                ? $from
-                : '';
-
-        $this->historyTo =
-            preg_match(
-                '/^\\d{4}-\\d{2}-\\d{2}$/',
-                $to
-            )
-                ? $to
-                : '';
+        if (
+            $requestedRecordId > 0
+            && ShepherdingContact::query()
+                ->whereKey(
+                    $requestedRecordId
+                )
+                ->exists()
+        ) {
+            $this->editContact(
+                $requestedRecordId
+            );
+        }
     }
 
     public function getTitle(): string
@@ -897,10 +868,6 @@ class ShepherdingContacts extends Page
 
     public function recentContacts(): Collection
     {
-        $search = trim(
-            $this->historySearch
-        );
-
         return ShepherdingContact::query()
             ->with([
                 'contactedPeople',
@@ -914,264 +881,14 @@ class ShepherdingContacts extends Page
                 'ministryLessons.book',
                 'participants',
             ])
-            ->when(
-                filled($search),
-                function ($query) use ($search): void {
-                    $query->where(
-                        function ($query) use ($search): void {
-                            $query
-                                ->where(
-                                    'notes',
-                                    'like',
-                                    "%{$search}%"
-                                )
-                                ->orWhere(
-                                    'outcome',
-                                    'like',
-                                    "%{$search}%"
-                                )
-                                ->orWhereHas(
-                                    'contactedPeople',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'firstname',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'middlename',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'lastname',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'contactedHouseholds',
-                                    fn ($query) =>
-                                        $query->where(
-                                            'household_name',
-                                            'like',
-                                            "%{$search}%"
-                                        )
-                                )
-                                ->orWhereHas(
-                                    'contactedCampusContacts',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'firstname',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'lastname',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'school_campus',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'locality',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'contactedGospelContacts',
-                                    function ($query) use ($search): void {
-                                        $like = "%{$search}%";
-
-                                        $query
-                                            ->where(
-                                                'firstname',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'lastname',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'locality',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'contact_place',
-                                                'like',
-                                                $like
-                                            )
-                                            ->orWhere(
-                                                'contact_number',
-                                                'like',
-                                                $like
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'householdMembers',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'firstname',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'lastname',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'locality',
-                                    fn ($query) =>
-                                        $query->where(
-                                            'name',
-                                            'like',
-                                            "%{$search}%"
-                                        )
-                                )
-                                ->orWhereHas(
-                                    'activityTypes',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'code',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'name',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'ministryLessons',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'code',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'title',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                )
-                                ->orWhereHas(
-                                    'participants',
-                                    function ($query) use ($search): void {
-                                        $query
-                                            ->where(
-                                                'firstname',
-                                                'like',
-                                                "%{$search}%"
-                                            )
-                                            ->orWhere(
-                                                'lastname',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                    }
-                                );
-                        }
-                    );
-                }
+            ->orderByDesc(
+                'contact_date'
             )
-            ->when(
-                filled($this->historyPersonId),
-                function ($query): void {
-                    $personId =
-                        (int) $this->historyPersonId;
-
-                    $query->where(
-                        function ($query) use ($personId): void {
-                            $query
-                                ->whereHas(
-                                    'contactedPeople',
-                                    fn ($query) =>
-                                        $query->where(
-                                            'persons.id',
-                                            $personId
-                                        )
-                                )
-                                ->orWhereHas(
-                                    'householdMembers',
-                                    fn ($query) =>
-                                        $query
-                                            ->where(
-                                                'persons.id',
-                                                $personId
-                                            )
-                                            ->where(
-                                                'shepherding_contact_household_members.was_present',
-                                                true
-                                            )
-                                );
-                        }
-                    );
-                }
+            ->orderByDesc(
+                'contact_time'
             )
-            ->when(
-                $this->historyOutcome !== 'all',
-                fn ($query) =>
-                    $query->where(
-                        'outcome',
-                        $this->historyOutcome
-                    )
-            )
-            ->when(
-                $this->historyMode === 'follow-up',
-                fn ($query) =>
-                    $query->whereIn(
-                        'outcome',
-                        [
-                            ShepherdingContact::OUTCOME_UNAVAILABLE,
-                            ShepherdingContact::OUTCOME_RESCHEDULE,
-                            ShepherdingContact::OUTCOME_DECLINED,
-                        ]
-                    )
-            )
-            ->when(
-                filled($this->historyFrom),
-                fn ($query) =>
-                    $query->whereDate(
-                        'contact_date',
-                        '>=',
-                        $this->historyFrom
-                    )
-            )
-            ->when(
-                filled($this->historyTo),
-                fn ($query) =>
-                    $query->whereDate(
-                        'contact_date',
-                        '<=',
-                        $this->historyTo
-                    )
-            )
-            ->orderByDesc('contact_date')
-            ->orderByDesc('contact_time')
             ->orderByDesc('id')
-            ->limit(50)
+            ->limit(10)
             ->get();
     }
 

@@ -213,6 +213,18 @@ class ShepherdingDashboard extends Page
         $this->recentShepherding =
             $recentHistory
                 ->shepherdingRows()
+                ->map(
+                    fn (array $row): array => [
+                        ...$row,
+
+                        'url' =>
+                            ShepherdingHistory::getUrl([
+                                'record' =>
+                                    (int) $row['id'],
+                            ])
+                            . '#shepherding-contact-form',
+                    ]
+                )
                 ->all();
 
         /*
@@ -236,23 +248,51 @@ class ShepherdingDashboard extends Page
                 ->orderBy('code')
                 ->get()
                 ->map(
-                    fn (
+                    function (
                         ShepherdingActivityType $type
-                    ): array => [
-                        'code' =>
-                            $type->code,
+                    ) use (
+                        $activityCounts,
+                        $monthStart,
+                        $monthEnd,
+                        $localityId
+                    ): array {
+                        $params = [
+                            'activity' =>
+                                $type->code,
 
-                        'name' =>
-                            $type->name,
+                            'from' =>
+                                $monthStart,
 
-                        'count' =>
-                            (int) (
-                                $activityCounts[
-                                    $type->code
-                                ]
-                                ?? 0
-                            ),
-                    ]
+                            'to' =>
+                                $monthEnd,
+                        ];
+
+                        if ($localityId !== null) {
+                            $params['locality'] =
+                                $localityId;
+                        }
+
+                        return [
+                            'code' =>
+                                $type->code,
+
+                            'name' =>
+                                $type->name,
+
+                            'count' =>
+                                (int) (
+                                    $activityCounts[
+                                        $type->code
+                                    ]
+                                    ?? 0
+                                ),
+
+                            'url' =>
+                                ShepherdingHistory::getUrl(
+                                    $params
+                                ),
+                        ];
+                    }
                 )
                 ->all();
 
@@ -289,19 +329,49 @@ class ShepherdingDashboard extends Page
                 ->limit(10)
                 ->get()
                 ->map(
-                    fn (
+                    function (
                         ShepherdingContact $record
-                    ): array => [
-                        'locality' =>
-                            $record
-                                ->locality
-                                ?->name
+                    ) use (
+                        $monthStart,
+                        $monthEnd
+                    ): array {
+                        $recordLocalityId =
+                            filled(
+                                $record->locality_id
+                            )
+                                ? (int)
+                                    $record->locality_id
+                                : null;
+
+                        return [
+                            'locality_id' =>
+                                $recordLocalityId,
+
+                            'locality' =>
+                                $record
+                                    ->locality
+                                    ?->name
                                 ?? 'No Locality',
 
-                        'count' =>
-                            (int)
-                            $record->total,
-                    ]
+                            'count' =>
+                                (int)
+                                $record->total,
+
+                            'url' =>
+                                $recordLocalityId !== null
+                                    ? ShepherdingHistory::getUrl([
+                                        'locality' =>
+                                            $recordLocalityId,
+
+                                        'from' =>
+                                            $monthStart,
+
+                                        'to' =>
+                                            $monthEnd,
+                                    ])
+                                    : null,
+                        ];
+                    }
                 )
                 ->all();
 
@@ -358,7 +428,7 @@ class ShepherdingDashboard extends Page
                     $monthRows->count(),
 
                 'url' =>
-                    ShepherdingContacts::getUrl([
+                    ShepherdingHistory::getUrl([
                         'from' => $monthStart,
                         'to' => $monthEnd,
                     ]),
@@ -372,7 +442,7 @@ class ShepherdingDashboard extends Page
                     $followUpRows->count(),
 
                 'url' =>
-                    ShepherdingContacts::getUrl([
+                    ShepherdingHistory::getUrl([
                         'mode' => 'follow-up',
                         'from' => $monthStart,
                         'to' => $monthEnd,

@@ -183,12 +183,12 @@
                     </div>
 
                     <a
-                        href="{{ \App\Filament\Pages\ShepherdingContacts::getUrl() }}"
+                        href="{{ \App\Filament\Pages\ShepherdingHistory::getUrl() }}"
                         class="text-sm font-medium text-primary-600
                                hover:text-primary-500
                                dark:text-primary-400"
                     >
-                        View records →
+                        View history →
                     </a>
                 </div>
 
@@ -260,6 +260,18 @@
                                 </span>
                             </div>
 
+                            <div class="mt-3">
+                                <a
+                                    href="{{ $record['url'] }}"
+                                    class="text-xs font-semibold
+                                           text-primary-600
+                                           hover:text-primary-500
+                                           dark:text-primary-400"
+                                >
+                                    Open record →
+                                </a>
+                            </div>
+
                             @if ($codes->isNotEmpty())
                                 <div
                                     class="mt-3 flex flex-wrap gap-2"
@@ -304,13 +316,13 @@
                             </p>
 
                             <a
-                                href="{{ \App\Filament\Pages\ShepherdingContacts::getUrl() }}"
+                                href="{{ \App\Filament\Pages\ShepherdingHistory::getUrl() }}"
                                 class="mt-4 inline-flex text-sm
                                        font-medium text-primary-600
                                        hover:text-primary-500
                                        dark:text-primary-400"
                             >
-                                Open Shepherding Records →
+                                Open Shepherding History →
                             </a>
                         </div>
                     @endforelse
@@ -338,10 +350,13 @@
 
                 <div class="mt-4 space-y-2">
                     @foreach ($activitySummary as $activity)
-                        <div
+                        <a
+                            href="{{ $activity['url'] }}"
                             class="flex items-center justify-between
                                    rounded-xl bg-gray-50 px-3 py-2
-                                   dark:bg-gray-800"
+                                   transition hover:bg-gray-100
+                                   dark:bg-gray-800
+                                   dark:hover:bg-gray-700"
                         >
                             <div class="min-w-0">
                                 <span
@@ -361,13 +376,23 @@
                                 </span>
                             </div>
 
-                            <span
-                                class="ml-3 font-bold text-gray-900
-                                       dark:text-white"
+                            <div
+                                class="ml-3 flex items-center gap-2"
                             >
-                                {{ $activity['count'] }}
-                            </span>
-                        </div>
+                                <span
+                                    class="font-bold text-gray-900
+                                           dark:text-white"
+                                >
+                                    {{ $activity['count'] }}
+                                </span>
+
+                                <span
+                                    class="text-xs text-gray-400"
+                                >
+                                    →
+                                </span>
+                            </div>
+                        </a>
                     @endforeach
                 </div>
             </div>
@@ -593,29 +618,66 @@
 
             <div class="mt-4">
                 @forelse ($localitySummary as $row)
-                    <div
-                        class="flex items-center justify-between
-                               border-b border-gray-100 py-3
-                               last:border-b-0
-                               dark:border-gray-800"
-                    >
-                        <span
-                            class="font-medium text-gray-800
-                                   dark:text-gray-200"
+                    @if (filled($row['url']))
+                        <a
+                            href="{{ $row['url'] }}"
+                            class="flex items-center justify-between
+                                   border-b border-gray-100 py-3
+                                   transition hover:bg-gray-50
+                                   last:border-b-0
+                                   dark:border-gray-800
+                                   dark:hover:bg-gray-800"
                         >
-                            {{ $row['locality'] }}
-                        </span>
+                            <span
+                                class="font-medium text-gray-800
+                                       dark:text-gray-200"
+                            >
+                                {{ $row['locality'] }}
+                            </span>
 
-                        <span
-                            class="rounded-full bg-gray-100
-                                   px-3 py-1 text-sm font-semibold
-                                   text-gray-700
-                                   dark:bg-gray-800
-                                   dark:text-gray-300"
+                            <div
+                                class="flex items-center gap-2"
+                            >
+                                <span
+                                    class="rounded-full bg-gray-100
+                                           px-3 py-1 text-sm font-semibold
+                                           text-gray-700
+                                           dark:bg-gray-800
+                                           dark:text-gray-300"
+                                >
+                                    {{ $row['count'] }}
+                                </span>
+
+                                <span class="text-xs text-gray-400">
+                                    →
+                                </span>
+                            </div>
+                        </a>
+                    @else
+                        <div
+                            class="flex items-center justify-between
+                                   border-b border-gray-100 py-3
+                                   last:border-b-0
+                                   dark:border-gray-800"
                         >
-                            {{ $row['count'] }}
-                        </span>
-                    </div>
+                            <span
+                                class="font-medium text-gray-800
+                                       dark:text-gray-200"
+                            >
+                                {{ $row['locality'] }}
+                            </span>
+
+                            <span
+                                class="rounded-full bg-gray-100
+                                       px-3 py-1 text-sm font-semibold
+                                       text-gray-700
+                                       dark:bg-gray-800
+                                       dark:text-gray-300"
+                            >
+                                {{ $row['count'] }}
+                            </span>
+                        </div>
+                    @endif
                 @empty
                     <p
                         class="py-6 text-center text-sm
