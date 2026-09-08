@@ -397,7 +397,7 @@
                             @php
                                 $personSchool = $person
                                     ->educationProfile
-                                    ?->school_workplace;
+                                    ?->school?->name;
 
                                 $personCourse = $person
                                     ->educationProfile
@@ -1244,7 +1244,7 @@
                             <option value="{{ $person->id }}">
                                 {{ $person->display_name }}
                                 · {{ $person->locality ?: 'No locality' }}
-                                · {{ $person->educationProfile?->school_workplace ?: 'No school' }}
+                                · {{ $person->educationProfile?->school?->name ?: 'No school' }}
                                 · {{ $person->churchProfile?->status ?: 'Unknown' }}
                             </option>
                         @endforeach

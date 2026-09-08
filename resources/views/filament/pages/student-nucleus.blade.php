@@ -194,7 +194,7 @@
                                         $person->locality,
                                         $person->contact_number,
                                         $person->email,
-                                        $education?->school_workplace,
+                                        $education?->school?->name,
                                         $education?->course_strand,
                                         $education?->grade_level,
                                     ])->filter()->implode(' ')
@@ -219,7 +219,7 @@
                                     </span>
 
                                     <span class="mt-1 block break-words text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $education?->school_workplace ?: 'School not recorded' }}
+                                        {{ $education?->school?->name ?: 'School not recorded' }}
                                         · {{ $person->locality ?: 'No locality' }}
                                         · {{ $education?->course_strand ?: 'No course recorded' }}
                                         · {{ $education?->grade_level ?: 'No year level recorded' }}

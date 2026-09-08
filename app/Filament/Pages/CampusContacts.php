@@ -181,7 +181,8 @@ class CampusContacts extends Page
             ])
             ->with([
                 'churchProfile:id,person_id,status,category',
-                'educationProfile:id,person_id,school_workplace,course_strand,grade_level',
+                'educationProfile:id,person_id,school_id,course_strand,grade_level',
+                'educationProfile.school:id,name,short_name',
             ])
             ->whereDoesntHave('campusContact')
             ->where(function ($query) use ($like): void {
@@ -201,9 +202,13 @@ class CampusContacts extends Page
                     })
                     ->orWhereHas('educationProfile', function ($educationQuery) use ($like): void {
                         $educationQuery
-                            ->where('school_workplace', 'like', $like)
-                            ->orWhere('course_strand', 'like', $like)
-                            ->orWhere('grade_level', 'like', $like);
+                            ->where('course_strand', 'like', $like)
+                            ->orWhere('grade_level', 'like', $like)
+                            ->orWhereHas('school', function ($schoolQuery) use ($like): void {
+                                $schoolQuery
+                                    ->where('name', 'like', $like)
+                                    ->orWhere('short_name', 'like', $like);
+                            });
                     });
             })
             ->orderBy('lastname')
@@ -218,7 +223,7 @@ class CampusContacts extends Page
         return Person::query()
             ->with([
                 'churchProfile',
-                'educationProfile',
+                'educationProfile.school',
             ])
 
             /*

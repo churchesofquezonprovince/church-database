@@ -15,14 +15,14 @@ class StudentNucleusExportController extends Controller
         $memberships = StudentNucleusMembership::query()
             ->where('campus_work_term_id', $term->id)
             ->with([
-                'person.educationProfile',
+                'person.educationProfile.school',
             ])
             ->get()
             ->sortBy(function (StudentNucleusMembership $membership): string {
                 $person = $membership->person;
 
                 return mb_strtolower(implode('|', [
-                    $person?->educationProfile?->school_workplace ?? '',
+                    $person?->educationProfile?->school?->name ?? '',
                     $person?->lastname ?? '',
                     $person?->firstname ?? '',
                 ]));
@@ -78,7 +78,7 @@ class StudentNucleusExportController extends Controller
                 $groupedMembers = $memberships
                     ->groupBy(
                         fn (StudentNucleusMembership $membership): string =>
-                            $membership->person?->educationProfile?->school_workplace
+                            $membership->person?->educationProfile?->school?->name
                             ?: 'School not recorded'
                     )
                     ->sortKeysUsing(function (string $a, string $b): int {

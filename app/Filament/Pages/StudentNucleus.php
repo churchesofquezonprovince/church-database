@@ -131,7 +131,7 @@ class StudentNucleus extends Page
         return StudentNucleusMembership::query()
             ->where('campus_work_term_id', $term->id)
             ->with([
-                'person.educationProfile',
+                'person.educationProfile.school',
                 'term',
             ])
             ->get()
@@ -139,7 +139,7 @@ class StudentNucleus extends Page
                 $person = $membership->person;
 
                 return mb_strtolower(implode('|', [
-                    $person?->educationProfile?->school_workplace ?? '',
+                    $person?->educationProfile?->school?->name ?? '',
                     $person?->lastname ?? '',
                     $person?->firstname ?? '',
                 ]));
@@ -154,7 +154,7 @@ class StudentNucleus extends Page
         $schoolCount = $members
             ->map(
                 fn (StudentNucleusMembership $membership): ?string =>
-                    $membership->person?->educationProfile?->school_workplace
+                    $membership->person?->educationProfile?->school?->name
             )
             ->filter()
             ->unique()
@@ -213,7 +213,7 @@ class StudentNucleus extends Page
         return $this->members()
             ->groupBy(
                 fn (StudentNucleusMembership $membership): string =>
-                    $membership->person?->educationProfile?->school_workplace
+                    $membership->person?->educationProfile?->school?->name
                     ?: 'School not recorded'
             )
             ->sortKeysUsing(function (string $a, string $b): int {

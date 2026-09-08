@@ -244,6 +244,11 @@ class CampusContactController extends Controller
          */
         $matches = $this->possiblePeopleMatches($contact);
 
+        $matches->loadMissing([
+            'educationProfile.school',
+            'churchProfile',
+        ]);
+
         if ($matches->isNotEmpty()) {
             return back()
                 ->with(
@@ -261,7 +266,8 @@ class CampusContactController extends Controller
                             'school' =>
                                 $person
                                     ->educationProfile
-                                    ?->school_workplace,
+                                    ?->school
+                                    ?->name,
                             'status' =>
                                 $person
                                     ->churchProfile

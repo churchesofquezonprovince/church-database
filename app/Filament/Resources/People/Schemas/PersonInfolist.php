@@ -255,7 +255,6 @@ class PersonInfolist
                             ->label('School')
                             ->state(fn (Person $record): HtmlString => self::value(
                                 $record->educationProfile?->school?->name
-                                    ?: $record->educationProfile?->school_workplace
                             ))
                             ->html(),
 
