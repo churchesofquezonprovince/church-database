@@ -83,6 +83,16 @@ class ShepherdingContact extends Model
         )->withTimestamps();
     }
 
+    public function contactedGospelContacts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            GospelContact::class,
+            'shepherding_contact_gospel_contacts',
+            'shepherding_contact_id',
+            'gospel_contact_id'
+        )->withTimestamps();
+    }
+
     public function householdMembers(): BelongsToMany
     {
         return $this->belongsToMany(

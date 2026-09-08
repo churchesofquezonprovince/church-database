@@ -22,6 +22,12 @@
         $selectedCampusContacts =
             $this->selectedCampusContacts();
 
+        $gospelContacts =
+            $this->gospelContacts();
+
+        $selectedGospelContacts =
+            $this->selectedGospelContacts();
+
         $householdMembers =
             $this->householdMembers();
 
@@ -129,8 +135,8 @@
                             class="mt-1 text-xs
                                    text-gray-500 dark:text-gray-400"
                         >
-                            Select individual People,
-                            Households, or both.
+                            Select People, Households,
+                            Campus Contacts, or Gospel Contacts.
                         </p>
                     </div>
 
@@ -145,7 +151,7 @@
                         <input
                             type="search"
                             wire:model.live.debounce.300ms="targetSearch"
-                            placeholder="Search People, Households, or Campus Contacts..."
+                            placeholder="Search People, Households, Campus Contacts, or Gospel Contacts..."
                             class="mt-2 block w-full rounded-xl
                                    border border-gray-300 bg-white
                                    px-4 py-3 text-sm
@@ -167,7 +173,7 @@
 
                     <div
                         class="mt-4 grid gap-4
-                               lg:grid-cols-3"
+                               lg:grid-cols-4"
                     >
 
                         {{-- People Contacted --}}
@@ -466,6 +472,122 @@
                                     >
                                         No matching unlinked
                                         Campus Contacts.
+                                    </p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        {{-- Gospel Contacts --}}
+                        <div
+                            class="rounded-xl border border-gray-200 p-4
+                                   dark:border-gray-700"
+                        >
+                            <label
+                                class="block text-sm font-semibold
+                                       text-gray-700 dark:text-gray-200"
+                            >
+                                Gospel Contacts
+                            </label>
+
+                            <p
+                                class="mt-1 text-xs
+                                       text-gray-500 dark:text-gray-400"
+                            >
+                                Unlinked Gospel Contacts only.
+                                Once linked to the People Database,
+                                use People Contacted instead.
+                            </p>
+
+                            @if ($selectedGospelContacts->isNotEmpty())
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    @foreach ($selectedGospelContacts as $gospelContact)
+                                        <button
+                                            type="button"
+                                            wire:click="removeContactedGospelContact({{ $gospelContact->id }})"
+                                            title="Remove {{ $gospelContact->display_name }}"
+                                            class="rounded-full
+                                                   bg-emerald-50
+                                                   px-3 py-1.5
+                                                   text-xs font-bold
+                                                   text-emerald-700
+                                                   dark:bg-emerald-950
+                                                   dark:text-emerald-300"
+                                        >
+                                            {{ $gospelContact->display_name }}
+                                            ×
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div
+                                class="mt-3 space-y-1
+                                       overflow-y-auto
+                                       rounded-xl border
+                                       border-gray-200 p-2
+                                       dark:border-gray-700"
+                                style="max-height: 12rem;"
+                            >
+                                @forelse ($gospelContacts as $gospelContact)
+                                    <label
+                                        class="flex cursor-pointer
+                                               items-start gap-3
+                                               rounded-lg px-2 py-2
+                                               hover:bg-gray-50
+                                               dark:hover:bg-gray-800"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            value="{{ $gospelContact->id }}"
+                                            wire:model.live="contactedGospelContactIds"
+                                            class="mt-1 rounded
+                                                   border-gray-300"
+                                        >
+
+                                        <span class="min-w-0">
+                                            <strong
+                                                class="block text-sm
+                                                       text-gray-900
+                                                       dark:text-gray-100"
+                                            >
+                                                {{ $gospelContact->display_name }}
+                                            </strong>
+
+                                            @if (
+                                                $gospelContact->localityRecord
+                                                || $gospelContact->contact_place
+                                            )
+                                                <span
+                                                    class="block text-xs
+                                                           text-gray-500
+                                                           dark:text-gray-400"
+                                                >
+                                                    @if ($gospelContact->localityRecord)
+                                                        {{ $gospelContact->localityRecord->name }}
+                                                    @endif
+
+                                                    @if (
+                                                        $gospelContact->localityRecord
+                                                        && $gospelContact->contact_place
+                                                    )
+                                                        ·
+                                                    @endif
+
+                                                    @if ($gospelContact->contact_place)
+                                                        {{ $gospelContact->contact_place }}
+                                                    @endif
+                                                </span>
+                                            @endif
+                                        </span>
+                                    </label>
+                                @empty
+                                    <p
+                                        class="px-2 py-3 text-sm
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        No matching unlinked
+                                        Gospel Contacts.
                                     </p>
                                 @endforelse
                             </div>
@@ -826,7 +948,7 @@
                         <div
                             class="mt-3 grid gap-3
                                    sm:grid-cols-2
-                                   lg:grid-cols-3"
+                                   lg:grid-cols-4"
                         >
                             @foreach ($activityTypes as $activity)
                                 <label
@@ -1320,10 +1442,26 @@
                                         </span>
                                     @endforeach
 
+                                    @foreach ($contact->contactedGospelContacts as $gospelContact)
+                                        <span
+                                            class="rounded-full
+                                                   bg-emerald-50
+                                                   px-2.5 py-1
+                                                   text-xs font-bold
+                                                   text-emerald-700
+                                                   dark:bg-emerald-950
+                                                   dark:text-emerald-300"
+                                        >
+                                            Gospel ·
+                                            {{ $gospelContact->display_name }}
+                                        </span>
+                                    @endforeach
+
                                     @if (
                                         $contact->contactedPeople->isEmpty()
                                         && $contact->contactedHouseholds->isEmpty()
                                         && $contact->contactedCampusContacts->isEmpty()
+                                        && $contact->contactedGospelContacts->isEmpty()
                                     )
                                         <span
                                             class="text-sm font-bold

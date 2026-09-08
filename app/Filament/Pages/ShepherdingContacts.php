@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\CampusContact;
+use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Locality;
 use App\Models\MinistryBook;
@@ -37,6 +38,8 @@ class ShepherdingContacts extends Page
     public array $contactedHouseholdIds = [];
 
     public array $contactedCampusContactIds = [];
+
+    public array $contactedGospelContactIds = [];
 
     /*
      * person_id => bool
@@ -373,6 +376,94 @@ class ShepherdingContacts extends Page
             collect(
                 $this->contactedCampusContactIds
             )
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->refreshLocalityFromTargets();
+    }
+
+    public function gospelContacts(): Collection
+    {
+        $search = trim($this->targetSearch);
+
+        return GospelContact::query()
+            ->with('localityRecord')
+            ->whereNull('person_id')
+            ->when(
+                filled($search),
+                function ($query) use ($search): void {
+                    $query->where(
+                        function ($query) use ($search): void {
+                            $like = "%{$search}%";
+
+                            $query
+                                ->where('firstname', 'like', $like)
+                                ->orWhere('lastname', 'like', $like)
+                                ->orWhere('locality', 'like', $like)
+                                ->orWhere('contact_place', 'like', $like)
+                                ->orWhere('contact_number', 'like', $like)
+                                ->orWhere('email', 'like', $like)
+                                ->orWhere(
+                                    'facebook_account',
+                                    'like',
+                                    $like
+                                );
+                        }
+                    );
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(75)
+            ->get();
+    }
+
+    public function selectedGospelContacts(): Collection
+    {
+        if ($this->contactedGospelContactIds === []) {
+            return collect();
+        }
+
+        /*
+         * Do not filter person_id here.
+         * Historical Shepherding Records must continue
+         * showing a Gospel Contact after promotion.
+         */
+        return GospelContact::query()
+            ->with('localityRecord')
+            ->whereIn(
+                'id',
+                collect($this->contactedGospelContactIds)
+                    ->map(fn ($id) => (int) $id)
+                    ->all()
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+    }
+
+    public function removeContactedGospelContact(
+        int $gospelContactId
+    ): void {
+        $this->contactedGospelContactIds =
+            collect($this->contactedGospelContactIds)
+                ->map(fn ($id) => (int) $id)
+                ->reject(
+                    fn ($id): bool =>
+                        $id === $gospelContactId
+                )
+                ->values()
+                ->all();
+
+        $this->refreshLocalityFromTargets();
+    }
+
+    public function updatedContactedGospelContactIds(): void
+    {
+        $this->contactedGospelContactIds =
+            collect($this->contactedGospelContactIds)
                 ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->values()
@@ -773,6 +864,7 @@ class ShepherdingContacts extends Page
                 'contactedHouseholds.head',
                 'contactedCampusContacts.school',
                 'contactedCampusContacts.localityRecord',
+                'contactedGospelContacts.localityRecord',
                 'householdMembers',
                 'locality',
                 'activityTypes',
@@ -848,6 +940,39 @@ class ShepherdingContacts extends Page
                                                 'locality',
                                                 'like',
                                                 "%{$search}%"
+                                            );
+                                    }
+                                )
+                                ->orWhereHas(
+                                    'contactedGospelContacts',
+                                    function ($query) use ($search): void {
+                                        $like = "%{$search}%";
+
+                                        $query
+                                            ->where(
+                                                'firstname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lastname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'locality',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'contact_place',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'contact_number',
+                                                'like',
+                                                $like
                                             );
                                     }
                                 )
@@ -1001,6 +1126,13 @@ class ShepherdingContacts extends Page
                 'integer',
                 'exists:campus_contacts,id',
             ],
+            'contactedGospelContactIds' => [
+                'array',
+            ],
+            'contactedGospelContactIds.*' => [
+                'integer',
+                'exists:gospel_contacts,id',
+            ],
             'householdMemberPresence' => [
                 'array',
             ],
@@ -1070,6 +1202,14 @@ class ShepherdingContacts extends Page
             ->values()
             ->all();
 
+        $contactedGospelContactIds = collect(
+            $data['contactedGospelContactIds'] ?? []
+        )
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         $householdMemberSync = [];
 
         foreach (
@@ -1132,16 +1272,17 @@ class ShepherdingContacts extends Page
             $contactedPersonIds === []
             && $contactedHouseholdIds === []
             && $contactedCampusContactIds === []
+            && $contactedGospelContactIds === []
         ) {
             $this->addError(
                 'contactedPersonIds',
-                'Select at least one Person, Household, or Campus Contact.'
+                'Select at least one Person, Household, Campus Contact, or Gospel Contact.'
             );
 
             Notification::make()
                 ->title('Contact target required')
                 ->body(
-                    'Select at least one Person, Household, or Campus Contact.'
+                    'Select at least one Person, Household, Campus Contact, or Gospel Contact.'
                 )
                 ->warning()
                 ->send();
@@ -1210,6 +1351,7 @@ class ShepherdingContacts extends Page
                     'contactedPeople',
                     'contactedHouseholds',
                     'contactedCampusContacts',
+                    'contactedGospelContacts',
                     'householdMembers',
                     'locality',
                     'activityTypes',
@@ -1229,6 +1371,7 @@ class ShepherdingContacts extends Page
                 $contactedPersonIds,
                 $contactedHouseholdIds,
                 $contactedCampusContactIds,
+                $contactedGospelContactIds,
                 $householdMemberSync,
                 $activityIds,
                 $ministryIds,
@@ -1251,6 +1394,12 @@ class ShepherdingContacts extends Page
                         'campus_contacts_contacted' =>
                             $contact
                                 ->contactedCampusContacts
+                                ->pluck('display_name')
+                                ->all(),
+
+                        'gospel_contacts_contacted' =>
+                            $contact
+                                ->contactedGospelContacts
                                 ->pluck('display_name')
                                 ->all(),
 
@@ -1370,6 +1519,12 @@ class ShepherdingContacts extends Page
                     );
 
                 $contact
+                    ->contactedGospelContacts()
+                    ->sync(
+                        $contactedGospelContactIds
+                    );
+
+                $contact
                     ->householdMembers()
                     ->sync(
                         $householdMemberSync
@@ -1391,6 +1546,7 @@ class ShepherdingContacts extends Page
                     'contactedPeople',
                     'contactedHouseholds',
                     'contactedCampusContacts',
+                    'contactedGospelContacts',
                     'householdMembers',
                     'locality',
                     'activityTypes',
@@ -1414,6 +1570,12 @@ class ShepherdingContacts extends Page
                     'campus_contacts_contacted' =>
                         $contact
                             ->contactedCampusContacts
+                            ->pluck('display_name')
+                            ->all(),
+
+                    'gospel_contacts_contacted' =>
+                        $contact
+                            ->contactedGospelContacts
                             ->pluck('display_name')
                             ->all(),
 
@@ -1511,6 +1673,7 @@ class ShepherdingContacts extends Page
                 'contactedPeople',
                 'contactedHouseholds',
                 'contactedCampusContacts',
+                'contactedGospelContacts',
                 'householdMembers',
                 'activityTypes',
                 'ministryLessons',
@@ -1538,6 +1701,13 @@ class ShepherdingContacts extends Page
         $this->contactedCampusContactIds =
             $contact
                 ->contactedCampusContacts
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+        $this->contactedGospelContactIds =
+            $contact
+                ->contactedGospelContacts
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
@@ -1859,10 +2029,18 @@ class ShepherdingContacts extends Page
             ->unique()
             ->values();
 
+        $gospelContactIds = collect(
+            $this->contactedGospelContactIds
+        )
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         if (
             $personIds->isEmpty()
             && $householdIds->isEmpty()
             && $campusContactIds->isEmpty()
+            && $gospelContactIds->isEmpty()
         ) {
             $this->localityId = null;
             $this->localitySource = '';
@@ -1925,10 +2103,23 @@ class ShepherdingContacts extends Page
                 ->pluck('locality_id')
                 ->map(fn ($id) => (int) $id);
 
+        $gospelLocalityIds =
+            GospelContact::query()
+                ->whereIn(
+                    'id',
+                    $gospelContactIds->all()
+                )
+                ->whereNotNull('locality_id')
+                ->pluck('locality_id')
+                ->map(fn ($id) => (int) $id);
+
         $localityIds =
             $localityIds
                 ->concat(
                     $householdLocalityIds
+                )
+                ->concat(
+                    $gospelLocalityIds
                 )
                 ->unique()
                 ->values();
@@ -1955,7 +2146,8 @@ class ShepherdingContacts extends Page
         $totalTargets =
             $personIds->count()
             + $householdIds->count()
-            + $campusContactIds->count();
+            + $campusContactIds->count()
+            + $gospelContactIds->count();
 
         if ($totalTargets > 1) {
             $this->localitySource =
@@ -1979,9 +2171,16 @@ class ShepherdingContacts extends Page
             return;
         }
 
+        if ($campusContactIds->count() === 1) {
+            $this->localitySource =
+                $campusResolutions
+                    ->first()['source'];
+
+            return;
+        }
+
         $this->localitySource =
-            $campusResolutions
-                ->first()['source'];
+            'Auto-filled from Gospel Contact Locality.';
     }
 
     private function resolveCampusContactLocality(
@@ -2165,6 +2364,7 @@ class ShepherdingContacts extends Page
         $this->contactedPersonIds = [];
         $this->contactedHouseholdIds = [];
         $this->contactedCampusContactIds = [];
+        $this->contactedGospelContactIds = [];
 
         $this->householdMemberPresence = [];
         $this->householdMemberHouseholdIds = [];
@@ -2189,3 +2389,4 @@ class ShepherdingContacts extends Page
     }
 
 }
+
