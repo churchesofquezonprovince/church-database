@@ -19,6 +19,7 @@ class CampusContact extends Model
         'locality',
         'locality_id',
         'school_campus',
+        'school_id',
         'course_strand',
         'grade_level',
         'contact_number',
@@ -46,16 +47,26 @@ class CampusContact extends Model
         static::saving(function (CampusContact $contact): void {
             if (blank($contact->locality_id)) {
                 $contact->locality = null;
+            } else {
+                $locality = Locality::query()->find(
+                    $contact->locality_id
+                );
 
-                return;
+                if ($locality) {
+                    $contact->locality = $locality->name;
+                }
             }
 
-            $locality = Locality::query()->find(
-                $contact->locality_id
-            );
+            if (blank($contact->school_id)) {
+                $contact->school_campus = null;
+            } else {
+                $school = School::query()->find(
+                    $contact->school_id
+                );
 
-            if ($locality) {
-                $contact->locality = $locality->name;
+                if ($school) {
+                    $contact->school_campus = $school->name;
+                }
             }
         });
     }
@@ -66,6 +77,11 @@ class CampusContact extends Model
             Locality::class,
             'locality_id'
         );
+    }
+
+    public function school(): BelongsTo
+    {
+        return $this->belongsTo(School::class);
     }
 
     public function person(): BelongsTo
@@ -135,7 +151,7 @@ class CampusContact extends Model
     {
         return Attribute::make(
             get: fn (): ?string =>
-                $this->person?->educationProfile?->school_workplace
+                $this->school?->name
                     ?: $this->school_campus,
         );
     }

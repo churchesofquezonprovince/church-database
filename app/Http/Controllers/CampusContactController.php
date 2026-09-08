@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Filament\Pages\CampusContacts;
 use App\Models\CampusContact;
 use App\Models\Person;
+use App\Models\School;
 use App\Support\ActivityLogger;
 use App\Support\LocalityOptions;
 use Illuminate\Database\Eloquent\Builder;
@@ -171,17 +172,13 @@ class CampusContactController extends Controller
              * Update Education Profile for campus-related fields.
              */
             if (
-                filled($normalized['school_campus'])
-                || filled($normalized['course_strand'])
+                filled($normalized['course_strand'])
                 || filled($normalized['grade_level'])
                 || $person->educationProfile()->exists()
             ) {
                 $education = $person
                     ->educationProfile()
                     ->firstOrNew([]);
-
-                $education->school_workplace =
-                    $normalized['school_campus'];
 
                 $education->course_strand =
                     $normalized['course_strand'];
@@ -374,18 +371,13 @@ class CampusContactController extends Controller
             $person->save();
 
             if (
-                filled($contact->school_campus)
-                || filled($contact->course_strand)
+                filled($contact->course_strand)
                 || filled($contact->grade_level)
                 || $person->educationProfile()->exists()
             ) {
                 $education = $person
                     ->educationProfile()
                     ->firstOrNew([]);
-
-                $education->school_workplace =
-                    $education->school_workplace
-                        ?: $contact->school_campus;
 
                 $education->course_strand =
                     $education->course_strand
@@ -474,11 +466,6 @@ class CampusContactController extends Controller
 
                     'locality' =>
                         $person->locality,
-
-                    'school_campus' =>
-                        $person
-                            ->educationProfile
-                            ?->school_workplace,
 
                     'course_strand' =>
                         $person
@@ -597,16 +584,12 @@ class CampusContactController extends Controller
                 $churchProfile->save();
 
                 if (
-                    filled($contact->school_campus)
-                    || filled($contact->course_strand)
+                    filled($contact->course_strand)
                     || filled($contact->grade_level)
                 ) {
                     $education = $person
                         ->educationProfile()
                         ->firstOrNew([]);
-
-                    $education->school_workplace =
-                        $contact->school_campus;
 
                     $education->course_strand =
                         $contact->course_strand;
@@ -752,11 +735,6 @@ class CampusContactController extends Controller
             'locality' =>
                 $person->locality,
 
-            'school_campus' =>
-                $person
-                    ->educationProfile
-                    ?->school_workplace,
-
             'course_strand' =>
                 $person
                     ->educationProfile
@@ -808,10 +786,10 @@ class CampusContactController extends Controller
                 'exists:localities,id',
             ],
 
-            'school_campus' => [
+            'school_id' => [
                 'nullable',
-                'string',
-                'max:255',
+                'integer',
+                'exists:schools,id',
             ],
 
             'course_strand' => [
@@ -870,6 +848,22 @@ class CampusContactController extends Controller
             }
         }
 
+        $school = null;
+
+        if (filled($data['school_id'] ?? null)) {
+            $school = School::query()
+                ->whereKey((int) $data['school_id'])
+                ->where('is_active', true)
+                ->first();
+
+            if (! $school) {
+                throw ValidationException::withMessages([
+                    'school_id' =>
+                        'Select an active configured School.',
+                ]);
+            }
+        }
+
         return [
             'firstname' =>
                 $this->nullIfBlank(
@@ -892,10 +886,11 @@ class CampusContactController extends Controller
             'locality' =>
                 $locality?->name,
 
+            'school_id' =>
+                $school?->id,
+
             'school_campus' =>
-                $this->nullIfBlank(
-                    $data['school_campus'] ?? null
-                ),
+                $school?->name,
 
             'course_strand' =>
                 $this->nullIfBlank(
