@@ -373,6 +373,204 @@
             </div>
         </div>
 
+        {{-- Needs Follow-up --}}
+        <div
+            class="rounded-2xl border border-amber-200
+                   bg-white p-5 shadow-sm
+                   dark:border-amber-900 dark:bg-gray-900"
+        >
+            <div
+                class="flex flex-col gap-3
+                       sm:flex-row sm:items-start
+                       sm:justify-between"
+            >
+                <div>
+                    <h3
+                        class="text-lg font-semibold text-gray-900
+                               dark:text-white"
+                    >
+                        Needs Follow-up
+                    </h3>
+
+                    <p
+                        class="text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Out / Unavailable, Reschedule, and Declined
+                        Shepherding Records during
+                        {{ now()->format('F Y') }}.
+                    </p>
+                </div>
+
+                <a
+                    href="{{ $operationalStats['follow_up_outcomes']['url'] }}"
+                    class="shrink-0 text-sm font-medium
+                           text-amber-700 hover:text-amber-600
+                           dark:text-amber-300
+                           dark:hover:text-amber-200"
+                >
+                    View follow-up records →
+                </a>
+            </div>
+
+            {{-- Outcome Summary --}}
+            <div
+                class="mt-4 grid gap-3
+                       sm:grid-cols-3"
+            >
+                @foreach ($followUpSummary as $key => $summary)
+                    @php
+                        $tone = match ($key) {
+                            'unavailable' =>
+                                'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200',
+
+                            'reschedule' =>
+                                'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200',
+
+                            'declined' =>
+                                'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200',
+
+                            default =>
+                                'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200',
+                        };
+                    @endphp
+
+                    <div
+                        class="rounded-xl border px-4 py-3
+                               {{ $tone }}"
+                    >
+                        <p class="text-xs font-medium opacity-80">
+                            {{ $summary['label'] }}
+                        </p>
+
+                        <p class="mt-1 text-2xl font-bold">
+                            {{ $summary['count'] }}
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Follow-up Records --}}
+            <div class="mt-5 space-y-3">
+                @forelse ($followUpItems as $record)
+                    @php
+                        $targetNames = collect(
+                            $record['targets']
+                        )
+                            ->flatten()
+                            ->filter()
+                            ->values();
+
+                        $codes = collect(
+                            $record['shepherding_codes']
+                        )
+                            ->filter()
+                            ->values();
+                    @endphp
+
+                    <div
+                        class="rounded-xl border border-gray-200
+                               p-4 dark:border-gray-700"
+                    >
+                        <div
+                            class="flex flex-col gap-3
+                                   md:flex-row md:items-start
+                                   md:justify-between"
+                        >
+                            <div class="min-w-0">
+                                <p
+                                    class="font-semibold text-gray-900
+                                           dark:text-white"
+                                >
+                                    {{ $targetNames->isNotEmpty()
+                                        ? $targetNames->join(', ')
+                                        : 'No target recorded' }}
+                                </p>
+
+                                <p
+                                    class="mt-1 text-sm text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    {{ $record['date'] }}
+
+                                    @if (filled($record['time']))
+                                        · {{ $record['time'] }}
+                                    @endif
+
+                                    ·
+                                    {{ $record['locality']
+                                        ?? 'No Locality' }}
+                                </p>
+                            </div>
+
+                            <span
+                                class="inline-flex self-start
+                                       rounded-full bg-amber-100
+                                       px-3 py-1 text-xs font-semibold
+                                       text-amber-800
+                                       dark:bg-amber-950
+                                       dark:text-amber-200"
+                            >
+                                {{ $record['outcome'] }}
+                            </span>
+                        </div>
+
+                        @if ($codes->isNotEmpty())
+                            <div
+                                class="mt-3 flex flex-wrap gap-2"
+                            >
+                                @foreach ($codes as $code)
+                                    <span
+                                        class="rounded-lg bg-gray-100
+                                               px-2.5 py-1 text-xs
+                                               font-semibold text-gray-700
+                                               dark:bg-gray-800
+                                               dark:text-gray-300"
+                                    >
+                                        {{ $code }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if (filled($record['notes']))
+                            <p
+                                class="mt-3 text-sm text-gray-600
+                                       dark:text-gray-300"
+                            >
+                                {{ \Illuminate\Support\Str::limit(
+                                    $record['notes'],
+                                    180
+                                ) }}
+                            </p>
+                        @endif
+                    </div>
+                @empty
+                    <div
+                        class="rounded-xl border border-dashed
+                               border-gray-300 px-5 py-8
+                               text-center
+                               dark:border-gray-700"
+                    >
+                        <p
+                            class="font-medium text-gray-700
+                                   dark:text-gray-300"
+                        >
+                            No follow-up outcomes this month.
+                        </p>
+
+                        <p
+                            class="mt-1 text-sm text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            Out / Unavailable, Reschedule, and
+                            Declined records will appear here.
+                        </p>
+                    </div>
+                @endforelse
+            </div>
+        </div>
+
         {{-- Locality Activity --}}
         <div
             class="rounded-2xl border border-gray-200

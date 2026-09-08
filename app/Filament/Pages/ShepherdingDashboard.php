@@ -29,6 +29,10 @@ class ShepherdingDashboard extends Page
 
     public array $recentShepherding = [];
 
+    public array $followUpItems = [];
+
+    public array $followUpSummary = [];
+
     public array $activitySummary = [];
 
     public array $localitySummary = [];
@@ -119,6 +123,76 @@ class ShepherdingDashboard extends Page
 
         $monthRows =
             $monthHistory->shepherdingRows();
+
+        /*
+         * -----------------------------------------------------
+         * Shepherding records needing follow-up.
+         * -----------------------------------------------------
+         */
+
+        $followUpOutcomeValues = [
+            ShepherdingContact::OUTCOME_UNAVAILABLE,
+            ShepherdingContact::OUTCOME_RESCHEDULE,
+            ShepherdingContact::OUTCOME_DECLINED,
+        ];
+
+        $followUpRows =
+            $monthRows
+                ->filter(
+                    fn (array $row): bool =>
+                        in_array(
+                            $row['outcome'],
+                            $followUpOutcomeValues,
+                            true
+                        )
+                )
+                ->values();
+
+        $this->followUpItems =
+            $followUpRows
+                ->take(6)
+                ->all();
+
+        $this->followUpSummary = [
+            'unavailable' => [
+                'label' =>
+                    ShepherdingContact::OUTCOME_UNAVAILABLE,
+
+                'count' =>
+                    $followUpRows
+                        ->where(
+                            'outcome',
+                            ShepherdingContact::OUTCOME_UNAVAILABLE
+                        )
+                        ->count(),
+            ],
+
+            'reschedule' => [
+                'label' =>
+                    ShepherdingContact::OUTCOME_RESCHEDULE,
+
+                'count' =>
+                    $followUpRows
+                        ->where(
+                            'outcome',
+                            ShepherdingContact::OUTCOME_RESCHEDULE
+                        )
+                        ->count(),
+            ],
+
+            'declined' => [
+                'label' =>
+                    ShepherdingContact::OUTCOME_DECLINED,
+
+                'count' =>
+                    $followUpRows
+                        ->where(
+                            'outcome',
+                            ShepherdingContact::OUTCOME_DECLINED
+                        )
+                        ->count(),
+            ],
+        ];
 
         /*
          * -----------------------------------------------------
@@ -273,32 +347,7 @@ class ShepherdingDashboard extends Page
         $peopleQuery =
             $this->basePeopleQuery();
 
-        $followUpOutcomes =
-            ShepherdingContact::query()
-                ->whereBetween(
-                    'contact_date',
-                    [
-                        $monthStart,
-                        $monthEnd,
-                    ]
-                )
-                ->whereIn(
-                    'outcome',
-                    [
-                        ShepherdingContact::OUTCOME_UNAVAILABLE,
-                        ShepherdingContact::OUTCOME_RESCHEDULE,
-                        ShepherdingContact::OUTCOME_DECLINED,
-                    ]
-                )
-                ->when(
-                    $localityId !== null,
-                    fn (Builder $query) =>
-                        $query->where(
-                            'locality_id',
-                            $localityId
-                        )
-                )
-                ->count();
+
 
         $this->operationalStats = [
             'records_this_month' => [
@@ -320,7 +369,7 @@ class ShepherdingDashboard extends Page
                     'Follow-up Outcomes',
 
                 'count' =>
-                    $followUpOutcomes,
+                    $followUpRows->count(),
 
                 'url' =>
                     ShepherdingContacts::getUrl([
