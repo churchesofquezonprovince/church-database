@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProvinceSetup extends Page
 {
@@ -182,12 +183,109 @@ class ProvinceSetup extends Page
         $oldSettings =
             $this->primarySetting();
 
+        $oldCountryName =
+            $oldSettings?->primaryCountry?->name;
+
+        $oldProvinceName =
+            $oldSettings?->primaryProvince?->name;
+
         DB::transaction(function () use (
             $countryName,
             $countryCode,
             $provinceName,
-            $provinceCode
+            $provinceCode,
+            $oldSettings
         ): void {
+            /*
+             * Existing installation:
+             * rename/edit the current Primary Country and Province
+             * IN PLACE so their IDs never change.
+             *
+             * Localities, Schools, and all other FK references
+             * therefore remain attached automatically.
+             */
+            if (
+                $oldSettings?->primary_country_id
+                && $oldSettings?->primary_province_id
+            ) {
+                $country = Country::query()
+                    ->findOrFail(
+                        $oldSettings->primary_country_id
+                    );
+
+                $province = Province::query()
+                    ->where(
+                        'country_id',
+                        $country->id
+                    )
+                    ->findOrFail(
+                        $oldSettings->primary_province_id
+                    );
+
+                $countryDuplicate =
+                    Country::query()
+                        ->where(
+                            'id',
+                            '!=',
+                            $country->id
+                        )
+                        ->where('name', $countryName)
+                        ->exists();
+
+                if ($countryDuplicate) {
+                    throw ValidationException::withMessages([
+                        'countryName' =>
+                            'Another Country with this name already exists.',
+                    ]);
+                }
+
+                $provinceDuplicate =
+                    Province::query()
+                        ->where(
+                            'country_id',
+                            $country->id
+                        )
+                        ->where(
+                            'id',
+                            '!=',
+                            $province->id
+                        )
+                        ->where('name', $provinceName)
+                        ->exists();
+
+                if ($provinceDuplicate) {
+                    throw ValidationException::withMessages([
+                        'provinceName' =>
+                            'Another Province with this name already exists in this Country.',
+                    ]);
+                }
+
+                $country->forceFill([
+                    'name' => $countryName,
+                    'code' => $countryCode,
+                    'is_active' => true,
+                ])->save();
+
+                $province->forceFill([
+                    'name' => $provinceName,
+                    'code' => $provinceCode,
+                    'is_active' => true,
+                ])->save();
+
+                $oldSettings->forceFill([
+                    'primary_country_id' =>
+                        $country->id,
+                    'primary_province_id' =>
+                        $province->id,
+                ])->save();
+
+                return;
+            }
+
+            /*
+             * Fresh installation only:
+             * create the initial Country / Province records.
+             */
             $country = Country::query()
                 ->firstOrCreate(
                     [
