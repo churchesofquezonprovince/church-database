@@ -409,10 +409,7 @@ class PeopleTable
                         }
 
                         if ($value === 'no_locality') {
-                            return $query->where(function (Builder $query): void {
-                                $query->whereNull('locality')
-                                    ->orWhere('locality', '');
-                            });
+                            return $query->whereNull('locality_id');
                         }
 
                         if ($value === 'no_household') {

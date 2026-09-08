@@ -6,12 +6,15 @@ namespace App\Http\Controllers;
 use App\Models\Person;
 use App\Models\AttendanceMeetingResponse;
 use App\Models\CampusContact;
+use App\Models\Locality;
 use App\Support\ActivityLogger;
+use App\Support\LocalityOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceMeetingResponsePromotionController extends Controller
 {
@@ -75,18 +78,11 @@ private function possibleCampusPersonMatches(
                 )
         )
         ->when(
-            filled($data['locality'] ?? null),
+            filled($data['locality_id'] ?? null),
             fn ($query) =>
-                $query->whereRaw(
-                    'LOWER(locality) = ?',
-                    [
-                        mb_strtolower(
-                            trim(
-                                (string)
-                                $data['locality']
-                            )
-                        ),
-                    ]
+                $query->where(
+                    'locality_id',
+                    $data['locality_id']
                 )
         )
         ->orderBy('lastname')
@@ -137,10 +133,10 @@ public function createGuestPerson(
     'in:Male,Female',
 ],
 
-'person_locality' => [
+'person_locality_id' => [
     'required',
-    'string',
-    'max:150',
+    'integer',
+    'exists:localities,id',
 ],
 
         'person_school_campus' => [
@@ -192,6 +188,11 @@ public function createGuestPerson(
         abort(404);
     }
 
+    $locality = $this->configuredLocality(
+        $data['person_locality_id'] ?? null,
+        'person_locality_id'
+    );
+
     $normalized = [
         'firstname' =>
             $this->nullIfBlank(
@@ -208,10 +209,11 @@ public function createGuestPerson(
                 $data['person_sex'] ?? null
             ),
 
+        'locality_id' =>
+            $locality?->id,
+
         'locality' =>
-            $this->nullIfBlank(
-                $data['person_locality'] ?? null
-            ),
+            $locality?->name,
 
         'school_campus' =>
             $this->nullIfBlank(
@@ -318,8 +320,8 @@ public function createGuestPerson(
             $person->sex =
                 $normalized['sex'];
 
-            $person->locality =
-                $normalized['locality'];
+            $person->locality_id =
+                $normalized['locality_id'];
 
             $person->contact_number =
                 $normalized['contact_number'];
@@ -720,10 +722,10 @@ public function searchPeople(
                 'in:Male,Female',
             ],
 
-            'locality' => [
+            'locality_id' => [
                 'nullable',
-                'string',
-                'max:150',
+                'integer',
+                'exists:localities,id',
             ],
 
             'school_campus' => [
@@ -775,6 +777,11 @@ public function searchPeople(
             abort(404);
         }
 
+        $locality = $this->configuredLocality(
+            $data['locality_id'] ?? null,
+            'locality_id'
+        );
+
         $normalized = [
             'firstname' =>
                 $this->nullIfBlank(
@@ -791,10 +798,11 @@ public function searchPeople(
                     $data['sex'] ?? null
                 ),
 
+            'locality_id' =>
+                $locality?->id,
+
             'locality' =>
-                $this->nullIfBlank(
-                    $data['locality'] ?? null
-                ),
+                $locality?->name,
 
             'school_campus' =>
                 $this->nullIfBlank(
@@ -1134,9 +1142,9 @@ public function linkCampusToPerson(
                 $person->sex
                     ?: $contact->sex;
 
-            $person->locality =
-                $person->locality
-                    ?: $contact->locality;
+            $person->locality_id =
+                $person->locality_id
+                    ?: $contact->locality_id;
 
             $person->contact_number =
                 $person->contact_number
@@ -1321,7 +1329,30 @@ private function possiblePersonMatches(
             ->get();
     }
 
-    private function nullIfBlank(
+    private function configuredLocality(
+    mixed $id,
+    string $field
+): ?Locality {
+    if (blank($id)) {
+        return null;
+    }
+
+    $locality = LocalityOptions::activeConfiguredLocality(
+        (int) $id
+    );
+
+    if (! $locality) {
+        throw ValidationException::withMessages([
+            $field =>
+                'Select an active configured Locality.',
+        ]);
+    }
+
+    return $locality;
+}
+
+
+private function nullIfBlank(
         mixed $value
     ): mixed {
         if (! is_string($value)) {
@@ -1378,10 +1409,10 @@ public function createPersonFromCampus(
             'in:Male,Female',
         ],
 
-        'campus_person_locality' => [
+        'campus_person_locality_id' => [
             'required',
-            'string',
-            'max:150',
+            'integer',
+            'exists:localities,id',
         ],
 
         'campus_person_school_campus' => [
@@ -1454,6 +1485,11 @@ public function createPersonFromCampus(
     /*
      * Admin-reviewed Campus information.
      */
+    $locality = $this->configuredLocality(
+        $data['campus_person_locality_id'] ?? null,
+        'campus_person_locality_id'
+    );
+
     $normalized = [
         'firstname' =>
             $this->nullIfBlank(
@@ -1473,11 +1509,11 @@ public function createPersonFromCampus(
                     ?? null
             ),
 
+        'locality_id' =>
+            $locality?->id,
+
         'locality' =>
-            $this->nullIfBlank(
-                $data['campus_person_locality']
-                    ?? null
-            ),
+            $locality?->name,
 
         'school_campus' =>
             $this->nullIfBlank(
@@ -1625,8 +1661,8 @@ public function createPersonFromCampus(
             $person->sex =
                 $normalized['sex'];
 
-            $person->locality =
-                $normalized['locality'];
+            $person->locality_id =
+                $normalized['locality_id'];
 
             $person->contact_number =
                 $normalized['contact_number'];

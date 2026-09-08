@@ -54,6 +54,21 @@
                 ? old($field, $fallback)
                 : $fallback;
         };
+
+    $selectedPromotionLocalityId =
+        $isOldPromotion
+            ? old('locality_id')
+            : $promotionLocalityIdForName(
+                $guestProfile['locality'] ?? null
+            );
+
+    $selectedPersonLocalityId =
+        $isOldPersonCreate
+            ? old('person_locality_id')
+            : $promotionLocalityIdForName(
+                $guestProfile['locality'] ?? null
+            );
+
 @endphp
 
     <details
@@ -186,7 +201,7 @@
                         @endphp
 
 <select
-    name="person_sex"
+    name="sex"
     required
     class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
 >
@@ -214,27 +229,43 @@
                         </select>
                     </div>
 
+                      <div>
+                          <label
+                              class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
+                          >
+                              Locality
+                          </label>
 
-                    <div>
-                        <label
-                            class="block text-xs font-semibold text-gray-700 dark:text-gray-200"
-                        >
-                            Locality *
-                        </label>
+                          <select
+                              name="locality_id"
+                              class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+                          >
+                              <option value="">
+                                  Not recorded
+                              </option>
 
-<input
-    type="text"
-    name="person_locality"
-    required
-    maxlength="150"
-    value="{{ $personCreateValue(
-        'person_locality',
-        $guestProfile['locality']
-            ?? null
-    ) }}"
-    class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
->
-                    </div>
+                              @foreach ($promotionLocalityOptions as $group => $options)
+                                  <optgroup label="{{ $group }}">
+                                      @foreach ($options as $localityId => $locality)
+                                          <option
+                                              value="{{ $localityId }}"
+                                              @selected(
+                                                  (string) $selectedPromotionLocalityId
+                                                  ===
+                                                  (string) $localityId
+                                              )
+                                          >
+                                              {{ $locality }}
+                                          </option>
+                                      @endforeach
+                                  </optgroup>
+                              @endforeach
+                          </select>
+                      </div>
+
+
+
+
 
                 </div>
 
@@ -654,18 +685,30 @@
             Locality *
         </label>
 
-        <input
-            type="text"
-            name="person_locality"
-            required
-            maxlength="150"
-            value="{{ $personCreateValue(
-                'person_locality',
-                $guestProfile['locality']
-                    ?? null
-            ) }}"
-            class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-        >
+        <select
+              name="person_locality_id"
+              required
+              class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+          >
+              <option value="">Choose...</option>
+
+              @foreach ($promotionLocalityOptions as $group => $options)
+                  <optgroup label="{{ $group }}">
+                      @foreach ($options as $localityId => $locality)
+                          <option
+                              value="{{ $localityId }}"
+                              @selected(
+                                  (string) $selectedPersonLocalityId
+                                  ===
+                                  (string) $localityId
+                              )
+                          >
+                              {{ $locality }}
+                          </option>
+                      @endforeach
+                  </optgroup>
+              @endforeach
+          </select>
     </div>
 
 </div>

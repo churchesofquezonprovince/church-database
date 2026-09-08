@@ -12,6 +12,39 @@
         $lordsTableLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_LORDS_TABLE);
         $prayerMeetingLocalities = $this->permanentMeetingLocalities(\App\Models\AttendanceSheet::TYPE_PRAYER_MEETING);
         $meetingResponses = $this->meetingResponses();
+
+        $promotionLocalityOptions =
+            \App\Support\LocalityOptions::groupedActiveConfigured();
+
+        $promotionLocalityIdForName =
+            function (?string $name) use (
+                $promotionLocalityOptions
+            ): ?int {
+                $name = trim((string) $name);
+
+                if ($name === '') {
+                    return null;
+                }
+
+                $matches = [];
+
+                foreach ($promotionLocalityOptions as $options) {
+                    foreach ($options as $id => $label) {
+                        if (
+                            strcasecmp(
+                                (string) $label,
+                                $name
+                            ) === 0
+                        ) {
+                            $matches[] = (int) $id;
+                        }
+                    }
+                }
+
+                return count($matches) === 1
+                    ? $matches[0]
+                    : null;
+            };
         $yesMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_YES);
         $noMeetingResponses = $meetingResponses->where('response',\App\Models\AttendanceMeetingResponse::RESPONSE_NO);
         $meetingResponseWorkflowStatuses =

@@ -18,7 +18,7 @@
             (int) $response->id;
 
 
-    
+
     $campusCreateValue =
     function (
         string $field,
@@ -31,7 +31,18 @@
             : $fallback;
     };
 
-    @endphp
+
+      $selectedCampusPersonLocalityId =
+          $isOldCampusCreate
+              ? old('campus_person_locality_id')
+              : (
+                  $contact?->locality_id
+                  ?: $promotionLocalityIdForName(
+                      $contact?->locality
+                  )
+              );
+
+@endphp
 
     <details
         class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950"
@@ -388,17 +399,30 @@
                 Locality *
             </label>
 
-            <input
-                type="text"
-                name="campus_person_locality"
-                required
-                maxlength="150"
-                value="{{ $campusCreateValue(
-                    'campus_person_locality',
-                    $contact->locality
-                ) }}"
-                class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-            >
+            <select
+                  name="campus_person_locality_id"
+                  required
+                  class="mt-1 block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
+              >
+                  <option value="">Choose...</option>
+
+                  @foreach ($promotionLocalityOptions as $group => $options)
+                      <optgroup label="{{ $group }}">
+                          @foreach ($options as $localityId => $locality)
+                              <option
+                                  value="{{ $localityId }}"
+                                  @selected(
+                                      (string) $selectedCampusPersonLocalityId
+                                      ===
+                                      (string) $localityId
+                                  )
+                              >
+                                  {{ $locality }}
+                              </option>
+                          @endforeach
+                      </optgroup>
+                  @endforeach
+              </select>
         </div>
 
     </div>

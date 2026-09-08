@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CampusContact;
+use App\Models\Locality;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,6 +94,26 @@ class CampusContactImportController extends Controller
         foreach ($parsed['rows'] as $entry) {
             $row = $entry['data'];
 
+            $locality = null;
+            $localityName = $this->nullable(
+                $row['locality'] ?? null
+            );
+
+            if ($localityName !== null) {
+                $localityMatches = $this->matchingLocalities(
+                    $localityName
+                );
+
+                if ($localityMatches->count() !== 1) {
+                    throw new \RuntimeException(
+                        'Validated Campus Contact Locality '
+                        . 'could not be resolved uniquely.'
+                    );
+                }
+
+                $locality = $localityMatches->first();
+            }
+
             CampusContact::query()->create([
                 'firstname' => $this->nullable(
                     $row['firstname'] ?? null
@@ -106,9 +127,9 @@ class CampusContactImportController extends Controller
                     $row['sex'] ?? null
                 ),
 
-                'locality' => $this->nullable(
-                    $row['locality'] ?? null
-                ),
+                'locality_id' => $locality?->id,
+
+                'locality' => $locality?->name,
 
                 'school_campus' => $this->nullable(
                     $row['school_campus'] ?? null
@@ -352,6 +373,40 @@ class CampusContactImportController extends Controller
                     "Line {$line}: email is invalid.";
             }
 
+            $localityName = trim(
+                (string) ($row['locality'] ?? '')
+            );
+
+            if ($localityName !== '') {
+                $localityMatches = $this->matchingLocalities(
+                    $localityName
+                );
+
+                if ($localityMatches->isEmpty()) {
+                    $errors[] =
+                        "Line {$line}: locality '{$localityName}' "
+                        . 'is not configured. Add it in Province '
+                        . 'Setup before importing.';
+                } elseif ($localityMatches->count() > 1) {
+                    $matches = $localityMatches
+                        ->map(
+                            fn (Locality $locality): string =>
+                                $locality->name
+                                . ' — '
+                                . (
+                                    $locality->province?->name
+                                    ?? 'Unknown Province'
+                                )
+                        )
+                        ->implode(', ');
+
+                    $errors[] =
+                        "Line {$line}: locality '{$localityName}' "
+                        . "is ambiguous. Configured matches: "
+                        . "{$matches}.";
+                }
+            }
+
             $maximumLengths = [
                 'firstname' => 100,
                 'lastname' => 100,
@@ -381,6 +436,24 @@ class CampusContactImportController extends Controller
         }
 
         return $errors;
+    }
+
+    private function matchingLocalities(string $name)
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return collect();
+        }
+
+        return Locality::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->whereRaw(
+                'LOWER(name) = ?',
+                [mb_strtolower($name)]
+            )
+            ->get();
     }
 
     private function normalizeHeader(

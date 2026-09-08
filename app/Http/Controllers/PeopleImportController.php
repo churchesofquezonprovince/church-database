@@ -361,18 +361,33 @@ class PeopleImportController extends Controller
 
         if (filled($row['household_name'] ?? null)) {
             $household = Household::query()
-                ->whereRaw('LOWER(household_name) = ?', [strtolower(trim((string) $row['household_name']))])
                 ->whereRaw(
-                    'LOWER(locality) = ?',
-                    [mb_strtolower($locality->name)]
+                    'LOWER(household_name) = ?',
+                    [
+                        strtolower(
+                            trim(
+                                (string) $row['household_name']
+                            )
+                        ),
+                    ]
                 )
+                ->where('locality_id', $locality->id)
                 ->first();
 
             if (! $household) {
                 $household = new Household();
-                $household->household_name = $row['household_name'];
-                $household->locality = $locality->name;
-                $household->address = $this->nullable($row['home_address'] ?? null);
+                $household->household_name =
+                    $row['household_name'];
+
+                $household->locality_id =
+                    $locality->id;
+
+                $household->locality =
+                    $locality->name;
+
+                $household->address = $this->nullable(
+                    $row['home_address'] ?? null
+                );
                 $household->save();
             }
         }

@@ -530,7 +530,9 @@
                     Upload a CSV file containing Campus Contacts.
                     Incomplete contacts are allowed. The four People
                     fields are required only when adding a contact
-                    to the People Database.
+                    to the People Database. When Locality is provided,
+                    it must match an active Locality configured in
+                    Province Setup.
                 </p>
 
                 <div class="mt-4">
