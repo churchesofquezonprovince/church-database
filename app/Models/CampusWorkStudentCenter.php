@@ -11,6 +11,7 @@ class CampusWorkStudentCenter extends Model
     protected $fillable = [
         'name',
         'school_campus',
+        'school_id',
         'locality',
         'locality_id',
         'place',
@@ -28,7 +29,22 @@ class CampusWorkStudentCenter extends Model
                     $center->name = 'Student Center - ' . $locality->name;
                 }
             }
+
+            if (blank($center->school_id)) {
+                $center->school_campus = null;
+            } else {
+                $school = School::query()->find($center->school_id);
+
+                if ($school) {
+                    $center->school_campus = $school->name;
+                }
+            }
         });
+    }
+
+    public function school(): BelongsTo
+    {
+        return $this->belongsTo(School::class);
     }
 
     public function localityRecord(): BelongsTo

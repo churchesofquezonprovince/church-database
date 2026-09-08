@@ -7,6 +7,7 @@ use App\Models\CampusWorkStudentCenter;
 use App\Models\CampusWorkStudentCenterMember;
 use App\Models\Locality;
 use App\Models\ProvinceSetting;
+use App\Models\School;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -89,7 +90,11 @@ class CampusWorkStudentCenterController extends Controller
     protected function validatedCenterData(Request $request): array
     {
         $validated = $request->validate([
-            'school_campus' => ['nullable', 'string', 'max:255'],
+            'school_id' => [
+                'nullable',
+                'integer',
+                'exists:schools,id',
+            ],
             'locality_id' => ['required', 'integer', 'exists:localities,id'],
             'place' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
@@ -110,12 +115,30 @@ class CampusWorkStudentCenterController extends Controller
             ]);
         }
 
+        $school = null;
+
+        if (filled($validated['school_id'] ?? null)) {
+            $school = School::query()
+                ->whereKey((int) $validated['school_id'])
+                ->where('is_active', true)
+                ->first();
+
+            if (! $school) {
+                throw ValidationException::withMessages([
+                    'school_id' =>
+                        'Select an active configured School.',
+                ]);
+            }
+        }
+
         foreach ($validated as $key => $value) {
             if (is_string($value)) {
                 $validated[$key] = trim($value) === '' ? null : trim($value);
             }
         }
 
+        $validated['school_id'] = $school?->id;
+        $validated['school_campus'] = $school?->name;
         $validated['locality'] = $locality->name;
         $validated['name'] = 'Student Center - ' . $locality->name;
 

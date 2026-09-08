@@ -6,6 +6,7 @@ use App\Models\CampusContact;
 use App\Models\CampusWorkStudentCenter;
 use App\Models\Locality;
 use App\Models\ProvinceSetting;
+use App\Models\School;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -54,7 +55,7 @@ class StudentCenter extends Page
     public function centers(): Collection
     {
         $search = trim((string) request('search', ''));
-        $school = trim((string) request('school', ''));
+        $schoolId = (int) request('school_id', 0);
         $localityId = (int) request('locality_id', 0);
 
         return CampusWorkStudentCenter::query()
@@ -72,7 +73,10 @@ class StudentCenter extends Page
                         ->orWhere('notes', 'like', "%{$search}%");
                 });
             })
-            ->when($school !== '', fn ($query) => $query->where('school_campus', $school))
+            ->when(
+                $schoolId > 0,
+                fn ($query) => $query->where('school_id', $schoolId)
+            )
             ->when($localityId > 0, fn ($query) => $query->where('locality_id', $localityId))
             ->orderBy('locality')
             ->orderBy('school_campus')
@@ -82,24 +86,11 @@ class StudentCenter extends Page
 
     public function schoolOptions(): Collection
     {
-        $fromContacts = CampusContact::query()
-            ->whereNotNull('school_campus')
-            ->where('school_campus', '!=', '')
-            ->distinct()
-            ->pluck('school_campus');
-
-        $fromCenters = CampusWorkStudentCenter::query()
-            ->whereNotNull('school_campus')
-            ->where('school_campus', '!=', '')
-            ->distinct()
-            ->pluck('school_campus');
-
-        return $fromContacts
-            ->merge($fromCenters)
-            ->filter()
-            ->unique()
-            ->sort(fn ($a, $b) => strcasecmp((string) $a, (string) $b))
-            ->values();
+        return School::query()
+            ->with('province')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     public function localityOptions(): Collection
