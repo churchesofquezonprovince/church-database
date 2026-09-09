@@ -393,6 +393,68 @@ class ShepherdingDashboard extends Page
                     'lesson.ministry_book_id'
                 );
 
+        $ministryTopicUsage =
+            DB::table(
+                'shepherding_contact_ministry_lessons as pivot'
+            )
+                ->join(
+                    'ministry_lessons as lesson',
+                    'lesson.id',
+                    '=',
+                    'pivot.ministry_lesson_id'
+                )
+                ->join(
+                    'shepherding_contacts as contact',
+                    'contact.id',
+                    '=',
+                    'pivot.shepherding_contact_id'
+                )
+                ->whereBetween(
+                    'contact.contact_date',
+                    [
+                        $monthStart,
+                        $monthEnd,
+                    ]
+                )
+                ->when(
+                    $localityId !== null,
+                    fn ($query) =>
+                        $query->where(
+                            'contact.locality_id',
+                            $localityId
+                        )
+                )
+                ->select([
+                    'lesson.id',
+                    'lesson.ministry_book_id',
+                    'lesson.code',
+                    'lesson.title',
+                    'lesson.sort_order',
+                ])
+                ->selectRaw(
+                    'COUNT(DISTINCT contact.id) as total'
+                )
+                ->groupBy([
+                    'lesson.id',
+                    'lesson.ministry_book_id',
+                    'lesson.code',
+                    'lesson.title',
+                    'lesson.sort_order',
+                ])
+                ->orderBy(
+                    'lesson.ministry_book_id'
+                )
+                ->orderBy(
+                    'lesson.sort_order'
+                )
+                ->orderBy(
+                    'lesson.code'
+                )
+                ->get()
+                ->groupBy(
+                    'ministry_book_id'
+                );
+
         $this->ministrySummary =
             MinistryBook::query()
                 ->where(
@@ -410,7 +472,8 @@ class ShepherdingDashboard extends Page
                     function (
                         MinistryBook $book
                     ) use (
-                        $ministryUsage
+                        $ministryUsage,
+                        $ministryTopicUsage
                     ): array {
                         return [
                             'id' =>
@@ -429,6 +492,31 @@ class ShepherdingDashboard extends Page
                                     ]
                                     ?? 0
                                 ),
+
+                            'topics' =>
+                                $ministryTopicUsage
+                                    ->get(
+                                        $book->id,
+                                        collect()
+                                    )
+                                    ->map(
+                                        fn ($row): array => [
+                                            'id' =>
+                                                (int) $row->id,
+
+                                            'code' =>
+                                                $row->code,
+
+                                            'title' =>
+                                                $row->title,
+
+                                            'count' =>
+                                                (int)
+                                                $row->total,
+                                        ]
+                                    )
+                                    ->values()
+                                    ->all(),
                         ];
                     }
                 )

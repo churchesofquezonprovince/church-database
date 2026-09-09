@@ -634,43 +634,156 @@
                     class="text-sm text-gray-500
                            dark:text-gray-400"
                 >
-                    Shepherding Records that used lessons
-                    from each ministry book.
+                    Distinct Shepherding Records that used
+                    lessons from each ministry book. Used books
+                    can be expanded to show the topics covered.
                 </p>
 
                 <div class="mt-4 space-y-2">
                     @foreach ($ministrySummary as $book)
-                        <div
-                            class="flex items-center justify-between
-                                   rounded-xl bg-gray-50 px-3 py-2
-                                   dark:bg-gray-800"
-                        >
-                            <div class="min-w-0">
-                                <span
-                                    class="font-semibold
-                                           text-primary-700
-                                           dark:text-primary-300"
+                        @php
+                            $usedTopics =
+                                collect(
+                                    $book['topics'] ?? []
+                                );
+                        @endphp
+
+                        @if ($usedTopics->isNotEmpty())
+                            <details
+                                class="overflow-hidden
+                                       rounded-xl
+                                       bg-gray-50
+                                       dark:bg-gray-800"
+                            >
+                                <summary
+                                    class="cursor-pointer
+                                           list-none px-3 py-2"
                                 >
-                                    {{ $book['code'] }}
-                                </span>
+                                    <div
+                                        class="flex items-center
+                                               justify-between"
+                                    >
+                                        <div class="min-w-0">
+                                            <span
+                                                class="font-semibold
+                                                       text-primary-700
+                                                       dark:text-primary-300"
+                                            >
+                                                {{ $book['code'] }}
+                                            </span>
+
+                                            <span
+                                                class="ml-2 text-sm
+                                                       text-gray-600
+                                                       dark:text-gray-300"
+                                            >
+                                                {{ $book['title'] }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="ml-3 flex
+                                                   items-center gap-2"
+                                        >
+                                            <span
+                                                class="font-bold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $book['count'] }}
+                                            </span>
+
+                                            <span
+                                                class="text-xs
+                                                       text-gray-400"
+                                            >
+                                                ▾
+                                            </span>
+                                        </div>
+                                    </div>
+                                </summary>
+
+                                <div
+                                    class="border-t
+                                           border-gray-200
+                                           dark:border-gray-700"
+                                >
+                                    @foreach ($usedTopics as $topic)
+                                        <div
+                                            class="flex items-start
+                                                   justify-between
+                                                   gap-3 px-4 py-3
+                                                   text-sm
+                                                   border-b
+                                                   border-gray-200
+                                                   last:border-b-0
+                                                   dark:border-gray-700"
+                                        >
+                                            <div class="min-w-0">
+                                                <span
+                                                    class="font-semibold
+                                                           text-gray-800
+                                                           dark:text-gray-200"
+                                                >
+                                                    {{ $topic['code'] }}
+                                                </span>
+
+                                                <span
+                                                    class="ml-2
+                                                           text-gray-600
+                                                           dark:text-gray-300"
+                                                >
+                                                    {{ $topic['title'] }}
+                                                </span>
+                                            </div>
+
+                                            <span
+                                                class="shrink-0
+                                                       font-bold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $topic['count'] }}
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </details>
+                        @else
+                            <div
+                                class="flex items-center
+                                       justify-between
+                                       rounded-xl bg-gray-50
+                                       px-3 py-2
+                                       dark:bg-gray-800"
+                            >
+                                <div class="min-w-0">
+                                    <span
+                                        class="font-semibold
+                                               text-primary-700
+                                               dark:text-primary-300"
+                                    >
+                                        {{ $book['code'] }}
+                                    </span>
+
+                                    <span
+                                        class="ml-2 text-sm
+                                               text-gray-600
+                                               dark:text-gray-300"
+                                    >
+                                        {{ $book['title'] }}
+                                    </span>
+                                </div>
 
                                 <span
-                                    class="ml-2 text-sm
-                                           text-gray-600
-                                           dark:text-gray-300"
+                                    class="ml-3 font-bold
+                                           text-gray-900
+                                           dark:text-white"
                                 >
-                                    {{ $book['title'] }}
+                                    {{ $book['count'] }}
                                 </span>
                             </div>
-
-                            <span
-                                class="ml-3 font-bold
-                                       text-gray-900
-                                       dark:text-white"
-                            >
-                                {{ $book['count'] }}
-                            </span>
-                        </div>
+                        @endif
                     @endforeach
                 </div>
             </div>
