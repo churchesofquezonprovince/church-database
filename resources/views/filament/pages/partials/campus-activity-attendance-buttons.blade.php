@@ -2,6 +2,16 @@
     filled($activity->attendance_sheet_id)
     || filled($activity->attendance_session_id)
 )
+    @include(
+        'filament.pages.partials.campus-activity-attendance-summary',
+        ['activity' => $activity]
+    )
+@endif
+
+@if (
+    filled($activity->attendance_sheet_id)
+    || filled($activity->attendance_session_id)
+)
     @if ($this->attendanceUrl($activity))
         <a
             href="{{ $this->attendanceUrl($activity) }}"
@@ -9,7 +19,9 @@
                    px-3 py-1.5 text-xs font-bold
                    text-white hover:bg-emerald-500"
         >
-            Open Attendance
+            {{ $activity->attendanceSheet?->is_one_time
+                ? 'Open Attendance'
+                : 'Open Series' }}
         </a>
     @endif
 

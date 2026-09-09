@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Support\LocalityOptions;
+use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Models\CampusWorkActivity;
 use App\Models\CampusWorkTerm;
@@ -104,7 +105,22 @@ class CampusActivities extends Page
             ->with([
                 'term',
                 'school',
-                'attendanceSheet.sessions',
+
+                'attendanceSheet.sessions' => fn ($query) =>
+                    $query
+                        ->withCount([
+                            'records',
+
+                            'records as present_records_count' =>
+                                fn ($query) =>
+                                    $query->where(
+                                        'is_present',
+                                        true
+                                    ),
+                        ])
+                        ->orderBy('session_date')
+                        ->orderBy('id'),
+
                 'attendanceSession.sheet',
             ])
             ->when(
@@ -194,6 +210,142 @@ class CampusActivities extends Page
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->get();
+    }
+
+    public function attendanceSummary(
+        CampusWorkActivity $activity
+    ): array {
+        $sheet = $activity->attendanceSheet;
+
+        if (! $sheet) {
+            return [
+                'linked' => false,
+                'mode' => null,
+                'sessions' => 0,
+                'marked' => 0,
+                'present' => 0,
+                'range' => null,
+                'focus_session' => null,
+                'focus_label' => null,
+            ];
+        }
+
+        $sessions = $sheet->sessions
+            ->sortBy([
+                ['session_date', 'asc'],
+                ['id', 'asc'],
+            ])
+            ->values();
+
+        $firstSession =
+            $sessions->first();
+
+        $lastSession =
+            $sessions->last();
+
+        $startDate =
+            $sheet->start_date
+            ?: $firstSession?->session_date;
+
+        $endDate =
+            $sheet->end_date
+            ?: $lastSession?->session_date;
+
+        $range = null;
+
+        if ($startDate && $endDate) {
+            $range =
+                $startDate->isSameDay($endDate)
+                    ? $startDate->format('M d, Y')
+                    : $startDate->format('M d, Y')
+                        . ' – '
+                        . $endDate->format('M d, Y');
+        }
+
+        $today = now()->startOfDay();
+
+        $nextSession =
+            $sessions->first(
+                fn ($session): bool =>
+                    $session->session_date
+                        && $session
+                            ->session_date
+                            ->greaterThanOrEqualTo(
+                                $today
+                            )
+            );
+
+        $latestSession =
+            $sessions
+                ->filter(
+                    fn ($session): bool =>
+                        $session->session_date
+                        && $session
+                            ->session_date
+                            ->lessThanOrEqualTo(
+                                $today
+                            )
+                )
+                ->last();
+
+        $focusSession =
+            $nextSession
+            ?: $latestSession
+            ?: $firstSession;
+
+        $focusLabel = null;
+
+        if ($focusSession?->session_date) {
+            $focusLabel =
+                $nextSession
+                    ? 'Open Next Session'
+                    : 'Open Latest Session';
+        }
+
+        return [
+            'linked' => true,
+
+            'mode' =>
+                $sheet->is_one_time
+                    ? 'One-time'
+                    : 'Recurring',
+
+            'sessions' =>
+                $sessions->count(),
+
+            'marked' =>
+                (int) $sessions->sum(
+                    'records_count'
+                ),
+
+            'present' =>
+                (int) $sessions->sum(
+                    'present_records_count'
+                ),
+
+            'range' =>
+                $range,
+
+            'focus_session' =>
+                $focusSession,
+
+            'focus_label' =>
+                $focusLabel,
+        ];
+    }
+
+    public function attendanceSessionUrl(
+        AttendanceSession $session
+    ): string {
+        return CheckAttendance::getUrl()
+            . '?'
+            . http_build_query([
+                'sheetId' =>
+                    $session->attendance_sheet_id,
+
+                'sessionId' =>
+                    $session->id,
+            ]);
     }
 
     public function attendanceUrl(
