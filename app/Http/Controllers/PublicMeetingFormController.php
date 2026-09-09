@@ -390,6 +390,19 @@ class PublicMeetingFormController extends Controller
                                 $person->id,
                         ]);
 
+                /*
+                 * The Campus search result became Person-linked
+                 * after it was displayed. Person is now canonical,
+                 * but preserve the Campus origin/identity journey
+                 * for a newly created response.
+                 */
+                if (! $meetingResponse->exists) {
+                    $meetingResponse->original_source =
+                        AttendanceMeetingResponse::RESPONDENT_CAMPUS;
+
+                    $meetingResponse->campus_contact_id =
+                        $contact->id;
+                }
 
                 $meetingResponse->forceFill([
                     'respondent_type' =>
@@ -397,9 +410,6 @@ class PublicMeetingFormController extends Controller
 
                     'person_id' =>
                         $person->id,
-
-                    'campus_contact_id' =>
-                        null,
 
                     'guest_name' =>
                         null,
