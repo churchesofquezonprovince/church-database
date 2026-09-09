@@ -7,6 +7,7 @@ use App\Http\Controllers\CampusContactController;
 use App\Http\Controllers\GospelContactController;
 use App\Http\Controllers\CampusWorkDashboardController;
 use App\Http\Controllers\CampusWorkActivityController;
+use App\Http\Controllers\CampusWorkActivityAttendanceController;
 use App\Http\Controllers\StudentNucleusExportController;
 use App\Http\Controllers\CampusWorkTermController;
 use App\Http\Controllers\StudentNucleusPrintController;
@@ -394,6 +395,38 @@ Route::middleware(['web', 'auth'])
 
         Route::patch('/{activity}', [CampusWorkActivityController::class, 'update'])
             ->name('update');
+
+        Route::post(
+            '/{activity}/attendance/one-time',
+            [
+                CampusWorkActivityAttendanceController::class,
+                'generateOneTime',
+            ]
+        )->name('attendance.one-time');
+
+        Route::post(
+            '/{activity}/attendance/recurring',
+            [
+                CampusWorkActivityAttendanceController::class,
+                'generateRecurring',
+            ]
+        )->name('attendance.recurring');
+
+        Route::post(
+            '/{activity}/attendance/link',
+            [
+                CampusWorkActivityAttendanceController::class,
+                'linkExisting',
+            ]
+        )->name('attendance.link');
+
+        Route::delete(
+            '/{activity}/attendance/link',
+            [
+                CampusWorkActivityAttendanceController::class,
+                'unlink',
+            ]
+        )->name('attendance.unlink');
 
         Route::delete('/{activity}', [CampusWorkActivityController::class, 'destroy'])
             ->name('destroy');

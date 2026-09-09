@@ -116,6 +116,14 @@ public function immichAlbum(): HasOne
         return $this->hasMany(AttendanceSession::class);
     }
 
+    public function campusActivity(): HasOne
+    {
+        return $this->hasOne(
+            CampusWorkActivity::class,
+            'attendance_sheet_id'
+        );
+    }
+
     public function participants(): HasMany
     {
         return $this->hasMany(AttendanceParticipant::class);

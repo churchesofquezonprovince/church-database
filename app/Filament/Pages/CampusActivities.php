@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Support\LocalityOptions;
+use App\Models\AttendanceSheet;
 use App\Models\CampusWorkActivity;
 use App\Models\CampusWorkTerm;
 use App\Models\School;
@@ -100,7 +101,12 @@ class CampusActivities extends Page
         $term = $this->selectedTerm();
 
         return CampusWorkActivity::query()
-            ->with(['term', 'school'])
+            ->with([
+                'term',
+                'school',
+                'attendanceSheet.sessions',
+                'attendanceSession.sheet',
+            ])
             ->when(
                 $term,
                 fn ($query) =>
@@ -165,5 +171,58 @@ class CampusActivities extends Page
     public function localityOptions(): array
     {
         return LocalityOptions::groupedActiveConfigured();
+    }
+
+    public function availableAttendanceSheets(): Collection
+    {
+        return AttendanceSheet::query()
+            ->with([
+                'sessions' => fn ($query) =>
+                    $query
+                        ->orderByDesc('session_date')
+                        ->orderByDesc('id'),
+                'localityRecord',
+            ])
+            ->where(
+                'sheet_type',
+                AttendanceSheet::TYPE_CUSTOM
+            )
+            ->whereDoesntHave(
+                'campusActivity'
+            )
+            ->orderByDesc('is_active')
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function attendanceUrl(
+        CampusWorkActivity $activity
+    ): ?string {
+        if (
+            $activity->attendanceSheet
+            && $activity->attendanceSession
+        ) {
+            return CheckAttendance::getUrl()
+                . '?'
+                . http_build_query([
+                    'sheetId' =>
+                        $activity->attendance_sheet_id,
+
+                    'sessionId' =>
+                        $activity->attendance_session_id,
+                ]);
+        }
+
+        if ($activity->attendanceSheet) {
+            return AttendanceSheets::getUrl()
+                . '?'
+                . http_build_query([
+                    'sheetId' =>
+                        $activity->attendance_sheet_id,
+                ]);
+        }
+
+        return null;
     }
 }

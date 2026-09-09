@@ -13,6 +13,7 @@
         $typeOptions = $this->activityTypeOptions();
         $schoolOptions = $this->schoolOptions();
         $localityOptions = $this->localityOptions();
+        $attendanceSheets = $this->availableAttendanceSheets();
     @endphp
 
     <div class="min-w-0 space-y-6">
@@ -48,6 +49,47 @@
         @if (session('campus_activity_deleted'))
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Campus activity deleted.</p>
+            </div>
+        @endif
+
+        @if (session('campus_activity_attendance_generated'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Attendance generated successfully.
+                </p>
+
+                @if (session('campus_activity_attendance_title'))
+                    <p class="mt-1 text-sm">
+                        {{ session('campus_activity_attendance_title') }}
+                    </p>
+                @endif
+
+                @if (session('campus_activity_attendance_sessions'))
+                    <p class="mt-1 text-sm">
+                        {{ session('campus_activity_attendance_sessions') }}
+                        session(s) generated.
+                    </p>
+                @endif
+            </div>
+        @endif
+
+        @if (session('campus_activity_attendance_linked'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Existing Attendance linked successfully.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_activity_attendance_unlinked'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">
+                    Attendance detached.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    Attendance Sheets, Sessions, and Records were preserved.
+                </p>
             </div>
         @endif
 
@@ -412,6 +454,11 @@
                         </div>
 
                         <div class="mt-4 flex flex-wrap gap-2">
+                            @include(
+                                'filament.pages.partials.campus-activity-attendance-buttons',
+                                ['activity' => $activity]
+                            )
+
                             <button
                                 type="button"
                                 onclick="document.getElementById('edit-campus-activity-{{ $activity->id }}').showModal()"
@@ -489,7 +536,12 @@
                                 </td>
 
                                 <td class="px-4 py-3">
-                                    <div class="flex justify-end gap-2">
+                                    <div class="flex flex-wrap justify-end gap-2">
+                                        @include(
+                                            'filament.pages.partials.campus-activity-attendance-buttons',
+                                            ['activity' => $activity]
+                                        )
+
                                         <button
                                             type="button"
                                             onclick="document.getElementById('edit-campus-activity-{{ $activity->id }}').showModal()"
@@ -790,4 +842,15 @@
             </dialog>
         @endforeach
     </div>
+    {{-- Campus Activity Attendance dialogs --}}
+    @foreach ($activities as $activity)
+        @include(
+            'filament.pages.partials.campus-activity-attendance-dialogs',
+            [
+                'activity' => $activity,
+                'attendanceSheets' => $attendanceSheets,
+            ]
+        )
+    @endforeach
+
 </x-filament-panels::page>
