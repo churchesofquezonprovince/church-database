@@ -485,7 +485,63 @@ class CampusWorkActivityAttendanceController extends Controller
                     }
                 }
 
+                /*
+                 * Linking existing Attendance also synchronizes
+                 * the shared event details back into the Campus
+                 * Activity.
+                 *
+                 * Campus-only fields such as activity type,
+                 * School, Venue, Academic Term, end time, and
+                 * description remain untouched.
+                 */
+                $oldActivityValues = [
+                    'title' =>
+                        $activity->title,
+
+                    'activity_date' =>
+                        $activity->activity_date
+                            ?->format('Y-m-d'),
+
+                    'start_time' =>
+                        $activity->start_time,
+
+                    'locality_id' =>
+                        $activity->locality_id,
+
+                    'attendance_sheet_id' =>
+                        $activity->attendance_sheet_id,
+
+                    'attendance_session_id' =>
+                        $activity->attendance_session_id,
+                ];
+
+                $attendanceDate =
+                    $session?->session_date
+                    ?? $sheet->start_date;
+
+                $attendanceTime =
+                    $session?->session_time
+                    ?: $sheet->meeting_time;
+
                 $activity->forceFill([
+                    'title' =>
+                        $sheet->title,
+
+                    'activity_date' =>
+                        $attendanceDate
+                            ?->format('Y-m-d')
+                        ?? $activity
+                            ->activity_date
+                            ?->format('Y-m-d'),
+
+                    'start_time' =>
+                        $this->nullIfBlank(
+                            $attendanceTime
+                        ),
+
+                    'locality_id' =>
+                        $sheet->locality_id,
+
                     'attendance_sheet_id' =>
                         $sheet->id,
 
@@ -501,9 +557,26 @@ class CampusWorkActivityAttendanceController extends Controller
                         $activity,
 
                     description:
-                        'Linked Campus Activity to existing Attendance.',
+                        'Linked Campus Activity to existing Attendance and synchronized shared event details.',
+
+                    oldValues:
+                        $oldActivityValues,
 
                     newValues: [
+                        'title' =>
+                            $activity->title,
+
+                        'activity_date' =>
+                            $activity
+                                ->activity_date
+                                ?->format('Y-m-d'),
+
+                        'start_time' =>
+                            $activity->start_time,
+
+                        'locality_id' =>
+                            $activity->locality_id,
+
                         'attendance_sheet_id' =>
                             $sheet->id,
 

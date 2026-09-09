@@ -118,6 +118,44 @@ class CampusWorkActivity extends Model
         );
     }
 
+    public function getEffectiveTitleAttribute(): string
+    {
+        if (
+            $this->attendanceSheet
+            && filled($this->attendanceSheet->title)
+        ) {
+            return $this->attendanceSheet->title;
+        }
+
+        return $this->display_title;
+    }
+
+    public function getEffectiveActivityDateAttribute()
+    {
+        if ($this->attendanceSession?->session_date) {
+            return $this->attendanceSession->session_date;
+        }
+
+        if ($this->attendanceSheet?->start_date) {
+            return $this->attendanceSheet->start_date;
+        }
+
+        return $this->activity_date;
+    }
+
+    public function getEffectiveStartTimeAttribute(): ?string
+    {
+        return $this->attendanceSession?->session_time
+            ?: $this->attendanceSheet?->meeting_time
+            ?: $this->start_time;
+    }
+
+    public function getEffectiveLocalityAttribute(): ?string
+    {
+        return $this->attendanceSheet?->locality
+            ?: $this->locality;
+    }
+
     public function getDisplayTitleAttribute(): string
     {
         if (filled($this->title)) {
@@ -156,8 +194,13 @@ class CampusWorkActivity extends Model
             return date('g:i A', strtotime($time));
         };
 
-        $start = $formatTime($this->start_time);
-        $end = $formatTime($this->end_time);
+        $start = $formatTime(
+            $this->effective_start_time
+        );
+
+        $end = $formatTime(
+            $this->end_time
+        );
 
         if ($start && $end) {
             return $start . ' – ' . $end;

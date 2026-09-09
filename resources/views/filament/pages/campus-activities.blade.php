@@ -424,7 +424,7 @@
                 @forelse ($activities as $activity)
                     <div class="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
                         <p class="break-words text-base font-bold text-gray-900 dark:text-white">
-                            {{ $activity->display_title }}
+                            {{ $activity->effective_title }}
                         </p>
 
                         <p class="mt-1 text-sm font-semibold text-primary-600 dark:text-primary-400">
@@ -434,7 +434,7 @@
                         <div class="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
                             <p>
                                 <strong>Date:</strong>
-                                {{ $activity->activity_date->format('M d, Y') }}
+                                {{ $activity->effective_activity_date->format('M d, Y') }}
                             </p>
 
                             <p>
@@ -449,7 +449,7 @@
 
                             <p>
                                 <strong>Locality:</strong>
-                                {{ $activity->locality ?: 'Not specified' }}
+                                {{ $activity->effective_locality ?: 'Not specified' }}
                             </p>
                         </div>
 
@@ -512,11 +512,11 @@
                         @forelse ($activities as $activity)
                             <tr>
                                 <td class="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ $activity->activity_date->format('M d, Y') }}
+                                    {{ $activity->effective_activity_date->format('M d, Y') }}
                                 </td>
 
                                 <td class="max-w-[280px] break-words px-4 py-3 font-bold text-gray-900 dark:text-white">
-                                    {{ $activity->display_title }}
+                                    {{ $activity->effective_title }}
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
@@ -532,7 +532,7 @@
                                 </td>
 
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                    {{ $activity->locality ?: 'Not specified' }}
+                                    {{ $activity->effective_locality ?: 'Not specified' }}
                                 </td>
 
                                 <td class="px-4 py-3">
@@ -604,7 +604,7 @@
                             </p>
 
                             <h3 class="mt-1 break-words text-lg font-bold">
-                                {{ $activity->display_title }}
+                                {{ $activity->effective_title }}
                             </h3>
                         </div>
 
