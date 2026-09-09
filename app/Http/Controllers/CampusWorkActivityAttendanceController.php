@@ -715,8 +715,7 @@ class CampusWorkActivityAttendanceController extends Controller
         CampusWorkActivity $activity
     ): string {
         return Str::limit(
-            'Campus - '
-            . $activity->display_title,
+            $activity->display_title,
             255,
             ''
         );
