@@ -15,15 +15,16 @@
                         class="text-xl font-bold text-gray-900
                                dark:text-white"
                     >
-                        Shepherding Overview
+                        Shepherding & GOW Dashboard
                     </h2>
 
                     <p
                         class="mt-1 text-sm text-gray-500
                                dark:text-gray-400"
                     >
-                        Shepherding activity, contact follow-up,
-                        ministry use, and people needing care.
+                        Weekly Gospel/Shepherding work,
+                        contact follow-up, Campus Work,
+                        and people needing care.
                     </p>
                 </div>
 
@@ -73,86 +74,306 @@
                     {{ filled($locality) ? $locality : 'All Localities' }}
                 </span>
 
-                · {{ now()->format('F Y') }}
+                · Monthly sections:
+                {{ now()->format('F Y') }}
+
+                · Weekly GOW:
+                {{ $weeklyGow['period'] }}
             </div>
         </div>
 
-        {{-- Operational Overview --}}
-        <div>
-            <div class="mb-3">
-                <h3
-                    class="text-lg font-semibold text-gray-900
-                           dark:text-white"
-                >
-                    Shepherding Operations
-                </h3>
-
-                <p
-                    class="text-sm text-gray-500
-                           dark:text-gray-400"
-                >
-                    Current Shepherding workload and contact databases.
-                </p>
-            </div>
-
+        {{-- Weekly GOW Summary --}}
+        <section class="space-y-6">
             <div
-                class="grid gap-4 sm:grid-cols-2
-                       lg:grid-cols-4"
+                class="flex flex-col gap-4
+                       lg:flex-row lg:items-end
+                       lg:justify-between"
             >
-                @foreach ($operationalStats as $key => $stat)
-                    @php
-                        $tone = match ($key) {
-                            'records_this_month' =>
-                                'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-300',
-
-                            'follow_up_outcomes' =>
-                                'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
-
-                            'gospel_contacts',
-                            'unlinked_gospel' =>
-                                'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-300',
-
-                            'campus_contacts',
-                            'unlinked_campus' =>
-                                'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
-
-                            default =>
-                                'border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
-                        };
-
-                        $tag = filled($stat['url'])
-                            ? 'a'
-                            : 'div';
-                    @endphp
-
-                    <{{ $tag }}
-                        @if (filled($stat['url']))
-                            href="{{ $stat['url'] }}"
-                        @endif
-                        class="rounded-2xl border p-5 shadow-sm
-                               {{ $tone }}
-                               @if (filled($stat['url']))
-                                   transition hover:scale-[1.01]
-                                   hover:shadow-md
-                               @endif"
+                <div>
+                    <h3
+                        class="text-xl font-bold
+                               text-gray-900 dark:text-white"
                     >
-                        <p class="text-sm font-medium opacity-80">
-                            {{ $stat['label'] }}
-                        </p>
+                        Weekly GOW Summary
+                    </h3>
 
-                        <p class="mt-3 text-4xl font-bold">
-                            {{ $stat['count'] }}
-                        </p>
+                    <p
+                        class="mt-1 text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Gospel Work, Shepherding, and Campus Work
+                        during {{ $weeklyGow['period'] }}.
+                    </p>
+                </div>
 
-                        @if (filled($stat['url']))
-                            <p class="mt-3 text-xs font-medium opacity-80">
-                                Open →
-                            </p>
-                        @endif
-                    </{{ $tag }}>
-                @endforeach
+                <div
+                    class="flex flex-wrap items-center gap-2"
+                >
+                    <a
+                        href="{{ $this->weeklyGowUrl(
+                            $weeklyGow['previous_week']
+                        ) }}"
+                        class="inline-flex items-center
+                               rounded-lg border border-gray-300
+                               bg-white px-3 py-2 text-sm
+                               font-medium text-gray-700
+                               transition hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-900
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
+                    >
+                        ← Previous Week
+                    </a>
+
+                    <a
+                        href="{{ $this->weeklyGowUrl(
+                            $weeklyGow['current_week']
+                        ) }}"
+                        class="inline-flex items-center
+                               rounded-lg border px-3 py-2
+                               text-sm font-medium transition
+                               {{ $weeklyGow['is_current_week']
+                                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300'
+                                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800' }}"
+                    >
+                        Current Week
+                    </a>
+
+                    <a
+                        href="{{ $this->weeklyGowUrl(
+                            $weeklyGow['next_week']
+                        ) }}"
+                        class="inline-flex items-center
+                               rounded-lg border border-gray-300
+                               bg-white px-3 py-2 text-sm
+                               font-medium text-gray-700
+                               transition hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-900
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
+                    >
+                        Next Week →
+                    </a>
+                </div>
             </div>
-        </div>
+
+
+            {{-- Gospel Work --}}
+            <div>
+                <div class="mb-3">
+                    <h4
+                        class="text-lg font-semibold
+                               text-gray-900 dark:text-white"
+                    >
+                        Gospel Work
+                    </h4>
+
+                    <p
+                        class="text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        New Gospel Contacts and Gospel Work
+                        contact records during the selected week.
+                    </p>
+                </div>
+
+                <div
+                    class="grid gap-4 sm:grid-cols-2"
+                >
+                    <div
+                        class="rounded-2xl border border-gray-200
+                               bg-white p-5 shadow-sm
+                               dark:border-gray-700
+                               dark:bg-gray-900"
+                    >
+                        <p
+                            class="text-sm font-medium
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            New Gospel Contacts
+                        </p>
+
+                        <p
+                            class="mt-2 text-3xl font-bold
+                                   text-gray-900 dark:text-white"
+                        >
+                            {{ $weeklyGow['gospel']['new_contacts'] }}
+                        </p>
+                    </div>
+
+                    <div
+                        class="rounded-2xl border border-gray-200
+                               bg-white p-5 shadow-sm
+                               dark:border-gray-700
+                               dark:bg-gray-900"
+                    >
+                        <p
+                            class="text-sm font-medium
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            Gospel Work Contacts
+                        </p>
+
+                        <p
+                            class="mt-2 text-3xl font-bold
+                                   text-gray-900 dark:text-white"
+                        >
+                            {{ $weeklyGow['gospel']['work_contacts'] }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+
+            {{-- Shepherding --}}
+            <div>
+                <div class="mb-3">
+                    <h4
+                        class="text-lg font-semibold
+                               text-gray-900 dark:text-white"
+                    >
+                        Shepherding
+                    </h4>
+
+                    <p
+                        class="text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Weekly Shepherding Records and unique
+                        contacted identities.
+                    </p>
+                </div>
+
+                @php
+                    $weeklyShepherdingCards = [
+                        'records' =>
+                            'Shepherding Records',
+
+                        'people' =>
+                            'People Contacted',
+
+                        'households' =>
+                            'Households Contacted',
+
+                        'campus_contacts' =>
+                            'Campus Contacts',
+
+                        'gospel_contacts' =>
+                            'Gospel Contacts',
+                    ];
+                @endphp
+
+                <div
+                    class="grid gap-4 sm:grid-cols-2
+                           xl:grid-cols-5"
+                >
+                    @foreach (
+                        $weeklyShepherdingCards
+                        as $key => $label
+                    )
+                        <div
+                            class="rounded-2xl border
+                                   border-gray-200 bg-white
+                                   p-5 shadow-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-900"
+                        >
+                            <p
+                                class="text-sm font-medium
+                                       text-gray-500
+                                       dark:text-gray-400"
+                            >
+                                {{ $label }}
+                            </p>
+
+                            <p
+                                class="mt-2 text-3xl font-bold
+                                       text-gray-900
+                                       dark:text-white"
+                            >
+                                {{ $weeklyGow['shepherding'][$key] }}
+                            </p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+
+            {{-- Campus Work --}}
+            <div>
+                <div class="mb-3">
+                    <h4
+                        class="text-lg font-semibold
+                               text-gray-900 dark:text-white"
+                    >
+                        Campus Work
+                    </h4>
+
+                    <p
+                        class="text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Campus Activities and physical Attendance
+                        during the selected week.
+                    </p>
+                </div>
+
+                @php
+                    $weeklyCampusCards = [
+                        'activities' =>
+                            'Campus Activities',
+
+                        'sessions' =>
+                            'Attendance Sessions',
+
+                        'present_marks' =>
+                            'Present Marks',
+
+                        'unique_people_present' =>
+                            'Unique People Present',
+                    ];
+                @endphp
+
+                <div
+                    class="grid gap-4 sm:grid-cols-2
+                           xl:grid-cols-4"
+                >
+                    @foreach (
+                        $weeklyCampusCards
+                        as $key => $label
+                    )
+                        <div
+                            class="rounded-2xl border
+                                   border-gray-200 bg-white
+                                   p-5 shadow-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-900"
+                        >
+                            <p
+                                class="text-sm font-medium
+                                       text-gray-500
+                                       dark:text-gray-400"
+                            >
+                                {{ $label }}
+                            </p>
+
+                            <p
+                                class="mt-2 text-3xl font-bold
+                                       text-gray-900
+                                       dark:text-white"
+                            >
+                                {{ $weeklyGow['campus'][$key] }}
+                            </p>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+
 
         {{-- Recent Shepherding + Activity Summary --}}
         <div class="grid gap-6 xl:grid-cols-3">
@@ -345,7 +566,8 @@
                     class="text-sm text-gray-500
                            dark:text-gray-400"
                 >
-                    Recorded Shepherding activity codes.
+                    All active Shepherding and Gospel Work
+                    activity codes recorded this month.
                 </p>
 
                 <div class="mt-4 space-y-2">
@@ -428,7 +650,7 @@
                 </div>
 
                 <a
-                    href="{{ $operationalStats['follow_up_outcomes']['url'] }}"
+                    href="{{ $this->followUpHistoryUrl() }}"
                     class="shrink-0 text-sm font-medium
                            text-amber-700 hover:text-amber-600
                            dark:text-amber-300
@@ -688,6 +910,412 @@
                 @endforelse
             </div>
         </div>
+
+        {{-- Weekly GOW Source Records --}}
+        @php
+            $gowSources =
+                $weeklyGow['sources'];
+        @endphp
+
+        <section class="space-y-3">
+            <div>
+                <h3
+                    class="text-xl font-bold
+                           text-gray-900 dark:text-white"
+                >
+                    GOW Source Records
+                </h3>
+
+                <p
+                    class="text-sm text-gray-500
+                           dark:text-gray-400"
+                >
+                    Campus Work, Gospel Work, and Shepherding
+                    records behind the selected week's totals.
+                    Open a row to continue in its owning module.
+                </p>
+            </div>
+
+
+            {{-- Campus Work Sources --}}
+            <details
+                class="overflow-hidden rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-700
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold text-gray-900
+                           dark:text-gray-100"
+                >
+                    Campus Work Sources
+                    · {{ count($gowSources['campus_activities']) }}
+                    activities
+                    · {{ count($gowSources['campus_sessions']) }}
+                    sessions
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           bg-white
+                           dark:border-gray-700
+                           dark:bg-gray-900"
+                >
+                    <div
+                        class="px-5 py-3 text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Campus Activities
+                    </div>
+
+                    @forelse (
+                        $gowSources['campus_activities']
+                        as $row
+                    )
+                        <a
+                            href="{{ $this->campusActivitiesUrl() }}"
+                            class="block border-t
+                                   border-gray-100 bg-white
+                                   px-5 py-4 text-sm
+                                   text-gray-900 transition
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $row['date'] }}
+                            </strong>
+
+                            · {{ $row['title'] }}
+
+                            @if (filled($row['time']))
+                                · {{ $row['time'] }}
+                            @endif
+
+                            @if (filled($row['school']))
+                                · {{ $row['school'] }}
+                            @endif
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No Campus Activities
+                            during this week.
+                        </div>
+                    @endforelse
+
+                    <div
+                        class="border-t border-gray-200
+                               px-5 py-3 text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-500
+                               dark:border-gray-700
+                               dark:text-gray-400"
+                    >
+                        Attendance Sessions
+                    </div>
+
+                    @forelse (
+                        $gowSources['campus_sessions']
+                        as $row
+                    )
+                        <a
+                            href="{{ $this->campusSessionUrl(
+                                $row['sheet_id'],
+                                $row['id']
+                            ) }}"
+                            class="flex flex-wrap items-center
+                                   justify-between gap-3
+                                   border-t border-gray-100
+                                   bg-white px-5 py-4
+                                   text-sm text-gray-900
+                                   transition hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <div>
+                                <strong>
+                                    {{ $row['date'] }}
+                                </strong>
+
+                                @if (filled($row['time']))
+                                    · {{ $row['time'] }}
+                                @endif
+
+                                · {{ $row['title'] }}
+                            </div>
+
+                            <div
+                                class="font-bold
+                                       text-primary-600
+                                       dark:text-primary-400"
+                            >
+                                {{ $row['attendees'] }}
+                                attendee{{ $row['attendees'] === 1
+                                    ? ''
+                                    : 's' }}
+                                →
+                            </div>
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No Campus Attendance Sessions
+                            during this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
+            {{-- New Gospel Contacts --}}
+            <details
+                class="overflow-hidden rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-700
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold text-gray-900
+                           dark:text-gray-100"
+                >
+                    New Gospel Contacts
+                    · {{ count(
+                        $gowSources['new_gospel_contacts']
+                    ) }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-700"
+                >
+                    @forelse (
+                        $gowSources['new_gospel_contacts']
+                        as $row
+                    )
+                        <a
+                            href="{{ $this->gospelContactsUrl() }}"
+                            class="block border-b
+                                   border-gray-100 bg-white
+                                   px-5 py-4 text-sm
+                                   text-gray-900 transition
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $row['name'] }}
+                            </strong>
+
+                            @if (filled($row['date']))
+                                · {{ $row['date'] }}
+                            @endif
+
+                            @if (filled($row['locality']))
+                                · {{ $row['locality'] }}
+                            @endif
+
+                            @if (filled($row['place']))
+                                · {{ $row['place'] }}
+                            @endif
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No new Gospel Contacts
+                            during this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
+            {{-- Gospel Work Contacts --}}
+            <details
+                class="overflow-hidden rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-700
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold text-gray-900
+                           dark:text-gray-100"
+                >
+                    Gospel Work Contacts
+                    · {{ count(
+                        $gowSources['gospel_work_records']
+                    ) }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-700"
+                >
+                    @forelse (
+                        $gowSources['gospel_work_records']
+                        as $row
+                    )
+                        <a
+                            href="{{ $this->shepherdingRecordUrl(
+                                $row['id']
+                            ) }}"
+                            class="block border-b
+                                   border-gray-100 bg-white
+                                   px-5 py-4 text-sm
+                                   text-gray-900 transition
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $row['date'] }}
+                            </strong>
+
+                            @if (! empty($row['codes']))
+                                · {{ implode(
+                                    ', ',
+                                    $row['codes']
+                                ) }}
+                            @endif
+
+                            @if (filled($row['outcome']))
+                                · {{ $row['outcome'] }}
+                            @endif
+
+                            @if (filled($row['locality']))
+                                · {{ $row['locality'] }}
+                            @endif
+
+                            · {{ $row['identity_count'] }}
+                            contacted
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No Gospel Work Contacts
+                            during this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
+            {{-- Shepherding Records --}}
+            <details
+                class="overflow-hidden rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-700
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold text-gray-900
+                           dark:text-gray-100"
+                >
+                    Shepherding Records
+                    · {{ count(
+                        $gowSources['shepherding_records']
+                    ) }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-700"
+                >
+                    @forelse (
+                        $gowSources['shepherding_records']
+                        as $row
+                    )
+                        <a
+                            href="{{ $this->shepherdingRecordUrl(
+                                $row['id']
+                            ) }}"
+                            class="block border-b
+                                   border-gray-100 bg-white
+                                   px-5 py-4 text-sm
+                                   text-gray-900 transition
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $row['date'] }}
+                            </strong>
+
+                            @if (! empty($row['codes']))
+                                · {{ implode(
+                                    ', ',
+                                    $row['codes']
+                                ) }}
+                            @endif
+
+                            @if (filled($row['outcome']))
+                                · {{ $row['outcome'] }}
+                            @endif
+
+                            @if (filled($row['locality']))
+                                · {{ $row['locality'] }}
+                            @endif
+
+                            · {{ $row['identity_count'] }}
+                            contacted
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No Shepherding Records
+                            during this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
+            <div
+                class="rounded-xl border border-gray-200
+                       bg-gray-50 px-4 py-3
+                       text-xs text-gray-500
+                       dark:border-gray-800
+                       dark:bg-gray-950
+                       dark:text-gray-400"
+            >
+                Weekly totals are calculated directly from
+                their source records. This dashboard does not
+                create duplicate Gospel Work, Shepherding,
+                Campus Work, or Attendance records.
+            </div>
+        </section>
+
 
         {{-- People Shepherding Needs --}}
         <div>

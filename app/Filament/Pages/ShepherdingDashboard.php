@@ -11,6 +11,7 @@ use App\Models\ShepherdingActivityType;
 use App\Models\ShepherdingContact;
 use App\Support\LocalityOptions;
 use App\Support\ShepherdingHistoryQuery;
+use App\Support\WeeklyGowSummary;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -20,6 +21,10 @@ class ShepherdingDashboard extends Page
         'filament.pages.shepherding-dashboard';
 
     public ?string $locality = null;
+
+    public ?string $week = null;
+
+    public array $weeklyGow = [];
 
     public array $localities = [];
 
@@ -56,12 +61,35 @@ class ShepherdingDashboard extends Page
                 ->values()
                 ->all();
 
+        $queryLocality =
+            request()->query('locality');
+
+        if (
+            is_string($queryLocality)
+            && in_array(
+                $queryLocality,
+                $this->localities,
+                true
+            )
+        ) {
+            $this->locality =
+                $queryLocality;
+        }
+
+        $queryWeek =
+            request()->query('week');
+
+        $this->week =
+            is_string($queryWeek)
+                ? $queryWeek
+                : null;
+
         $this->loadDashboard();
     }
 
     public function getTitle(): string
     {
-        return 'Dashboard';
+        return 'Shepherding & GOW Dashboard';
     }
 
     public static function getNavigationLabel(): string
@@ -93,6 +121,17 @@ class ShepherdingDashboard extends Page
     {
         $localityId =
             $this->selectedLocalityId();
+
+        $this->weeklyGow =
+            WeeklyGowSummary::build(
+                $this->week,
+                $localityId
+            );
+
+        $this->week =
+            $this->weeklyGow[
+                'week_start'
+            ];
 
         $monthStart =
             now()
@@ -963,4 +1002,122 @@ class ShepherdingDashboard extends Page
                     $queryFilters,
             ]);
     }
+
+    public function followUpHistoryUrl(): string
+    {
+        $monthStart =
+            now()
+                ->startOfMonth()
+                ->toDateString();
+
+        $monthEnd =
+            now()
+                ->endOfMonth()
+                ->toDateString();
+
+        $params = [
+            'mode' =>
+                'follow-up',
+
+            'from' =>
+                $monthStart,
+
+            'to' =>
+                $monthEnd,
+        ];
+
+        $localityId =
+            $this->selectedLocalityId();
+
+        if ($localityId !== null) {
+            $params['locality'] =
+                $localityId;
+        }
+
+        return $this->sameOriginPath(
+            ShepherdingHistory::getUrl(
+                $params
+            )
+        );
+    }
+
+    public function weeklyGowUrl(
+        string $week
+    ): string {
+        $params = [
+            'week' => $week,
+        ];
+
+        if (filled($this->locality)) {
+            $params['locality'] =
+                $this->locality;
+        }
+
+        return $this->sameOriginPath(
+            static::getUrl()
+        )
+            . '?'
+            . http_build_query(
+                $params
+            );
+    }
+
+    public function campusActivitiesUrl(): string
+    {
+        return $this->sameOriginPath(
+            CampusActivities::getUrl()
+        );
+    }
+
+    public function gospelContactsUrl(): string
+    {
+        return $this->sameOriginPath(
+            GospelContacts::getUrl()
+        );
+    }
+
+    public function shepherdingRecordUrl(
+        int $recordId
+    ): string {
+        return $this->sameOriginPath(
+            ShepherdingHistory::getUrl([
+                'record' =>
+                    $recordId,
+            ])
+        )
+            . '#shepherding-contact-form';
+    }
+
+    public function campusSessionUrl(
+        int $sheetId,
+        int $sessionId
+    ): string {
+        return $this->sameOriginPath(
+            CheckAttendance::getUrl()
+        )
+            . '?'
+            . http_build_query([
+                'sheetId' =>
+                    $sheetId,
+
+                'sessionId' =>
+                    $sessionId,
+            ]);
+    }
+
+    private function sameOriginPath(
+        string $url
+    ): string {
+        $path =
+            parse_url(
+                $url,
+                PHP_URL_PATH
+            );
+
+        return is_string($path)
+            && $path !== ''
+                ? $path
+                : $url;
+    }
+
 }
