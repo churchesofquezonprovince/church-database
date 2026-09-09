@@ -6,6 +6,7 @@ use App\Filament\Resources\People\PersonResource;
 use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
+use App\Models\MinistryBook;
 use App\Models\Person;
 use App\Models\ShepherdingActivityType;
 use App\Models\ShepherdingContact;
@@ -14,6 +15,7 @@ use App\Support\ShepherdingHistoryQuery;
 use App\Support\WeeklyGowSummary;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ShepherdingDashboard extends Page
 {
@@ -39,6 +41,8 @@ class ShepherdingDashboard extends Page
     public array $followUpSummary = [];
 
     public array $activitySummary = [];
+
+    public array $ministrySummary = [];
 
     public array $localitySummary = [];
 
@@ -329,6 +333,101 @@ class ShepherdingDashboard extends Page
                             'url' =>
                                 ShepherdingHistory::getUrl(
                                     $params
+                                ),
+                        ];
+                    }
+                )
+                ->all();
+
+        /*
+         * -----------------------------------------------------
+         * Ministry used during the selected month.
+         *
+         * Count distinct Shepherding Contact records that used
+         * at least one lesson from each Ministry Book.
+         * -----------------------------------------------------
+         */
+
+        $ministryUsage =
+            DB::table(
+                'shepherding_contact_ministry_lessons as pivot'
+            )
+                ->join(
+                    'ministry_lessons as lesson',
+                    'lesson.id',
+                    '=',
+                    'pivot.ministry_lesson_id'
+                )
+                ->join(
+                    'shepherding_contacts as contact',
+                    'contact.id',
+                    '=',
+                    'pivot.shepherding_contact_id'
+                )
+                ->whereBetween(
+                    'contact.contact_date',
+                    [
+                        $monthStart,
+                        $monthEnd,
+                    ]
+                )
+                ->when(
+                    $localityId !== null,
+                    fn ($query) =>
+                        $query->where(
+                            'contact.locality_id',
+                            $localityId
+                        )
+                )
+                ->select(
+                    'lesson.ministry_book_id'
+                )
+                ->selectRaw(
+                    'COUNT(DISTINCT contact.id) as total'
+                )
+                ->groupBy(
+                    'lesson.ministry_book_id'
+                )
+                ->pluck(
+                    'total',
+                    'lesson.ministry_book_id'
+                );
+
+        $this->ministrySummary =
+            MinistryBook::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->orderBy(
+                    'sort_order'
+                )
+                ->orderBy(
+                    'code'
+                )
+                ->get()
+                ->map(
+                    function (
+                        MinistryBook $book
+                    ) use (
+                        $ministryUsage
+                    ): array {
+                        return [
+                            'id' =>
+                                (int) $book->id,
+
+                            'code' =>
+                                $book->code,
+
+                            'title' =>
+                                $book->title,
+
+                            'count' =>
+                                (int) (
+                                    $ministryUsage[
+                                        $book->id
+                                    ]
+                                    ?? 0
                                 ),
                         ];
                     }

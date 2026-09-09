@@ -617,6 +617,62 @@
                         </a>
                     @endforeach
                 </div>
+
+                <div
+                    class="my-5 border-t border-gray-200
+                           dark:border-gray-700"
+                ></div>
+
+                <h4
+                    class="text-base font-semibold
+                           text-gray-900 dark:text-white"
+                >
+                    Ministry Used This Month
+                </h4>
+
+                <p
+                    class="text-sm text-gray-500
+                           dark:text-gray-400"
+                >
+                    Shepherding Records that used lessons
+                    from each ministry book.
+                </p>
+
+                <div class="mt-4 space-y-2">
+                    @foreach ($ministrySummary as $book)
+                        <div
+                            class="flex items-center justify-between
+                                   rounded-xl bg-gray-50 px-3 py-2
+                                   dark:bg-gray-800"
+                        >
+                            <div class="min-w-0">
+                                <span
+                                    class="font-semibold
+                                           text-primary-700
+                                           dark:text-primary-300"
+                                >
+                                    {{ $book['code'] }}
+                                </span>
+
+                                <span
+                                    class="ml-2 text-sm
+                                           text-gray-600
+                                           dark:text-gray-300"
+                                >
+                                    {{ $book['title'] }}
+                                </span>
+                            </div>
+
+                            <span
+                                class="ml-3 font-bold
+                                       text-gray-900
+                                       dark:text-white"
+                            >
+                                {{ $book['count'] }}
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
 
