@@ -255,6 +255,90 @@
                     </div>
                 @endforeach
             </div>
+
+            @php
+                $campusSessions =
+                    $this->campusAttendanceSources();
+            @endphp
+
+            <details
+                class="rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-800
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold"
+                >
+                    View Attendance Session Sources
+                    · {{ $campusSessions->count() }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-800"
+                >
+                    @forelse ($campusSessions as $session)
+                        @php
+                            $activity =
+                                $session
+                                    ->sheet
+                                    ?->campusActivity;
+                        @endphp
+
+                        <a
+                            href="{{ $this->campusSessionUrl(
+                                $session
+                            ) }}"
+                            class="flex flex-wrap items-center
+                                   justify-between gap-3
+                                   border-b border-gray-100
+                                   px-5 py-4 text-sm
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:hover:bg-gray-950"
+                        >
+                            <div>
+                                <strong>
+                                    {{ $session
+                                        ->session_date
+                                        ?->format('M d') }}
+                                </strong>
+
+                                @if ($session->sessionTimeLabel())
+                                    ·
+                                    {{ $session->sessionTimeLabel() }}
+                                @endif
+
+                                ·
+                                {{ $activity?->effective_title
+                                    ?: $session->sheet?->title
+                                    ?: 'Campus Attendance' }}
+                            </div>
+
+                            <div
+                                class="font-bold text-primary-600
+                                       dark:text-primary-400"
+                            >
+                                {{ $session->attendees_count }}
+                                attendee{{ $session->attendees_count === 1
+                                    ? ''
+                                    : 's' }}
+                                →
+                            </div>
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500"
+                        >
+                            No Campus Attendance Sessions
+                            in this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
         </section>
 
 

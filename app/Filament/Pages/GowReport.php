@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\AttendanceSession;
 use App\Models\GospelContact;
 use App\Models\ShepherdingContact;
 use Carbon\CarbonImmutable;
@@ -127,6 +128,58 @@ class GowReport extends Page
                     CarbonInterface::MONDAY
                 )
         );
+    }
+
+    public function campusAttendanceSources()
+    {
+        $startDate =
+            $this->startDate()->format('Y-m-d');
+
+        $endDate =
+            $this->endDate()->format('Y-m-d');
+
+        return AttendanceSession::query()
+            ->with([
+                'sheet.campusActivity',
+            ])
+            ->withCount([
+                'records as attendees_count' =>
+                    fn ($query) =>
+                        $query->where(
+                            'is_present',
+                            true
+                        ),
+            ])
+            ->whereBetween(
+                'session_date',
+                [$startDate, $endDate]
+            )
+            ->whereHas(
+                'sheet.campusActivity'
+            )
+            ->orderBy('session_date')
+            ->orderBy('session_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function campusSessionUrl(
+        AttendanceSession $session
+    ): string {
+        $path = parse_url(
+            CheckAttendance::getUrl(),
+            PHP_URL_PATH
+        );
+
+        return $path
+            . '?'
+            . http_build_query([
+                'sheetId' =>
+                    $session->attendance_sheet_id,
+
+                'sessionId' =>
+                    $session->id,
+            ]);
     }
 
     public function report(): array
@@ -285,39 +338,20 @@ class GowReport extends Page
                 )
                 ->count();
 
-        $campusSessionIds =
-            DB::table(
-                'attendance_sessions as session'
-            )
-                ->join(
-                    'campus_work_activities as activity',
-                    'activity.attendance_sheet_id',
-                    '=',
-                    'session.attendance_sheet_id'
-                )
-                ->whereBetween(
-                    'session.session_date',
-                    [$startDate, $endDate]
-                )
-                ->distinct()
-                ->pluck('session.id');
+        $campusSessions =
+            $this->campusAttendanceSources();
 
-        $presentMarks = 0;
+        $presentMarks =
+            (int) $campusSessions->sum(
+                'attendees_count'
+            );
+
+        $campusSessionIds =
+            $campusSessions->pluck('id');
+
         $uniquePeoplePresent = 0;
 
         if ($campusSessionIds->isNotEmpty()) {
-            $presentMarks =
-                DB::table('attendance_records')
-                    ->whereIn(
-                        'attendance_session_id',
-                        $campusSessionIds
-                    )
-                    ->where(
-                        'is_present',
-                        true
-                    )
-                    ->count();
-
             $uniquePeoplePresent =
                 DB::table('attendance_records')
                     ->whereIn(
@@ -379,7 +413,7 @@ class GowReport extends Page
                     $campusActivities,
 
                 'sessions' =>
-                    $campusSessionIds->count(),
+                    $campusSessions->count(),
 
                 'present_marks' =>
                     $presentMarks,
