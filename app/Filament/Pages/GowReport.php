@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AttendanceSession;
+use App\Models\CampusWorkActivity;
 use App\Models\GospelContact;
 use App\Models\ShepherdingContact;
 use Carbon\CarbonImmutable;
@@ -130,6 +131,100 @@ class GowReport extends Page
         );
     }
 
+    public function campusActivitySources()
+    {
+        return CampusWorkActivity::query()
+            ->with([
+                'school',
+                'attendanceSheet',
+                'attendanceSession',
+            ])
+            ->whereBetween(
+                'activity_date',
+                [
+                    $this->startDate()->format('Y-m-d'),
+                    $this->endDate()->format('Y-m-d'),
+                ]
+            )
+            ->orderBy('activity_date')
+            ->orderBy('start_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function newGospelContactSources()
+    {
+        return GospelContact::query()
+            ->with([
+                'person',
+                'localityRecord',
+            ])
+            ->whereBetween(
+                'created_at',
+                [
+                    $this->startDate(),
+                    $this->endDate(),
+                ]
+            )
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function gospelWorkSources()
+    {
+        return ShepherdingContact::query()
+            ->with([
+                'activityTypes',
+                'contactedPeople',
+                'contactedHouseholds',
+                'contactedCampusContacts',
+                'contactedGospelContacts',
+            ])
+            ->whereBetween(
+                'contact_date',
+                [
+                    $this->startDate()->format('Y-m-d'),
+                    $this->endDate()->format('Y-m-d'),
+                ]
+            )
+            ->whereHas(
+                'activityTypes',
+                fn ($query) =>
+                    $query->where(
+                        'category',
+                        'Gospel Work'
+                    )
+            )
+            ->orderBy('contact_date')
+            ->orderBy('contact_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function shepherdingSources()
+    {
+        return ShepherdingContact::query()
+            ->with([
+                'activityTypes',
+                'contactedPeople',
+                'contactedHouseholds',
+                'contactedCampusContacts',
+                'contactedGospelContacts',
+            ])
+            ->whereBetween(
+                'contact_date',
+                [
+                    $this->startDate()->format('Y-m-d'),
+                    $this->endDate()->format('Y-m-d'),
+                ]
+            )
+            ->orderBy('contact_date')
+            ->orderBy('contact_time')
+            ->orderBy('id')
+            ->get();
+    }
+
     public function campusAttendanceSources()
     {
         $startDate =
@@ -161,6 +256,41 @@ class GowReport extends Page
             ->orderBy('session_time')
             ->orderBy('id')
             ->get();
+    }
+
+    private function pagePath(
+        string $url
+    ): string {
+        $path = parse_url(
+            $url,
+            PHP_URL_PATH
+        );
+
+        return is_string($path)
+            && $path !== ''
+                ? $path
+                : $url;
+    }
+
+    public function campusActivitiesUrl(): string
+    {
+        return $this->pagePath(
+            CampusActivities::getUrl()
+        );
+    }
+
+    public function gospelContactsUrl(): string
+    {
+        return $this->pagePath(
+            GospelContacts::getUrl()
+        );
+    }
+
+    public function shepherdingHistoryUrl(): string
+    {
+        return $this->pagePath(
+            ShepherdingHistory::getUrl()
+        );
     }
 
     public function campusSessionUrl(

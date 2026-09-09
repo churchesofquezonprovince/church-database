@@ -256,10 +256,45 @@
                 @endforeach
             </div>
 
-            @php
-                $campusSessions =
-                    $this->campusAttendanceSources();
-            @endphp
+
+        </section>
+
+
+        @php
+            $campusActivitySources =
+                $this->campusActivitySources();
+
+            $campusSessions =
+                $this->campusAttendanceSources();
+
+            $newGospelContactSources =
+                $this->newGospelContactSources();
+
+            $gospelWorkSources =
+                $this->gospelWorkSources();
+
+            $shepherdingSources =
+                $this->shepherdingSources();
+        @endphp
+
+        <section class="space-y-3">
+            <div>
+                <h3 class="text-xl font-bold">
+                    GOW Source Records
+                </h3>
+
+                <p
+                    class="text-sm text-gray-500
+                           dark:text-gray-400"
+                >
+                    Campus Work, Gospel Work, and
+                    Shepherding records behind the weekly totals.
+                    Open a row to continue in its owning module.
+                </p>
+            </div>
+
+
+
 
             <details
                 class="rounded-2xl border
@@ -269,22 +304,84 @@
             >
                 <summary
                     class="cursor-pointer px-5 py-4
-                           text-sm font-bold"
+                           text-sm font-bold
+                           text-gray-900
+                           dark:text-gray-100"
                 >
-                    View Attendance Session Sources
+                    Campus Work Sources
+                    · {{ $campusActivitySources->count() }}
+                    activities
                     · {{ $campusSessions->count() }}
+                    sessions
                 </summary>
 
                 <div
                     class="border-t border-gray-200
-                           dark:border-gray-800"
+                           bg-white
+                           dark:border-gray-800
+                           dark:bg-gray-900"
                 >
+                    <div
+                        class="px-5 py-3 text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Activities
+                    </div>
+
+                    @forelse ($campusActivitySources as $activity)
+                        <a
+                            href="{{ $this->campusActivitiesUrl() }}"
+                            class="block border-t border-gray-100
+                                   bg-white px-5 py-4 text-sm
+                                   text-gray-900
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $activity->activity_date
+                                    ?->format('M d') }}
+                            </strong>
+
+                            · {{ $activity->effective_title }}
+
+                            @if ($activity->time_label)
+                                · {{ $activity->time_label }}
+                            @endif
+
+                            @if ($activity->school?->name)
+                                · {{ $activity->school->name }}
+                            @endif
+                        </a>
+                    @empty
+                        <div
+                            class="px-5 py-4 text-sm
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            No Campus Activities this week.
+                        </div>
+                    @endforelse
+
+                    <div
+                        class="border-t border-gray-200
+                               px-5 py-3 text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-500
+                               dark:border-gray-800
+                               dark:text-gray-400"
+                    >
+                        Attendance Sessions
+                    </div>
+
                     @forelse ($campusSessions as $session)
                         @php
                             $activity =
-                                $session
-                                    ->sheet
-                                    ?->campusActivity;
+                                $session->sheet?->campusActivity;
                         @endphp
 
                         <a
@@ -293,22 +390,23 @@
                             ) }}"
                             class="flex flex-wrap items-center
                                    justify-between gap-3
-                                   border-b border-gray-100
-                                   px-5 py-4 text-sm
+                                   border-t border-gray-100
+                                   bg-white px-5 py-4 text-sm
+                                   text-gray-900
                                    hover:bg-gray-50
                                    dark:border-gray-800
-                                   dark:hover:bg-gray-950"
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
                         >
                             <div>
                                 <strong>
-                                    {{ $session
-                                        ->session_date
+                                    {{ $session->session_date
                                         ?->format('M d') }}
                                 </strong>
 
                                 @if ($session->sessionTimeLabel())
-                                    ·
-                                    {{ $session->sessionTimeLabel() }}
+                                    · {{ $session->sessionTimeLabel() }}
                                 @endif
 
                                 ·
@@ -331,14 +429,206 @@
                     @empty
                         <div
                             class="px-5 py-4 text-sm
-                                   text-gray-500"
+                                   text-gray-500
+                                   dark:text-gray-400"
                         >
                             No Campus Attendance Sessions
-                            in this week.
+                            this week.
                         </div>
                     @endforelse
                 </div>
             </details>
+
+            <details
+                class="rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-800
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold
+                           text-gray-900
+                           dark:text-gray-100"
+                >
+                    New Gospel Contacts
+                    · {{ $newGospelContactSources->count() }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-800"
+                >
+                    @forelse ($newGospelContactSources as $contact)
+                        <a
+                            href="{{ $this->gospelContactsUrl() }}"
+                            class="block border-b border-gray-100
+                                   bg-white px-5 py-4 text-sm
+                                   text-gray-900
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $contact->display_name }}
+                            </strong>
+
+                            @if ($contact->effective_locality)
+                                · {{ $contact->effective_locality }}
+                            @endif
+
+                            @if ($contact->contact_place)
+                                · {{ $contact->contact_place }}
+                            @endif
+                        </a>
+                    @empty
+                        <div class="px-5 py-4 text-sm text-gray-500
+                                   dark:text-gray-400">
+                            No new Gospel Contacts this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+            <details
+                class="rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-800
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold
+                           text-gray-900
+                           dark:text-gray-100"
+                >
+                    Gospel Work Records
+                    · {{ $gospelWorkSources->count() }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-800"
+                >
+                    @forelse ($gospelWorkSources as $record)
+                        @php
+                            $codes = $record->activityTypes
+                                ->where(
+                                    'category',
+                                    'Gospel Work'
+                                )
+                                ->pluck('code')
+                                ->implode(', ');
+
+                            $identityCount =
+                                $record->contactedPeople->count()
+                                + $record->contactedHouseholds->count()
+                                + $record->contactedCampusContacts->count()
+                                + $record->contactedGospelContacts->count();
+                        @endphp
+
+                        <a
+                            href="{{ $this->shepherdingHistoryUrl() }}"
+                            class="block border-b border-gray-100
+                                   bg-white px-5 py-4 text-sm
+                                   text-gray-900
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $record->contact_date
+                                    ?->format('M d') }}
+                            </strong>
+
+                            · {{ $codes ?: 'Gospel Work' }}
+                            · {{ $record->outcome }}
+
+                            · {{ $identityCount }}
+                            contacted
+                        </a>
+                    @empty
+                        <div class="px-5 py-4 text-sm text-gray-500
+                                   dark:text-gray-400">
+                            No Gospel Work records this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
+            <details
+                class="rounded-2xl border
+                       border-gray-200 bg-white
+                       dark:border-gray-800
+                       dark:bg-gray-900"
+            >
+                <summary
+                    class="cursor-pointer px-5 py-4
+                           text-sm font-bold
+                           text-gray-900
+                           dark:text-gray-100"
+                >
+                    Shepherding Records
+                    · {{ $shepherdingSources->count() }}
+                </summary>
+
+                <div
+                    class="border-t border-gray-200
+                           dark:border-gray-800"
+                >
+                    @forelse ($shepherdingSources as $record)
+                        @php
+                            $codes = $record
+                                ->activityTypes
+                                ->pluck('code')
+                                ->implode(', ');
+
+                            $identityCount =
+                                $record->contactedPeople->count()
+                                + $record->contactedHouseholds->count()
+                                + $record->contactedCampusContacts->count()
+                                + $record->contactedGospelContacts->count();
+                        @endphp
+
+                        <a
+                            href="{{ $this->shepherdingHistoryUrl() }}"
+                            class="block border-b border-gray-100
+                                   bg-white px-5 py-4 text-sm
+                                   text-gray-900
+                                   hover:bg-gray-50
+                                   dark:border-gray-800
+                                   dark:bg-gray-900
+                                   dark:text-gray-100
+                                   dark:hover:bg-gray-800"
+                        >
+                            <strong>
+                                {{ $record->contact_date
+                                    ?->format('M d') }}
+                            </strong>
+
+                            @if ($codes)
+                                · {{ $codes }}
+                            @endif
+
+                            · {{ $record->outcome }}
+                            · {{ $identityCount }}
+                            contacted
+                        </a>
+                    @empty
+                        <div class="px-5 py-4 text-sm text-gray-500
+                                   dark:text-gray-400">
+                            No Shepherding Records this week.
+                        </div>
+                    @endforelse
+                </div>
+            </details>
+
+
         </section>
 
 
