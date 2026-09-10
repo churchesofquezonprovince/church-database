@@ -861,6 +861,31 @@ class ShepherdingContacts extends Page
             ->get();
     }
 
+    public function removeMinistryLesson(
+        int $lessonId
+    ): void {
+        $this->ministryLessonIds =
+            collect(
+                $this->ministryLessonIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn (int $id): bool =>
+                        $id === $lessonId
+                )
+                ->unique()
+                ->values()
+                ->all();
+    }
+
+    public function clearMinistryLessons(): void
+    {
+        $this->ministryLessonIds = [];
+    }
+
     public function outcomeOptions(): array
     {
         return ShepherdingContact::outcomeOptions();

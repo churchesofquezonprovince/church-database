@@ -993,105 +993,539 @@
 
 
                     {{-- ============================= --}}
-                    {{-- Ministry Lessons --}}
+                    {{-- Ministry Used --}}
                     {{-- ============================= --}}
-                    <section>
-                        <h4
-                            class="text-sm font-bold
-                                   text-gray-900 dark:text-white"
-                        >
-                            Ministry Lessons / Messages
-                        </h4>
+                    <section
+                        x-data="{
+                            ministrySearch: '',
+                        }"
+                    >
+                        @php
+                            $selectedMinistryIds =
+                                collect(
+                                    $ministryLessonIds
+                                )
+                                    ->map(
+                                        fn ($id) =>
+                                            (int) $id
+                                    );
 
-                        <p
-                            class="mt-1 text-xs
-                                   text-gray-500
-                                   dark:text-gray-400"
-                        >
-                            Optional. Select Ministry Lessons
-                            covered during this contact.
-                        </p>
+                            $selectedMinistryLessons =
+                                $ministryBooks
+                                    ->flatMap(
+                                        fn ($book) =>
+                                            $book->lessons
+                                    )
+                                    ->filter(
+                                        fn ($lesson) =>
+                                            $selectedMinistryIds
+                                                ->contains(
+                                                    (int)
+                                                    $lesson->id
+                                                )
+                                    )
+                                    ->sortBy(
+                                        fn ($lesson) =>
+                                            sprintf(
+                                                '%05d-%05d',
+                                                $lesson
+                                                    ->book
+                                                    ?->sort_order
+                                                    ?? 0,
+                                                $lesson
+                                                    ->sort_order
+                                                    ?? 0
+                                            )
+                                    )
+                                    ->values();
+                        @endphp
 
-                        @forelse ($ministryBooks as $book)
+                        <div
+                            class="flex flex-col gap-2
+                                   sm:flex-row
+                                   sm:items-start
+                                   sm:justify-between"
+                        >
+                            <div>
+                                <h4
+                                    class="text-sm font-bold
+                                           text-gray-900
+                                           dark:text-white"
+                                >
+                                    Ministry Used
+                                </h4>
+
+                                <p
+                                    class="mt-1 text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Optional. Select the specific
+                                    ministry topics covered during
+                                    this contact.
+                                </p>
+                            </div>
+
+                            @if (
+                                $selectedMinistryLessons
+                                    ->isNotEmpty()
+                            )
+                                <button
+                                    type="button"
+                                    wire:click="clearMinistryLessons"
+                                    class="shrink-0 text-xs
+                                           font-semibold
+                                           text-gray-500
+                                           hover:text-red-600
+                                           dark:text-gray-400
+                                           dark:hover:text-red-400"
+                                >
+                                    Clear selection
+                                </button>
+                            @endif
+                        </div>
+
+
+                        {{-- Selected lessons --}}
+                        @if (
+                            $selectedMinistryLessons
+                                ->isNotEmpty()
+                        )
                             <div
-                                class="mt-4 rounded-xl
-                                       border border-gray-200
-                                       p-4 dark:border-gray-700"
+                                class="mt-4 rounded-xl border
+                                       border-primary-200
+                                       bg-primary-50 p-4
+                                       dark:border-primary-900
+                                       dark:bg-primary-950"
                             >
                                 <div
-                                    class="flex items-center gap-2"
+                                    class="flex items-center
+                                           justify-between gap-3"
                                 >
-                                    <span
-                                        class="rounded-lg
-                                               bg-gray-100
-                                               px-2.5 py-1
-                                               font-mono text-xs
-                                               font-bold
-                                               dark:bg-gray-800"
+                                    <p
+                                        class="text-xs font-bold
+                                               uppercase
+                                               tracking-wide
+                                               text-primary-700
+                                               dark:text-primary-300"
                                     >
-                                        {{ $book->code }}
-                                    </span>
+                                        Selected Ministry
+                                    </p>
 
-                                    <h5
-                                        class="text-sm font-bold
-                                               text-gray-900
-                                               dark:text-white"
+                                    <span
+                                        class="rounded-full
+                                               bg-primary-100
+                                               px-2.5 py-1
+                                               text-xs font-bold
+                                               text-primary-700
+                                               dark:bg-primary-900
+                                               dark:text-primary-200"
                                     >
-                                        {{ $book->title }}
-                                    </h5>
+                                        {{
+                                            $selectedMinistryLessons
+                                                ->count()
+                                        }}
+                                    </span>
                                 </div>
 
                                 <div
-                                    class="mt-3 grid gap-2
-                                           sm:grid-cols-2
-                                           lg:grid-cols-3"
+                                    class="mt-3 flex
+                                           flex-wrap gap-2"
                                 >
-                                    @foreach ($book->lessons as $lesson)
-                                        <label
-                                            class="flex cursor-pointer
-                                                   items-center gap-2
-                                                   rounded-lg border
-                                                   border-gray-200
-                                                   px-3 py-2
-                                                   dark:border-gray-700"
+                                    @foreach (
+                                        $selectedMinistryLessons
+                                        as $lesson
+                                    )
+                                        <button
+                                            type="button"
+                                            wire:click="removeMinistryLesson(
+                                                {{ $lesson->id }}
+                                            )"
+                                            title="Remove {{ $lesson->code }}"
+                                            class="inline-flex
+                                                   items-center gap-1.5
+                                                   rounded-lg
+                                                   border
+                                                   border-primary-200
+                                                   bg-white px-3 py-2
+                                                   text-left text-xs
+                                                   font-medium
+                                                   text-gray-700
+                                                   transition
+                                                   hover:border-red-300
+                                                   hover:text-red-700
+                                                   dark:border-primary-800
+                                                   dark:bg-gray-900
+                                                   dark:text-gray-200
+                                                   dark:hover:border-red-800
+                                                   dark:hover:text-red-300"
                                         >
-                                            <input
-                                                type="checkbox"
-                                                value="{{ $lesson->id }}"
-                                                wire:model="ministryLessonIds"
-                                                class="rounded
-                                                       border-gray-300"
+                                            <strong
+                                                class="font-mono
+                                                       text-primary-700
+                                                       dark:text-primary-300"
                                             >
+                                                {{ $lesson->code }}
+                                            </strong>
 
-                                            <span class="text-sm">
-                                                <strong
-                                                    class="font-mono"
-                                                >
-                                                    {{ $lesson->code }}
-                                                </strong>
-
-                                                @if ($lesson->title)
-                                                    · {{ $lesson->title }}
-                                                @endif
+                                            <span>
+                                                {{ $lesson->title }}
                                             </span>
-                                        </label>
+
+                                            <span
+                                                class="ml-1
+                                                       text-gray-400"
+                                            >
+                                                ×
+                                            </span>
+                                        </button>
                                     @endforeach
                                 </div>
                             </div>
-                        @empty
-                            <div
-                                class="mt-3 rounded-xl
-                                       border border-dashed
-                                       border-gray-300 p-4
-                                       text-sm text-gray-500
-                                       dark:border-gray-700
-                                       dark:text-gray-400"
+                        @endif
+
+
+                        {{-- Search --}}
+                        <div class="mt-4">
+                            <label
+                                class="block text-xs
+                                       font-semibold
+                                       text-gray-600
+                                       dark:text-gray-300"
                             >
-                                No active Ministry Lessons are
-                                configured yet. Add them under
-                                Administration → Ministry Books.
+                                Search Ministry Topics
+                            </label>
+
+                            <div class="relative mt-2">
+                                <input
+                                    type="search"
+                                    x-model="ministrySearch"
+                                    placeholder="Search HG01, salvation, church life, prayer..."
+                                    class="block w-full
+                                           rounded-xl border
+                                           border-gray-300
+                                           bg-white px-4 py-3
+                                           pr-10 text-sm
+                                           text-gray-900
+                                           shadow-sm
+                                           focus:border-primary-500
+                                           focus:ring-primary-500
+                                           dark:border-gray-700
+                                           dark:bg-gray-800
+                                           dark:text-white"
+                                >
+
+                                <button
+                                    type="button"
+                                    x-show="ministrySearch"
+                                    x-cloak
+                                    x-on:click="
+                                        ministrySearch = '';
+                                    "
+                                    class="absolute right-3
+                                           top-1/2
+                                           -translate-y-1/2
+                                           text-gray-400
+                                           hover:text-gray-700
+                                           dark:hover:text-gray-200"
+                                >
+                                    ×
+                                </button>
                             </div>
-                        @endforelse
+                        </div>
+
+
+                        {{-- Ministry Books --}}
+                        <div
+                            class="mt-4 overflow-hidden
+                                   rounded-xl border
+                                   border-gray-200
+                                   bg-white
+                                   divide-y divide-gray-200
+                                   dark:border-gray-700
+                                   dark:bg-gray-900
+                                   dark:divide-gray-700"
+                        >
+                            @forelse (
+                                $ministryBooks
+                                as $book
+                            )
+                                @php
+                                    $bookSearchText =
+                                        strtolower(
+                                            trim(
+                                                $book->code
+                                                . ' '
+                                                . $book->title
+                                                . ' '
+                                                . $book->lessons
+                                                    ->map(
+                                                        fn ($lesson) =>
+                                                            $lesson->code
+                                                            . ' '
+                                                            . $lesson->title
+                                                    )
+                                                    ->implode(' ')
+                                            )
+                                        );
+                                @endphp
+
+                                <details
+                                    x-show="
+                                        ministrySearch.trim() === ''
+                                        || {{ \Illuminate\Support\Js::from(
+                                            $bookSearchText
+                                        ) }}.includes(
+                                            ministrySearch
+                                                .trim()
+                                                .toLowerCase()
+                                        )
+                                    "
+                                    x-effect="
+                                        const query =
+                                            ministrySearch
+                                                .trim()
+                                                .toLowerCase();
+
+                                        $el.open =
+                                            query !== ''
+                                            && {{ \Illuminate\Support\Js::from(
+                                                $bookSearchText
+                                            ) }}.includes(query);
+                                    "
+                                    class="group
+                                           bg-white
+                                           dark:bg-gray-900"
+                                >
+                                    <summary
+                                        class="cursor-pointer
+                                               px-3 py-2
+                                               text-gray-900
+                                               transition
+                                               hover:bg-gray-50
+                                               dark:text-gray-100
+                                               dark:hover:bg-gray-800"
+                                    >
+                                        <span
+                                            class="inline-flex
+                                                   w-[calc(100%-1.5rem)]
+                                                   align-middle
+                                                   items-center
+                                                   justify-between
+                                                   gap-3"
+                                        >
+                                            <div
+                                                class="flex min-w-0
+                                                       items-center
+                                                       gap-2"
+                                            >
+                                                <span
+                                                    class="w-7 shrink-0
+                                                           font-mono
+                                                           text-xs font-bold
+                                                           text-primary-700
+                                                           dark:text-primary-300"
+                                                >
+                                                    {{ $book->code }}
+                                                </span>
+
+                                                <span
+                                                    class="min-w-0 truncate
+                                                           text-sm font-semibold
+                                                           text-gray-800
+                                                           dark:text-gray-100"
+                                                    title="{{ $book->title }}"
+                                                >
+                                                    {{ $book->title }}
+                                                </span>
+                                            </div>
+
+                                            <div
+                                                class="flex
+                                                       items-center
+                                                       gap-2"
+                                            >
+                                                @php
+                                                    $selectedInBook =
+                                                        $book
+                                                            ->lessons
+                                                            ->whereIn(
+                                                                'id',
+                                                                $selectedMinistryIds
+                                                            )
+                                                            ->count();
+                                                @endphp
+
+                                                @if (
+                                                    $selectedInBook > 0
+                                                )
+                                                    <span
+                                                        class="rounded-full
+                                                               bg-primary-100
+                                                               px-2.5 py-1
+                                                               text-xs
+                                                               font-bold
+                                                               text-primary-700
+                                                               dark:bg-primary-900
+                                                               dark:text-primary-200"
+                                                    >
+                                                        {{
+                                                            $selectedInBook
+                                                        }}
+                                                        selected
+                                                    </span>
+                                                @endif
+
+                                                <span
+                                                    class="min-w-6
+                                                           text-right
+                                                           text-xs
+                                                           font-medium
+                                                           text-gray-400"
+                                                    title="Topics"
+                                                >
+                                                    {{
+                                                        $book
+                                                            ->lessons
+                                                            ->count()
+                                                    }}
+                                                </span>
+                                            </div>
+                                        </span>
+                                    </summary>
+
+                                    <div
+                                        class="border-t
+                                               border-gray-200
+                                               bg-gray-50 p-2
+                                               dark:border-gray-700
+                                               dark:bg-gray-950"
+                                    >
+                                        <div
+                                            class="grid
+                                                   sm:grid-cols-2"
+                                        >
+                                            @foreach (
+                                                $book->lessons
+                                                as $lesson
+                                            )
+                                                @php
+                                                    $lessonSearchText =
+                                                        strtolower(
+                                                            $lesson->code
+                                                            . ' '
+                                                            . $lesson->title
+                                                        );
+                                                @endphp
+
+                                                <label
+                                                    x-show="
+                                                        ministrySearch.trim() === ''
+                                                        || {{ \Illuminate\Support\Js::from(
+                                                            $lessonSearchText
+                                                        ) }}.includes(
+                                                            ministrySearch
+                                                                .trim()
+                                                                .toLowerCase()
+                                                        )
+                                                        || {{ \Illuminate\Support\Js::from(
+                                                            strtolower(
+                                                                $book->code
+                                                                . ' '
+                                                                . $book->title
+                                                            )
+                                                        ) }}.includes(
+                                                            ministrySearch
+                                                                .trim()
+                                                                .toLowerCase()
+                                                        )
+                                                    "
+                                                    wire:key="ministry-lesson-{{ $lesson->id }}"
+                                                    class="flex
+                                                           cursor-pointer
+                                                           items-center
+                                                           gap-2
+                                                           px-2.5 py-1.5
+                                                           text-gray-700
+                                                           transition
+                                                           hover:bg-gray-100
+                                                           has-[:checked]:bg-primary-50
+                                                           dark:bg-gray-950
+                                                           dark:text-gray-200
+                                                           dark:hover:bg-gray-800
+                                                           dark:has-[:checked]:bg-primary-950"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        value="{{ $lesson->id }}"
+                                                        wire:model.live="ministryLessonIds"
+                                                        class="rounded
+                                                               border-gray-300
+                                                               text-primary-600
+                                                               focus:ring-primary-500
+                                                               dark:border-gray-600
+                                                               dark:bg-gray-800"
+                                                    >
+
+                                                    <div
+                                                        class="flex min-w-0
+                                                               flex-1
+                                                               items-center
+                                                               gap-2"
+                                                    >
+                                                        <strong
+                                                            class="w-11
+                                                                   shrink-0
+                                                                   font-mono
+                                                                   text-xs
+                                                                   text-primary-700
+                                                                   dark:text-primary-300"
+                                                        >
+                                                            {{ $lesson->code }}
+                                                        </strong>
+
+                                                        <span
+                                                            title="{{ $lesson->title }}"
+                                                            class="min-w-0
+                                                                   truncate
+                                                                   text-sm
+                                                                   text-gray-700
+                                                                   dark:text-gray-200"
+                                                        >
+                                                            {{ $lesson->title }}
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </details>
+                            @empty
+                                <div
+                                    class="rounded-xl
+                                           border border-dashed
+                                           border-gray-300
+                                           p-5 text-sm
+                                           text-gray-500
+                                           dark:border-gray-700
+                                           dark:text-gray-400"
+                                >
+                                    No active Ministry Lessons are
+                                    configured yet. Add them under
+                                    Administration → Ministry Books.
+                                </div>
+                            @endforelse
+                        </div>
+
+                        <p
+                            class="mt-3 text-xs
+                                   text-gray-400"
+                        >
+                            Ministry topics are separate from
+                            activity codes. Select only the
+                            material actually covered during
+                            this Shepherding Contact.
+                        </p>
                     </section>
                 @endif
 
