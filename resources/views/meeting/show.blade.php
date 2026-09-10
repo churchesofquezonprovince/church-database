@@ -397,7 +397,7 @@ action="{{ route(
     request()->getHost() === 'm.overcomers.win'
         ? 'meeting.short.store'
         : 'meeting.store',
-    ['slug' => $session->public_slug],
+    ['slug' => $publicSlug],
     false
 ) }}"
             >
@@ -1167,7 +1167,7 @@ const searchUrl = @json(
         request()->getHost() === 'm.overcomers.win'
             ? 'meeting.short.search'
             : 'meeting.search',
-        ['slug' => $session->public_slug],
+        ['slug' => $publicSlug],
         false
     )
 );

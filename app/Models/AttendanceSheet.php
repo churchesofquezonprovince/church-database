@@ -23,6 +23,7 @@ class AttendanceSheet extends Model
     public const MEETING_FORM_NORMAL = 'normal';
 
     protected $fillable = [
+        'attendance_meeting_series_id',
         'title',
         'sheet_type',
         'locality',
@@ -44,6 +45,14 @@ class AttendanceSheet extends Model
         'is_one_time' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+public function meetingSeries(): BelongsTo
+{
+    return $this->belongsTo(
+        AttendanceMeetingSeries::class,
+        'attendance_meeting_series_id'
+    );
+}
 
 public function immichAlbum(): HasOne
 {

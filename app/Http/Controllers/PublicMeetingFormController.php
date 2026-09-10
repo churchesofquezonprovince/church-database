@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceMeetingResponse;
+use App\Models\AttendanceMeetingSeries;
 use App\Models\AttendanceSession;
 use App\Models\CampusContact;
 use App\Models\Person;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -21,6 +23,17 @@ class PublicMeetingFormController extends Controller
         return view('meeting.show', [
             'session' => $session,
             'sheet' => $session->sheet,
+
+            /*
+             * Preserve the public identity used to reach
+             * this page.
+             *
+             * This may be either:
+             *
+             * - an exact Session slug
+             * - a permanent Meeting Series slug
+             */
+            'publicSlug' => trim($slug),
         ]);
     }
 
@@ -591,14 +604,42 @@ $meetingResponse->forceFill([
         string $name,
         string $response
     ): RedirectResponse {
-$url =
-    request()->getHost() === 'm.overcomers.win'
-        ? 'https://m.overcomers.win/'
-            . $session->public_slug
-        : secure_url(
-            '/meeting/'
-            . $session->public_slug
-        );
+        /*
+         * Preserve whichever public identity the visitor used.
+         *
+         * Session URL:
+         *   /9-10-26-example
+         *
+         * Permanent Meeting Series URL:
+         *   /campus-meeting-sc-lucban
+         *
+         * A submission through the permanent link must remain
+         * on the permanent link.
+         */
+        $publicSlug =
+            trim(
+                (string)
+                request()->route(
+                    'slug',
+                    $session->public_slug
+                )
+            );
+
+        if ($publicSlug === '') {
+            $publicSlug =
+                (string)
+                $session->public_slug;
+        }
+
+        $url =
+            request()->getHost()
+                === 'm.overcomers.win'
+                    ? 'https://m.overcomers.win/'
+                        . $publicSlug
+                    : secure_url(
+                        '/meeting/'
+                        . $publicSlug
+                    );
 
 return redirect()
     ->to($url)
@@ -619,18 +660,219 @@ return redirect()
     private function publicSession(
         string $slug
     ): AttendanceSession {
-        $session = AttendanceSession::query()
-            ->where('public_slug', $slug)
-            ->with('sheet')
-            ->firstOrFail();
+        $slug =
+            trim($slug);
+
+        /*
+         * Session slugs and permanent Meeting Series slugs
+         * intentionally share one public namespace:
+         *
+         * m.overcomers.win/{slug}
+         *
+         * Never silently choose one if bad data creates a
+         * cross-table collision.
+         */
+        $session =
+            AttendanceSession::query()
+                ->where(
+                    'public_slug',
+                    $slug
+                )
+                ->with('sheet')
+                ->first();
+
+        $series =
+            AttendanceMeetingSeries::query()
+                ->where(
+                    'public_slug',
+                    $slug
+                )
+                ->first();
+
+        if ($session && $series) {
+            abort(
+                409,
+                'This public meeting link is ambiguous. '
+                . 'Please contact the meeting administrator.'
+            );
+        }
+
+        /*
+         * Existing exact Session links retain their original
+         * behavior and can identify a historical occurrence.
+         */
+        if ($session) {
+            abort_unless(
+                $session->sheet
+                    && $session->sheet->is_active
+                    && $session
+                        ->sheet
+                        ->meetingFormEnabled(),
+                404
+            );
+
+            return $session;
+        }
+
+        if (! $series) {
+            abort(404);
+        }
 
         abort_unless(
-            $session->sheet
-                && $session->sheet->is_active
-                && $session->sheet->meetingFormEnabled(),
+            $series->is_active,
             404
         );
 
+        return $this->resolveSeriesSession(
+            $series
+        );
+    }
+
+    private function resolveSeriesSession(
+        AttendanceMeetingSeries $series
+    ): AttendanceSession {
+        $today =
+            CarbonImmutable::today()
+                ->toDateString();
+
+        /*
+         * A Sheet may represent:
+         *
+         * - Semester 1
+         * - Semester 2
+         * - another academic year
+         *
+         * They can all belong to one permanent Meeting Series.
+         *
+         * Only active Sheets with an enabled meeting form
+         * participate in public resolution.
+         */
+        $baseQuery =
+            AttendanceSession::query()
+                ->whereHas(
+                    'sheet',
+                    function ($query) use (
+                        $series
+                    ): void {
+                        $query
+                            ->where(
+                                'attendance_meeting_series_id',
+                                $series->id
+                            )
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->where(
+                                'meeting_form_type',
+                                'normal'
+                            );
+                    }
+                )
+                ->with('sheet');
+
+        /*
+         * Rule 1:
+         * If the series has a Session today, use today.
+         *
+         * We intentionally do not switch to next week merely
+         * because the meeting time has passed. The whole
+         * calendar day belongs to today's meeting.
+         */
+        $todaySessions =
+            (clone $baseQuery)
+                ->where(
+                    'session_date',
+                    $today
+                )
+                ->orderBy('id')
+                ->get();
+
+        if ($todaySessions->count() > 1) {
+            $this->abortAmbiguousSeriesDate(
+                $series,
+                $today
+            );
+        }
+
+        if ($todaySessions->count() === 1) {
+            return $todaySessions->first();
+        }
+
+        /*
+         * Rule 2:
+         * Otherwise choose the nearest future Session across
+         * every linked Semester / Academic-Year Sheet.
+         */
+        $nextDate =
+            (clone $baseQuery)
+                ->where(
+                    'session_date',
+                    '>',
+                    $today
+                )
+                ->min(
+                    'session_date'
+                );
+
+        if (blank($nextDate)) {
+            abort(
+                404,
+                'No upcoming meeting is currently scheduled '
+                . 'for this permanent meeting link.'
+            );
+        }
+
+        $nextDate =
+            CarbonImmutable::parse(
+                $nextDate
+            )->toDateString();
+
+        $nextSessions =
+            (clone $baseQuery)
+                ->where(
+                    'session_date',
+                    $nextDate
+                )
+                ->orderBy('id')
+                ->get();
+
+        if ($nextSessions->count() > 1) {
+            $this->abortAmbiguousSeriesDate(
+                $series,
+                $nextDate
+            );
+        }
+
+        $session =
+            $nextSessions->first();
+
+        if (! $session) {
+            abort(404);
+        }
+
         return $session;
     }
+
+    private function abortAmbiguousSeriesDate(
+        AttendanceMeetingSeries $series,
+        string $date
+    ): never {
+        $label =
+            CarbonImmutable::parse(
+                $date
+            )->format(
+                'F j, Y'
+            );
+
+        abort(
+            409,
+            'The permanent meeting "'
+            . $series->name
+            . '" has multiple active Sessions scheduled for '
+            . $label
+            . '. Please contact the meeting administrator.'
+        );
+    }
+
 }
