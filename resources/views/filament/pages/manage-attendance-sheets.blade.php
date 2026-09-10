@@ -455,6 +455,284 @@
                         </form>
                     </details>
 
+
+@php
+    $meetingSeries =
+        $sheet->meetingSeries;
+
+    $meetingSeriesStatus =
+        $meetingSeries
+            ? $this->meetingSeriesStatus(
+                $meetingSeries
+            )
+            : null;
+
+    $resolvedSession =
+        $meetingSeriesStatus[
+            'session'
+        ] ?? null;
+
+    $seriesOptions =
+        $this->meetingSeriesOptions();
+@endphp
+
+<details class="mt-5 overflow-hidden rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950">
+    <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
+        <span class="min-w-0">
+            <span class="block text-sm font-bold text-sky-900 dark:text-sky-100">
+                Permanent Meeting Link
+            </span>
+
+        </span>
+
+        @if ($meetingSeries)
+            <span class="shrink-0 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100">
+                Linked
+            </span>
+        @endif
+    </summary>
+
+    <div class="border-t border-sky-200 p-4 dark:border-sky-900">
+
+    @if ($meetingSeries)
+        <div class="mt-4 rounded-xl border border-sky-200 bg-white p-4 dark:border-sky-900 dark:bg-gray-950">
+            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="break-words font-bold text-gray-900 dark:text-white">
+                        {{ $meetingSeries->name }}
+                    </p>
+
+                    <p class="mt-1 break-all font-mono text-xs text-gray-500 dark:text-gray-400">
+                        {{ $meetingSeries->publicUrl() }}
+                    </p>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @if ($meetingSeriesStatus['status'] === 'today')
+                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                                Resolves to today's Session
+                            </span>
+                        @elseif ($meetingSeriesStatus['status'] === 'upcoming')
+                            <span class="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100">
+                                Next scheduled Session
+                            </span>
+                        @elseif ($meetingSeriesStatus['status'] === 'ambiguous')
+                            <span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800 dark:bg-red-900 dark:text-red-100">
+                                Needs attention
+                            </span>
+                        @else
+                            <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                No upcoming Session
+                            </span>
+                        @endif
+
+                        @if ($resolvedSession)
+                            <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                                {{ $resolvedSession->dateTimeLabel() }}
+                            </span>
+
+                            @if (
+                                $resolvedSession->attendance_sheet_id
+                                !== $sheet->id
+                            )
+                                <span class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-900 dark:text-violet-200">
+                                    {{ $resolvedSession->sheet?->title }}
+                                </span>
+                            @endif
+                        @endif
+                    </div>
+
+                    @if ($meetingSeriesStatus['status'] === 'ambiguous')
+                        <p class="mt-3 text-xs font-semibold text-red-700 dark:text-red-300">
+                            {{ $meetingSeriesStatus['message'] }}
+                        </p>
+                    @endif
+                </div>
+
+                <div class="flex shrink-0 flex-wrap gap-2">
+                    <button
+                        type="button"
+                        data-permanent-url="{{ $meetingSeries->publicUrl() }}"
+                        onclick="
+                            navigator.clipboard
+                                .writeText(this.dataset.permanentUrl)
+                                .then(() => {
+                                    const button = this;
+                                    const originalText =
+                                        button.textContent.trim();
+
+                                    button.textContent =
+                                        'Copied!';
+
+                                    setTimeout(() => {
+                                        button.textContent =
+                                            originalText;
+                                    }, 1500);
+                                });
+                        "
+                        class="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                    >
+                        Copy Permanent Link
+                    </button>
+
+                    <a
+                        href="{{ $meetingSeries->publicUrl() }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500"
+                    >
+                        Open Permanent Link
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <details class="mt-4 rounded-xl border border-sky-200 bg-white p-4 dark:border-sky-900 dark:bg-gray-950">
+            <summary class="cursor-pointer text-sm font-bold text-sky-900 dark:text-sky-100">
+                Change Meeting Series
+            </summary>
+
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Use this when a Sheet should belong to another
+                existing permanent meeting identity.
+            </p>
+
+            <div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                <select
+                    wire:model.defer="meetingSeriesSelections.{{ $sheet->id }}"
+                    class="block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                >
+                    <option value="">
+                        Select existing Meeting Series
+                    </option>
+
+                    @foreach ($seriesOptions as $option)
+                        <option value="{{ $option->id }}">
+                            {{ $option->name }}
+                            — {{ $option->public_slug }}
+                            — {{ $option->sheets_count }}
+                            {{ $option->sheets_count === 1 ? 'Sheet' : 'Sheets' }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <button
+                    type="button"
+                    wire:click="attachMeetingSeries({{ $sheet->id }})"
+                    wire:loading.attr="disabled"
+                    class="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                >
+                    Attach Existing
+                </button>
+            </div>
+
+            <div class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
+                <button
+                    type="button"
+                    wire:click="detachMeetingSeries({{ $sheet->id }})"
+                    wire:confirm="Detach this Attendance Sheet from the permanent Meeting Series? The permanent URL and other linked semesters will be preserved."
+                    wire:loading.attr="disabled"
+                    class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                >
+                    Detach This Sheet
+                </button>
+            </div>
+        </details>
+    @else
+        <div class="mt-4 grid gap-4 xl:grid-cols-2">
+            <div class="rounded-xl border border-sky-200 bg-white p-4 dark:border-sky-900 dark:bg-gray-950">
+                <p class="text-sm font-bold text-gray-900 dark:text-white">
+                    Attach Existing Meeting Series
+                </p>
+
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Best choice for Semester 2 or a new academic
+                    year of an existing recurring meeting.
+                </p>
+
+                <select
+                    wire:model.defer="meetingSeriesSelections.{{ $sheet->id }}"
+                    class="mt-4 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                >
+                    <option value="">
+                        Select existing Meeting Series
+                    </option>
+
+                    @foreach ($seriesOptions as $option)
+                        <option value="{{ $option->id }}">
+                            {{ $option->name }}
+                            — {{ $option->public_slug }}
+                            — {{ $option->sheets_count }}
+                            {{ $option->sheets_count === 1 ? 'Sheet' : 'Sheets' }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <button
+                    type="button"
+                    wire:click="attachMeetingSeries({{ $sheet->id }})"
+                    wire:loading.attr="disabled"
+                    class="mt-3 w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                >
+                    Attach Existing Series
+                </button>
+            </div>
+
+            <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-900 dark:bg-gray-950">
+                <p class="text-sm font-bold text-gray-900 dark:text-white">
+                    Create New Permanent Meeting
+                </p>
+
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Use this only when this is a genuinely new
+                    recurring meeting identity.
+                </p>
+
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                            Meeting Series Name
+                        </label>
+
+                        <input
+                            type="text"
+                            wire:model.defer="newMeetingSeriesNames.{{ $sheet->id }}"
+                            placeholder="{{ $sheet->title }}"
+                            class="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        >
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                            Permanent Slug
+                        </label>
+
+                        <input
+                            type="text"
+                            wire:model.defer="newMeetingSeriesSlugs.{{ $sheet->id }}"
+                            placeholder="{{ \Illuminate\Support\Str::slug($sheet->title) }}"
+                            class="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                        >
+
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                            m.overcomers.win/&lt;permanent-slug&gt;
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        wire:click="createMeetingSeries({{ $sheet->id }})"
+                        wire:loading.attr="disabled"
+                        class="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+                    >
+                        Create Permanent Link
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+    </div>
+</details>
+
 @if ($sheet->meetingFormEnabled())
     @php
         $meetingFormSessions = $sheet->sessions;
@@ -464,11 +742,11 @@
 
         <div>
             <p class="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                Public Meeting Forms
+                Session-Specific Meeting Forms
             </p>
 
             <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                Each meeting date has its own stable public response link.
+                Each meeting date keeps its own exact historical public response link.
             </p>
         </div>
 
@@ -546,7 +824,7 @@
         </div>
 
         <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">
-            The links are generated now. The public page will become functional in Phase 26C.
+            These links open one exact meeting date. The Permanent Meeting Link above follows today's or the next scheduled Session.
         </p>
 
     </div>

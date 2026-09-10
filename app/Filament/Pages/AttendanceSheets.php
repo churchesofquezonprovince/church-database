@@ -24,6 +24,7 @@ class AttendanceSheets extends Page
 
     public string $immichAssetInput = '';
 
+
     public function getTitle(): string
     {
         return 'Attendance Sheets';
