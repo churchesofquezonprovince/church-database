@@ -21,11 +21,47 @@ class CheckAttendance extends Page
 
     protected ?Collection $activeSchoolsCache = null;
 
+public ?int $selectedSheetId = null;
+
 public ?int $selectedSessionId = null;
 
 public function mount(): void
 {
-    $this->selectedSessionId = request()->integer('sessionId') ?: null;
+    $this->selectedSheetId =
+        request()->integer(
+            'sheetId'
+        ) ?: null;
+
+    $this->selectedSessionId =
+        request()->integer(
+            'sessionId'
+        ) ?: null;
+
+    /*
+     * Session ID is the stronger identity.
+     *
+     * If a valid Session is supplied, derive its Sheet directly
+     * instead of trusting potentially mismatched query parameters.
+     *
+     * Both values then remain Livewire component state during
+     * Confirm / Confirm All and other Livewire actions.
+     */
+    if ($this->selectedSessionId) {
+        $session =
+            AttendanceSession::query()
+                ->find(
+                    $this->selectedSessionId
+                );
+
+        if ($session) {
+            $this->selectedSheetId =
+                (int)
+                $session->attendance_sheet_id;
+        } else {
+            $this->selectedSessionId =
+                null;
+        }
+    }
 }
 
     public function permanentMeetingLocalities(string $sheetType): Collection
@@ -155,25 +191,39 @@ public function mount(): void
 
     public function selectedSheet(): ?AttendanceSheet
     {
-        $sheetId = request()->integer('sheetId');
+        $query =
+            AttendanceSheet::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->withCount([
+                    'sessions',
 
-        $query = AttendanceSheet::query()
-            ->where('is_active', true)
-            ->withCount([
-            'sessions',
-            'participants as participants_count' =>
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        true
-                    ),
-        ]);
+                    'participants as participants_count' =>
+                        fn ($query) =>
+                            $query->where(
+                                'is_active',
+                                true
+                            ),
+                ]);
 
-        if ($sheetId) {
-            return $query->find($sheetId);
+        /*
+         * Do not read request('sheetId') here.
+         *
+         * Livewire action requests do not reliably contain the
+         * original page query string. selectedSheetId is persisted
+         * as component state from mount().
+         */
+        if ($this->selectedSheetId) {
+            return $query->find(
+                $this->selectedSheetId
+            );
         }
 
-        return $query->latest()->first();
+        return $query
+            ->latest()
+            ->first();
     }
 
     public function sessions(): Collection

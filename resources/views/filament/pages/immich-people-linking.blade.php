@@ -431,7 +431,10 @@
                     $displayName = trim($immichPerson['name'] ?? '');
                 @endphp
 
-                <div class="p-5">
+                <div
+                    wire:key="immich-unmatched-row-{{ $immichId }}"
+                    class="p-5"
+                >
 
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
@@ -468,7 +471,8 @@
                         <div class="w-full lg:max-w-xl">
 
                             <select
-                                wire:model.live="selectedPeople.{{ $immichId }}"
+                                wire:key="immich-person-select-{{ $immichId }}"
+                                wire:model.change="selectedPeople.{{ $immichId }}"
                                 class="block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-white"
                             >
                                 <option value="">
@@ -601,7 +605,10 @@
                             $displayName = trim($immichPerson['name'] ?? '');
                         @endphp
 
-                        <div class="p-5">
+                        <div
+                            wire:key="immich-matched-row-{{ $immichId }}"
+                            class="p-5"
+                        >
 
                             <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 

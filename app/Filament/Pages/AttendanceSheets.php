@@ -191,13 +191,31 @@ public function selectedSheet(): ?AttendanceSheet
 
 public function syncImmich(int $sessionId): void
 {
-    $sheet = $this->selectedSheet();
-
-    if (! $sheet) {
-        return;
-    }
-
-    $session = $sheet->sessions->firstWhere('id', $sessionId);
+    /*
+     * Resolve the Session directly from the ID supplied by the
+     * button. Do not depend on request() query parameters here:
+     * Livewire action requests do not reliably preserve the
+     * original ?sheetId=...&sessionId=... browser query string.
+     */
+    $session = AttendanceSession::query()
+        ->with([
+            'sheet.immichAlbum',
+            'immichAssets',
+        ])
+        ->whereHas(
+            'sheet',
+            fn ($query) =>
+                $query
+                    ->where(
+                        'sheet_type',
+                        AttendanceSheet::TYPE_CUSTOM
+                    )
+                    ->where(
+                        'is_active',
+                        true
+                    )
+        )
+        ->find($sessionId);
 
     if (! $session) {
         Notification::make()
@@ -207,6 +225,8 @@ public function syncImmich(int $sessionId): void
 
         return;
     }
+
+    $sheet = $session->sheet;
 
     try {
         $result = app(ImmichAttendanceSyncService::class)
@@ -353,8 +373,12 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
 
 public function linkImmichAlbum(
     int $sheetId,
-    string $albumId,
 ): void {
+    $albumId =
+        trim(
+            $this->immichAlbumId
+        );
+
     $sheet = AttendanceSheet::query()
         ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
         ->where('is_active', true)
@@ -458,14 +482,25 @@ public function unlinkImmichAlbum(int $sheetId): void
     public function linkImmichAsset(
         int $sessionId,
     ): void {
-        $sheet = $this->selectedSheet();
-
-        if (! $sheet) {
-            return;
-        }
-
+        /*
+         * Resolve by Session ID rather than by selectedSheet().
+         * This keeps the action stable across Livewire requests.
+         */
         $session = AttendanceSession::query()
-            ->where('attendance_sheet_id', $sheet->id)
+            ->with('sheet')
+            ->whereHas(
+                'sheet',
+                fn ($query) =>
+                    $query
+                        ->where(
+                            'sheet_type',
+                            AttendanceSheet::TYPE_CUSTOM
+                        )
+                        ->where(
+                            'is_active',
+                            true
+                        )
+            )
             ->find($sessionId);
 
         if (! $session) {
@@ -476,6 +511,8 @@ public function unlinkImmichAlbum(int $sheetId): void
 
             return;
         }
+
+        $sheet = $session->sheet;
 
         $assetId = $this->extractImmichAssetId(
             $this->immichAssetInput

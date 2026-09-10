@@ -685,7 +685,7 @@
                     @if (count($immichAlbums) > 0)
                         <select
                             id="immich_album_id"
-                            wire:model="immichAlbumId"
+                            wire:model.change="immichAlbumId"
                             class="mt-3 block w-full
                                    rounded-xl border
                                    border-violet-200
@@ -717,7 +717,7 @@
 
                         <button
                             type="button"
-                            wire:click="linkImmichAlbum({{ $selectedSheet->id }}, @js($immichAlbumId))"
+                            wire:click="linkImmichAlbum({{ $selectedSheet->id }})"
                             wire:loading.attr="disabled"
                             class="mt-3 rounded-xl
                                    bg-violet-600
