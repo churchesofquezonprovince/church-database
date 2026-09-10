@@ -293,36 +293,34 @@
         @endif
 
 
-        {{-- Summary --}}
-        <div class="grid gap-4 sm:grid-cols-3">
-            @foreach ([
-                ['label' => 'Total Gospel Contacts', 'value' => $summary['total']],
-                ['label' => 'Not in People Database', 'value' => $summary['unlinked']],
-                ['label' => 'Linked to People', 'value' => $summary['linked']],
-            ] as $card)
-                <div
-                    class="rounded-2xl border border-gray-200
-                           bg-white p-5 shadow-sm
-                           dark:border-gray-700 dark:bg-gray-900"
-                >
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ $card['label'] }}
-                    </p>
+        {{-- Gospel Contact Actions folder --}}
+        <details
+            class="min-w-0 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            @if (
+                $errors->any()
+                || $possibleDuplicates->isNotEmpty()
+                || $possiblePeopleMatches->isNotEmpty()
+            )
+                open
+            @endif
+        >
+            <summary
+                class="cursor-pointer px-5 py-4
+                       text-lg font-bold text-gray-900
+                       hover:bg-gray-100
+                       dark:text-gray-100
+                       dark:hover:bg-gray-800"
+            >
+                Gospel Contact Actions
+            </summary>
 
-                    <p
-                        class="mt-1 text-3xl font-bold
-                               text-gray-950 dark:text-white"
-                    >
-                        {{ $card['value'] }}
-                    </p>
-                </div>
-            @endforeach
-        </div>
-
-
+            <div
+                class="space-y-5 border-t
+                       border-gray-300 p-5
+                       dark:border-gray-700"
+            >
         {{-- Add Gospel Contact --}}
         <details
-            open
             class="rounded-2xl border border-gray-200
                    bg-white p-6 shadow-sm
                    dark:border-gray-700 dark:bg-gray-900"
@@ -612,6 +610,35 @@
                 </p>
             @endif
         </details>
+            </div>
+        </details>
+
+
+        {{-- Summary --}}
+        <div class="grid gap-4 sm:grid-cols-3">
+            @foreach ([
+                ['label' => 'Total Gospel Contacts', 'value' => $summary['total']],
+                ['label' => 'Not in People Database', 'value' => $summary['unlinked']],
+                ['label' => 'Linked to People', 'value' => $summary['linked']],
+            ] as $card)
+                <div
+                    class="rounded-2xl border border-gray-200
+                           bg-white p-5 shadow-sm
+                           dark:border-gray-700 dark:bg-gray-900"
+                >
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ $card['label'] }}
+                    </p>
+
+                    <p
+                        class="mt-1 text-3xl font-bold
+                               text-gray-950 dark:text-white"
+                    >
+                        {{ $card['value'] }}
+                    </p>
+                </div>
+            @endforeach
+        </div>
 
 
         {{-- Filters --}}

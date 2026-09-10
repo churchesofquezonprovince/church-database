@@ -116,7 +116,7 @@
 
         {{-- Campus Contact Actions folder --}}
         <details
-            class="min-w-0 rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+            class="min-w-0 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
             @if ($errors->any() || $existingPeopleSearch !== '' || $possibleCampusContactDuplicates->isNotEmpty()) open @endif
         >
             <summary class="cursor-pointer px-5 py-4 text-lg font-bold text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800">
