@@ -10,6 +10,7 @@ use App\Models\ChurchProfile;
 use App\Models\Household;
 use App\Models\Person;
 use App\Support\ChurchProfileOptions;
+use App\Support\PersonActivitySummary;
 use Carbon\CarbonInterface;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -28,6 +29,23 @@ class PersonInfolist
                         TextEntry::make('profile_overview')
                             ->label('Summary')
                             ->state(fn (Person $record): HtmlString => self::profileOverview($record))
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
+
+                Section::make('Activity Heatmap')
+                    ->description(
+                        'Canonical attendance and shepherding activity for the latest 365 days.'
+                    )
+                    ->schema([
+                        TextEntry::make('activity_heatmap')
+                            ->label('Activity')
+                            ->state(
+                                fn (Person $record): HtmlString =>
+                                    self::activityHeatmap(
+                                        $record
+                                    )
+                            )
                             ->html()
                             ->columnSpanFull(),
                     ]),
@@ -325,6 +343,29 @@ class PersonInfolist
                     ])
                     ->columns(2),
             ]);
+    }
+
+
+    private static function activityHeatmap(
+        Person $record
+    ): HtmlString {
+        $snapshot =
+            PersonActivitySummary::for(
+                $record
+            )->snapshot();
+
+        return new HtmlString(
+            view(
+                'filament.resources.people.partials.person-activity-heatmap',
+                [
+                    'record' =>
+                        $record,
+
+                    'snapshot' =>
+                        $snapshot,
+                ]
+            )->render()
+        );
     }
 
 
