@@ -2001,36 +2001,109 @@
                                 @endif
 
 
-                                {{-- Ministry --}}
+                                                                {{-- Ministry --}}
                                 @if ($contact->ministryLessons->isNotEmpty())
-                                    <div
-                                        class="mt-2 flex
-                                               flex-wrap gap-2"
-                                    >
-                                        @foreach ($contact->ministryLessons as $lesson)
-                                            <span
-                                                class="rounded-lg
-                                                       bg-violet-50
-                                                       px-2.5 py-1
-                                                       text-xs font-bold
-                                                       text-violet-700
-                                                       dark:bg-violet-950
-                                                       dark:text-violet-300"
-                                            >
-                                                {{ $lesson->code }}
+                                    @php
+                                        $ministryGroups =
+                                            $contact
+                                                ->ministryLessons
+                                                ->sortBy(
+                                                    fn ($lesson) =>
+                                                        sprintf(
+                                                            '%05d-%05d',
+                                                            $lesson
+                                                                ->book
+                                                                ?->sort_order
+                                                                ?? 99999,
+                                                            $lesson
+                                                                ->sort_order
+                                                                ?? 99999
+                                                        )
+                                                )
+                                                ->groupBy(
+                                                    fn ($lesson) =>
+                                                        (string) (
+                                                            $lesson
+                                                                ->ministry_book_id
+                                                            ?? 0
+                                                        )
+                                                );
+                                    @endphp
 
-                                                @if ($lesson->title)
-                                                    ·
-                                                    {{ $lesson->title }}
-                                                @endif
-                                            </span>
-                                        @endforeach
+                                    <div class="mt-3">
+                                        <p
+                                            class="text-xs font-semibold
+                                                   uppercase tracking-wide
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            Ministry Used
+                                        </p>
+
+                                        <div class="mt-1.5 space-y-2">
+                                            @foreach (
+                                                $ministryGroups
+                                                as $lessons
+                                            )
+                                                @php
+                                                    $book =
+                                                        $lessons
+                                                            ->first()
+                                                            ?->book;
+                                                @endphp
+
+                                                <div>
+                                                    <p
+                                                        class="text-xs
+                                                               font-semibold
+                                                               text-violet-700
+                                                               dark:text-violet-300"
+                                                    >
+                                                        {{ $book?->code
+                                                            ?? 'Ministry' }}
+
+                                                        @if ($book?->title)
+                                                            ·
+                                                            {{ $book->title }}
+                                                        @endif
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-1
+                                                               flex flex-wrap
+                                                               gap-x-3 gap-y-1"
+                                                    >
+                                                        @foreach (
+                                                            $lessons
+                                                            as $lesson
+                                                        )
+                                                            <span
+                                                                class="text-xs
+                                                                       text-gray-600
+                                                                       dark:text-gray-300"
+                                                            >
+                                                                <strong
+                                                                    class="font-mono
+                                                                           text-violet-700
+                                                                           dark:text-violet-300"
+                                                                >
+                                                                    {{ $lesson->code }}
+                                                                </strong>
+
+                                                                @if ($lesson->title)
+                                                                    ·
+                                                                    {{ $lesson->title }}
+                                                                @endif
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endif
 
-
-                                {{-- Serving Saints --}}
-                                @if ($contact->participants->isNotEmpty())
+@if ($contact->participants->isNotEmpty())
                                     <p
                                         class="mt-3 text-xs
                                                text-gray-500

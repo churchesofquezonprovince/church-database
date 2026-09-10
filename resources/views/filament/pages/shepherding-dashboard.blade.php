@@ -423,11 +423,29 @@
                                 ->filter()
                                 ->values();
 
-                            $codes = collect(
-                                $record['shepherding_codes']
-                            )
-                                ->filter()
-                                ->values();
+                            $activityCodes =
+                                collect(
+                                    $record['activity_codes']
+                                    ?? []
+                                )
+                                    ->filter()
+                                    ->values();
+
+                            $ministryUsed =
+                                collect(
+                                    $record['ministry']
+                                    ?? []
+                                )
+                                    ->filter(
+                                        fn ($row) =>
+                                            filled(
+                                                $row[
+                                                    'lesson_code'
+                                                ]
+                                                ?? null
+                                            )
+                                    )
+                                    ->values();
                         @endphp
 
                         <div
@@ -493,15 +511,18 @@
                                 </a>
                             </div>
 
-                            @if ($codes->isNotEmpty())
+                            @if ($activityCodes->isNotEmpty())
                                 <div
                                     class="mt-3 flex flex-wrap gap-2"
                                 >
-                                    @foreach ($codes as $code)
+                                    @foreach (
+                                        $activityCodes
+                                        as $code
+                                    )
                                         <span
-                                            class="rounded-lg
+                                            class="rounded-md
                                                    bg-primary-50
-                                                   px-2.5 py-1
+                                                   px-2 py-1
                                                    text-xs font-semibold
                                                    text-primary-700
                                                    dark:bg-primary-950
@@ -510,6 +531,62 @@
                                             {{ $code }}
                                         </span>
                                     @endforeach
+                                </div>
+                            @endif
+
+                            @if ($ministryUsed->isNotEmpty())
+                                <div class="mt-3">
+                                    <p
+                                        class="text-xs font-semibold
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Ministry Used
+                                    </p>
+
+                                    <div
+                                        class="mt-1
+                                               space-y-1"
+                                    >
+                                        @foreach (
+                                            $ministryUsed
+                                            as $ministry
+                                        )
+                                            <p
+                                                class="text-xs
+                                                       text-gray-600
+                                                       dark:text-gray-300"
+                                            >
+                                                <strong
+                                                    class="font-mono
+                                                           text-violet-700
+                                                           dark:text-violet-300"
+                                                >
+                                                    {{
+                                                        $ministry[
+                                                            'lesson_code'
+                                                        ]
+                                                    }}
+                                                </strong>
+
+                                                @if (
+                                                    filled(
+                                                        $ministry[
+                                                            'lesson_title'
+                                                        ]
+                                                        ?? null
+                                                    )
+                                                )
+                                                    ·
+                                                    {{
+                                                        $ministry[
+                                                            'lesson_title'
+                                                        ]
+                                                    }}
+                                                @endif
+                                            </p>
+                                        @endforeach
+                                    </div>
                                 </div>
                             @endif
                         </div>
