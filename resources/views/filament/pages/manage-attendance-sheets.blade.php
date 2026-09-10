@@ -551,10 +551,10 @@
                 <div class="flex shrink-0 flex-wrap gap-2">
                     <button
                         type="button"
-                        data-permanent-url="{{ $meetingSeries->publicUrl() }}"
+                        data-short-url="{{ $meetingSeries->shortPublicUrl() }}"
                         onclick="
                             navigator.clipboard
-                                .writeText(this.dataset.permanentUrl)
+                                .writeText(this.dataset.shortUrl)
                                 .then(() => {
                                     const button = this;
                                     const originalText =
@@ -571,7 +571,7 @@
                         "
                         class="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-500"
                     >
-                        Copy Permanent Link
+                        Shorten Link
                     </button>
 
                     <a
@@ -696,7 +696,6 @@
                         <input
                             type="text"
                             wire:model.defer="newMeetingSeriesNames.{{ $sheet->id }}"
-                            placeholder="{{ $sheet->title }}"
                             class="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                         >
                     </div>
@@ -709,7 +708,6 @@
                         <input
                             type="text"
                             wire:model.defer="newMeetingSeriesSlugs.{{ $sheet->id }}"
-                            placeholder="{{ \Illuminate\Support\Str::slug($sheet->title) }}"
                             class="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                         >
 
@@ -738,20 +736,31 @@
         $meetingFormSessions = $sheet->sessions;
     @endphp
 
-    <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+    <details
+        @if ($meetingFormSessions->count() <= 4)
+            open
+        @endif
+        class="mt-5 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950"
+    >
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
+            <span class="min-w-0">
+                <span class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                    Session-Specific Meeting Forms
+                </span>
 
-        <div>
-            <p class="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                Session-Specific Meeting Forms
-            </p>
+                <span class="mt-1 block text-xs text-emerald-700 dark:text-emerald-300">
+                    Exact public links for individual meeting dates.
+                </span>
+            </span>
 
-            <p class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                Each meeting date keeps its own exact historical public response link.
-            </p>
-        </div>
+            <span class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                {{ $meetingFormSessions->count() }}
+                {{ $meetingFormSessions->count() === 1 ? 'Form' : 'Forms' }}
+            </span>
+        </summary>
 
-
-        <div class="mt-4 space-y-2">
+        <div class="border-t border-emerald-200 p-4 dark:border-emerald-900">
+            <div class="space-y-2">
 
             @forelse ($meetingFormSessions as $session)
 
@@ -821,13 +830,13 @@
 
             @endforelse
 
+            </div>
+
+            <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">
+                These links open one exact meeting date. The Permanent Meeting Link follows today's or the next scheduled Session.
+            </p>
         </div>
-
-        <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">
-            These links open one exact meeting date. The Permanent Meeting Link above follows today's or the next scheduled Session.
-        </p>
-
-    </div>
+    </details>
 @endif
 
                 </div>

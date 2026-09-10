@@ -41,6 +41,20 @@ class AttendanceMeetingSeries extends Model
 
     public function publicUrl(): string
     {
+        /*
+         * Canonical / normal public URL.
+         */
+        return secure_url(
+            '/meeting/'
+            . $this->public_slug
+        );
+    }
+
+    public function shortPublicUrl(): string
+    {
+        /*
+         * Compact shareable URL.
+         */
         return 'https://m.overcomers.win/'
             . $this->public_slug;
     }

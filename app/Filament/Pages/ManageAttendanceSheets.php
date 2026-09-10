@@ -28,6 +28,51 @@ class ManageAttendanceSheets extends Page
 
     public array $newMeetingSeriesSlugs = [];
 
+    public function mount(): void
+    {
+        /*
+         * Pre-fill new permanent Meeting Series fields so the
+         * proposed public identity is visible and editable.
+         *
+         * These are defaults only. Nothing is created until the
+         * administrator clicks Create Permanent Link.
+         */
+        AttendanceSheet::query()
+            ->where(
+                'sheet_type',
+                AttendanceSheet::TYPE_CUSTOM
+            )
+            ->whereNull(
+                'attendance_meeting_series_id'
+            )
+            ->orderBy('id')
+            ->get([
+                'id',
+                'title',
+            ])
+            ->each(
+                function (
+                    AttendanceSheet $sheet
+                ): void {
+                    $this
+                        ->newMeetingSeriesNames[
+                            $sheet->id
+                        ] =
+                            (string)
+                            $sheet->title;
+
+                    $this
+                        ->newMeetingSeriesSlugs[
+                            $sheet->id
+                        ] =
+                            Str::slug(
+                                (string)
+                                $sheet->title
+                            );
+                }
+            );
+    }
+
     public function getTitle(): string
     {
         return 'Manage Attendance Sheets';
