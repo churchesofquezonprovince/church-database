@@ -439,54 +439,61 @@
                  WEEKDAY / LORD'S DAY LABELS
             ============================================= --}}
             <div
-                class="grid w-7 shrink-0 gap-[0.2rem] text-center text-[10px] font-semibold"
-                style="grid-template-rows: repeat(7, 0.8rem);"
+                class="grid w-8 shrink-0"
+                style="
+                    grid-template-rows: repeat(7, 0.8rem);
+                    gap: 0.2rem;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                    font-size: 11px;
+                    font-weight: 700;
+                    line-height: 0.75rem;
+                "
             >
                 <span
                     title="Lord's Day"
-                    class="flex h-3 items-center justify-center font-bold text-amber-700 dark:text-amber-300"
+                    class="flex items-center justify-center text-amber-700 dark:text-amber-300" style="height: 0.75rem;"
                 >
                     LD
                 </span>
 
                 <span
                     title="Monday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     M
                 </span>
 
                 <span
                     title="Tuesday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     T
                 </span>
 
                 <span
                     title="Wednesday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     W
                 </span>
 
                 <span
                     title="Thursday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     Th
                 </span>
 
                 <span
                     title="Friday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     F
                 </span>
 
                 <span
                     title="Saturday"
-                    class="flex h-3 items-center justify-center text-gray-500 dark:text-gray-400"
+                    class="flex items-center justify-center text-gray-500 dark:text-gray-400" style="height: 0.75rem;"
                 >
                     S
                 </span>
@@ -610,20 +617,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
-            <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                LD = Lord's Day
-            </span>
-
-            <span class="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                1 square = 1 calendar day
-            </span>
-
-            <span class="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                Intensity = canonical events
-            </span>
         </div>
 
         {{-- ================================================
