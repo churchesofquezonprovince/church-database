@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AttendanceImmichAssetDetection;
+use App\Models\AttendanceParticipant;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\ImmichPersonMapping;
@@ -318,6 +319,78 @@ if ($result === 'created') {
     ): string {
         return DB::transaction(
             function () use ($session, $personId): string {
+                /*
+                 * Immich attendance needs a real roster identity
+                 * in addition to its AttendanceRecord.
+                 *
+                 * New Immich-discovered people are added for
+                 * this meeting only. Existing participant scope
+                 * is never widened or overwritten.
+                 *
+                 * An explicitly inactive participant is also
+                 * never automatically reactivated.
+                 */
+                $participant =
+                    AttendanceParticipant::query()
+                        ->where(
+                            'attendance_sheet_id',
+                            $session->attendance_sheet_id
+                        )
+                        ->where(
+                            'person_id',
+                            $personId
+                        )
+                        ->first();
+
+                if (! $participant) {
+                    AttendanceParticipant::create([
+                        'attendance_sheet_id' =>
+                            $session->attendance_sheet_id,
+
+                        'person_id' =>
+                            $personId,
+
+                        'starts_on' =>
+                            $session
+                                ->session_date
+                                ->format('Y-m-d'),
+
+                        'ends_on' =>
+                            $session
+                                ->session_date
+                                ->format('Y-m-d'),
+
+                        'is_active' =>
+                            true,
+                    ]);
+                } elseif (! $participant->is_active) {
+                    /*
+                     * The Person had previously been removed
+                     * from the active roster.
+                     *
+                     * A new Immich detection is fresh evidence
+                     * that they attended this Session, so bring
+                     * them back for THIS MEETING ONLY.
+                     *
+                     * Do not restore any previous recurring
+                     * participant scope automatically.
+                     */
+                    $participant->update([
+                        'starts_on' =>
+                            $session
+                                ->session_date
+                                ->format('Y-m-d'),
+
+                        'ends_on' =>
+                            $session
+                                ->session_date
+                                ->format('Y-m-d'),
+
+                        'is_active' =>
+                            true,
+                    ]);
+                }
+
                 $record = AttendanceRecord::query()
                     ->where('attendance_session_id', $session->id)
                     ->where('person_id', $personId)

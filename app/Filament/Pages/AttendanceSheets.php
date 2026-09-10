@@ -103,7 +103,15 @@ class AttendanceSheets extends Page
                 $this->selectedMode() === 'one_time',
                 fn ($query) => $query->where('is_one_time', true)
             )
-            ->withCount(['sessions', 'participants'])
+            ->withCount([
+            'sessions',
+            'participants as participants_count' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ])
             ->orderByDesc('is_active')
             ->orderByRaw(
                 'CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END'
@@ -120,7 +128,15 @@ public function selectedSheet(): ?AttendanceSheet
     $query = AttendanceSheet::query()
         ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
         ->where('is_active', true)
-        ->withCount(['sessions', 'participants'])
+        ->withCount([
+            'sessions',
+            'participants as participants_count' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ])
         ->with([
             'immichAlbum',
             'sessions' => fn ($query) => $query
@@ -272,6 +288,7 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
         return AttendanceParticipant::query()
             ->with(['person.churchProfile'])
             ->where('attendance_sheet_id', $sheet->id)
+            ->where('is_active', true)
             ->get()
             ->sortBy(
                 fn (AttendanceParticipant $participant): string =>
@@ -289,7 +306,14 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
         }
 
         $existingPersonIds = AttendanceParticipant::query()
-            ->where('attendance_sheet_id', $sheet->id)
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
             ->pluck('person_id');
 
         return Person::query()

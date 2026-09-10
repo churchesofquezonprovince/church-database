@@ -33,7 +33,15 @@ public function mount(): void
         $sheets = AttendanceSheet::query()
             ->where('sheet_type', $sheetType)
             ->where('is_active', true)
-            ->withCount(['sessions', 'participants'])
+            ->withCount([
+            'sessions',
+            'participants as participants_count' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ])
             ->get()
             ->filter(fn (AttendanceSheet $sheet): bool => filled($sheet->locality))
             ->keyBy(
@@ -131,7 +139,15 @@ public function mount(): void
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
             ->where('is_active', true)
-            ->withCount(['sessions', 'participants'])
+            ->withCount([
+            'sessions',
+            'participants as participants_count' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ])
             ->orderByDesc('is_active')
             ->latest()
             ->get();
@@ -143,7 +159,15 @@ public function mount(): void
 
         $query = AttendanceSheet::query()
             ->where('is_active', true)
-            ->withCount(['sessions', 'participants']);
+            ->withCount([
+            'sessions',
+            'participants as participants_count' =>
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    ),
+        ]);
 
         if ($sheetId) {
             return $query->find($sheetId);
@@ -196,56 +220,65 @@ public function participantRows(): Collection
         return collect();
     }
 
-    $sessionDate = $session->session_date->format('Y-m-d');
+    $sessionDate =
+        $session
+            ->session_date
+            ->format('Y-m-d');
 
-    $participants = AttendanceParticipant::query()
-        ->with(['person.churchProfile'])
-        ->where('attendance_sheet_id', $session->attendance_sheet_id)
-        ->where('is_active', true)
-        ->where(function ($query) use ($sessionDate): void {
-            $query->whereNull('starts_on')
-                ->orWhere('starts_on', '<=', $sessionDate);
-        })
-        ->where(function ($query) use ($sessionDate): void {
-            $query->whereNull('ends_on')
-                ->orWhere('ends_on', '>=', $sessionDate);
-        })
-        ->get();
-
-    $recordPersonIds = AttendanceRecord::query()
-        ->where('attendance_session_id', $session->id)
-        ->pluck('person_id');
-
-    $recordPeople = Person::query()
-        ->with('churchProfile')
-        ->whereIn('id', $recordPersonIds)
-        ->get();
-
-    $rows = $participants->keyBy(
-        fn (AttendanceParticipant $participant): int =>
-            (int) $participant->person_id
-    );
-
-    foreach ($recordPeople as $person) {
-        $personId = (int) $person->id;
-
-        if ($rows->has($personId)) {
-            continue;
-        }
-
-        $participant = new AttendanceParticipant([
-            'person_id' => $personId,
-        ]);
-
-        $participant->setRelation('person', $person);
-
-        $rows->put($personId, $participant);
-    }
-
-    return $rows
+    /*
+     * AttendanceParticipant is the active roster.
+     *
+     * AttendanceRecord remains historical attendance
+     * and must NOT automatically resurrect somebody
+     * who was removed from the Sheet roster.
+     */
+    return AttendanceParticipant::query()
+        ->with([
+            'person.churchProfile',
+        ])
+        ->where(
+            'attendance_sheet_id',
+            $session->attendance_sheet_id
+        )
+        ->where(
+            'is_active',
+            true
+        )
+        ->where(
+            function ($query) use (
+                $sessionDate
+            ): void {
+                $query
+                    ->whereNull('starts_on')
+                    ->orWhere(
+                        'starts_on',
+                        '<=',
+                        $sessionDate
+                    );
+            }
+        )
+        ->where(
+            function ($query) use (
+                $sessionDate
+            ): void {
+                $query
+                    ->whereNull('ends_on')
+                    ->orWhere(
+                        'ends_on',
+                        '>=',
+                        $sessionDate
+                    );
+            }
+        )
+        ->get()
         ->sortBy(
-            fn (AttendanceParticipant $participant): string =>
-                $participant->person?->display_name ?? ''
+            fn (
+                AttendanceParticipant $participant
+            ): string =>
+                $participant
+                    ->person
+                    ?->display_name
+                ?? ''
         )
         ->values();
 }

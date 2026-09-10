@@ -86,13 +86,19 @@ public function destroy(
     DB::transaction(
         function () use ($participant): void {
             /*
-             * Removing a Person from the attendance sheet only removes
-             * their participant enrollment.
+             * Removing a Person from the Attendance Sheet
+             * deactivates their roster membership.
+             *
+             * Keeping the row prevents historical AttendanceRecords
+             * or a later Immich synchronization from silently
+             * resurrecting somebody who was explicitly removed.
              *
              * Historical AttendanceRecord and Immich detection data must
              * remain intact.
              */
-            $participant->delete();
+            $participant->update([
+                'is_active' => false,
+            ]);
         },
     );
 
