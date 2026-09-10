@@ -31,6 +31,14 @@ class AttendanceSession extends Model
     );
 }
 
+public function immichAssets(): HasMany
+{
+    return $this->hasMany(
+        AttendanceSessionImmichAsset::class,
+        'attendance_session_id',
+    );
+}
+
 public function immichDetections(): HasMany
 {
     return $this->hasMany(

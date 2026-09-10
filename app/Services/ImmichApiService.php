@@ -54,6 +54,17 @@ class ImmichApiService
             ->json();
     }
 
+    public function asset(string $assetId): array
+    {
+        return $this->client()
+            ->get(
+                '/api/assets/'
+                . rawurlencode($assetId)
+            )
+            ->throw()
+            ->json();
+    }
+
 public function people(
     int $page = 1,
     int $size = 500,
@@ -167,6 +178,63 @@ public function searchAlbumAssetsForDate(
             'items' => $items->all(),
         ],
     ];
+}
+
+public function peopleFromAssets(
+    array $assetIds,
+): array {
+    $people = [];
+
+    foreach (
+        array_values(
+            array_unique(
+                array_filter(
+                    $assetIds,
+                    fn ($id): bool =>
+                        filled($id)
+                )
+            )
+        )
+        as $assetId
+    ) {
+        $asset = $this->asset(
+            (string) $assetId
+        );
+
+        foreach (
+            ($asset['people'] ?? [])
+            as $person
+        ) {
+            if (! is_array($person)) {
+                continue;
+            }
+
+            $id = $person['id'] ?? null;
+
+            if (! $id) {
+                continue;
+            }
+
+            $people[$id] = [
+                'id' => $id,
+
+                'name' => trim(
+                    (string) (
+                        $person['name']
+                        ?? ''
+                    )
+                ),
+
+                'thumbnailPath' =>
+                    $person[
+                        'thumbnailPath'
+                    ]
+                    ?? null,
+            ];
+        }
+    }
+
+    return array_values($people);
 }
 
 public function peopleFromAlbum(

@@ -7,7 +7,7 @@ use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSession;
-use App\Models\AttendanceSessionImmichAlbum;
+use App\Models\AttendanceSessionImmichAsset;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
 use App\Services\ImmichApiService;
@@ -21,6 +21,8 @@ class AttendanceSheets extends Page
     protected string $view = 'filament.pages.attendance-sheets';
 
     public string $immichAlbumId = '';
+
+    public string $immichAssetInput = '';
 
     public function getTitle(): string
     {
@@ -122,6 +124,7 @@ public function selectedSheet(): ?AttendanceSheet
         ->with([
             'immichAlbum',
             'sessions' => fn ($query) => $query
+                ->with('immichAssets')
                 ->orderBy('session_date'),
         ]);
 
@@ -195,7 +198,13 @@ public function syncImmich(int $sessionId): void
         Notification::make()
             ->title('Immich attendance synchronized')
             ->body(
-                'Photos: ' . $result['assets']
+                'Source: '
+                . (
+                    $result['source'] === 'exact_photos'
+                        ? 'Exact photo(s)'
+                        : 'Sheet album'
+                )
+                . ' · Photos: ' . $result['assets']
                 . ' · Detected: ' . $result['detections']
                 . ' · Added: ' . $result['matched']
                 . ' · Already present: ' . $result['already_present']
@@ -420,6 +429,198 @@ public function unlinkImmichAlbum(int $sheetId): void
         navigate: false,
     );
 }
+
+    public function linkImmichAsset(
+        int $sessionId,
+    ): void {
+        $sheet = $this->selectedSheet();
+
+        if (! $sheet) {
+            return;
+        }
+
+        $session = AttendanceSession::query()
+            ->where('attendance_sheet_id', $sheet->id)
+            ->find($sessionId);
+
+        if (! $session) {
+            Notification::make()
+                ->title('Attendance Session not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $assetId = $this->extractImmichAssetId(
+            $this->immichAssetInput
+        );
+
+        if (! $assetId) {
+            Notification::make()
+                ->title('Invalid Immich photo')
+                ->body(
+                    'Paste an Immich photo URL '
+                    . 'or its asset UUID.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $asset = app(
+                ImmichApiService::class
+            )->asset($assetId);
+
+            if (
+                filled($asset['type'] ?? null)
+                && strtoupper(
+                    (string) $asset['type']
+                ) !== 'IMAGE'
+            ) {
+                Notification::make()
+                    ->title('Immich asset is not a photo')
+                    ->body(
+                        'Only IMAGE assets can be '
+                        . 'linked as exact attendance photos.'
+                    )
+                    ->warning()
+                    ->send();
+
+                return;
+            }
+
+            AttendanceSessionImmichAsset::updateOrCreate(
+                [
+                    'attendance_session_id' =>
+                        $session->id,
+
+                    'immich_asset_id' =>
+                        $asset['id'] ?? $assetId,
+                ],
+                [
+                    'immich_asset_name' =>
+                        $asset['originalFileName']
+                        ?? $asset['originalPath']
+                        ?? 'Immich Photo',
+
+                    'asset_taken_at' =>
+                        $asset['localDateTime']
+                        ?? $asset['fileCreatedAt']
+                        ?? null,
+                ],
+            );
+
+            $this->immichAssetInput = '';
+
+            Notification::make()
+                ->title('Immich photo linked')
+                ->body(
+                    'This exact photo now overrides '
+                    . 'the Sheet album for this Session.'
+                )
+                ->success()
+                ->send();
+
+            $this->redirect(
+                $this->sessionUrl($session),
+                navigate: false,
+            );
+        } catch (\Throwable $e) {
+            Log::error(
+                'Failed to link exact Immich photo.',
+                [
+                    'attendance_session_id' =>
+                        $session->id,
+                    'immich_asset_id' =>
+                        $assetId,
+                    'message' =>
+                        $e->getMessage(),
+                ],
+            );
+
+            Notification::make()
+                ->title('Could not link Immich photo')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function unlinkImmichAsset(
+        int $assetLinkId,
+    ): void {
+        $sheet = $this->selectedSheet();
+        $session = $this->selectedSession();
+
+        if (! $sheet || ! $session) {
+            return;
+        }
+
+        AttendanceSessionImmichAsset::query()
+            ->where('id', $assetLinkId)
+            ->where(
+                'attendance_session_id',
+                $session->id
+            )
+            ->delete();
+
+        Notification::make()
+            ->title('Immich photo unlinked')
+            ->body(
+                'Existing attendance and Immich '
+                . 'detection history were preserved.'
+            )
+            ->success()
+            ->send();
+
+        $this->redirect(
+            $this->sessionUrl($session),
+            navigate: false,
+        );
+    }
+
+    protected function extractImmichAssetId(
+        string $value,
+    ): ?string {
+        /*
+         * Accept:
+         *
+         * - bare Immich asset UUID
+         * - public Immich photo URL
+         * - LAN Immich photo URL
+         * - any other URL containing the asset UUID
+         *
+         * The hostname is deliberately ignored.
+         * The configured Immich API connection is used
+         * after the asset UUID has been extracted.
+         */
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (
+            preg_match(
+                '/(?<![0-9a-f])'
+                . '[0-9a-f]{8}-'
+                . '[0-9a-f]{4}-'
+                . '[0-9a-f]{4}-'
+                . '[0-9a-f]{4}-'
+                . '[0-9a-f]{12}'
+                . '(?![0-9a-f])/i',
+                $value,
+                $matches,
+            ) !== 1
+        ) {
+            return null;
+        }
+
+        return strtolower($matches[0]);
+    }
 
     public function sheetUrl(AttendanceSheet $sheet): string
     {

@@ -29,9 +29,10 @@
             </h2>
 
 <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-    Use Attendance Session to inspect people recognized in photographs
-    from one attendance date, or Whole Attendance Sheet to inspect all
-    recognized people across the linked Immich album.
+    Use Attendance Session to inspect people recognized
+    from exact Immich photos or the Sheet album for one
+    attendance date. Whole Attendance Sheet mode can inspect
+    recognized people across the Sheet's Immich sources.
 </p>
         </div>
 
@@ -70,15 +71,17 @@
     @if ($this->linkingScope === 'sheet')
         <div class="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
             <strong>Whole Attendance Sheet mode.</strong>
-            All recognized people from the linked Immich album are shown.
-            This only manages permanent Immich-to-Church Person mappings and
-            does not change attendance records.
+            Recognized people from the Sheet album and exact
+            Session photos are shown together. This only manages
+            permanent Immich-to-Church Person mappings and does
+            not change attendance records.
         </div>
     @else
         <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-200">
             <strong>Attendance Session mode.</strong>
-            Only people recognized in photographs from the selected session's
-            date are shown.
+            Exact Session photos are used first. If no exact
+            photos are linked, the Sheet album is filtered to
+            the selected Session date.
         </div>
     @endif
 
@@ -93,9 +96,22 @@
         @php
             $sheet = $selectedSession?->sheet;
             $sheetSessions = $sessions
-                ->filter(fn ($session) => $session->attendance_sheet_id === $sheet?->id)
+                ->filter(
+                    fn ($session) =>
+                        $session->attendance_sheet_id
+                        === $sheet?->id
+                )
                 ->sortBy('session_date')
                 ->values();
+
+            $sheetExactPhotoCount =
+                $sheetSessions
+                    ->sum(
+                        fn ($session) =>
+                            $session
+                                ->immichAssets
+                                ->count()
+                    );
         @endphp
 
         <div class="grid gap-4 md:grid-cols-3">
@@ -117,12 +133,31 @@
 
             <div>
                 <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                    Immich Album
+                    Immich Sources
                 </p>
 
                 <p class="mt-1 font-bold text-gray-900 dark:text-white">
-                    {{ $sheet?->immichAlbum?->immich_album_name ?? 'Not linked' }}
+                    @if ($sheet?->immichAlbum)
+                        {{
+                            $sheet
+                                ->immichAlbum
+                                ->immich_album_name
+                        }}
+                    @else
+                        No Sheet album
+                    @endif
                 </p>
+
+                @if ($sheetExactPhotoCount > 0)
+                    <p class="mt-1 text-sm text-violet-700 dark:text-violet-300">
+                        {{ $sheetExactPhotoCount }}
+                        exact
+                        {{ \Illuminate\Support\Str::plural(
+                            'photo',
+                            $sheetExactPhotoCount
+                        ) }}
+                    </p>
+                @endif
             </div>
 
             <div>
@@ -183,11 +218,31 @@
 
             <div>
                 <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                    Immich Album
+                    Immich Source
                 </p>
 
                 <p class="mt-1 font-bold text-gray-900 dark:text-white">
-                    {{ $selectedSession->sheet?->immichAlbum?->immich_album_name ?? 'Not linked' }}
+                    @if ($selectedSession->immichAssets->isNotEmpty())
+                        Exact
+                        {{ $selectedSession->immichAssets->count() }}
+                        {{
+                            \Illuminate\Support\Str::plural(
+                                'Photo',
+                                $selectedSession
+                                    ->immichAssets
+                                    ->count()
+                            )
+                        }}
+                    @elseif ($selectedSession->sheet?->immichAlbum)
+                        {{
+                            $selectedSession
+                                ->sheet
+                                ->immichAlbum
+                                ->immich_album_name
+                        }}
+                    @else
+                        Not linked
+                    @endif
                 </p>
             </div>
 
@@ -204,9 +259,30 @@
         </div>
 
         <div class="mt-4 rounded-xl border border-violet-200 bg-white p-4 text-sm text-violet-800 dark:border-violet-800 dark:bg-gray-950 dark:text-violet-200">
-            Only photographs from
-            <strong>{{ $selectedSession->session_date->format('F d, Y') }}</strong>
-            in this linked album are being examined.
+            @if ($selectedSession->immichAssets->isNotEmpty())
+                Only the exact Immich
+                {{
+                    \Illuminate\Support\Str::plural(
+                        'photo',
+                        $selectedSession
+                            ->immichAssets
+                            ->count()
+                    )
+                }}
+                linked to this Session
+                {{ $selectedSession->immichAssets->count() === 1 ? 'is' : 'are' }}
+                being examined.
+            @else
+                Only photographs from
+                <strong>
+                    {{
+                        $selectedSession
+                            ->session_date
+                            ->format('F d, Y')
+                    }}
+                </strong>
+                in the linked Sheet album are being examined.
+            @endif
         </div>
 
         <button
@@ -263,8 +339,9 @@
 @else
 
     <div class="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-        No Attendance Session has a linked Immich Album yet.
-        Link an album from Attendance → Attendance Sheets first.
+        No Attendance Session has an Immich source yet.
+        Add an exact Immich photo or link a Sheet album from
+        Attendance → Attendance Sheets first.
     </div>
 
 @endif
@@ -295,7 +372,6 @@
     </p>
 </div>
 
-@if ($this->linkingScope === 'sheet')
     <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
         <p class="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-300">
             Needs Matching
@@ -305,7 +381,6 @@
             {{ $unmatchedPeople->count() }}
         </p>
     </div>
-@endif
 
 </div>
 
@@ -330,7 +405,7 @@
             </div>
 
 
-@if ($this->linkingScope === 'sheet' && $unmatchedPeople->isNotEmpty())
+@if ($unmatchedPeople->isNotEmpty())
 
     <div class="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-sm dark:border-amber-900 dark:bg-amber-950">
 
@@ -341,7 +416,7 @@
             </h3>
 
             <p class="mt-1 text-sm text-amber-700 dark:text-amber-200">
-                These Immich people were recognized in this session but do not yet
+                These recognized Immich people do not yet
                 have a Church Person mapping.
             </p>
 
@@ -411,14 +486,83 @@
 
                             </select>
 
-                            <button
-                                type="button"
-                                wire:click="linkPerson('{{ $immichId }}')"
-                                wire:loading.attr="disabled"
-                                class="mt-2 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
-                            >
-                                Link to Church Person
-                            </button>
+                            @php
+                                $selectedChurchPersonId =
+                                    (int) (
+                                        $this
+                                            ->selectedPeople[
+                                                $immichId
+                                            ]
+                                        ?? 0
+                                    );
+
+                                $existingChurchMapping =
+                                    $selectedChurchPersonId > 0
+                                        ? \App\Models\ImmichPersonMapping
+                                            ::query()
+                                            ->where(
+                                                'person_id',
+                                                $selectedChurchPersonId
+                                            )
+                                            ->first()
+                                        : null;
+
+                                $mappingNeedsReplacement =
+                                    $existingChurchMapping
+                                    && $existingChurchMapping
+                                        ->immich_person_id
+                                        !== $immichId;
+                            @endphp
+
+                            @if ($mappingNeedsReplacement)
+                                <div
+                                    class="mt-2 rounded-xl
+                                           border border-amber-300
+                                           bg-amber-50 p-3
+                                           text-xs text-amber-800
+                                           dark:border-amber-800
+                                           dark:bg-amber-950
+                                           dark:text-amber-200"
+                                >
+                                    This Church Person already
+                                    has another Immich identity.
+                                    This may be expected after an
+                                    Immich face merge.
+                                </div>
+
+                                <button
+                                    type="button"
+                                    wire:click="replacePersonMapping('{{ $immichId }}')"
+                                    wire:confirm="Replace this Church Person's existing Immich mapping with the selected Immich identity? Historical detections from the previous identity will be preserved."
+                                    wire:loading.attr="disabled"
+                                    class="mt-2 w-full
+                                           rounded-xl
+                                           bg-amber-600
+                                           px-4 py-2.5
+                                           text-sm font-bold
+                                           text-white
+                                           hover:bg-amber-500
+                                           disabled:opacity-50"
+                                >
+                                    Replace Existing Immich Mapping
+                                </button>
+                            @else
+                                <button
+                                    type="button"
+                                    wire:click="linkPerson('{{ $immichId }}')"
+                                    wire:loading.attr="disabled"
+                                    class="mt-2 w-full
+                                           rounded-xl
+                                           bg-violet-600
+                                           px-4 py-2.5
+                                           text-sm font-bold
+                                           text-white
+                                           hover:bg-violet-500
+                                           disabled:opacity-50"
+                                >
+                                    Link to Church Person
+                                </button>
+                            @endif
 
                         </div>
 

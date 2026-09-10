@@ -18,20 +18,6 @@ class ImmichAttendanceSyncService
 
 public function sync(AttendanceSession $session): array
 {
-    $album = $session->sheet?->immichAlbum;
-
-    if (! $album) {
-        throw new RuntimeException(
-            'No Immich album is linked to the Attendance Sheet.'
-        );
-    }
-
-    if (! $album->enabled) {
-        throw new RuntimeException(
-            'Immich synchronization is disabled for this Attendance Sheet.'
-        );
-    }
-
     $response = $this->scanSessionAssets($session);
 
     $assetCount = 0;
@@ -156,12 +142,18 @@ if ($result === 'created') {
         }
     }
 
-    $album->update([
-        'last_modified_asset_at' => now(),
-        'last_synced_at' => now(),
-    ]);
+    if ($response['source'] === 'album') {
+        $session
+            ->sheet
+            ?->immichAlbum
+            ?->update([
+                'last_modified_asset_at' => now(),
+                'last_synced_at' => now(),
+            ]);
+    }
 
     return [
+        'source' => $response['source'],
         'assets' => $assetCount,
 
         /*
@@ -199,19 +191,81 @@ if ($result === 'created') {
     protected function scanSessionAssets(
         AttendanceSession $session,
     ): array {
+        /*
+         * Exact Session photos have priority.
+         *
+         * If even one exact photo is linked, the
+         * Sheet album is deliberately ignored.
+         */
+        $exactAssets = $session
+            ->immichAssets()
+            ->orderBy('id')
+            ->get();
+
+        if ($exactAssets->isNotEmpty()) {
+            $assets = [];
+
+            foreach ($exactAssets as $exactAsset) {
+                $asset = $this->immich->asset(
+                    $exactAsset->immich_asset_id
+                );
+
+                if (
+                    ! is_array($asset)
+                    || blank($asset['id'] ?? null)
+                ) {
+                    continue;
+                }
+
+                $assets[$asset['id']] = $asset;
+            }
+
+            return [
+                'source' => 'exact_photos',
+                'assets' => array_values($assets),
+            ];
+        }
+
+        /*
+         * No exact Session photos:
+         * fall back to the Sheet's linked album.
+         */
         $album = $session->sheet?->immichAlbum;
+
+        if (! $album) {
+            throw new RuntimeException(
+                'No exact Immich photo is linked to '
+                . 'this Session and no Immich album '
+                . 'is linked to the Attendance Sheet.'
+            );
+        }
+
+        if (! $album->enabled) {
+            throw new RuntimeException(
+                'Immich synchronization is disabled '
+                . 'for this Attendance Sheet.'
+            );
+        }
 
         $allAssets = [];
 
         $page = 1;
 
         do {
-            $response = $this->immich->searchAlbumAssetsForDate(
-                albumId: $album->immich_album_id,
-                date: $session->session_date->format('Y-m-d'),
-                page: $page,
-                size: 1000,
-            );
+            $response =
+                $this->immich
+                    ->searchAlbumAssetsForDate(
+                        albumId:
+                            $album->immich_album_id,
+
+                        date:
+                            $session
+                                ->session_date
+                                ->format('Y-m-d'),
+
+                        page: $page,
+                        size: 1000,
+                    );
 
             $items = data_get(
                 $response,
@@ -224,7 +278,8 @@ if ($result === 'created') {
                     is_array($asset)
                     && filled($asset['id'] ?? null)
                 ) {
-                    $allAssets[$asset['id']] = $asset;
+                    $allAssets[$asset['id']] =
+                        $asset;
                 }
             }
 
@@ -241,7 +296,9 @@ if ($result === 'created') {
         } while ($page <= 100);
 
         return [
-            'assets' => array_values($allAssets),
+            'source' => 'album',
+            'assets' =>
+                array_values($allAssets),
         ];
     }
 

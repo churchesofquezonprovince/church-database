@@ -240,9 +240,21 @@
                     {{ $session->session_date->format('M d, Y') }}
                 </span>
 
-                @if ($session->immichAlbum)
-                    <span class="rounded-full bg-violet-600 px-2 py-1 text-[10px] font-bold text-white">
-                        Immich
+                @if ($session->immichAssets->isNotEmpty())
+                    <span
+                        class="rounded-full bg-violet-600
+                               px-2 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        Photo
+                    </span>
+                @elseif ($selectedSheet->immichAlbum)
+                    <span
+                        class="rounded-full bg-violet-600
+                               px-2 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        Album
                     </span>
                 @endif
             </div>
@@ -290,15 +302,18 @@
 
 @php
     $selectedSession = $this->selectedSession();
-    $immichAlbums = $this->immichAlbums();
-    $selectedSessionAttendance = $selectedSession
-        ? $this->sessionAttendanceSummary($selectedSession)
-        : null;
-@endphp
 
-@php
-    $selectedSession = $this->selectedSession();
-    $immichAlbums = $this->immichAlbums();
+    $immichAlbums =
+        $selectedSheet->immichAlbum
+            ? []
+            : $this->immichAlbums();
+
+    $selectedSessionAttendance =
+        $selectedSession
+            ? $this->sessionAttendanceSummary(
+                $selectedSession
+            )
+            : null;
 @endphp
 
 @if ($selectedSession)
@@ -366,131 +381,401 @@
     @endif
 </div>
 
-    <div class="mt-6 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950">
-        <div class="border-b border-violet-200 px-5 py-4 dark:border-violet-900 sm:px-6">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div class="min-w-0">
-                    <p class="text-xs font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                        Immich Attendance
-                    </p>
-
-                    <h4 class="mt-1 break-words text-lg font-bold text-violet-950 dark:text-white">
-                        {{ $selectedSession->session_date->format('M d, Y') }}
-                    </h4>
-
-                    <p class="mt-1 text-xs text-violet-700 dark:text-violet-300">
-                        This connects an Immich album to this attendance session.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-5 sm:p-6">
-
-@if ($selectedSheet->immichAlbum)
-
-    <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
-
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-            <div class="min-w-0">
-                <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Linked Immich Album
-                </p>
-
-                <p class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
-                    {{ $selectedSheet->immichAlbum->immich_album_name }}
-                </p>
-
-                <p class="mt-2 break-all text-xs text-gray-500 dark:text-gray-400">
-                    {{ $selectedSheet->immichAlbum->immich_album_id }}
-                </p>
-
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Last sync:
-                    {{ optional($selectedSheet->immichAlbum->last_synced_at)->format('M d, Y g:i A') ?? 'Never' }}
-                </p>
-            </div>
-
-            <button
-                type="button"
-                wire:click="unlinkImmichAlbum({{ $selectedSheet->id }})"
-                wire:confirm="Unlink this Immich album from the entire attendance sheet?"
-                class="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+    <div
+        class="mt-6 overflow-hidden rounded-2xl
+               border border-violet-200
+               bg-violet-50 shadow-sm
+               dark:border-violet-900
+               dark:bg-violet-950"
+    >
+        <div
+            class="border-b border-violet-200
+                   px-5 py-4 dark:border-violet-900
+                   sm:px-6"
+        >
+            <p
+                class="text-xs font-bold uppercase
+                       tracking-wide text-violet-600
+                       dark:text-violet-300"
             >
-                Unlink Album
-            </button>
+                Immich Attendance
+            </p>
 
+            <h4
+                class="mt-1 text-lg font-bold
+                       text-violet-950 dark:text-white"
+            >
+                {{ $selectedSession->session_date->format('M d, Y') }}
+            </h4>
+
+            <p
+                class="mt-1 text-xs text-violet-700
+                       dark:text-violet-300"
+            >
+                Exact Session photos override the
+                Attendance Sheet album.
+            </p>
         </div>
 
-    </div>
+        <div class="space-y-5 p-5 sm:p-6">
 
+            {{-- Exact Session photos --}}
+            <div
+                class="rounded-xl border border-violet-200
+                       bg-white p-4
+                       dark:border-violet-800
+                       dark:bg-gray-950"
+            >
+                <div>
+                    <p
+                        class="text-xs font-bold uppercase
+                               tracking-wide text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Exact Immich Photos
+                    </p>
 
-            @else
-
-                <div class="rounded-xl border border-violet-200 bg-white p-4 dark:border-violet-800 dark:bg-gray-950">
-
-                    <div class="min-w-0">
-                        <label
-                            for="immich_album_id"
-                            class="block text-sm font-bold text-violet-950 dark:text-violet-100"
-                        >
-                            Select Immich Album
-                        </label>
-
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Choose the album containing photographs from this specific meeting date.
-                        </p>
-
-                        @if (count($immichAlbums) > 0)
-
-                            <select
-                                id="immich_album_id"
-                                wire:model="immichAlbumId"
-                                class="mt-3 block w-full min-w-0 rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-violet-900 dark:bg-gray-950 dark:text-white"
-                            >
-                                <option value="">
-                                    Select an Immich album...
-                                </option>
-
-                                @foreach ($immichAlbums as $album)
-                                    <option value="{{ $album['id'] }}">
-                                        {{ $album['albumName'] ?? 'Unnamed album' }}
-                                        @if (isset($album['assetCount']))
-                                            — {{ $album['assetCount'] }} photo(s)
-                                        @endif
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            <button
-                                type="button"
-                                wire:click="linkImmichAlbum({{ $selectedSession->id }}, @js($immichAlbumId))"
-                                wire:loading.attr="disabled"
-                                class="mt-4 w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
-                            >
-                                <span wire:loading.remove>
-                                    Link Album to This Session
-                                </span>
-
-                                <span wire:loading>
-                                    Linking...
-                                </span>
-                            </button>
-
-                        @else
-
-                            <div class="mt-4 rounded-xl border border-dashed border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-                                Unable to load Immich albums.
-                            </div>
-
-                        @endif
-
-                    </div>
+                    <p
+                        class="mt-1 text-sm text-gray-600
+                               dark:text-gray-300"
+                    >
+                        Use this when the meeting has only
+                        one photo, or when you want to select
+                        specific photos instead of an album.
+                    </p>
                 </div>
 
-            @endif
+                @if ($selectedSession->immichAssets->isNotEmpty())
+                    <div
+                        class="mt-4 rounded-xl
+                               bg-violet-50 p-3
+                               text-xs font-semibold
+                               text-violet-700
+                               dark:bg-violet-950
+                               dark:text-violet-300"
+                    >
+                        Exact-photo mode is active.
+                        The Sheet album will not be scanned
+                        for this Session.
+                    </div>
 
+                    <div class="mt-3 space-y-2">
+                        @foreach (
+                            $selectedSession->immichAssets
+                            as $assetLink
+                        )
+                            <div
+                                class="flex flex-col gap-3
+                                       rounded-xl border
+                                       border-gray-200 p-3
+                                       dark:border-gray-800
+                                       sm:flex-row
+                                       sm:items-center
+                                       sm:justify-between"
+                            >
+                                <div class="min-w-0">
+                                    <p
+                                        class="break-words
+                                               text-sm font-bold
+                                               text-gray-900
+                                               dark:text-white"
+                                    >
+                                        {{
+                                            $assetLink
+                                                ->immich_asset_name
+                                            ?: 'Immich Photo'
+                                        }}
+                                    </p>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        @if ($assetLink->asset_taken_at)
+                                            {{
+                                                $assetLink
+                                                    ->asset_taken_at
+                                                    ->format(
+                                                        'M d, Y g:i A'
+                                                    )
+                                            }}
+                                            ·
+                                        @endif
+
+                                        <span class="break-all">
+                                            {{
+                                                $assetLink
+                                                    ->immich_asset_id
+                                            }}
+                                        </span>
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    wire:click="unlinkImmichAsset({{ $assetLink->id }})"
+                                    wire:confirm="Unlink this exact Immich photo? Existing attendance and detection history will be preserved."
+                                    class="shrink-0 rounded-lg
+                                           border border-red-200
+                                           bg-red-50 px-3 py-2
+                                           text-xs font-bold
+                                           text-red-700
+                                           hover:bg-red-100
+                                           dark:border-red-900
+                                           dark:bg-red-950
+                                           dark:text-red-200"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p
+                        class="mt-4 text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        No exact photos linked to this Session.
+                    </p>
+                @endif
+
+                <div class="mt-4">
+                    <label
+                        for="immich_asset_input"
+                        class="block text-sm font-bold
+                               text-gray-900 dark:text-white"
+                    >
+                        Add Immich Photo
+                    </label>
+
+                    <p
+                        class="mt-1 text-xs text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Paste the Immich photo URL or
+                        its asset UUID.
+                    </p>
+
+                    <input
+                        id="immich_asset_input"
+                        type="text"
+                        wire:model="immichAssetInput"
+                        placeholder="Immich photo URL or asset UUID..."
+                        class="mt-3 block w-full rounded-xl
+                               border border-violet-200
+                               bg-white px-4 py-3
+                               text-sm text-gray-900
+                               dark:border-violet-900
+                               dark:bg-gray-950
+                               dark:text-white"
+                    >
+
+                    <button
+                        type="button"
+                        wire:click="linkImmichAsset({{ $selectedSession->id }})"
+                        wire:loading.attr="disabled"
+                        wire:target="linkImmichAsset"
+                        class="mt-3 rounded-xl
+                               bg-violet-600
+                               px-4 py-2.5
+                               text-sm font-bold text-white
+                               hover:bg-violet-500
+                               disabled:opacity-50"
+                    >
+                        <span
+                            wire:loading.remove
+                            wire:target="linkImmichAsset"
+                        >
+                            Add Immich Photo
+                        </span>
+
+                        <span
+                            wire:loading
+                            wire:target="linkImmichAsset"
+                        >
+                            Checking Photo...
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+
+            {{-- Sheet album fallback --}}
+            <div
+                class="rounded-xl border border-violet-200
+                       bg-white p-4
+                       dark:border-violet-800
+                       dark:bg-gray-950"
+            >
+                <p
+                    class="text-xs font-bold uppercase
+                           tracking-wide text-gray-500
+                           dark:text-gray-400"
+                >
+                    Attendance Sheet Album
+                </p>
+
+                @if ($selectedSheet->immichAlbum)
+                    <div
+                        class="mt-3 flex flex-col gap-4
+                               lg:flex-row lg:items-center
+                               lg:justify-between"
+                    >
+                        <div class="min-w-0">
+                            <p
+                                class="break-words text-lg
+                                       font-bold text-gray-900
+                                       dark:text-white"
+                            >
+                                {{
+                                    $selectedSheet
+                                        ->immichAlbum
+                                        ->immich_album_name
+                                }}
+                            </p>
+
+                            <p
+                                class="mt-1 break-all
+                                       text-xs text-gray-500
+                                       dark:text-gray-400"
+                            >
+                                {{
+                                    $selectedSheet
+                                        ->immichAlbum
+                                        ->immich_album_id
+                                }}
+                            </p>
+
+                            <p
+                                class="mt-2 text-xs
+                                       text-gray-500
+                                       dark:text-gray-400"
+                            >
+                                Used only when this Session
+                                has no exact photos.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            wire:click="unlinkImmichAlbum({{ $selectedSheet->id }})"
+                            wire:confirm="Unlink this Immich album from the entire attendance sheet?"
+                            class="rounded-xl border
+                                   border-red-200 bg-red-50
+                                   px-4 py-2.5 text-sm
+                                   font-bold text-red-700
+                                   hover:bg-red-100
+                                   dark:border-red-900
+                                   dark:bg-red-950
+                                   dark:text-red-200"
+                        >
+                            Unlink Album
+                        </button>
+                    </div>
+                @else
+                    <p
+                        class="mt-2 text-sm text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Optional fallback for recurring
+                        Attendance Sessions.
+                    </p>
+
+                    @if (count($immichAlbums) > 0)
+                        <select
+                            id="immich_album_id"
+                            wire:model="immichAlbumId"
+                            class="mt-3 block w-full
+                                   rounded-xl border
+                                   border-violet-200
+                                   bg-white px-4 py-3
+                                   text-sm text-gray-900
+                                   dark:border-violet-900
+                                   dark:bg-gray-950
+                                   dark:text-white"
+                        >
+                            <option value="">
+                                Select an Immich album...
+                            </option>
+
+                            @foreach ($immichAlbums as $album)
+                                <option value="{{ $album['id'] }}">
+                                    {{
+                                        $album['albumName']
+                                        ?? 'Unnamed album'
+                                    }}
+
+                                    @if (isset($album['assetCount']))
+                                        —
+                                        {{ $album['assetCount'] }}
+                                        photo(s)
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <button
+                            type="button"
+                            wire:click="linkImmichAlbum({{ $selectedSheet->id }}, @js($immichAlbumId))"
+                            wire:loading.attr="disabled"
+                            class="mt-3 rounded-xl
+                                   bg-violet-600
+                                   px-4 py-2.5
+                                   text-sm font-bold
+                                   text-white
+                                   hover:bg-violet-500
+                                   disabled:opacity-50"
+                        >
+                            Link Album to This Sheet
+                        </button>
+                    @else
+                        <div
+                            class="mt-4 rounded-xl border
+                                   border-dashed border-red-300
+                                   bg-red-50 p-4 text-sm
+                                   text-red-700
+                                   dark:border-red-900
+                                   dark:bg-red-950
+                                   dark:text-red-200"
+                        >
+                            Unable to load Immich albums.
+                        </div>
+                    @endif
+                @endif
+            </div>
+
+
+            @if (
+                $selectedSession->immichAssets->isNotEmpty()
+                || $selectedSheet->immichAlbum
+            )
+                <button
+                    type="button"
+                    wire:click="syncImmich({{ $selectedSession->id }})"
+                    wire:loading.attr="disabled"
+                    wire:target="syncImmich"
+                    class="w-full rounded-xl
+                           bg-violet-600 px-5 py-3
+                           text-sm font-bold text-white
+                           hover:bg-violet-500
+                           disabled:opacity-50"
+                >
+                    <span
+                        wire:loading.remove
+                        wire:target="syncImmich"
+                    >
+                        Sync Immich Attendance
+                    </span>
+
+                    <span
+                        wire:loading
+                        wire:target="syncImmich"
+                    >
+                        Synchronizing...
+                    </span>
+                </button>
+            @endif
         </div>
     </div>
 @endif
