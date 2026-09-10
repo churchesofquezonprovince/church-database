@@ -1205,7 +1205,7 @@
                                            rounded-xl border
                                            border-gray-300
                                            bg-white px-4 py-3
-                                           pr-10 text-sm
+                                           pr-4 text-sm
                                            text-gray-900
                                            shadow-sm
                                            focus:border-primary-500
@@ -1215,22 +1215,6 @@
                                            dark:text-white"
                                 >
 
-                                <button
-                                    type="button"
-                                    x-show="ministrySearch"
-                                    x-cloak
-                                    x-on:click="
-                                        ministrySearch = '';
-                                    "
-                                    class="absolute right-3
-                                           top-1/2
-                                           -translate-y-1/2
-                                           text-gray-400
-                                           hover:text-gray-700
-                                           dark:hover:text-gray-200"
-                                >
-                                    ×
-                                </button>
                             </div>
                         </div>
 

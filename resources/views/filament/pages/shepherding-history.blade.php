@@ -582,12 +582,7 @@
                                                         ?->book;
                                             @endphp
 
-                                            <div
-                                                class="border-l-2
-                                                       border-violet-300
-                                                       pl-3
-                                                       dark:border-violet-800"
-                                            >
+                                            <div>
                                                 <p
                                                     class="text-xs
                                                            font-bold
