@@ -226,6 +226,127 @@
                             </div>
                         </div>
 
+@if (
+    $selectedSheet->schedule_type
+    === \App\Models\AttendanceSheet::SCHEDULE_MANUAL
+)
+    <div class="mt-5">
+        @if (session('attendance_session_added'))
+            <div
+                class="mb-3 rounded-xl border border-emerald-200
+                       bg-emerald-50 px-4 py-3 text-sm
+                       font-semibold text-emerald-800
+                       dark:border-emerald-900
+                       dark:bg-emerald-950
+                       dark:text-emerald-200"
+            >
+                Session added:
+                {{ session('attendance_session_added_date') }}
+            </div>
+        @endif
+
+        <details
+            @if ($errors->has('manual_session_date'))
+                open
+            @endif
+            class="overflow-hidden rounded-xl
+                   border border-violet-200
+                   bg-violet-50
+                   dark:border-violet-900
+                   dark:bg-violet-950"
+        >
+            <summary
+                class="cursor-pointer px-4 py-3
+                       text-sm font-bold
+                       text-violet-900
+                       hover:bg-violet-100
+                       dark:text-violet-100
+                       dark:hover:bg-violet-900"
+            >
+                + Add Session Date
+            </summary>
+
+            <form
+                method="POST"
+                action="{{
+                    route(
+                        'quezonprovinceactivities.attendance-sheets.sessions.store',
+                        $selectedSheet
+                    )
+                }}"
+                class="border-t border-violet-200
+                       p-4 dark:border-violet-900"
+            >
+                @csrf
+
+                <div
+                    class="flex flex-col gap-3
+                           sm:flex-row sm:items-end"
+                >
+                    <div class="flex-1">
+                        <label
+                            for="manual_session_date_{{ $selectedSheet->id }}"
+                            class="block text-xs font-semibold
+                                   text-violet-800
+                                   dark:text-violet-200"
+                        >
+                            Session Date
+                        </label>
+
+                        <input
+                            id="manual_session_date_{{ $selectedSheet->id }}"
+                            name="manual_session_date"
+                            type="date"
+                            value="{{
+                                old('manual_session_date')
+                            }}"
+                            required
+                            class="mt-2 block w-full rounded-xl
+                                   border border-violet-300
+                                   bg-white px-4 py-3 text-sm
+                                   text-gray-900 shadow-sm
+                                   dark:border-violet-800
+                                   dark:bg-gray-950
+                                   dark:text-gray-100"
+                        >
+
+                        @error('manual_session_date')
+                            <p
+                                class="mt-2 text-xs font-semibold
+                                       text-red-600
+                                       dark:text-red-400"
+                            >
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="inline-flex items-center
+                               justify-center rounded-xl
+                               bg-violet-600 px-4 py-3
+                               text-sm font-semibold
+                               text-white shadow-sm
+                               hover:bg-violet-500"
+                    >
+                        Add Session Date
+                    </button>
+                </div>
+
+                <p
+                    class="mt-3 text-xs
+                           text-violet-700
+                           dark:text-violet-300"
+                >
+                    The new Session inherits this Sheet's
+                    default Start Time and End Time.
+                </p>
+            </form>
+        </details>
+    </div>
+@endif
+
 <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     @foreach ($selectedSheet->sessions->take(8) as $session)
         @php

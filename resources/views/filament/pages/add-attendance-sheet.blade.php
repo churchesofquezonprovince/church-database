@@ -38,6 +38,39 @@
                     method="POST"
                     action="{{ route('quezonprovinceactivities.attendance-sheets.store') }}"
                     class="mt-6 space-y-5"
+                    x-data="{
+                        scheduleType: @js(
+                            old(
+                                'schedule_type',
+                                \App\Models\AttendanceSheet::SCHEDULE_RECURRING
+                            )
+                        ),
+
+                        manualDate: '',
+
+                        manualDates: @js(
+                            array_values(
+                                old('manual_dates', [])
+                            )
+                        ),
+
+                        addManualDate() {
+                            if (! this.manualDate) {
+                                return;
+                            }
+
+                            if (! this.manualDates.includes(this.manualDate)) {
+                                this.manualDates.push(this.manualDate);
+                                this.manualDates.sort();
+                            }
+
+                            this.manualDate = '';
+                        },
+
+                        removeManualDate(index) {
+                            this.manualDates.splice(index, 1);
+                        }
+                    }"
                 >
                     @csrf
 
@@ -86,21 +119,201 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                                <input
-                                    type="checkbox"
-                                    name="is_one_time"
-                                    value="1"
-                                    @checked(old('is_one_time'))
-                                    class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                >
-
-                                One-time attendance only
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                Scheduling Mode
                             </label>
 
-                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                If checked, only the Start Date will be used as the meeting date. End Date and Meeting Day will be ignored.
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Choose how attendance session dates will be generated.
                             </p>
+
+                            <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-900 dark:bg-primary-950">
+                                    <input
+                                        type="radio"
+                                        name="schedule_type"
+                                        value="recurring"
+                                        x-model="scheduleType"
+                                        @checked(old('schedule_type', 'recurring') === 'recurring')
+                                        class="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    >
+
+                                    <span>
+                                        <span class="block font-bold text-gray-900 dark:text-white">
+                                            Recurring Weekly
+                                        </span>
+
+                                        <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                            One selected weekday between Start and End Date.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                                    <input
+                                        type="radio"
+                                        name="schedule_type"
+                                        value="one_time"
+                                        x-model="scheduleType"
+                                        x-on:change="
+                                            if ($el.checked) {
+                                                document.getElementById('end_date').value = '';
+                                            }
+                                        "
+                                        @checked(old('schedule_type') === 'one_time')
+                                        class="mt-1 h-4 w-4 border-gray-300 text-amber-600 focus:ring-amber-500"
+                                    >
+
+                                    <span>
+                                        <span class="block font-bold text-amber-900 dark:text-amber-100">
+                                            One-time Attendance
+                                        </span>
+
+                                        <span class="mt-1 block text-xs text-amber-700 dark:text-amber-300">
+                                            Creates exactly one Session from Start Date.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                                    <input
+                                        type="radio"
+                                        name="schedule_type"
+                                        value="consecutive"
+                                        x-model="scheduleType"
+                                        @checked(old('schedule_type') === 'consecutive')
+                                        class="mt-1 h-4 w-4 border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                    >
+
+                                    <span>
+                                        <span class="block font-bold text-emerald-900 dark:text-emerald-100">
+                                            Consecutive Days
+                                        </span>
+
+                                        <span class="mt-1 block text-xs text-emerald-700 dark:text-emerald-300">
+                                            Creates one Session for every calendar day in the range.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                                    <input
+                                        type="radio"
+                                        name="schedule_type"
+                                        value="manual"
+                                        x-model="scheduleType"
+                                        @checked(old('schedule_type') === 'manual')
+                                        class="mt-1 h-4 w-4 border-gray-300 text-violet-600 focus:ring-violet-500"
+                                    >
+
+                                    <span>
+                                        <span class="block font-bold text-violet-900 dark:text-violet-100">
+                                            Manual Dates
+                                        </span>
+
+                                        <span class="mt-1 block text-xs text-violet-700 dark:text-violet-300">
+                                            Create the Sheet now and add Session dates manually later.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div
+                            x-show="scheduleType === 'manual'"
+                            x-cloak
+                            class="md:col-span-2 rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-900 dark:bg-violet-950"
+                        >
+                            <div>
+                                <p class="text-sm font-bold text-violet-950 dark:text-violet-100">
+                                    Manual Session Dates
+                                </p>
+
+                                <p class="mt-1 text-xs text-violet-700 dark:text-violet-300">
+                                    Click the date field to open the calendar,
+                                    then add each Session date individually.
+                                </p>
+                            </div>
+
+                            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                                <div class="flex-1">
+                                    <label
+                                        for="manual_session_date"
+                                        class="block text-xs font-semibold text-violet-800 dark:text-violet-200"
+                                    >
+                                        Select Session Date
+                                    </label>
+
+                                    <input
+                                        id="manual_session_date"
+                                        type="date"
+                                        x-model="manualDate"
+                                        x-on:keydown.enter.prevent="addManualDate()"
+                                        class="mt-2 block w-full rounded-xl border border-violet-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-violet-800 dark:bg-gray-950 dark:text-gray-100"
+                                    >
+                                </div>
+
+                                <button
+                                    type="button"
+                                    x-on:click="addManualDate()"
+                                    class="inline-flex items-center justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-violet-500"
+                                >
+                                    + Add Date
+                                </button>
+                            </div>
+
+                            <div
+                                x-show="manualDates.length > 0"
+                                class="mt-4 space-y-2"
+                            >
+                                <template
+                                    x-for="(date, index) in manualDates"
+                                    :key="date"
+                                >
+                                    <div
+                                        class="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-white px-4 py-3 dark:border-violet-800 dark:bg-gray-950"
+                                    >
+                                        <div>
+                                            <input
+                                                type="hidden"
+                                                name="manual_dates[]"
+                                                :value="date"
+                                            >
+
+                                            <span
+                                                class="text-sm font-semibold text-gray-900 dark:text-white"
+                                                x-text="
+                                                    new Date(
+                                                        date + 'T00:00:00'
+                                                    ).toLocaleDateString(
+                                                        undefined,
+                                                        {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        }
+                                                    )
+                                                "
+                                            ></span>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            x-on:click="removeManualDate(index)"
+                                            class="text-xs font-bold text-red-600 hover:text-red-500 dark:text-red-400"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div
+                                x-show="manualDates.length === 0"
+                                class="mt-4 rounded-xl border border-dashed border-violet-300 px-4 py-3 text-center text-xs text-violet-700 dark:border-violet-800 dark:text-violet-300"
+                            >
+                                No Manual Session Dates added yet.
+                            </div>
                         </div>
 
 {{-- =========================================================
@@ -212,7 +425,7 @@
 
                         <div>
                             <label for="meeting_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                Time
+                                Start Time
                             </label>
 
                             <input
@@ -224,11 +437,32 @@
                             >
 
                             <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                Optional. Example: 07:30 PM.
+                                Optional. For Manual Dates, this becomes the default Start Time.
                             </p>
                         </div>
 
                         <div>
+                            <label for="end_time" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                End Time
+                            </label>
+
+                            <input
+                                id="end_time"
+                                name="end_time"
+                                type="time"
+                                value="{{ old('end_time') }}"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            >
+
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                Optional. Must be later than Start Time.
+                            </p>
+                        </div>
+
+                        <div
+                            class="md:col-span-2"
+                            x-show="scheduleType === 'recurring'"
+                        >
                             <label for="meeting_day" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
                                 Meeting Day
                             </label>
@@ -236,8 +470,9 @@
                             <select
                                 id="meeting_day"
                                 name="meeting_day"
-                                required
-                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                x-bind:disabled="scheduleType !== 'recurring'"
+                                x-bind:required="scheduleType === 'recurring'"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                             >
                                 @php
                                     $days = [
@@ -252,7 +487,13 @@
                                 @endphp
 
                                 @foreach ($days as $value => $label)
-                                    <option value="{{ $value }}" @selected((string) old('meeting_day', '4') === (string) $value)>
+                                    <option
+                                        value="{{ $value }}"
+                                        @selected(
+                                            (string) old('meeting_day', '4')
+                                            === (string) $value
+                                        )
+                                    >
                                         {{ $label }}
                                     </option>
                                 @endforeach
@@ -269,8 +510,9 @@
                                 name="start_date"
                                 type="date"
                                 value="{{ old('start_date') }}"
-                                required
-                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                x-bind:disabled="scheduleType === 'manual'"
+                                x-bind:required="scheduleType !== 'manual'"
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                             >
                         </div>
 
@@ -284,8 +526,15 @@
                                 name="end_date"
                                 type="date"
                                 value="{{ old('end_date') }}"
-                                required
-                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                x-bind:disabled="
+                                    scheduleType === 'one_time'
+                                    || scheduleType === 'manual'
+                                "
+                                x-bind:required="
+                                    scheduleType === 'recurring'
+                                    || scheduleType === 'consecutive'
+                                "
+                                class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                             >
                         </div>
 

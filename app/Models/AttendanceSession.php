@@ -14,6 +14,7 @@ class AttendanceSession extends Model
         'attendance_sheet_id',
         'session_date',
         'session_time',
+        'session_end_time',
         'title',
         'public_slug',
         'remarks',
@@ -50,6 +51,19 @@ public function immichDetections(): HasMany
     public function sessionTimeLabel(): ?string
     {
         $time = $this->session_time ?: $this->sheet?->meeting_time;
+
+        if (blank($time)) {
+            return null;
+        }
+
+        return CarbonImmutable::parse((string) $time)->format('g:i A');
+    }
+
+    public function sessionEndTimeLabel(): ?string
+    {
+        $time =
+            $this->session_end_time
+            ?: $this->sheet?->end_time;
 
         if (blank($time)) {
             return null;

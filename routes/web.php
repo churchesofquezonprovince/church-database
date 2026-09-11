@@ -306,6 +306,14 @@ Route::middleware(['web', 'auth'])
     ->prefix('quezonprovinceactivities/attendance-sheets')
     ->name('quezonprovinceactivities.attendance-sheets.')
     ->group(function (): void {
+        Route::post(
+            '/{sheet}/sessions',
+            [
+                \App\Http\Controllers\AttendanceSheetSessionController::class,
+                'store',
+            ]
+        )->name('sessions.store');
+
         Route::post('/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])
             ->name('participants.store');
 

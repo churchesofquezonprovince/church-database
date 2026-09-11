@@ -22,6 +22,14 @@ class AttendanceSheet extends Model
 
     public const MEETING_FORM_NORMAL = 'normal';
 
+    public const SCHEDULE_RECURRING = 'recurring';
+
+    public const SCHEDULE_ONE_TIME = 'one_time';
+
+    public const SCHEDULE_CONSECUTIVE = 'consecutive';
+
+    public const SCHEDULE_MANUAL = 'manual';
+
     protected $fillable = [
         'attendance_meeting_series_id',
         'title',
@@ -30,7 +38,9 @@ class AttendanceSheet extends Model
         'locality_id',
         'meeting_day',
         'meeting_time',
+        'end_time',
         'is_one_time',
+        'schedule_type',
         'start_date',
         'end_date',
         'is_active',
@@ -65,6 +75,27 @@ public function immichAlbum(): HasOne
     protected static function booted(): void
     {
         static::saving(function (AttendanceSheet $sheet): void {
+            /*
+             * Keep the legacy is_one_time flag synchronized while
+             * schedule_type becomes the canonical scheduling mode.
+             *
+             * Existing controllers that still write is_one_time
+             * therefore continue to behave correctly.
+             */
+            if ($sheet->isDirty('schedule_type')) {
+                $sheet->is_one_time =
+                    $sheet->schedule_type === self::SCHEDULE_ONE_TIME;
+            } elseif ($sheet->isDirty('is_one_time')) {
+                if ($sheet->is_one_time) {
+                    $sheet->schedule_type = self::SCHEDULE_ONE_TIME;
+                } elseif (
+                    blank($sheet->schedule_type)
+                    || $sheet->schedule_type === self::SCHEDULE_ONE_TIME
+                ) {
+                    $sheet->schedule_type = self::SCHEDULE_RECURRING;
+                }
+            }
+
             if (filled($sheet->locality_id)) {
                 $locality = Locality::query()->find($sheet->locality_id);
 
@@ -97,13 +128,22 @@ public function immichAlbum(): HasOne
 
     public function attendanceModeLabel(): string
     {
-        return $this->is_one_time ? 'One-time' : 'Recurring';
+        return match ($this->schedule_type) {
+            self::SCHEDULE_ONE_TIME => 'One-time',
+            self::SCHEDULE_CONSECUTIVE => 'Consecutive Days',
+            self::SCHEDULE_MANUAL => 'Manual Dates',
+            default => 'Recurring Weekly',
+        };
     }
 
 
     public function dateRangeLabel(): string
     {
-        if ($this->is_one_time) {
+        if ($this->schedule_type === self::SCHEDULE_MANUAL) {
+            return 'Manual dates';
+        }
+
+        if ($this->schedule_type === self::SCHEDULE_ONE_TIME) {
             return $this->start_date?->format('M d, Y') ?? 'No date';
         }
 
@@ -115,9 +155,19 @@ public function immichAlbum(): HasOne
 
     public function attendanceModeBadgeClass(): string
     {
-        return $this->is_one_time
-            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
-            : 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100';
+        return match ($this->schedule_type) {
+            self::SCHEDULE_ONE_TIME =>
+                'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
+
+            self::SCHEDULE_CONSECUTIVE =>
+                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100',
+
+            self::SCHEDULE_MANUAL =>
+                'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100',
+
+            default =>
+                'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100',
+        };
     }
 
     public function sessions(): HasMany
