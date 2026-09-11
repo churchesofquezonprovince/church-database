@@ -140,6 +140,57 @@ public function mount(): void
         return 'Check Attendance';
     }
 
+    public static function getNavigationUrl(): string
+    {
+        $query = [];
+
+        /*
+         * Preserve Attendance Sheet / Session context when moving
+         * between Attendance Sheets and Check Attendance through
+         * the Filament navigation.
+         */
+        if (
+            request()->routeIs(
+                'filament.quezonprovinceactivities.pages.attendance-sheets'
+            )
+            ||
+            request()->routeIs(
+                'filament.quezonprovinceactivities.pages.check-attendance'
+            )
+        ) {
+            $sheetId =
+                request()->integer(
+                    'sheetId'
+                );
+
+            $sessionId =
+                request()->integer(
+                    'sessionId'
+                );
+
+            if ($sheetId) {
+                $query['sheetId'] =
+                    $sheetId;
+            }
+
+            if ($sessionId) {
+                $query['sessionId'] =
+                    $sessionId;
+            }
+        }
+
+        return static::getUrl()
+            . (
+                $query
+                    ? '?'
+                        . http_build_query(
+                            $query
+                        )
+                    : ''
+            );
+    }
+
+
     public static function getNavigationLabel(): string
     {
         return 'Check Attendance';

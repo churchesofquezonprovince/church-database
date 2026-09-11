@@ -200,10 +200,17 @@
 
                             <div class="flex flex-wrap gap-2">
 <a
-    href="{{ \App\Filament\Pages\CheckAttendance::getUrl() . '?' . http_build_query([
-        'sheetId' => $selectedSheet->id,
-        'sessionId' => $this->selectedSession()?->id,
-    ]) }}"
+    href="{{
+        \App\Filament\Pages\CheckAttendance::getUrl()
+        . '?'
+        . http_build_query([
+            'sheetId' =>
+                $selectedSheet->id,
+
+            'sessionId' =>
+                $this->selectedSession()?->id,
+        ])
+    }}"
     class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-500"
 >
     Check Attendance

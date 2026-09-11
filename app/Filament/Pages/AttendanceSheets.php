@@ -18,6 +18,46 @@ use Illuminate\Support\Facades\Log;
 
 class AttendanceSheets extends Page
 {
+    public ?int $selectedSheetId = null;
+
+    public ?int $selectedSessionId = null;
+
+    public function mount(): void
+    {
+        $this->selectedSheetId =
+            request()->integer(
+                'sheetId'
+            ) ?: null;
+
+        $this->selectedSessionId =
+            request()->integer(
+                'sessionId'
+            ) ?: null;
+
+        /*
+         * Session ID is the stronger identity.
+         *
+         * If a valid Session is supplied, derive its Sheet directly.
+         * This also prevents a mismatched sheetId/sessionId pair.
+         */
+        if ($this->selectedSessionId) {
+            $session =
+                AttendanceSession::query()
+                    ->find(
+                        $this->selectedSessionId
+                    );
+
+            if ($session) {
+                $this->selectedSheetId =
+                    (int)
+                    $session->attendance_sheet_id;
+            } else {
+                $this->selectedSessionId =
+                    null;
+            }
+        }
+    }
+
     protected string $view = 'filament.pages.attendance-sheets';
 
     public string $immichAlbumId = '';
@@ -29,6 +69,53 @@ class AttendanceSheets extends Page
     {
         return 'Attendance Sheets';
     }
+
+    public static function getNavigationUrl(): string
+    {
+        $query = [];
+
+        /*
+         * When moving from Check Attendance through the
+         * Filament navigation, preserve the currently selected
+         * Attendance Sheet and Session.
+         */
+        if (
+            request()->routeIs(
+                'filament.quezonprovinceactivities.pages.check-attendance'
+            )
+        ) {
+            $sheetId =
+                request()->integer(
+                    'sheetId'
+                );
+
+            $sessionId =
+                request()->integer(
+                    'sessionId'
+                );
+
+            if ($sheetId) {
+                $query['sheetId'] =
+                    $sheetId;
+            }
+
+            if ($sessionId) {
+                $query['sessionId'] =
+                    $sessionId;
+            }
+        }
+
+        return static::getUrl()
+            . (
+                $query
+                    ? '?'
+                        . http_build_query(
+                            $query
+                        )
+                    : ''
+            );
+    }
+
 
     public static function getNavigationLabel(): string
     {
@@ -124,13 +211,18 @@ class AttendanceSheets extends Page
 
 public function selectedSheet(): ?AttendanceSheet
 {
-    $sheetId = request()->integer('sheetId');
-
     $query = AttendanceSheet::query()
-        ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
-        ->where('is_active', true)
+        ->where(
+            'sheet_type',
+            AttendanceSheet::TYPE_CUSTOM
+        )
+        ->where(
+            'is_active',
+            true
+        )
         ->withCount([
             'sessions',
+
             'participants as participants_count' =>
                 fn ($query) =>
                     $query->where(
@@ -140,13 +232,28 @@ public function selectedSheet(): ?AttendanceSheet
         ])
         ->with([
             'immichAlbum',
-            'sessions' => fn ($query) => $query
-                ->with('immichAssets')
-                ->orderBy('session_date'),
+
+            'sessions' =>
+                fn ($query) =>
+                    $query
+                        ->with(
+                            'immichAssets'
+                        )
+                        ->orderBy(
+                            'session_date'
+                        ),
         ]);
 
-    if ($sheetId) {
-        $selectedSheet = (clone $query)->find($sheetId);
+    /*
+     * Keep the selected Sheet as Livewire component state.
+     * Internal Livewire requests do not reliably contain the
+     * original browser query string.
+     */
+    if ($this->selectedSheetId) {
+        $selectedSheet =
+            (clone $query)->find(
+                $this->selectedSheetId
+            );
 
         if ($selectedSheet) {
             return $selectedSheet;
@@ -160,24 +267,30 @@ public function selectedSheet(): ?AttendanceSheet
 
     public function selectedSession(): ?AttendanceSession
     {
-        $sheet = $this->selectedSheet();
+        $sheet =
+            $this->selectedSheet();
 
         if (! $sheet) {
             return null;
         }
 
-        $sessionId = request()->integer('sessionId');
-
-        if ($sessionId) {
-            $session = $sheet->sessions
-                ->firstWhere('id', $sessionId);
+        if ($this->selectedSessionId) {
+            $session =
+                $sheet
+                    ->sessions
+                    ->firstWhere(
+                        'id',
+                        $this->selectedSessionId
+                    );
 
             if ($session) {
                 return $session;
             }
         }
 
-        return $sheet->sessions->first();
+        return $sheet
+            ->sessions
+            ->first();
     }
 
     public function sessionUrl(AttendanceSession $session): string
