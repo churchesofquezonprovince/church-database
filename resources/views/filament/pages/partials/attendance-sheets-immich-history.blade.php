@@ -18,17 +18,17 @@
 
 @if ($immichDetectionHistory->isNotEmpty())
     <details
-        class="min-w-0 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50 shadow-sm dark:border-violet-900 dark:bg-violet-950"
+        class="min-w-0 overflow-hidden rounded-xl border border-violet-200 bg-white dark:border-violet-800 dark:bg-gray-950"
     >
         <summary
-            class="cursor-pointer px-4 py-4 hover:bg-violet-100 dark:hover:bg-violet-900 sm:px-6"
+            class="cursor-pointer px-4 py-4 text-lg font-bold text-violet-950 hover:bg-violet-50 dark:text-violet-100 dark:hover:bg-violet-950 sm:px-5"
         >
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-lg font-bold text-violet-950 dark:text-violet-100">
-                        Immich Detection History
-                    </p>
+            <span>Immich Detection History</span>
+        </summary>
 
+        <div class="border-t border-violet-200 px-4 py-3 dark:border-violet-900 sm:px-5">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
                     <p class="mt-1 text-xs text-violet-700 dark:text-violet-300">
                         Whole Attendance Sheet · grouped by Session
                     </p>
@@ -38,9 +38,9 @@
                     {{ $immichDetectionHistory->count() }} Session(s)
                 </span>
             </div>
-        </summary>
+        </div>
 
-        <div class="space-y-4 border-t border-violet-200 p-4 dark:border-violet-900 sm:p-6">
+        <div class="space-y-4 border-t border-violet-200 p-4 dark:border-violet-900 sm:p-5">
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div class="rounded-xl border border-violet-200 bg-white p-3 dark:border-violet-800 dark:bg-gray-950">
                     <p class="text-xs text-gray-500 dark:text-gray-400">
