@@ -314,6 +314,14 @@ Route::middleware(['web', 'auth'])
             ]
         )->name('sessions.store');
 
+        Route::delete(
+            '/{sheet}/sessions/{session}',
+            [
+                \App\Http\Controllers\AttendanceSheetSessionController::class,
+                'destroy',
+            ]
+        )->name('sessions.destroy');
+
         Route::post('/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])
             ->name('participants.store');
 

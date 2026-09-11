@@ -245,6 +245,11 @@
             </div>
         @endif
 
+        @php
+            $manualSelectedSession =
+                $this->selectedSession();
+        @endphp
+
         <details
             @if ($errors->has('manual_session_date'))
                 open
@@ -343,7 +348,95 @@
                     default Start Time and End Time.
                 </p>
             </form>
+
+            @if ($manualSelectedSession)
+                <div
+                    class="mt-4 border-t border-violet-200
+                           px-4 pb-4 pt-4
+                           dark:border-violet-900"
+                >
+                    <p
+                        class="mb-3 text-xs text-violet-700
+                               dark:text-violet-300"
+                    >
+                        Remove the currently selected Manual Session
+                        only when it has no attendance or related history.
+                    </p>
+
+                <form
+                method="POST"
+                action="{{
+                    route(
+                        'quezonprovinceactivities.attendance-sheets.sessions.destroy',
+                        [
+                            'sheet' => $selectedSheet,
+                            'session' => $manualSelectedSession,
+                        ]
+                    )
+                }}"
+                class="mt-3"
+                onsubmit="
+                    return confirm(
+                        'Remove the selected Session Date {{ $manualSelectedSession->session_date->format('M d, Y') }}? This is only allowed when the Session has no attendance or related history.'
+                    );
+                "
+            >
+                @csrf
+                @method('DELETE')
+
+                <button
+                    type="submit"
+                    class="inline-flex items-center
+                           justify-center rounded-xl
+                           border border-red-300
+                           px-4 py-2 text-xs font-bold
+                           text-red-700
+                           hover:bg-red-50
+                           dark:border-red-800
+                           dark:text-red-300
+                           dark:hover:bg-red-950"
+                >
+                    Remove Selected Session Date
+                    ·
+                    {{
+                        $manualSelectedSession
+                            ->session_date
+                            ->format('M d, Y')
+                    }}
+                </button>
+                </form>
+                </div>
+            @endif
+
         </details>
+
+        @if (session('attendance_session_removed'))
+            <div
+                class="mt-3 rounded-xl border border-emerald-200
+                       bg-emerald-50 px-4 py-3 text-sm
+                       font-semibold text-emerald-800
+                       dark:border-emerald-900
+                       dark:bg-emerald-950
+                       dark:text-emerald-200"
+            >
+                Session removed:
+                {{ session('attendance_session_removed_date') }}
+            </div>
+        @endif
+
+        @error('manual_session_delete')
+            <div
+                class="mt-3 rounded-xl border border-red-200
+                       bg-red-50 px-4 py-3 text-sm
+                       font-semibold text-red-800
+                       dark:border-red-900
+                       dark:bg-red-950
+                       dark:text-red-200"
+            >
+                {{ $message }}
+            </div>
+        @enderror
+
     </div>
 @endif
 
