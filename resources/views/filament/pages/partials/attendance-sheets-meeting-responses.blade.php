@@ -165,7 +165,7 @@ $preListedFilterCounts = [
                 class="ml-2 inline-flex w-[calc(100%-2rem)] align-middle items-center justify-between gap-3"
             >
                 <span class="text-lg font-bold">
-                    Meeting Responses
+                    Pre-listed Responses
                 </span>
 
                 <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
