@@ -227,6 +227,7 @@ class AttendanceDashboard extends Page
                 $query->whereNull('ends_on')
                     ->orWhere('ends_on', '>=', $date);
             })
-            ->count();
+            ->distinct()
+            ->count('person_id');
     }
 }

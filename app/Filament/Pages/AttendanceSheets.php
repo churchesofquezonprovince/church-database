@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceImmichAssetDetection;
 use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
 use App\Models\AttendanceParticipant;
@@ -382,6 +383,366 @@ public function syncImmich(int $sessionId): void
     }
 }
 
+public function immichDetectionHistory(): Collection
+{
+    $sheet = $this->selectedSheet();
+
+    if (! $sheet) {
+        return collect();
+    }
+
+    /*
+     * Detection history belongs to the whole Attendance Sheet.
+     *
+     * Individual attendance decisions remain Session-scoped.
+     * Removing a Person from one Session must never hide their
+     * Immich detections from that Session or affect another one.
+     */
+    $sessions = AttendanceSession::query()
+        ->where(
+            'attendance_sheet_id',
+            $sheet->id
+        )
+        ->orderByDesc(
+            'session_date'
+        )
+        ->get()
+        ->keyBy('id');
+
+    if ($sessions->isEmpty()) {
+        return collect();
+    }
+
+    $sessionIds =
+        $sessions
+            ->keys()
+            ->values();
+
+    $detections =
+        AttendanceImmichAssetDetection::query()
+            ->with([
+                'person.churchProfile',
+            ])
+            ->whereIn(
+                'attendance_session_id',
+                $sessionIds
+            )
+            ->orderBy(
+                'detected_at'
+            )
+            ->get();
+
+    if ($detections->isEmpty()) {
+        return collect();
+    }
+
+    /*
+     * AttendanceRecord is the actual attendance fact.
+     */
+    $records =
+        AttendanceRecord::query()
+            ->whereIn(
+                'attendance_session_id',
+                $sessionIds
+            )
+            ->get()
+            ->keyBy(
+                fn (
+                    AttendanceRecord $record
+                ): string =>
+                    $record->attendance_session_id
+                    . ':'
+                    . $record->person_id
+            );
+
+    /*
+     * Participant rows are used only to recognize a previously
+     * rejected exact-meeting Immich detection.
+     *
+     * An inactive one-day participant row means the administrator
+     * explicitly removed that Person from that Session.
+     */
+    $participants =
+        AttendanceParticipant::query()
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->get()
+            ->groupBy('person_id');
+
+    return $detections
+        ->groupBy(
+            'attendance_session_id'
+        )
+        ->map(
+            function (
+                Collection $sessionDetections,
+                $sessionId
+            ) use (
+                $sessions,
+                $records,
+                $participants
+            ): ?array {
+                $session =
+                    $sessions->get(
+                        (int) $sessionId
+                    );
+
+                if (! $session) {
+                    return null;
+                }
+
+                $sessionDate =
+                    $session
+                        ->session_date
+                        ->format('Y-m-d');
+
+                /*
+                 * One Person can appear in multiple photos.
+                 *
+                 * Group mapped detections by Church Person.
+                 * Unmapped faces fall back to Immich Person ID.
+                 */
+                $people =
+                    $sessionDetections
+                        ->groupBy(
+                            function (
+                                AttendanceImmichAssetDetection $detection
+                            ): string {
+                                if (
+                                    filled(
+                                        $detection->person_id
+                                    )
+                                ) {
+                                    return 'person:'
+                                        . (int)
+                                            $detection->person_id;
+                                }
+
+                                return 'immich:'
+                                    . $detection
+                                        ->immich_person_id;
+                            }
+                        )
+                        ->map(
+                            function (
+                                Collection $personDetections
+                            ) use (
+                                $session,
+                                $sessionDate,
+                                $records,
+                                $participants
+                            ): array {
+                                $detection =
+                                    $personDetections
+                                        ->first();
+
+                                $personId =
+                                    filled(
+                                        $detection
+                                            ->person_id
+                                    )
+                                        ? (int)
+                                            $detection
+                                                ->person_id
+                                        : null;
+
+                                $record =
+                                    $personId
+                                        ? $records->get(
+                                            $session->id
+                                            . ':'
+                                            . $personId
+                                        )
+                                        : null;
+
+                                $removed =
+                                    false;
+
+                                if (
+                                    $personId
+                                    &&
+                                    ! $record
+                                ) {
+                                    $removed =
+                                        collect(
+                                            $participants
+                                                ->get(
+                                                    $personId,
+                                                    collect()
+                                                )
+                                        )
+                                            ->contains(
+                                                function (
+                                                    AttendanceParticipant $participant
+                                                ) use (
+                                                    $sessionDate
+                                                ): bool {
+                                                    return
+                                                        ! $participant
+                                                            ->is_active
+                                                        &&
+                                                        $participant
+                                                            ->starts_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            )
+                                                            ===
+                                                            $sessionDate
+                                                        &&
+                                                        $participant
+                                                            ->ends_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            )
+                                                            ===
+                                                            $sessionDate;
+                                                }
+                                            );
+                                }
+
+                                $status =
+                                    match (true) {
+                                        ! $personId =>
+                                            'unmatched',
+
+                                        (bool)
+                                            $record
+                                                ?->is_present =>
+                                            'present',
+
+                                        $record !== null =>
+                                            'absent',
+
+                                        $removed =>
+                                            'removed',
+
+                                        default =>
+                                            'detected',
+                                    };
+
+                                return [
+                                    'identity_key' =>
+                                        $personId
+                                            ? 'person:'
+                                                . $personId
+                                            : 'immich:'
+                                                . $detection
+                                                    ->immich_person_id,
+
+                                    'person_id' =>
+                                        $personId,
+
+                                    'person' =>
+                                        $detection
+                                            ->person,
+
+                                    'name' =>
+                                        $detection
+                                            ->person
+                                            ?->display_name
+                                        ?? 'Unmatched Immich Person',
+
+                                    'immich_person_id' =>
+                                        $detection
+                                            ->immich_person_id,
+
+                                    'status' =>
+                                        $status,
+
+                                    'detection_events' =>
+                                        $personDetections
+                                            ->count(),
+
+                                    'asset_count' =>
+                                        $personDetections
+                                            ->pluck(
+                                                'immich_asset_id'
+                                            )
+                                            ->unique()
+                                            ->count(),
+
+                                    'detected_at' =>
+                                        $personDetections
+                                            ->max(
+                                                'detected_at'
+                                            ),
+                                ];
+                            }
+                        )
+                        ->sortBy('name')
+                        ->values();
+
+                return [
+                    'session' =>
+                        $session,
+
+                    'session_id' =>
+                        (int) $session->id,
+
+                    'session_date' =>
+                        $sessionDate,
+
+                    'detection_events' =>
+                        $sessionDetections
+                            ->count(),
+
+                    'detected_people' =>
+                        $people->count(),
+
+                    'present' =>
+                        $people
+                            ->where(
+                                'status',
+                                'present'
+                            )
+                            ->count(),
+
+                    'absent' =>
+                        $people
+                            ->where(
+                                'status',
+                                'absent'
+                            )
+                            ->count(),
+
+                    'removed' =>
+                        $people
+                            ->where(
+                                'status',
+                                'removed'
+                            )
+                            ->count(),
+
+                    'unmatched' =>
+                        $people
+                            ->where(
+                                'status',
+                                'unmatched'
+                            )
+                            ->count(),
+
+                    'detected_only' =>
+                        $people
+                            ->where(
+                                'status',
+                                'detected'
+                            )
+                            ->count(),
+
+                    'people' =>
+                        $people,
+                ];
+            }
+        )
+        ->filter()
+        ->sortByDesc(
+            'session_date'
+        )
+        ->values();
+}
+
 public function sessionAttendanceSummary(AttendanceSession $session): array
 {
     $records = AttendanceRecord::query()
@@ -413,20 +774,41 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
 
     public function participantRows(): Collection
     {
-        $sheet = $this->selectedSheet();
+        $session = $this->selectedSession();
 
-        if (! $sheet) {
+        if (! $session) {
             return collect();
         }
 
+        $sessionDate =
+            $session
+                ->session_date
+                ->format('Y-m-d');
+
         return AttendanceParticipant::query()
-            ->with(['person.churchProfile'])
-            ->where('attendance_sheet_id', $sheet->id)
-            ->where('is_active', true)
+            ->with([
+                'person.churchProfile',
+            ])
+            ->where(
+                'attendance_sheet_id',
+                $session->attendance_sheet_id
+            )
+            ->activeOn($sessionDate)
             ->get()
+            ->unique(
+                fn (
+                    AttendanceParticipant $participant
+                ): int =>
+                    (int) $participant->person_id
+            )
             ->sortBy(
-                fn (AttendanceParticipant $participant): string =>
-                    $participant->person?->display_name ?? ''
+                fn (
+                    AttendanceParticipant $participant
+                ): string =>
+                    $participant
+                        ->person
+                        ?->display_name
+                    ?? ''
             )
             ->values();
     }

@@ -372,6 +372,12 @@ public function participantRows(): Collection
             }
         )
         ->get()
+        ->unique(
+            fn (
+                AttendanceParticipant $participant
+            ): int =>
+                (int) $participant->person_id
+        )
         ->sortBy(
             fn (
                 AttendanceParticipant $participant

@@ -796,6 +796,8 @@
                     </div>
 
 
+                    @include('filament.pages.partials.attendance-sheets-immich-history')
+
                     <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
                         <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
                             Add Participants
@@ -988,6 +990,14 @@
                                         @csrf
                                         @method('DELETE')
 
+                                        @if ($selectedSession)
+                                            <input
+                                                type="hidden"
+                                                name="attendance_session_id"
+                                                value="{{ $selectedSession->id }}"
+                                            >
+                                        @endif
+
                                         <button
                                             type="submit"
                                             class="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
@@ -1042,6 +1052,14 @@
                                                 >
                                                     @csrf
                                                     @method('DELETE')
+
+                                                    @if ($selectedSession)
+                                                        <input
+                                                            type="hidden"
+                                                            name="attendance_session_id"
+                                                            value="{{ $selectedSession->id }}"
+                                                        >
+                                                    @endif
 
                                                     <button
                                                         type="submit"

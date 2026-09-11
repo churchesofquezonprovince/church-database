@@ -172,36 +172,17 @@ public function destroy(
                         ->first();
 
                 if ($record) {
-                    $record->update([
-                        'status' =>
-                            AttendanceRecord::STATUS_ABSENT,
-
-                        'is_present' =>
-                            false,
-
-                        /*
-                         * This is now an explicit administrator
-                         * decision. Manual attendance wins over a
-                         * later Immich synchronization.
-                         */
-                        'attendance_source' =>
-                            AttendanceRecord::SOURCE_MANUAL,
-
-                        'immich_confirmed' =>
-                            true,
-
-                        'immich_confirmed_at' =>
-                            now(),
-
-                        'immich_confirmed_by_id' =>
-                            auth()->id(),
-
-                        'marked_by_id' =>
-                            auth()->id(),
-
-                        'marked_at' =>
-                            now(),
-                    ]);
+                    /*
+                     * This Immich detection was explicitly rejected
+                     * by an administrator.
+                     *
+                     * AttendanceImmichAssetDetection remains intact
+                     * as the audit trail. The AttendanceRecord itself
+                     * must not become an ABSENT attendance fact,
+                     * because the Person was not actually part of
+                     * this Session's attendance.
+                     */
+                    $record->delete();
 
                     $correctedImmichAttendance =
                         true;
@@ -215,7 +196,7 @@ public function destroy(
         subject: $sheet,
         description:
             $correctedImmichAttendance
-                ? 'Removed participant from attendance sheet and corrected the selected Session Immich attendance to manual absent.'
+                ? 'Removed participant from attendance sheet and rejected the selected Session Immich attendance while preserving Immich detection history.'
                 : 'Removed participant from attendance sheet while preserving historical attendance and Immich history.',
         oldValues: $oldValues,
         newValues: [

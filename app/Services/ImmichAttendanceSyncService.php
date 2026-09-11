@@ -36,7 +36,7 @@ public function sync(AttendanceSession $session): array
     $mappedPeople = [];
     $alreadyPresentPeople = [];
     $createdPeople = [];
-    
+
     $createdCount = 0;
     $alreadyPresentCount = 0;
 
@@ -127,16 +127,30 @@ public function sync(AttendanceSession $session): array
 
 $mappedPeople[$churchPersonId] = true;
 
-$result = $this->markPresent(
-    session: $session,
-    personId: $churchPersonId,
-);
+            $result = $this->markPresent(
+                session: $session,
+                personId: $churchPersonId,
+            );
 
-if ($result === 'created') {
-    $createdPeople[$churchPersonId] = true;
-} elseif ($result === 'already_present') {
-    $alreadyPresentPeople[$churchPersonId] = true;
-}        
+            if ($result === 'created') {
+                $createdPeople[$churchPersonId] = true;
+            } elseif (
+                in_array(
+                    $result,
+                    [
+                        'already_present',
+                        'manual_preserved',
+                    ],
+                    true,
+                )
+            ) {
+                /*
+                 * Keep the existing public sync result contract.
+                 * A protected manual decision is not counted as
+                 * newly-added Immich attendance.
+                 */
+                $alreadyPresentPeople[$churchPersonId] = true;
+            }
 
 
 
@@ -308,10 +322,12 @@ if ($result === 'created') {
      *
      * Returns:
      *
-     * created          = new Immich attendance record
-     * already_present  = an existing record was already present
+     * created           = new Immich attendance record
+     * already_present   = existing Immich attendance
+     * manual_preserved  = administrator decision preserved
      *
-     * Manual records are NEVER overwritten.
+     * Manual attendance and roster corrections are NEVER
+     * overwritten by Immich.
      */
     protected function markPresent(
         AttendanceSession $session,
@@ -320,15 +336,53 @@ if ($result === 'created') {
         return DB::transaction(
             function () use ($session, $personId): string {
                 /*
-                 * Immich attendance needs a real roster identity
-                 * in addition to its AttendanceRecord.
+                 * Manual attendance is authoritative.
                  *
-                 * New Immich-discovered people are added for
-                 * this meeting only. Existing participant scope
-                 * is never widened or overwritten.
+                 * Check the AttendanceRecord BEFORE changing roster
+                 * membership. If an administrator has corrected this
+                 * Session manually, Immich may preserve its detection
+                 * history but must not change attendance or reactivate
+                 * the Person.
+                 */
+                $record =
+                    AttendanceRecord::query()
+                        ->where(
+                            'attendance_session_id',
+                            $session->id
+                        )
+                        ->where(
+                            'person_id',
+                            $personId
+                        )
+                        ->first();
+
+                if (
+                    $record
+                    &&
+                    $record->attendance_source
+                        === AttendanceRecord::SOURCE_MANUAL
+                ) {
+                    return 'manual_preserved';
+                }
+
+                /*
+                 * There is no manual decision protecting this Session.
                  *
-                 * An explicitly inactive participant is also
-                 * never automatically reactivated.
+                 * Immich may establish a meeting-only participant
+                 * identity when necessary.
+                 */
+                $sessionDate =
+                    $session
+                        ->session_date
+                        ->format('Y-m-d');
+
+                /*
+                 * Reuse only a participant period that actually
+                 * covers this Session.
+                 *
+                 * A July 29 meeting-only participant must not be
+                 * mistaken for an August 12 participant merely
+                 * because Sheet + Person are the same.
                  */
                 $participant =
                     AttendanceParticipant::query()
@@ -340,97 +394,103 @@ if ($result === 'created') {
                             'person_id',
                             $personId
                         )
+                        ->activeOn($sessionDate)
                         ->first();
 
                 if (! $participant) {
-                    AttendanceParticipant::create([
-                        'attendance_sheet_id' =>
-                            $session->attendance_sheet_id,
-
-                        'person_id' =>
-                            $personId,
-
-                        'starts_on' =>
-                            $session
-                                ->session_date
-                                ->format('Y-m-d'),
-
-                        'ends_on' =>
-                            $session
-                                ->session_date
-                                ->format('Y-m-d'),
-
-                        'is_active' =>
-                            true,
-                    ]);
-                } elseif (! $participant->is_active) {
                     /*
-                     * The Person had previously been removed
-                     * from the active roster.
+                     * A Person removed from this exact Session may
+                     * be detected again on a later Immich sync.
                      *
-                     * A new Immich detection is fresh evidence
-                     * that they attended this Session, so bring
-                     * them back for THIS MEETING ONLY.
-                     *
-                     * Do not restore any previous recurring
-                     * participant scope automatically.
+                     * Re-sync means "re-read the Immich evidence",
+                     * so reactivate the same meeting-only participant
+                     * rather than treating removal as permanent.
                      */
-                    $participant->update([
-                        'starts_on' =>
-                            $session
-                                ->session_date
-                                ->format('Y-m-d'),
+                    $participant =
+                        AttendanceParticipant::query()
+                            ->where(
+                                'attendance_sheet_id',
+                                $session->attendance_sheet_id
+                            )
+                            ->where(
+                                'person_id',
+                                $personId
+                            )
+                            ->where(
+                                'is_active',
+                                false
+                            )
+                            ->whereDate(
+                                'starts_on',
+                                $sessionDate
+                            )
+                            ->whereDate(
+                                'ends_on',
+                                $sessionDate
+                            )
+                            ->first();
 
-                        'ends_on' =>
-                            $session
-                                ->session_date
-                                ->format('Y-m-d'),
+                    if ($participant) {
+                        $participant->update([
+                            'is_active' => true,
+                        ]);
+                    } else {
+                        AttendanceParticipant::create([
+                            'attendance_sheet_id' =>
+                                $session->attendance_sheet_id,
 
-                        'is_active' =>
-                            true,
-                    ]);
+                            'person_id' =>
+                                $personId,
+
+                            'starts_on' =>
+                                $sessionDate,
+
+                            'ends_on' =>
+                                $sessionDate,
+
+                            'is_active' =>
+                                true,
+                        ]);
+                    }
                 }
-
-                $record = AttendanceRecord::query()
-                    ->where('attendance_session_id', $session->id)
-                    ->where('person_id', $personId)
-                    ->first();
 
                 /*
                  * No attendance record yet.
                  */
                 if (! $record) {
                     AttendanceRecord::create([
-                        'attendance_session_id' => $session->id,
-                        'person_id' => $personId,
-                        'status' => AttendanceRecord::STATUS_PRESENT,
-                        'is_present' => true,
-                        'attendance_source' => AttendanceRecord::SOURCE_IMMICH,
-                        'immich_confirmed' => false,
-                        'immich_confirmed_at' => null,
-                        'immich_confirmed_by_id' => null,
-                        'marked_by_id' => null,
-                        'marked_at' => now(),
+                        'attendance_session_id' =>
+                            $session->id,
+
+                        'person_id' =>
+                            $personId,
+
+                        'status' =>
+                            AttendanceRecord::STATUS_PRESENT,
+
+                        'is_present' =>
+                            true,
+
+                        'attendance_source' =>
+                            AttendanceRecord::SOURCE_IMMICH,
+
+                        'immich_confirmed' =>
+                            false,
+
+                        'immich_confirmed_at' =>
+                            null,
+
+                        'immich_confirmed_by_id' =>
+                            null,
+
+                        'marked_by_id' =>
+                            null,
+
+                        'marked_at' =>
+                            now(),
                     ]);
 
                     return 'created';
-                }
-
-                /*
-                 * Manual attendance always wins.
-                 *
-                 * Do not change:
-                 *   status
-                 *   is_present
-                 *   attendance_source
-                 *   marked_by_id
-                 *   marked_at
-                 */
-                if (
-                    $record->attendance_source
-                    === AttendanceRecord::SOURCE_MANUAL
-                ) {
-                    return 'already_present';
                 }
 
                 /*

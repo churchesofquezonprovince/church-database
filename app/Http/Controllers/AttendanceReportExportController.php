@@ -287,7 +287,8 @@ class AttendanceReportExportController extends Controller
                 $query->whereNull('ends_on')
                     ->orWhere('ends_on', '>=', $date);
             })
-            ->count();
+            ->distinct()
+            ->count('person_id');
     }
 
     private function reportTypeLabel(string $type): string
