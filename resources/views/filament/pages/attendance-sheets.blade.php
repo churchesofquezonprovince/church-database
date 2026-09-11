@@ -381,43 +381,49 @@
     @endif
 </div>
 
-    <div
+    <details
         class="mt-6 overflow-hidden rounded-2xl
                border border-violet-200
                bg-violet-50 shadow-sm
                dark:border-violet-900
                dark:bg-violet-950"
     >
-        <div
-            class="border-b border-violet-200
-                   px-5 py-4 dark:border-violet-900
+        <summary
+            class="cursor-pointer list-none
+                   px-5 py-4
+                   hover:bg-violet-100
+                   dark:hover:bg-violet-900
                    sm:px-6"
         >
-            <p
-                class="text-xs font-bold uppercase
+            <span
+                class="block text-xs font-bold uppercase
                        tracking-wide text-violet-600
                        dark:text-violet-300"
             >
                 Immich Attendance
-            </p>
+            </span>
 
-            <h4
-                class="mt-1 text-lg font-bold
+            <span
+                class="mt-1 block text-lg font-bold
                        text-violet-950 dark:text-white"
             >
                 {{ $selectedSession->session_date->format('M d, Y') }}
-            </h4>
+            </span>
+        </summary>
 
+        <div
+            class="space-y-5 border-t
+                   border-violet-200 p-5
+                   dark:border-violet-900
+                   sm:p-6"
+        >
             <p
-                class="mt-1 text-xs text-violet-700
+                class="text-xs text-violet-700
                        dark:text-violet-300"
             >
                 Exact Session photos override the
                 Attendance Sheet album.
             </p>
-        </div>
-
-        <div class="space-y-5 p-5 sm:p-6">
 
             {{-- Exact Session photos --}}
             <div
@@ -777,7 +783,7 @@
                 </button>
             @endif
         </div>
-    </div>
+    </details>
 @endif
                         
                     </div>

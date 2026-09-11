@@ -63,6 +63,7 @@ class AttendanceSheetParticipantController extends Controller
     }
 
 public function destroy(
+    Request $request,
     AttendanceSheet $sheet,
     AttendanceParticipant $participant
 ): RedirectResponse {
@@ -73,6 +74,35 @@ public function destroy(
         404,
     );
 
+    $data = $request->validate([
+        'attendance_session_id' => [
+            'nullable',
+            'integer',
+            'exists:attendance_sessions,id',
+        ],
+    ]);
+
+    $sessionId =
+        filled($data['attendance_session_id'] ?? null)
+            ? (int) $data['attendance_session_id']
+            : null;
+
+    /*
+     * The Session comes from the Attendance Sheets page currently
+     * being viewed. Never allow a Session belonging to another
+     * Attendance Sheet to affect this removal.
+     */
+    if (
+        $sessionId
+        &&
+        ! $sheet
+            ->sessions()
+            ->whereKey($sessionId)
+            ->exists()
+    ) {
+        abort(404);
+    }
+
     $oldValues = [
         'sheet_id' => $sheet->id,
         'sheet_title' => $sheet->title,
@@ -81,10 +111,17 @@ public function destroy(
         'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
         'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
         'is_active' => $participant->is_active,
+        'attendance_session_id' => $sessionId,
     ];
 
+    $correctedImmichAttendance = false;
+
     DB::transaction(
-        function () use ($participant): void {
+        function () use (
+            $participant,
+            $sessionId,
+            &$correctedImmichAttendance,
+        ): void {
             /*
              * Removing a Person from the Attendance Sheet
              * deactivates their roster membership.
@@ -99,14 +136,95 @@ public function destroy(
             $participant->update([
                 'is_active' => false,
             ]);
+
+            /*
+             * If this Person was marked PRESENT by Immich for the
+             * Session currently being viewed, removing them here is
+             * treated as an administrator correction for THIS
+             * Session only.
+             *
+             * Do not delete the AttendanceRecord or Immich detection
+             * history. Convert the attendance fact to a manual ABSENT
+             * decision so a later Immich sync cannot silently restore
+             * the false-positive attendance.
+             *
+             * Attendance from every other Session is untouched.
+             */
+            if ($sessionId) {
+                $record =
+                    AttendanceRecord::query()
+                        ->where(
+                            'attendance_session_id',
+                            $sessionId
+                        )
+                        ->where(
+                            'person_id',
+                            $participant->person_id
+                        )
+                        ->where(
+                            'attendance_source',
+                            AttendanceRecord::SOURCE_IMMICH
+                        )
+                        ->where(
+                            'is_present',
+                            true
+                        )
+                        ->first();
+
+                if ($record) {
+                    $record->update([
+                        'status' =>
+                            AttendanceRecord::STATUS_ABSENT,
+
+                        'is_present' =>
+                            false,
+
+                        /*
+                         * This is now an explicit administrator
+                         * decision. Manual attendance wins over a
+                         * later Immich synchronization.
+                         */
+                        'attendance_source' =>
+                            AttendanceRecord::SOURCE_MANUAL,
+
+                        'immich_confirmed' =>
+                            true,
+
+                        'immich_confirmed_at' =>
+                            now(),
+
+                        'immich_confirmed_by_id' =>
+                            auth()->id(),
+
+                        'marked_by_id' =>
+                            auth()->id(),
+
+                        'marked_at' =>
+                            now(),
+                    ]);
+
+                    $correctedImmichAttendance =
+                        true;
+                }
+            }
         },
     );
 
     ActivityLogger::log(
         action: 'attendance_sheet.participant.removed',
         subject: $sheet,
-        description: 'Removed participant from attendance sheet while preserving attendance and Immich history.',
+        description:
+            $correctedImmichAttendance
+                ? 'Removed participant from attendance sheet and corrected the selected Session Immich attendance to manual absent.'
+                : 'Removed participant from attendance sheet while preserving historical attendance and Immich history.',
         oldValues: $oldValues,
+        newValues: [
+            'attendance_session_id' =>
+                $sessionId,
+
+            'selected_session_immich_attendance_corrected' =>
+                $correctedImmichAttendance,
+        ],
     );
 
     return back()
