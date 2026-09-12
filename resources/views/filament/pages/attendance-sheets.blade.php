@@ -1026,7 +1026,92 @@
                         >
                             @csrf
 
-                            <div class="min-w-0">
+                            <details
+                                class="min-w-0 overflow-hidden rounded-xl
+                                       border border-sky-200 bg-sky-50
+                                       dark:border-sky-900 dark:bg-sky-950"
+                            >
+                                <summary
+                                    class="cursor-pointer px-4 py-3
+                                           text-sm font-bold text-sky-900
+                                           hover:bg-sky-100
+                                           dark:text-sky-100
+                                           dark:hover:bg-sky-900"
+                                >
+                                    Paste Participant List
+                                </summary>
+
+                                <div
+                                    class="border-t border-sky-200 p-4
+                                           dark:border-sky-900"
+                                >
+                                    <p
+                                        class="text-xs text-sky-700
+                                               dark:text-sky-300"
+                                    >
+                                        Paste a numbered or plain list of names.
+                                        High-confidence matches will be checked
+                                        below for you to review before adding.
+                                    </p>
+
+                                    <textarea
+                                        data-pasted-participants
+                                        data-storage-key="attendance-participant-list-{{ $selectedSheet->id }}"
+                                        oninput="
+                                            localStorage.setItem(
+                                                this.dataset.storageKey,
+                                                this.value
+                                            )
+                                        "
+                                        rows="8"
+                                        placeholder="1. Zedric Dalde&#10;2. Jhyrnol Cuaton&#10;3. Johnny Guyo"
+                                        class="mt-3 block w-full rounded-xl
+                                               border border-sky-200 bg-white
+                                               px-4 py-3 text-sm text-gray-900
+                                               shadow-sm
+                                               dark:border-sky-900
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
+                                    ></textarea>
+
+                                    <div
+                                        class="mt-3 flex flex-wrap gap-2"
+                                    >
+                                        <button
+                                            type="button"
+                                            onclick="window.matchPastedParticipantList(this)"
+                                            class="rounded-lg bg-sky-600
+                                                   px-3 py-2 text-xs
+                                                   font-bold text-white
+                                                   hover:bg-sky-500"
+                                        >
+                                            Parse & Match
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onclick="window.clearPastedParticipantMatches(this)"
+                                            class="rounded-lg border
+                                                   border-sky-300 bg-white
+                                                   px-3 py-2 text-xs font-bold
+                                                   text-sky-800
+                                                   hover:bg-sky-100
+                                                   dark:border-sky-800
+                                                   dark:bg-sky-950
+                                                   dark:text-sky-100"
+                                        >
+                                            Clear Parsed Selections
+                                        </button>
+                                    </div>
+
+                                    <div
+                                        data-pasted-participant-results
+                                        class="mt-3 hidden"
+                                    ></div>
+                                </div>
+                            </details>
+
+                            <div class="mt-4 min-w-0">
                                 <label for="participant_search" class="block break-words text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                                     Search people
                                 </label>
@@ -1069,8 +1154,12 @@
                                     @forelse ($availablePeople as $person)
                                         <label
                                             data-person-card
+                                            data-person-name="{{ $person->display_name }}"
+                                            data-person-id="{{ $person->id }}"
+                                            data-person-nickname="{{ data_get($person, 'nickname', '') }}"
                                             data-search-text="{{ \Illuminate\Support\Str::lower(collect([
                                                 $person->display_name,
+                                                data_get($person, 'nickname'),
                                                 $person->locality,
                                                 $person->churchProfile?->status,
                                                 $person->churchProfile?->category,
@@ -1161,6 +1250,764 @@
                             </form>
                         </div>
                     </details>
+
+                    <div
+                        data-existing-participants
+                        class="hidden"
+                        aria-hidden="true"
+                    >
+                        @foreach ($participantRows as $participant)
+                            @if ($participant->person)
+                                <span
+                                    data-existing-participant
+                                    data-person-id="{{ $participant->person->id }}"
+                                    data-person-name="{{ $participant->person->display_name }}"
+                                    data-person-nickname="{{ data_get($participant->person, 'nickname', '') }}"
+                                ></span>
+                            @endif
+                        @endforeach
+                    </div>
+
+                    <script>
+                        (() => {
+                            const pastedParticipantTextarea =
+                                document.querySelector(
+                                    '[data-pasted-participants]'
+                                );
+
+                            if (
+                                pastedParticipantTextarea
+                                &&
+                                pastedParticipantTextarea
+                                    .dataset.storageKey
+                            ) {
+                                const savedList =
+                                    localStorage.getItem(
+                                        pastedParticipantTextarea
+                                            .dataset.storageKey
+                                    );
+
+                                if (
+                                    savedList !== null
+                                    &&
+                                    ! pastedParticipantTextarea.value
+                                ) {
+                                    pastedParticipantTextarea.value =
+                                        savedList;
+                                }
+                            }
+
+                            const normalizeParticipantName = (value) => {
+                                return String(value ?? '')
+                                    .toLowerCase()
+                                    .normalize('NFD')
+                                    .replace(/[\u0300-\u036f]/g, '')
+                                    .replace(/\b(jr|sr|ii|iii|iv)\b/g, ' ')
+                                    .replace(/[^a-z0-9]+/g, ' ')
+                                    .replace(/\s+/g, ' ')
+                                    .trim();
+                            };
+
+                            const participantNameTokens = (value) => {
+                                return normalizeParticipantName(value)
+                                    .split(' ')
+                                    .filter(Boolean);
+                            };
+
+                            const participantEditDistance = (a, b) => {
+                                if (a === b) {
+                                    return 0;
+                                }
+
+                                if (! a.length) {
+                                    return b.length;
+                                }
+
+                                if (! b.length) {
+                                    return a.length;
+                                }
+
+                                const previous =
+                                    Array.from(
+                                        { length: b.length + 1 },
+                                        (_, index) => index
+                                    );
+
+                                for (
+                                    let i = 1;
+                                    i <= a.length;
+                                    i++
+                                ) {
+                                    const current = [i];
+
+                                    for (
+                                        let j = 1;
+                                        j <= b.length;
+                                        j++
+                                    ) {
+                                        const cost =
+                                            a[i - 1] === b[j - 1]
+                                                ? 0
+                                                : 1;
+
+                                        current[j] =
+                                            Math.min(
+                                                current[j - 1] + 1,
+                                                previous[j] + 1,
+                                                previous[j - 1] + cost
+                                            );
+                                    }
+
+                                    previous.splice(
+                                        0,
+                                        previous.length,
+                                        ...current
+                                    );
+                                }
+
+                                return previous[b.length];
+                            };
+
+                            const participantTokenMatches = (
+                                inputToken,
+                                candidateToken
+                            ) => {
+                                if (
+                                    inputToken === candidateToken
+                                ) {
+                                    return true;
+                                }
+
+                                /*
+                                 * Initials such as "Roberto C."
+                                 * may match "Roberto Caalaman".
+                                 */
+                                if (
+                                    inputToken.length === 1
+                                    &&
+                                    candidateToken.startsWith(
+                                        inputToken
+                                    )
+                                ) {
+                                    return true;
+                                }
+
+                                /*
+                                 * Allow one small spelling difference for
+                                 * longer names, e.g. Virgilo / Virgilio.
+                                 */
+                                if (
+                                    inputToken.length >= 5
+                                    &&
+                                    candidateToken.length >= 5
+                                    &&
+                                    Math.abs(
+                                        inputToken.length
+                                        - candidateToken.length
+                                    ) <= 1
+                                    &&
+                                    participantEditDistance(
+                                        inputToken,
+                                        candidateToken
+                                    ) <= 1
+                                ) {
+                                    return true;
+                                }
+
+                                return false;
+                            };
+
+                            const participantMatchScore = (
+                                inputName,
+                                candidateName
+                            ) => {
+                                const inputTokens =
+                                    participantNameTokens(
+                                        inputName
+                                    );
+
+                                const candidateTokens =
+                                    participantNameTokens(
+                                        candidateName
+                                    );
+
+                                if (
+                                    ! inputTokens.length
+                                    ||
+                                    ! candidateTokens.length
+                                ) {
+                                    return 0;
+                                }
+
+                                if (
+                                    normalizeParticipantName(
+                                        inputName
+                                    )
+                                    ===
+                                    normalizeParticipantName(
+                                        candidateName
+                                    )
+                                ) {
+                                    return 1;
+                                }
+
+                                const usedCandidateTokens =
+                                    new Set();
+
+                                let matched = 0;
+
+                                for (
+                                    const inputToken
+                                    of inputTokens
+                                ) {
+                                    const candidateIndex =
+                                        candidateTokens.findIndex(
+                                            (
+                                                candidateToken,
+                                                index
+                                            ) =>
+                                                ! usedCandidateTokens.has(
+                                                    index
+                                                )
+                                                &&
+                                                participantTokenMatches(
+                                                    inputToken,
+                                                    candidateToken
+                                                )
+                                        );
+
+                                    if (
+                                        candidateIndex !== -1
+                                    ) {
+                                        usedCandidateTokens.add(
+                                            candidateIndex
+                                        );
+
+                                        matched++;
+                                    }
+                                }
+
+                                const coverage =
+                                    matched
+                                    /
+                                    inputTokens.length;
+
+                                if (coverage === 1) {
+                                    return Math.min(
+                                        0.99,
+                                        0.90
+                                        +
+                                        (
+                                            0.09
+                                            *
+                                            Math.min(
+                                                1,
+                                                inputTokens.length
+                                                /
+                                                candidateTokens.length
+                                            )
+                                        )
+                                    );
+                                }
+
+                                return coverage * 0.80;
+                            };
+
+                            const escapeParticipantHtml = (value) => {
+                                const div =
+                                    document.createElement(
+                                        'div'
+                                    );
+
+                                div.textContent =
+                                    String(value ?? '');
+
+                                return div.innerHTML;
+                            };
+
+                            window.clearPastedParticipantMatches =
+                                (button) => {
+                                    const form =
+                                        button.closest('form');
+
+                                    if (! form) {
+                                        return;
+                                    }
+
+                                    form
+                                        .querySelectorAll(
+                                            'input[data-paste-selected="1"]'
+                                        )
+                                        .forEach(
+                                            (checkbox) => {
+                                                checkbox.checked =
+                                                    false;
+
+                                                delete checkbox.dataset
+                                                    .pasteSelected;
+                                            }
+                                        );
+
+                                    const results =
+                                        form.querySelector(
+                                            '[data-pasted-participant-results]'
+                                        );
+
+                                    if (results) {
+                                        results.innerHTML = '';
+                                        results.classList.add(
+                                            'hidden'
+                                        );
+                                    }
+                                };
+
+                            window.matchPastedParticipantList =
+                                (button) => {
+                                    const form =
+                                        button.closest('form');
+
+                                    if (! form) {
+                                        return;
+                                    }
+
+                                    const textarea =
+                                        form.querySelector(
+                                            '[data-pasted-participants]'
+                                        );
+
+                                    const results =
+                                        form.querySelector(
+                                            '[data-pasted-participant-results]'
+                                        );
+
+                                    if (
+                                        ! textarea
+                                        ||
+                                        ! results
+                                    ) {
+                                        return;
+                                    }
+
+                                    /*
+                                     * Clear only selections made by the
+                                     * previous pasted-list run. Manually
+                                     * checked People remain untouched.
+                                     */
+                                    form
+                                        .querySelectorAll(
+                                            'input[data-paste-selected="1"]'
+                                        )
+                                        .forEach(
+                                            (checkbox) => {
+                                                checkbox.checked =
+                                                    false;
+
+                                                delete checkbox.dataset
+                                                    .pasteSelected;
+                                            }
+                                        );
+
+                                    const names =
+                                        textarea.value
+                                            .split(/\r?\n/)
+                                            .map(
+                                                (line) =>
+                                                    line
+                                                        .replace(
+                                                            /^\s*\d+\s*[\.\)\-:]?\s*/,
+                                                            ''
+                                                        )
+                                                        .trim()
+                                            )
+                                            .filter(Boolean);
+
+                                    if (! names.length) {
+                                        results.innerHTML =
+                                            '<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">Paste at least one name first.</div>';
+
+                                        results.classList.remove(
+                                            'hidden'
+                                        );
+
+                                        return;
+                                    }
+
+                                    const people =
+                                        Array.from(
+                                            form.querySelectorAll(
+                                                '[data-person-card]'
+                                            )
+                                        )
+                                            .map(
+                                                (card) => ({
+                                                    card,
+                                                    name:
+                                                        card.dataset
+                                                            .personName
+                                                        ?? '',
+                                                    nickname:
+                                                        card.dataset
+                                                            .personNickname
+                                                        ?? '',
+                                                    checkbox:
+                                                        card.querySelector(
+                                                            'input[name="person_ids[]"]'
+                                                        ),
+                                                })
+                                            )
+                                            .filter(
+                                                (person) =>
+                                                    person.checkbox
+                                            );
+
+                                    const existingParticipants =
+                                        Array.from(
+                                            document.querySelectorAll(
+                                                '[data-existing-participant]'
+                                            )
+                                        )
+                                            .map(
+                                                (element) => ({
+                                                    name:
+                                                        element.dataset
+                                                            .personName
+                                                        ?? '',
+                                                    nickname:
+                                                        element.dataset
+                                                            .personNickname
+                                                        ?? '',
+                                                })
+                                            );
+
+                                    const bestScoreForPerson = (
+                                        inputName,
+                                        person
+                                    ) => {
+                                        const nameScore =
+                                            participantMatchScore(
+                                                inputName,
+                                                person.name
+                                            );
+
+                                        const nicknameScore =
+                                            person.nickname
+                                                ? participantMatchScore(
+                                                    inputName,
+                                                    person.nickname
+                                                )
+                                                : 0;
+
+                                        /*
+                                         * Also allow a pasted value such as
+                                         * "Gilbert Jun Aguila" to benefit from
+                                         * the nickname being present between
+                                         * the normal name tokens.
+                                         */
+                                        const combinedScore =
+                                            person.nickname
+                                                ? participantMatchScore(
+                                                    inputName,
+                                                    `${person.name} ${person.nickname}`
+                                                )
+                                                : 0;
+
+                                        return Math.max(
+                                            nameScore,
+                                            nicknameScore,
+                                            combinedScore
+                                        );
+                                    };
+
+                                    const matched = [];
+                                    const alreadyParticipant = [];
+                                    const review = [];
+                                    const unmatched = [];
+
+                                    for (
+                                        const inputName
+                                        of names
+                                    ) {
+                                        const existingRanked =
+                                            existingParticipants
+                                                .map(
+                                                    (person) => ({
+                                                        ...person,
+                                                        score:
+                                                            bestScoreForPerson(
+                                                                inputName,
+                                                                person
+                                                            ),
+                                                    })
+                                                )
+                                                .filter(
+                                                    (person) =>
+                                                        person.score >= 0.88
+                                                )
+                                                .sort(
+                                                    (a, b) =>
+                                                        b.score - a.score
+                                                );
+
+                                        if (
+                                            existingRanked.length
+                                            &&
+                                            (
+                                                ! existingRanked[1]
+                                                ||
+                                                existingRanked[0].score
+                                                - existingRanked[1].score
+                                                >= 0.08
+                                            )
+                                        ) {
+                                            alreadyParticipant.push({
+                                                inputName,
+                                                candidate:
+                                                    existingRanked[0].name,
+                                            });
+
+                                            continue;
+                                        }
+
+                                        const ranked =
+                                            people
+                                                .map(
+                                                    (person) => ({
+                                                        ...person,
+                                                        score:
+                                                            bestScoreForPerson(
+                                                                inputName,
+                                                                person
+                                                            ),
+                                                    })
+                                                )
+                                                .filter(
+                                                    (person) =>
+                                                        person.score
+                                                        >= 0.55
+                                                )
+                                                .sort(
+                                                    (a, b) =>
+                                                        b.score
+                                                        - a.score
+                                                );
+
+                                        const best =
+                                            ranked[0];
+
+                                        const second =
+                                            ranked[1];
+
+                                        if (! best) {
+                                            unmatched.push(
+                                                {
+                                                    inputName,
+                                                }
+                                            );
+
+                                            continue;
+                                        }
+
+                                        /*
+                                         * One-word names are deliberately
+                                         * never auto-selected.
+                                         *
+                                         * They are too easy to confuse
+                                         * with another Person.
+                                         */
+                                        const tokenCount =
+                                            participantNameTokens(
+                                                inputName
+                                            ).length;
+
+                                        const safelyUnique =
+                                            ! second
+                                            ||
+                                            (
+                                                best.score
+                                                - second.score
+                                            ) >= 0.08;
+
+                                        if (
+                                            tokenCount >= 2
+                                            &&
+                                            best.score >= 0.88
+                                            &&
+                                            safelyUnique
+                                        ) {
+                                            best.checkbox.checked =
+                                                true;
+
+                                            best.checkbox.dataset
+                                                .pasteSelected =
+                                                '1';
+
+                                            matched.push(
+                                                {
+                                                    inputName,
+                                                    candidate:
+                                                        best.name,
+                                                }
+                                            );
+
+                                            continue;
+                                        }
+
+                                        review.push(
+                                            {
+                                                inputName,
+                                                suggestions:
+                                                    ranked
+                                                        .slice(
+                                                            0,
+                                                            3
+                                                        )
+                                                        .map(
+                                                            (
+                                                                candidate
+                                                            ) =>
+                                                                candidate.name
+                                                        ),
+                                            }
+                                        );
+                                    }
+
+                                    const matchedHtml =
+                                        matched.length
+                                            ? `
+                                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950">
+                                                    <p class="text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                                                        Matched and checked: ${matched.length}
+                                                    </p>
+
+                                                    <div class="mt-2 space-y-1 text-xs text-emerald-700 dark:text-emerald-300">
+                                                        ${matched
+                                                            .map(
+                                                                (item) =>
+                                                                    `<p>✓ ${escapeParticipantHtml(item.inputName)} → <strong>${escapeParticipantHtml(item.candidate)}</strong></p>`
+                                                            )
+                                                            .join('')}
+                                                    </div>
+                                                </div>
+                                            `
+                                            : '';
+
+                                    const alreadyParticipantHtml =
+                                        alreadyParticipant.length
+                                            ? `
+                                                <div class="rounded-lg border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950">
+                                                    <p class="text-xs font-bold text-sky-800 dark:text-sky-200">
+                                                        Already Participant: ${alreadyParticipant.length}
+                                                    </p>
+
+                                                    <div class="mt-2 space-y-1 text-xs text-sky-700 dark:text-sky-300">
+                                                        ${alreadyParticipant
+                                                            .map(
+                                                                (item) =>
+                                                                    `<p>✓ ${escapeParticipantHtml(item.inputName)} → <strong>${escapeParticipantHtml(item.candidate)}</strong></p>`
+                                                            )
+                                                            .join('')}
+                                                    </div>
+                                                </div>
+                                            `
+                                            : '';
+
+                                    const reviewHtml =
+                                        review.length
+                                            ? `
+                                                <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                                                    <p class="text-xs font-bold text-amber-800 dark:text-amber-200">
+                                                        Needs your review: ${review.length}
+                                                    </p>
+
+                                                    <div class="mt-2 space-y-2 text-xs text-amber-700 dark:text-amber-300">
+                                                        ${review
+                                                            .map(
+                                                                (item) => `
+                                                                    <div>
+                                                                        <strong>? ${escapeParticipantHtml(item.inputName)}</strong>
+
+                                                                        <div class="mt-0.5">
+                                                                            Suggested:
+                                                                            ${
+                                                                                item.suggestions.length
+                                                                                    ? item.suggestions
+                                                                                        .map(
+                                                                                            escapeParticipantHtml
+                                                                                        )
+                                                                                        .join(' · ')
+                                                                                    : 'No safe suggestion'
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                `
+                                                            )
+                                                            .join('')}
+                                                    </div>
+                                                </div>
+                                            `
+                                            : '';
+
+                                    const unmatchedHtml =
+                                        unmatched.length
+                                            ? `
+                                                <div class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+                                                    <p class="text-xs font-bold text-red-800 dark:text-red-200">
+                                                        No safe match: ${unmatched.length}
+                                                    </p>
+
+                                                    <div class="mt-2 space-y-1 text-xs text-red-700 dark:text-red-300">
+                                                        ${unmatched
+                                                            .map(
+                                                                (item) =>
+                                                                    `<p>! ${escapeParticipantHtml(item.inputName)}</p>`
+                                                            )
+                                                            .join('')}
+                                                    </div>
+                                                </div>
+                                            `
+                                            : '';
+
+                                    results.innerHTML = `
+                                        <div class="space-y-2">
+                                            <div class="text-xs font-semibold text-sky-800 dark:text-sky-200">
+                                                Parsed ${names.length} name(s).
+                                                Review the checked People below,
+                                                then use Add Selected People.
+                                            </div>
+
+                                            ${matchedHtml}
+                                            ${alreadyParticipantHtml}
+                                            ${reviewHtml}
+                                            ${unmatchedHtml}
+                                        </div>
+                                    `;
+
+                                    results.classList.remove(
+                                        'hidden'
+                                    );
+
+                                    /*
+                                     * Scroll the existing People checklist
+                                     * into view after matching.
+                                     */
+                                    const firstMatched =
+                                        form.querySelector(
+                                            'input[data-paste-selected="1"]'
+                                        );
+
+                                    if (firstMatched) {
+                                        firstMatched
+                                            .closest(
+                                                '[data-person-card]'
+                                            )
+                                            ?.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center',
+                                            });
+                                    }
+                                };
+                        })();
+                    </script>
 
 
                     <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
