@@ -55,10 +55,11 @@ class PrayerMeetingAttendanceController extends Controller
             ]);
         }
 
+        $localityId = (int) $localityRecord->id;
         $locality = $localityRecord->name;
         $storedLocality = $locality;
 
-        $people = $this->peopleForLocality($localityRecord->id);
+        $people = $this->peopleForLocality($localityId);
 
         if ($people->isEmpty()) {
             throw ValidationException::withMessages([
@@ -77,10 +78,10 @@ class PrayerMeetingAttendanceController extends Controller
             ->unique()
             ->values();
 
-        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $meetingDay, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $meetingTime): array {
+        [$sheet, $session, $presentCount, $absentCount] = DB::transaction(function () use ($storedLocality, $locality, $localityId, $meetingDay, $meetingDate, $people, $presentPersonIds, $otherPresentPersonIds, $meetingTime): array {
             $sheet = AttendanceSheet::query()
                 ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-                ->where('locality_id', $locality->id)
+                ->where('locality_id', $localityId)
                 ->first();
 
             if (! $sheet) {
@@ -88,7 +89,7 @@ class PrayerMeetingAttendanceController extends Controller
                     'title' => 'Prayer Meeting - ' . ($storedLocality ?: 'No Locality'),
                     'sheet_type' => AttendanceSheet::TYPE_PRAYER_MEETING,
                     'locality' => $storedLocality,
-                    'locality_id' => $locality->id,
+                    'locality_id' => $localityId,
                     'meeting_day' => $meetingDay,
                 'meeting_time' => $meetingTime,
                     'start_date' => $meetingDate->toDateString(),
@@ -98,7 +99,7 @@ class PrayerMeetingAttendanceController extends Controller
                 ]);
             } else {
                 $updates = [
-                'locality_id' => $locality->id,
+                'locality_id' => $localityId,
                     'is_active' => true,
                     'meeting_day' => $meetingDay,
                     'end_date' => null,

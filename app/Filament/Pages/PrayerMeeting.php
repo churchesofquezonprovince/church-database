@@ -21,12 +21,11 @@ class PrayerMeeting extends Page
 
     public function otherLocalityCandidates(): \Illuminate\Support\Collection
     {
-        $sheet = $this->selectedSheet();
-
-        if (! $sheet) {
-            return collect();
-        }
-
+        /*
+         * Candidate matching does not require the Attendance
+         * Sheet to exist yet. This lets Paste Attendance find
+         * visitors even before the first Session is saved.
+         */
         $visiblePersonIds = $this->people()
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
