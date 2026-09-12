@@ -2,7 +2,6 @@
     <div class="space-y-6">
 
         <details
-            open
             class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
         >
             <summary
@@ -314,4 +313,127 @@
         </details>
 
     </div>
+
+    
+    <!-- Developer Options: Cache & Maintenance -->
+    <x-filament::section>
+        <x-slot name="heading">
+            Cache & Maintenance
+        </x-slot>
+
+        <x-slot name="description">
+            Clear or rebuild cached application data.
+        </x-slot>
+
+        <div class="flex flex-wrap gap-3">
+            <x-filament::button
+                color="gray"
+                icon="heroicon-m-trash"
+                wire:click="clearApplicationCache"
+                wire:confirm="Clear the application cache?"
+            >
+                Clear Application Cache
+            </x-filament::button>
+
+            <x-filament::button
+                color="gray"
+                icon="heroicon-m-trash"
+                wire:click="clearConfigCache"
+                wire:confirm="Clear the configuration cache?"
+            >
+                Clear Config Cache
+            </x-filament::button>
+
+            <x-filament::button
+                color="gray"
+                icon="heroicon-m-trash"
+                wire:click="clearViewCache"
+                wire:confirm="Clear the compiled view cache?"
+            >
+                Clear View Cache
+            </x-filament::button>
+
+            <x-filament::button
+                color="gray"
+                icon="heroicon-m-trash"
+                wire:click="clearRouteCache"
+                wire:confirm="Clear the route cache?"
+            >
+                Clear Route Cache
+            </x-filament::button>
+
+            <x-filament::button
+                color="primary"
+                icon="heroicon-m-arrow-path"
+                wire:click="rebuildCaches"
+                wire:confirm="Clear and rebuild all application optimization caches?"
+            >
+                Rebuild Caches
+            </x-filament::button>
+        </div>
+    </x-filament::section>
+
+<!-- Developer Options: System Information -->
+    <x-filament::section>
+        <x-slot name="heading">
+            System Information
+        </x-slot>
+
+        <x-slot name="description">
+            Current CoQP Database application and server information.
+        </x-slot>
+
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    App Version
+                </div>
+
+                <div class="mt-1 font-mono text-sm text-gray-950 dark:text-white">
+                    {{ $appVersion }}
+                </div>
+            </div>
+
+            <div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Current Phase
+                </div>
+
+                <div class="mt-1 font-mono text-sm text-gray-950 dark:text-white">
+                    {{ $currentPhase }}
+                </div>
+            </div>
+
+            <div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Git Commit
+                </div>
+
+                <div class="mt-1 font-mono text-sm text-gray-950 dark:text-white">
+                    {{ $gitCommitHash }}
+                </div>
+            </div>
+
+            <div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Laravel Version
+                </div>
+
+                <div class="mt-1 font-mono text-sm text-gray-950 dark:text-white">
+                    {{ $laravelVersion }}
+                </div>
+            </div>
+
+            <div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    PHP Version
+                </div>
+
+                <div class="mt-1 font-mono text-sm text-gray-950 dark:text-white">
+                    {{ $phpVersion }}
+                </div>
+            </div>
+        </div>
+    </x-filament::section>
+
 </x-filament-panels::page>

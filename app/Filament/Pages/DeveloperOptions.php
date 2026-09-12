@@ -8,8 +8,23 @@ use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
+use Illuminate\Support\Facades\Process;
+use Throwable;
+use Illuminate\Support\Facades\Artisan;
 class DeveloperOptions extends Page
 {
+
+    // Developer Options: System Information
+    public string $appVersion = 'Not configured';
+
+    public string $currentPhase = 'Not configured';
+
+    public string $gitCommitHash = 'Unavailable';
+
+    public string $laravelVersion = '';
+
+    public string $phpVersion = '';
+
     protected string $view = 'filament.pages.developer-options';
 
     protected static ?string $slug = 'developer-options';
@@ -59,6 +74,7 @@ class DeveloperOptions extends Page
 
     public function mount(): void
     {
+        $this->loadSystemInformation();
         abort_unless(
             auth()->user()?->isAdmin(),
             403
@@ -383,4 +399,104 @@ class DeveloperOptions extends Page
             'label' => (string) $target['label'],
         ];
     }
+
+    protected function loadSystemInformation(): void
+    {
+        $this->appVersion = config('app.version', 'Not configured');
+        $this->currentPhase = config('app.phase', 'Not configured');
+        $this->laravelVersion = app()->version();
+        $this->phpVersion = PHP_VERSION;
+
+        try {
+            $result = Process::path(base_path())
+                ->run('git rev-parse --short HEAD');
+
+            if ($result->successful()) {
+                $hash = trim($result->output());
+
+                if ($hash !== '') {
+                    $this->gitCommitHash = $hash;
+                }
+            }
+        } catch (Throwable $e) {
+            $this->gitCommitHash = 'Unavailable';
+        }
+    }
+
+
+    // Developer Options: Cache & Maintenance
+
+    public function clearApplicationCache(): void
+    {
+        $this->runMaintenanceCommand(
+            'cache:clear',
+            'Application cache cleared successfully.'
+        );
+    }
+
+    public function clearConfigCache(): void
+    {
+        $this->runMaintenanceCommand(
+            'config:clear',
+            'Configuration cache cleared successfully.'
+        );
+    }
+
+    public function clearViewCache(): void
+    {
+        $this->runMaintenanceCommand(
+            'view:clear',
+            'Compiled view cache cleared successfully.'
+        );
+    }
+
+    public function clearRouteCache(): void
+    {
+        $this->runMaintenanceCommand(
+            'route:clear',
+            'Route cache cleared successfully.'
+        );
+    }
+
+    public function rebuildCaches(): void
+    {
+        try {
+            Artisan::call('optimize:clear');
+            Artisan::call('optimize');
+
+            Notification::make()
+                ->title('Caches rebuilt')
+                ->body('Application optimization caches were rebuilt successfully.')
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            Notification::make()
+                ->title('Cache rebuild failed')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    protected function runMaintenanceCommand(
+        string $command,
+        string $successMessage
+    ): void {
+        try {
+            Artisan::call($command);
+
+            Notification::make()
+                ->title('Maintenance completed')
+                ->body($successMessage)
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            Notification::make()
+                ->title('Maintenance command failed')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
 }
