@@ -76,7 +76,45 @@
 
         <div class="grid gap-5">
             @forelse ($sheets as $sheet)
-                <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <div
+                    @if (! $sheet->is_active)
+                        tabindex="0"
+                        onclick="
+                            if (
+                                event.target.closest(
+                                    'button, a, form, input, select, textarea, summary, details, dialog'
+                                )
+                            ) {
+                                return;
+                            }
+
+                            document
+                                .getElementById(
+                                    'archived-sheet-details-{{ $sheet->id }}'
+                                )
+                                ?.showModal();
+                        "
+                        onkeydown="
+                            if (
+                                event.key === 'Enter'
+                                && event.target === this
+                            ) {
+                                document
+                                    .getElementById(
+                                        'archived-sheet-details-{{ $sheet->id }}'
+                                    )
+                                    ?.showModal();
+                            }
+                        "
+                    @endif
+
+                    @class([
+                        'rounded-2xl border border-gray-200 bg-white p-6 shadow-sm',
+                        'dark:border-gray-700 dark:bg-gray-900',
+                        'cursor-pointer transition hover:border-primary-300 hover:shadow-md dark:hover:border-primary-800'
+                            => ! $sheet->is_active,
+                    ])
+                >
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
@@ -115,6 +153,16 @@
                                 {{ $sheet->sessions_count }} meeting date(s)
                                 · {{ $sheet->participants_count }} participant(s)
                             </p>
+
+                            @if (! $sheet->is_active)
+                                <p
+                                    class="mt-2 text-xs font-semibold
+                                           text-primary-600
+                                           dark:text-primary-300"
+                                >
+                                    Click this archived sheet to view details.
+                                </p>
+                            @endif
                         </div>
 
                         <div class="flex flex-wrap gap-2">
@@ -155,6 +203,395 @@
                             @endif
                         </div>
                     </div>
+
+                    @if (! $sheet->is_active)
+                        <dialog
+                            id="archived-sheet-details-{{ $sheet->id }}"
+                            onclick="
+                                if (event.target === this) {
+                                    this.close();
+                                }
+                            "
+                            class="m-auto max-h-[90vh] w-[calc(100%-2rem)]
+                                   max-w-3xl overflow-y-auto rounded-2xl
+                                   border border-gray-200 bg-white p-0
+                                   shadow-2xl backdrop:bg-black/60
+                                   dark:border-gray-700 dark:bg-gray-900"
+                        >
+                            <div
+                                class="relative w-full"
+                            >
+                                <div
+                                    class="sticky top-0 z-10 flex
+                                           items-start justify-between
+                                           gap-4 border-b
+                                           border-gray-200 bg-white
+                                           p-5
+                                           dark:border-gray-700
+                                           dark:bg-gray-900"
+                                >
+                                    <div class="min-w-0">
+                                        <div
+                                            class="flex flex-wrap
+                                                   items-center gap-2"
+                                        >
+                                            <h2
+                                                class="break-words
+                                                       text-xl font-bold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->title }}
+                                            </h2>
+
+                                            <span
+                                                class="rounded-full
+                                                       bg-gray-200
+                                                       px-2.5 py-1
+                                                       text-xs font-bold
+                                                       text-gray-700
+                                                       dark:bg-gray-800
+                                                       dark:text-gray-200"
+                                            >
+                                                Archived
+                                            </span>
+
+                                            <span
+                                                class="rounded-full
+                                                       px-2.5 py-1
+                                                       text-xs font-bold
+                                                       {{ $sheet->attendanceModeBadgeClass() }}"
+                                            >
+                                                {{ $sheet->attendanceModeLabel() }}
+                                            </span>
+                                        </div>
+
+                                        <p
+                                            class="mt-1 text-sm
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            Read-only Attendance Sheet details
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onclick="
+                                            event.stopPropagation();
+                                            this.closest('dialog').close();
+                                        "
+                                        class="shrink-0 rounded-lg
+                                               border border-gray-300
+                                               bg-white px-3 py-2
+                                               text-sm font-bold
+                                               text-gray-700
+                                               hover:bg-gray-100
+                                               dark:border-gray-700
+                                               dark:bg-gray-800
+                                               dark:text-gray-200
+                                               dark:hover:bg-gray-700"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+
+                                <div class="space-y-6 p-5">
+                                    <div
+                                        class="grid gap-4
+                                               sm:grid-cols-2"
+                                    >
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Locality
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->locality ?: 'No Locality' }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Scheduling Mode
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->attendanceModeLabel() }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Date Range
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->dateRangeLabel() }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Meeting Time
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->meetingTimeLabel() }}
+
+                                                @if (filled($sheet->end_time))
+                                                    –
+                                                    {{
+                                                        \Carbon\Carbon::parse(
+                                                            $sheet->end_time
+                                                        )->format('g:i A')
+                                                    }}
+                                                @endif
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Meeting Dates
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->sessions_count }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Participant Records
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->participants_count }}
+                                            </p>
+                                        </div>
+
+                                        <div
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950
+                                                   sm:col-span-2"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Meeting Form
+                                            </p>
+
+                                            <p
+                                                class="mt-1 font-semibold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $sheet->meetingFormLabel() }}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div
+                                            class="flex items-center
+                                                   justify-between gap-3"
+                                        >
+                                            <h3
+                                                class="text-sm font-bold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                Session Dates
+                                            </h3>
+
+                                            <span
+                                                class="rounded-full
+                                                       bg-gray-100
+                                                       px-2.5 py-1
+                                                       text-xs font-bold
+                                                       text-gray-600
+                                                       dark:bg-gray-800
+                                                       dark:text-gray-300"
+                                            >
+                                                {{ $sheet->sessions->count() }}
+                                            </span>
+                                        </div>
+
+                                        <div class="mt-3 space-y-2">
+                                            @forelse ($sheet->sessions as $session)
+                                                <div
+                                                    class="rounded-lg border
+                                                           border-gray-200
+                                                           bg-gray-50
+                                                           px-4 py-3
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-950"
+                                                >
+                                                    <p
+                                                        class="font-semibold
+                                                               text-gray-900
+                                                               dark:text-white"
+                                                    >
+                                                        {{ $session->dateTimeLabel() }}
+                                                    </p>
+                                                </div>
+                                            @empty
+                                                <div
+                                                    class="rounded-lg border
+                                                           border-dashed
+                                                           border-gray-300
+                                                           p-4 text-center
+                                                           text-sm
+                                                           text-gray-500
+                                                           dark:border-gray-700
+                                                           dark:text-gray-400"
+                                                >
+                                                    No Session dates recorded.
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h3
+                                            class="text-sm font-bold
+                                                   text-gray-900
+                                                   dark:text-white"
+                                        >
+                                            Remarks
+                                        </h3>
+
+                                        <div
+                                            class="mt-3 rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50 p-4
+                                                   text-sm text-gray-700
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950
+                                                   dark:text-gray-300"
+                                        >
+                                            {{
+                                                filled($sheet->remarks)
+                                                    ? $sheet->remarks
+                                                    : 'No remarks.'
+                                            }}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="rounded-xl border
+                                               border-amber-200
+                                               bg-amber-50 p-4
+                                               text-sm text-amber-800
+                                               dark:border-amber-900
+                                               dark:bg-amber-950
+                                               dark:text-amber-200"
+                                    >
+                                        This Attendance Sheet is archived
+                                        and shown in read-only mode.
+                                        Restore it to manage its settings
+                                        and meeting forms again.
+                                    </div>
+                                </div>
+                            </div>
+                        </dialog>
+                    @endif
 
                     @if ($sheet->is_active)
 <details class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
