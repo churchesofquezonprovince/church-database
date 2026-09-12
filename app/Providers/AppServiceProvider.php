@@ -8,6 +8,8 @@ use App\Observers\PersonObserver;
 use App\Observers\HouseholdObserver;
 use App\Models\Person;
 use App\Models\Household;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +30,13 @@ class AppServiceProvider extends ServiceProvider
         Schedule::observe(ScheduleObserver::class);
         Person::observe(PersonObserver::class);
         Household::observe(HouseholdObserver::class);
-        //
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::BODY_END,
+            fn (): string =>
+                view(
+                    'filament.components.back-to-top'
+                )->render(),
+        );
     }
 }
