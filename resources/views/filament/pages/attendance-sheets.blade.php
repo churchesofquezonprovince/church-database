@@ -96,7 +96,12 @@
         </p>
 
         <p class="mt-1 text-sm">
-            Historical attendance and Immich records were preserved.
+            @if (session('attendance_participant_removed_record'))
+    The selected Session's non-present attendance record was also removed.
+    Attendance from other Sessions and Immich detection history were preserved.
+@else
+    Attendance from other Sessions and Immich detection history were preserved.
+@endif
         </p>
     </div>
 @endif

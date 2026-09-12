@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AttendanceImmichAssetDetection;
 use App\Models\AttendanceRecord;
 use Illuminate\Support\Facades\DB;
 use App\Models\AttendanceParticipant;
@@ -10,6 +9,7 @@ use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceSheetParticipantController extends Controller
 {
@@ -67,11 +67,15 @@ public function destroy(
     AttendanceSheet $sheet,
     AttendanceParticipant $participant
 ): RedirectResponse {
-    abort_unless(auth()->user()?->canManageRecords(), 403);
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
 
     abort_unless(
-        (int) $participant->attendance_sheet_id === (int) $sheet->id,
-        404,
+        (int) $participant->attendance_sheet_id
+        === (int) $sheet->id,
+        404
     );
 
     $data = $request->validate([
@@ -87,129 +91,212 @@ public function destroy(
             ? (int) $data['attendance_session_id']
             : null;
 
+    $session = null;
+
+    if ($sessionId) {
+        $session =
+            $sheet->sessions()
+                ->whereKey($sessionId)
+                ->first();
+
+        abort_unless(
+            $session,
+            404
+        );
+    }
+
+    $attendanceRecord = null;
+
+    if ($session) {
+        $attendanceRecord =
+            AttendanceRecord::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'person_id',
+                    $participant->person_id
+                )
+                ->first();
+    }
+
+    $isAttended =
+        $attendanceRecord
+        && (
+            (bool) $attendanceRecord->is_present
+            || in_array(
+                (string) $attendanceRecord->status,
+                [
+                    'present',
+                    'late',
+                ],
+                true
+            )
+        );
+
+    $isImmichPresent =
+        $isAttended
+        && $attendanceRecord->attendance_source
+            === AttendanceRecord::SOURCE_IMMICH;
+
     /*
-     * The Session comes from the Attendance Sheets page currently
-     * being viewed. Never allow a Session belonging to another
-     * Attendance Sheet to affect this removal.
+     * A manual Present/Late record is durable attendance history.
+     *
+     * Removing a Participant must not silently erase a real
+     * administrator-confirmed attendance fact.
+     *
+     * Immich Present remains removable because that action is
+     * also our explicit false-positive correction workflow.
      */
     if (
-        $sessionId
-        &&
-        ! $sheet
-            ->sessions()
-            ->whereKey($sessionId)
-            ->exists()
+        $isAttended
+        && ! $isImmichPresent
     ) {
-        abort(404);
+        throw ValidationException::withMessages([
+            'attendance_participant' =>
+                'This participant is marked Present for '
+                . $session->session_date->format('M d, Y')
+                . '. Clear their attendance in Check Attendance '
+                . 'and Save Attendance before removing them '
+                . 'from Participants.',
+        ]);
     }
 
     $oldValues = [
-        'sheet_id' => $sheet->id,
-        'sheet_title' => $sheet->title,
-        'participant_id' => $participant->id,
-        'person_id' => $participant->person_id,
-        'starts_on' => optional($participant->starts_on)->format('Y-m-d'),
-        'ends_on' => optional($participant->ends_on)->format('Y-m-d'),
-        'is_active' => $participant->is_active,
-        'attendance_session_id' => $sessionId,
+        'sheet_id' =>
+            $sheet->id,
+
+        'sheet_title' =>
+            $sheet->title,
+
+        'participant_id' =>
+            $participant->id,
+
+        'person_id' =>
+            $participant->person_id,
+
+        'starts_on' =>
+            optional(
+                $participant->starts_on
+            )->format('Y-m-d'),
+
+        'ends_on' =>
+            optional(
+                $participant->ends_on
+            )->format('Y-m-d'),
+
+        'is_active' =>
+            (bool) $participant->is_active,
+
+        'attendance_session_id' =>
+            $sessionId,
+
+        'selected_session_attendance_status' =>
+            $attendanceRecord?->status,
+
+        'selected_session_attendance_source' =>
+            $attendanceRecord?->attendance_source,
+
+        'selected_session_is_present' =>
+            $attendanceRecord
+                ? (bool) $attendanceRecord->is_present
+                : null,
     ];
 
-    $correctedImmichAttendance = false;
+    $removedNonPresentAttendance = false;
+    $removedImmichPresent = false;
 
     DB::transaction(
         function () use (
             $participant,
-            $sessionId,
-            &$correctedImmichAttendance,
+            $attendanceRecord,
+            $isImmichPresent,
+            &$removedNonPresentAttendance,
+            &$removedImmichPresent,
         ): void {
-            /*
-             * Removing a Person from the Attendance Sheet
-             * deactivates their roster membership.
-             *
-             * Keeping the row prevents historical AttendanceRecords
-             * or a later Immich synchronization from silently
-             * resurrecting somebody who was explicitly removed.
-             *
-             * Historical AttendanceRecord and Immich detection data must
-             * remain intact.
-             */
             $participant->update([
                 'is_active' => false,
             ]);
 
-            /*
-             * If this Person was marked PRESENT by Immich for the
-             * Session currently being viewed, removing them here is
-             * treated as an administrator correction for THIS
-             * Session only.
-             *
-             * Do not delete the AttendanceRecord or Immich detection
-             * history. Convert the attendance fact to a manual ABSENT
-             * decision so a later Immich sync cannot silently restore
-             * the false-positive attendance.
-             *
-             * Attendance from every other Session is untouched.
-             */
-            if ($sessionId) {
-                $record =
-                    AttendanceRecord::query()
-                        ->where(
-                            'attendance_session_id',
-                            $sessionId
-                        )
-                        ->where(
-                            'person_id',
-                            $participant->person_id
-                        )
-                        ->where(
-                            'attendance_source',
-                            AttendanceRecord::SOURCE_IMMICH
-                        )
-                        ->where(
-                            'is_present',
-                            true
-                        )
-                        ->first();
-
-                if ($record) {
-                    /*
-                     * This Immich detection was explicitly rejected
-                     * by an administrator.
-                     *
-                     * AttendanceImmichAssetDetection remains intact
-                     * as the audit trail. The AttendanceRecord itself
-                     * must not become an ABSENT attendance fact,
-                     * because the Person was not actually part of
-                     * this Session's attendance.
-                     */
-                    $record->delete();
-
-                    $correctedImmichAttendance =
-                        true;
-                }
+            if (! $attendanceRecord) {
+                return;
             }
-        },
+
+            /*
+             * Immich false-positive correction:
+             *
+             * remove this selected Session's generated attendance
+             * fact, while AttendanceImmichAssetDetection remains
+             * untouched as historical detection evidence.
+             */
+            if ($isImmichPresent) {
+                $attendanceRecord->delete();
+
+                $removedImmichPresent = true;
+
+                return;
+            }
+
+            /*
+             * Absent / Excused / other non-present state is
+             * roster-dependent.
+             *
+             * Once removed from Participants, this selected
+             * Session record should disappear as well.
+             */
+            $attendanceRecord->delete();
+
+            $removedNonPresentAttendance = true;
+        }
     );
 
     ActivityLogger::log(
-        action: 'attendance_sheet.participant.removed',
-        subject: $sheet,
+        action:
+            'attendance_sheet.participant.removed',
+
+        subject:
+            $sheet,
+
         description:
-            $correctedImmichAttendance
-                ? 'Removed participant from attendance sheet and rejected the selected Session Immich attendance while preserving Immich detection history.'
-                : 'Removed participant from attendance sheet while preserving historical attendance and Immich history.',
-        oldValues: $oldValues,
+            $removedImmichPresent
+                ? 'Removed participant and rejected the selected Session Immich attendance while preserving Immich detection history.'
+                : (
+                    $removedNonPresentAttendance
+                        ? 'Removed participant and cleared the selected Session non-present attendance record.'
+                        : 'Removed participant while preserving attendance history from other Sessions.'
+                ),
+
+        oldValues:
+            $oldValues,
+
         newValues: [
             'attendance_session_id' =>
                 $sessionId,
 
-            'selected_session_immich_attendance_corrected' =>
-                $correctedImmichAttendance,
+            'selected_session_non_present_record_removed' =>
+                $removedNonPresentAttendance,
+
+            'selected_session_immich_present_removed' =>
+                $removedImmichPresent,
+
+            'participant_is_active' =>
+                false,
         ],
     );
 
     return back()
-        ->with('attendance_participant_removed', true);
+        ->with(
+            'attendance_participant_removed',
+            true
+        )
+        ->with(
+            'attendance_participant_removed_record',
+            $removedNonPresentAttendance
+        )
+        ->with(
+            'attendance_participant_removed_immich',
+            $removedImmichPresent
+        );
 }
-
 }

@@ -130,6 +130,16 @@ public function update(
             'date_format:H:i',
         ],
 
+        'end_time' => [
+            'nullable',
+            'date_format:H:i',
+        ],
+
+        'schedule_type' => [
+            'required',
+            'in:recurring,one_time,consecutive,manual',
+        ],
+
         'is_one_time' => [
             'nullable',
             'boolean',
@@ -141,7 +151,7 @@ public function update(
         ],
 
         'start_date' => [
-            'required',
+            'nullable',
             'date',
         ],
 
@@ -171,54 +181,98 @@ public function update(
         }
     }
 
+    $scheduleType =
+        $data['schedule_type'];
+
     $isOneTime =
-        $request->boolean('is_one_time');
+        $scheduleType
+        === AttendanceSheet::SCHEDULE_ONE_TIME;
 
-    $startDate =
-        CarbonImmutable::parse(
-            $data['start_date']
-        )->startOfDay();
+    $meetingTime =
+        blank($data['meeting_time'] ?? null)
+            ? null
+            : $data['meeting_time'];
 
-    if ($isOneTime) {
-        /*
-         * One-time sheets use exactly the selected
-         * Start Date / Meeting Date.
-         */
-        $meetingDay =
-            $startDate->dayOfWeek;
+    $endTime =
+        blank($data['end_time'] ?? null)
+            ? null
+            : $data['end_time'];
 
-        $endDate =
-            $startDate;
+    if (
+        $meetingTime !== null
+        && $endTime !== null
+        && $endTime <= $meetingTime
+    ) {
+        throw ValidationException::withMessages([
+            'end_time' =>
+                'End Time must be later than Start Time.',
+        ]);
+    }
+
+    $meetingDay = null;
+    $startDate = null;
+    $endDate = null;
+    $desiredDates = [];
+
+    if (
+        $scheduleType
+        === AttendanceSheet::SCHEDULE_ONE_TIME
+    ) {
+        if (blank($data['start_date'] ?? null)) {
+            throw ValidationException::withMessages([
+                'start_date' =>
+                    'Meeting Date is required for One-time Attendance.',
+            ]);
+        }
+
+        $startDate =
+            CarbonImmutable::parse(
+                $data['start_date']
+            )->startOfDay();
+
+        $endDate = $startDate;
+        $meetingDay = $startDate->dayOfWeek;
 
         $desiredDates = [
             $startDate->toDateString(),
         ];
-    } else {
-        if (
-            blank($data['meeting_day'] ?? null)
-        ) {
+    } elseif (
+        $scheduleType
+        === AttendanceSheet::SCHEDULE_RECURRING
+    ) {
+        if (blank($data['start_date'] ?? null)) {
             throw ValidationException::withMessages([
-                'meeting_day' =>
-                    'Meeting day is required for recurring attendance sheets.',
+                'start_date' =>
+                    'Start Date is required for Recurring Weekly.',
             ]);
         }
 
-        if (
-            blank($data['end_date'] ?? null)
-        ) {
+        if (blank($data['end_date'] ?? null)) {
             throw ValidationException::withMessages([
                 'end_date' =>
-                    'End date is required for recurring attendance sheets.',
+                    'End Date is required for Recurring Weekly.',
             ]);
         }
 
-        $meetingDay =
-            (int) $data['meeting_day'];
+        if (blank($data['meeting_day'] ?? null)) {
+            throw ValidationException::withMessages([
+                'meeting_day' =>
+                    'Meeting Day is required for Recurring Weekly.',
+            ]);
+        }
+
+        $startDate =
+            CarbonImmutable::parse(
+                $data['start_date']
+            )->startOfDay();
 
         $endDate =
             CarbonImmutable::parse(
                 $data['end_date']
             )->startOfDay();
+
+        $meetingDay =
+            (int) $data['meeting_day'];
 
         if (
             $startDate->diffInMonths($endDate)
@@ -236,19 +290,99 @@ public function update(
                 endDate: $endDate,
                 meetingDay: $meetingDay,
             );
-
-        if ($desiredDates === []) {
+    } elseif (
+        $scheduleType
+        === AttendanceSheet::SCHEDULE_CONSECUTIVE
+    ) {
+        if (blank($data['start_date'] ?? null)) {
             throw ValidationException::withMessages([
-                'meeting_day' =>
-                    'No meeting dates were found in the selected date range.',
+                'start_date' =>
+                    'Start Date is required for Consecutive Days.',
             ]);
+        }
+
+        if (blank($data['end_date'] ?? null)) {
+            throw ValidationException::withMessages([
+                'end_date' =>
+                    'End Date is required for Consecutive Days.',
+            ]);
+        }
+
+        $startDate =
+            CarbonImmutable::parse(
+                $data['start_date']
+            )->startOfDay();
+
+        $endDate =
+            CarbonImmutable::parse(
+                $data['end_date']
+            )->startOfDay();
+
+        if (
+            $startDate->diffInMonths($endDate)
+            > 18
+        ) {
+            throw ValidationException::withMessages([
+                'end_date' =>
+                    'Attendance sheet date range must not exceed 18 months.',
+            ]);
+        }
+
+        $current = $startDate;
+
+        while (
+            $current->lessThanOrEqualTo($endDate)
+        ) {
+            $desiredDates[] =
+                $current->toDateString();
+
+            $current =
+                $current->addDay();
+        }
+    } else {
+        /*
+         * Manual Dates are already stored as Sessions.
+         * Editing Sheet Details must not regenerate them.
+         */
+        $desiredDates =
+            $sheet->sessions()
+                ->orderBy('session_date')
+                ->orderBy('id')
+                ->get()
+                ->map(
+                    fn (AttendanceSession $session): string =>
+                        $session->session_date
+                            ->format('Y-m-d')
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        if ($desiredDates !== []) {
+            $startDate =
+                CarbonImmutable::parse(
+                    $desiredDates[0]
+                );
+
+            $endDate =
+                CarbonImmutable::parse(
+                    $desiredDates[
+                        count($desiredDates) - 1
+                    ]
+                );
         }
     }
 
-    $meetingTime =
-        blank($data['meeting_time'] ?? null)
-            ? null
-            : $data['meeting_time'];
+    if (
+        $desiredDates === []
+        && $scheduleType
+            !== AttendanceSheet::SCHEDULE_MANUAL
+    ) {
+        throw ValidationException::withMessages([
+            'schedule_type' =>
+                'No Session dates were found for this schedule.',
+        ]);
+    }
 
     /*
      * Work out which existing sessions would disappear
@@ -355,6 +489,12 @@ public function update(
         'meeting_time' =>
             $sheet->meeting_time,
 
+        'end_time' =>
+            $sheet->end_time,
+
+        'schedule_type' =>
+            $sheet->schedule_type,
+
         'is_one_time' =>
             (bool) $sheet->is_one_time,
 
@@ -381,7 +521,9 @@ public function update(
             $sheet,
             $data,
             $meetingTime,
+            $endTime,
             $meetingDay,
+            $scheduleType,
             $isOneTime,
             $startDate,
             $endDate,
@@ -406,6 +548,12 @@ public function update(
                 'meeting_time' =>
                     $meetingTime,
 
+                'end_time' =>
+                    $endTime,
+
+                'schedule_type' =>
+                    $scheduleType,
+
                 'is_one_time' =>
                     $isOneTime,
 
@@ -413,12 +561,10 @@ public function update(
                     $data['meeting_form_type'],
 
                 'start_date' =>
-                    $startDate->toDateString(),
+                    $startDate?->toDateString(),
 
                 'end_date' =>
-                    $isOneTime
-                        ? $startDate->toDateString()
-                        : $endDate->toDateString(),
+                    $endDate?->toDateString(),
 
                 'remarks' =>
                     blank($data['remarks'] ?? null)
@@ -461,6 +607,9 @@ public function update(
                                 'session_time' =>
                                     $meetingTime,
 
+                                'session_end_time' =>
+                                    $endTime,
+
                                 'title' =>
                                     $sheet->title
                                     . ' - '
@@ -484,11 +633,16 @@ public function update(
                  */
                 if (
                     $session->session_time
-                    !== $meetingTime
+                        !== $meetingTime
+                    || $session->session_end_time
+                        !== $endTime
                 ) {
                     $session->forceFill([
                         'session_time' =>
                             $meetingTime,
+
+                        'session_end_time' =>
+                            $endTime,
                     ])->save();
                 }
             }
@@ -527,6 +681,12 @@ public function update(
 
             'meeting_time' =>
                 $sheet->meeting_time,
+
+            'end_time' =>
+                $sheet->end_time,
+
+            'schedule_type' =>
+                $sheet->schedule_type,
 
             'is_one_time' =>
                 (bool) $sheet->is_one_time,

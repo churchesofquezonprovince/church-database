@@ -50,52 +50,62 @@ class AttendanceMeetingResponseParticipantController extends Controller
             abort(404);
         }
 
-        $session = AttendanceSession::query()
-            ->findOrFail(
-                $response->attendance_session_id
-            );
+        $session =
+            AttendanceSession::query()
+                ->findOrFail(
+                    $response->attendance_session_id
+                );
 
         $sessionDate =
-            $session->session_date->copy()->startOfDay();
-
-        $participant = AttendanceParticipant::query()
-            ->where(
-                'attendance_sheet_id',
-                $session->attendance_sheet_id
-            )
-            ->where(
-                'person_id',
-                $response->person_id
-            )
-            ->first();
+            $session->session_date
+                ->copy()
+                ->startOfDay();
 
         $scope =
             $data['participant_scope'];
 
+        $desiredStart =
+            $sessionDate->toDateString();
+
+        $desiredEnd =
+            $scope === 'this_meeting'
+                ? $sessionDate->toDateString()
+                : null;
+
+        $participant =
+            AttendanceParticipant::query()
+                ->where(
+                    'attendance_sheet_id',
+                    $session->attendance_sheet_id
+                )
+                ->where(
+                    'person_id',
+                    $response->person_id
+                )
+                ->first();
+
         /*
-         * No existing participant:
-         * straightforward creation.
+         * No Participant row yet.
          */
         if (! $participant) {
             $participant =
-                AttendanceParticipant::query()->create([
-                    'attendance_sheet_id' =>
-                        $session->attendance_sheet_id,
+                AttendanceParticipant::query()
+                    ->create([
+                        'attendance_sheet_id' =>
+                            $session->attendance_sheet_id,
 
-                    'person_id' =>
-                        $response->person_id,
+                        'person_id' =>
+                            $response->person_id,
 
-                    'starts_on' =>
-                        $sessionDate->toDateString(),
+                        'starts_on' =>
+                            $desiredStart,
 
-                    'ends_on' =>
-                        $scope === 'this_meeting'
-                            ? $sessionDate->toDateString()
-                            : null,
+                        'ends_on' =>
+                            $desiredEnd,
 
-                    'is_active' =>
-                        true,
-                ]);
+                        'is_active' =>
+                            true,
+                    ]);
 
             $this->logEnrollment(
                 response: $response,
@@ -112,80 +122,21 @@ class AttendanceMeetingResponseParticipantController extends Controller
         }
 
         /*
-         * Do not silently repurpose an inactive historical
-         * participant row.
-         */
-        if (! $participant->is_active) {
-            return back()->withErrors([
-                'meeting_response_participant' =>
-                    'This Person already has an inactive Attendance Participant record for this sheet. Please manage that participant record before adding them from the pre-listed entry.',
-            ]);
-        }
-
-        $startsOn =
-            $participant->starts_on
-                ?->copy()
-                ?->startOfDay();
-
-        $endsOn =
-            $participant->ends_on
-                ?->copy()
-                ?->startOfDay();
-
-        $coversSession =
-            (! $startsOn || $startsOn->lte($sessionDate))
-            &&
-            (! $endsOn || $endsOn->gte($sessionDate));
-
-        /*
-         * THIS MEETING ONLY
+         * attendance_participants currently has one row
+         * per Person + Sheet.
          *
-         * If the existing participant already covers this date,
-         * nothing needs to change.
+         * Therefore these two buttons explicitly set the
+         * scope of that existing row.
          *
-         * If their existing range is somewhere else, do not
-         * overwrite it because AttendanceParticipant currently
-         * stores only one date range per Person + Sheet.
-         */
-        if ($scope === 'this_meeting') {
-            if ($coversSession) {
-                return back()
-                    ->with(
-                        'meeting_response_participant_already',
-                        true
-                    )
-                    ->with(
-                        'meeting_response_participant_name',
-                        $response->respondent_name
-                    );
-            }
-
-            return back()->withErrors([
-                'meeting_response_participant' =>
-                    $response->respondent_name
-                    . ' already has a different Attendance Participant date range for this sheet. The existing range was not overwritten.',
-            ]);
-        }
-
-        /*
-         * FROM THIS MEETING ONWARD
+         * This Meeting Only:
+         *     selected date -> selected date
          *
-         * Existing range entirely before this meeting:
-         * we cannot represent both the historical range and the
-         * new onward range without introducing a false gap/range,
-         * so do not overwrite it automatically.
+         * From This Meeting Onward:
+         *     selected date -> no end date
+         *
+         * If the row was previously removed/inactive,
+         * reactivate that same row.
          */
-        if (
-            $endsOn
-            && $endsOn->lt($sessionDate)
-        ) {
-            return back()->withErrors([
-                'meeting_response_participant' =>
-                    $response->respondent_name
-                    . ' already has an earlier Attendance Participant date range for this sheet. The existing historical range was not overwritten.',
-            ]);
-        }
-
         $oldValues = [
             'starts_on' =>
                 $participant->starts_on
@@ -196,40 +147,36 @@ class AttendanceMeetingResponseParticipantController extends Controller
                     ?->format('Y-m-d'),
 
             'is_active' =>
-                $participant->is_active,
+                (bool) $participant->is_active,
         ];
 
-        /*
-         * If their existing range begins after this meeting,
-         * move the start backward to this meeting.
-         *
-         * If it already begins before this meeting, preserve
-         * that earlier start.
-         */
-        if (
-            $startsOn
-            && $startsOn->gt($sessionDate)
-        ) {
-            $participant->starts_on =
-                $sessionDate->toDateString();
-        }
+        $wasInactive =
+            ! (bool) $participant->is_active;
 
-        /*
-         * From this meeting onward means no end date.
-         */
-        $participant->ends_on = null;
-        $participant->is_active = true;
-        $participant->save();
+        $participant->forceFill([
+            'starts_on' =>
+                $desiredStart,
+
+            'ends_on' =>
+                $desiredEnd,
+
+            'is_active' =>
+                true,
+        ])->save();
 
         ActivityLogger::log(
             action:
-                'attendance_meeting_response.participant_extended',
+                $wasInactive
+                    ? 'attendance_meeting_response.participant_reactivated'
+                    : 'attendance_meeting_response.participant_scope_updated',
 
             subject:
                 $participant,
 
             description:
-                'Extended Pre-listed Person attendance participation from meeting onward.',
+                $wasInactive
+                    ? 'Reactivated Pre-listed Person Attendance Participant with the requested meeting scope.'
+                    : 'Updated Pre-listed Person Attendance Participant to the requested meeting scope.',
 
             oldValues:
                 $oldValues,
@@ -255,8 +202,14 @@ class AttendanceMeetingResponseParticipantController extends Controller
                     $participant->ends_on
                         ?->format('Y-m-d'),
 
+                'is_active' =>
+                    (bool) $participant->is_active,
+
                 'scope' =>
                     $scope,
+
+                'reactivated' =>
+                    $wasInactive,
             ],
         );
 

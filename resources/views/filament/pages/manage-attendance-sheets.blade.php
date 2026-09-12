@@ -166,8 +166,17 @@
     action="{{ route('quezonprovinceactivities.attendance-sheets.sheets.update', $sheet) }}"
     class="mt-5 grid gap-4 md:grid-cols-2"
     x-data="{
-        oneTime:
-            {{ $sheet->is_one_time ? 'true' : 'false' }}
+        scheduleType: @js(
+            old(
+                'schedule_type',
+                $sheet->schedule_type
+                ?: (
+                    $sheet->is_one_time
+                        ? \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME
+                        : \App\Models\AttendanceSheet::SCHEDULE_RECURRING
+                )
+            )
+        )
     }"
 >
                             @csrf
@@ -218,130 +227,362 @@
 
 <div class="md:col-span-2">
     <label
-        class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+        class="block text-sm font-semibold
+               text-gray-700 dark:text-gray-200"
     >
-        <input
-            type="checkbox"
-            name="is_one_time"
-            value="1"
-            x-model="oneTime"
-            @checked($sheet->is_one_time)
-            class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-        >
-
-        One-time attendance only
+        Scheduling Mode
     </label>
 
-    <p
-        class="mt-2 text-xs text-gray-500 dark:text-gray-400"
-    >
-        When enabled, Start Date becomes the single
-        meeting date. Empty extra dates can be removed,
-        but dates containing attendance, pre-listed,
-        or Immich history will never be deleted.
+    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        Changing the schedule preserves Sessions containing
+        attendance, pre-listed responses, Immich history,
+        participant preparation, or linked activities.
     </p>
+
+    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl
+                   border border-primary-200 bg-primary-50 p-4
+                   dark:border-primary-900 dark:bg-primary-950"
+        >
+            <input
+                type="radio"
+                name="schedule_type"
+                value="recurring"
+                x-model="scheduleType"
+                @checked(
+                    old('schedule_type', $sheet->schedule_type)
+                    === \App\Models\AttendanceSheet::SCHEDULE_RECURRING
+                )
+                class="mt-1 h-4 w-4"
+            >
+
+            <span>
+                <span class="block font-bold">
+                    Recurring Weekly
+                </span>
+
+                <span class="mt-1 block text-xs">
+                    One selected weekday within a date range.
+                </span>
+            </span>
+        </label>
+
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl
+                   border border-amber-200 bg-amber-50 p-4
+                   dark:border-amber-900 dark:bg-amber-950"
+        >
+            <input
+                type="radio"
+                name="schedule_type"
+                value="one_time"
+                x-model="scheduleType"
+                @checked(
+                    old('schedule_type', $sheet->schedule_type)
+                    === \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME
+                )
+                class="mt-1 h-4 w-4"
+            >
+
+            <span>
+                <span class="block font-bold">
+                    One-time Attendance
+                </span>
+
+                <span class="mt-1 block text-xs">
+                    Exactly one Session from Start Date.
+                </span>
+            </span>
+        </label>
+
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl
+                   border border-emerald-200 bg-emerald-50 p-4
+                   dark:border-emerald-900 dark:bg-emerald-950"
+        >
+            <input
+                type="radio"
+                name="schedule_type"
+                value="consecutive"
+                x-model="scheduleType"
+                @checked(
+                    old('schedule_type', $sheet->schedule_type)
+                    === \App\Models\AttendanceSheet::SCHEDULE_CONSECUTIVE
+                )
+                class="mt-1 h-4 w-4"
+            >
+
+            <span>
+                <span class="block font-bold">
+                    Consecutive Days
+                </span>
+
+                <span class="mt-1 block text-xs">
+                    Every calendar day from Start through End Date.
+                </span>
+            </span>
+        </label>
+
+        <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl
+                   border border-violet-200 bg-violet-50 p-4
+                   dark:border-violet-900 dark:bg-violet-950"
+        >
+            <input
+                type="radio"
+                name="schedule_type"
+                value="manual"
+                x-model="scheduleType"
+                @checked(
+                    old('schedule_type', $sheet->schedule_type)
+                    === \App\Models\AttendanceSheet::SCHEDULE_MANUAL
+                )
+                class="mt-1 h-4 w-4"
+            >
+
+            <span>
+                <span class="block font-bold">
+                    Manual Dates
+                </span>
+
+                <span class="mt-1 block text-xs">
+                    Dates are managed individually in Attendance Sheets.
+                </span>
+            </span>
+        </label>
+    </div>
 </div>
 
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    Time
+                                <label
+                                    class="block text-sm font-semibold
+                                           text-gray-700 dark:text-gray-200"
+                                >
+                                    Start Time
                                 </label>
 
                                 <input
                                     type="time"
                                     name="meeting_time"
-                                    value="{{ substr((string) ($sheet->meeting_time ?? ''), 0, 5) }}"
-                                    class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                    value="{{
+                                        old(
+                                            'meeting_time',
+                                            substr(
+                                                (string) ($sheet->meeting_time ?? ''),
+                                                0,
+                                                5
+                                            )
+                                        )
+                                    }}"
+                                    class="mt-2 block w-full rounded-xl
+                                           border border-gray-300 bg-white
+                                           px-4 py-3 text-sm text-gray-900
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-100"
                                 >
                             </div>
 
-<div x-show="! oneTime">
-    <label
-        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
-    >
-        Meeting Day
-    </label>
+                            <div>
+                                <label
+                                    class="block text-sm font-semibold
+                                           text-gray-700 dark:text-gray-200"
+                                >
+                                    End Time
+                                </label>
 
-    <select
-        name="meeting_day"
-        :disabled="oneTime"
-        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-    >
-        @php
-            $days = [
-                0 => 'Sunday',
-                1 => 'Monday',
-                2 => 'Tuesday',
-                3 => 'Wednesday',
-                4 => 'Thursday',
-                5 => 'Friday',
-                6 => 'Saturday',
-            ];
-        @endphp
+                                <input
+                                    type="time"
+                                    name="end_time"
+                                    value="{{
+                                        old(
+                                            'end_time',
+                                            substr(
+                                                (string) ($sheet->end_time ?? ''),
+                                                0,
+                                                5
+                                            )
+                                        )
+                                    }}"
+                                    class="mt-2 block w-full rounded-xl
+                                           border border-gray-300 bg-white
+                                           px-4 py-3 text-sm text-gray-900
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-100"
+                                >
+                            </div>
 
-        @foreach ($days as $value => $label)
-            <option
-                value="{{ $value }}"
-                @selected(
-                    (int) $sheet->meeting_day
-                    === $value
-                )
-            >
-                {{ $label }}
-            </option>
-        @endforeach
-    </select>
-</div>
+                            <div
+                                class="md:col-span-2"
+                                x-show="scheduleType === 'recurring'"
+                            >
+                                <label
+                                    class="block text-sm font-semibold
+                                           text-gray-700 dark:text-gray-200"
+                                >
+                                    Meeting Day
+                                </label>
 
-<div>
-    <label
-        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
-    >
-        <span x-show="! oneTime">
-            Start Date
-        </span>
+                                <select
+                                    name="meeting_day"
+                                    x-bind:disabled="
+                                        scheduleType !== 'recurring'
+                                    "
+                                    x-bind:required="
+                                        scheduleType === 'recurring'
+                                    "
+                                    class="mt-2 block w-full rounded-xl
+                                           border border-gray-300 bg-white
+                                           px-4 py-3 text-sm text-gray-900
+                                           disabled:opacity-50
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-100"
+                                >
+                                    @php
+                                        $days = [
+                                            0 => 'Sunday',
+                                            1 => 'Monday',
+                                            2 => 'Tuesday',
+                                            3 => 'Wednesday',
+                                            4 => 'Thursday',
+                                            5 => 'Friday',
+                                            6 => 'Saturday',
+                                        ];
+                                    @endphp
 
-        <span x-show="oneTime">
-            Meeting Date
-        </span>
-    </label>
+                                    @foreach ($days as $value => $label)
+                                        <option
+                                            value="{{ $value }}"
+                                            @selected(
+                                                (string) old(
+                                                    'meeting_day',
+                                                    $sheet->meeting_day
+                                                )
+                                                === (string) $value
+                                            )
+                                        >
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
 
-    <input
-        type="date"
-        name="start_date"
-        value="{{
-            $sheet->start_date?->format('Y-m-d')
-            ??
-            $sheet->sessions
-                ->min('session_date')
-                ?->format('Y-m-d')
-        }}"
-        required
-        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-    >
-</div>
+                            <div
+                                x-show="scheduleType !== 'manual'"
+                            >
+                                <label
+                                    class="block text-sm font-semibold
+                                           text-gray-700 dark:text-gray-200"
+                                >
+                                    <span
+                                        x-show="
+                                            scheduleType !== 'one_time'
+                                        "
+                                    >
+                                        Start Date
+                                    </span>
 
-<div x-show="! oneTime">
-    <label
-        class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
-    >
-        End Date
-    </label>
+                                    <span
+                                        x-show="
+                                            scheduleType === 'one_time'
+                                        "
+                                    >
+                                        Meeting Date
+                                    </span>
+                                </label>
 
-    <input
-        type="date"
-        name="end_date"
-        :disabled="oneTime"
-        value="{{
-            $sheet->end_date?->format('Y-m-d')
-            ??
-            $sheet->sessions
-                ->max('session_date')
-                ?->format('Y-m-d')
-        }}"
-        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-    >
-</div>
+                                <input
+                                    type="date"
+                                    name="start_date"
+                                    value="{{
+                                        old(
+                                            'start_date',
+                                            $sheet->start_date?->format('Y-m-d')
+                                            ??
+                                            $sheet->sessions
+                                                ->min('session_date')
+                                                ?->format('Y-m-d')
+                                        )
+                                    }}"
+                                    x-bind:disabled="
+                                        scheduleType === 'manual'
+                                    "
+                                    x-bind:required="
+                                        scheduleType !== 'manual'
+                                    "
+                                    class="mt-2 block w-full rounded-xl
+                                           border border-gray-300 bg-white
+                                           px-4 py-3 text-sm text-gray-900
+                                           disabled:opacity-50
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-100"
+                                >
+                            </div>
+
+                            <div
+                                x-show="
+                                    scheduleType === 'recurring'
+                                    || scheduleType === 'consecutive'
+                                "
+                            >
+                                <label
+                                    class="block text-sm font-semibold
+                                           text-gray-700 dark:text-gray-200"
+                                >
+                                    End Date
+                                </label>
+
+                                <input
+                                    type="date"
+                                    name="end_date"
+                                    value="{{
+                                        old(
+                                            'end_date',
+                                            $sheet->end_date?->format('Y-m-d')
+                                            ??
+                                            $sheet->sessions
+                                                ->max('session_date')
+                                                ?->format('Y-m-d')
+                                        )
+                                    }}"
+                                    x-bind:disabled="
+                                        scheduleType === 'one_time'
+                                        || scheduleType === 'manual'
+                                    "
+                                    x-bind:required="
+                                        scheduleType === 'recurring'
+                                        || scheduleType === 'consecutive'
+                                    "
+                                    class="mt-2 block w-full rounded-xl
+                                           border border-gray-300 bg-white
+                                           px-4 py-3 text-sm text-gray-900
+                                           disabled:opacity-50
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-100"
+                                >
+                            </div>
+
+                            <div
+                                x-show="scheduleType === 'manual'"
+                                class="md:col-span-2 rounded-xl
+                                       border border-violet-200
+                                       bg-violet-50 p-4 text-sm
+                                       text-violet-800
+                                       dark:border-violet-900
+                                       dark:bg-violet-950
+                                       dark:text-violet-200"
+                            >
+                                Manual Session dates are managed from
+                                Attendance Sheets using
+                                <strong>+ Add Session Date</strong>.
+                                Saving this form does not remove or
+                                regenerate Manual Dates.
+                            </div>
 
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
