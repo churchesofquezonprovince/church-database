@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class LordsTableAttendanceController extends Controller
 {
-    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One', 'Full-Timer'];
 
     public function store(Request $request): RedirectResponse
     {

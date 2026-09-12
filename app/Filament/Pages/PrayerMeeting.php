@@ -15,7 +15,7 @@ class PrayerMeeting extends Page
 {
     protected static bool $shouldRegisterNavigation = false;
 
-    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One'];
+    private const MAIN_ATTENDANCE_STATUSES = ['Active', 'New One', 'Full-Timer'];
 
     protected string $view = 'filament.pages.prayer-meeting';
 
