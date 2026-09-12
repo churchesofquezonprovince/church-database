@@ -22,7 +22,7 @@
     @endphp
 
     <div
-        class="mt-4 w-full rounded-xl border border-violet-200
+        class="mt-1 w-full rounded-xl border border-violet-200
                bg-violet-50 p-3
                dark:border-violet-900 dark:bg-violet-950"
     >

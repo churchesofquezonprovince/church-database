@@ -621,166 +621,241 @@ $preListedFilterCounts = [
 
                         @forelse ($filteredYesMeetingResponses as $response)
 
-                            <div
-                                class="rounded-xl border border-emerald-200 bg-white p-4 dark:border-emerald-900 dark:bg-gray-950"
+                            @php
+                                $responseWorkflow =
+                                    $meetingResponseWorkflowStatuses
+                                        ->get(
+                                            $response->id,
+                                            []
+                                        );
+
+                                $responseWorkflowKey =
+                                    data_get(
+                                        $responseWorkflow,
+                                        'key'
+                                    );
+
+                                /*
+                                 * Responses needing admin work stay open.
+                                 *
+                                 * Once This Meeting Only / Onward makes the
+                                 * Person Participant Covered, this individual
+                                 * response card becomes collapsed.
+                                 */
+                                $responseShouldOpen =
+                                    $responseWorkflowKey
+                                    !== 'participant_covered';
+                            @endphp
+
+                            <details
+                                @if ($responseShouldOpen) open @endif
+                                class="overflow-hidden rounded-xl border
+                                       border-emerald-200 bg-white
+                                       dark:border-emerald-900
+                                       dark:bg-gray-950"
                             >
-                                <div
-                                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                <summary
+                                    class="cursor-pointer px-4 py-3
+                                           hover:bg-emerald-50
+                                           dark:hover:bg-emerald-950"
                                 >
-                                    <div class="min-w-0">
-
-                                        <p
-                                            class="font-bold text-gray-900 dark:text-white"
-                                        >
-                                            {{ $response->respondent_name }}
-                                        </p>
-
-                                        <div
-                                            class="mt-2 flex flex-wrap gap-2"
-                                        >
-
-                                            @if (
-                                                $response->respondent_type
-                                                ===
-                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
-                                            )
-                                                <span
-                                                    class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100"
-                                                >
-                                                    People Database
-                                                </span>
-
-                                            @elseif (
-                                                $response->respondent_type
-                                                ===
-                                                \App\Models\AttendanceMeetingResponse::RESPONDENT_CAMPUS
-                                            )
-                                                <span
-                                                    class="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-800 dark:bg-sky-900 dark:text-sky-100"
-                                                >
-                                                    Campus Database
-                                                </span>
-
-                                            @else
-                                                <span
-                                                    class="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-100"
-                                                >
-                                                    Guest
-                                                </span>
-                                            @endif
-
-
-                                            @if (
-                                                filled($response->original_source)
-                                                &&
-                                                $response->original_source
-                                                !== $response->respondent_type
-                                            )
-                                                <span
-                                                    class="rounded-full bg-gray-100 px-2 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                                                >
-                                                    Originally
-                                                    {{ $response->originalSourceLabel() }}
-                                                </span>
-                                            @endif
-@include(
-    'filament.pages.partials.meeting-response-workflow-status',
-    [
-        'workflow' =>
-            $meetingResponseWorkflowStatuses
-                ->get($response->id, []),
-    ]
-)
-                                        </div>
-
-                                        @if (
-                                            $response->original_source
-                                            ===
-                                            \App\Models\AttendanceMeetingResponse::RESPONDENT_GUEST
-                                            &&
-                                            filled($response->guest_profile)
-                                        )
-                                            <details
-                                                class="mt-3"
-                                            >
-                                                <summary
-                                                    class="cursor-pointer text-xs font-bold text-indigo-700 dark:text-indigo-300"
-                                                >
-                                                    Optional guest information
-                                                </summary>
-
-                                                <div
-                                                    class="mt-2 space-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300"
-                                                >
-                                                    @foreach ($response->guest_profile as $key => $value)
-
-                                                        @continue(blank($value))
-
-                                                        <p>
-                                                            <span class="font-semibold">
-                                                                {{ match ($key) {
-                                                                    'firstname' => 'First Name',
-                                                                    'lastname' => 'Last Name',
-                                                                    'sex' => 'Sex',
-                                                                    'locality' => 'Locality',
-                                                                    'school_campus' => 'School / Campus',
-                                                                    'course_strand' => 'Course / Strand',
-                                                                    'grade_level' => 'Grade Level',
-                                                                    'contact_number' => 'Contact Number',
-                                                                    'email' => 'Email',
-                                                                    'facebook_account' => 'Facebook',
-                                                                    default => str($key)->headline(),
-                                                                } }}:
-                                                            </span>
-
-                                                            {{ $value }}
-                                                        </p>
-
-                                                    @endforeach
-                                                </div>
-                                            </details>
-                                        @endif
-
-@include(
-    'filament.pages.partials.meeting-response-promotion',
-    [
-        'response' => $response,
-    ]
-)
-
-@include(
-    'filament.pages.partials.meeting-response-campus-promotion',
-    [
-        'response' => $response,
-    ]
-)
-
-@include(
-    'filament.pages.partials.meeting-response-attendance-participant',
-    [
-        'response' => $response,
-    ]
-)
-
-@include(
-    'filament.pages.partials.meeting-response-delete',
-    [
-        'response' => $response,
-    ]
-)
-
-                                    </div>
-
-                                    @if ($response->responded_at)
+                                    <span
+                                        class="ml-2 inline-flex
+                                               w-[calc(100%-2rem)]
+                                               items-center justify-between
+                                               gap-3 align-middle"
+                                    >
                                         <span
-                                            class="shrink-0 text-xs text-gray-400"
+                                            class="min-w-0 flex flex-wrap
+                                                   items-center gap-2"
                                         >
-                                            {{ $response->responded_at->format('M d · g:i A') }}
+                                            <span
+                                                class="font-bold
+                                                       text-gray-900
+                                                       dark:text-white"
+                                            >
+                                                {{ $response->respondent_name }}
+                                            </span>
+                                                @if (
+                                                    $response->respondent_type
+                                                    ===
+                                                    \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+                                                )
+                                                    <span
+                                                        class="rounded-full
+                                                               bg-emerald-100
+                                                               px-2 py-1
+                                                               text-xs font-bold
+                                                               text-emerald-800
+                                                               dark:bg-emerald-900
+                                                               dark:text-emerald-100"
+                                                    >
+                                                        People Database
+                                                    </span>
+
+                                                @elseif (
+                                                    $response->respondent_type
+                                                    ===
+                                                    \App\Models\AttendanceMeetingResponse::RESPONDENT_CAMPUS
+                                                )
+                                                    <span
+                                                        class="rounded-full
+                                                               bg-sky-100
+                                                               px-2 py-1
+                                                               text-xs font-bold
+                                                               text-sky-800
+                                                               dark:bg-sky-900
+                                                               dark:text-sky-100"
+                                                    >
+                                                        Campus Database
+                                                    </span>
+
+                                                @else
+                                                    <span
+                                                        class="rounded-full
+                                                               bg-amber-100
+                                                               px-2 py-1
+                                                               text-xs font-bold
+                                                               text-amber-800
+                                                               dark:bg-amber-900
+                                                               dark:text-amber-100"
+                                                    >
+                                                        Guest
+                                                    </span>
+                                                @endif
+
+                                                @if (
+                                                    filled($response->original_source)
+                                                    &&
+                                                    $response->original_source
+                                                    !== $response->respondent_type
+                                                )
+                                                    <span
+                                                        class="rounded-full
+                                                               bg-gray-100
+                                                               px-2 py-1
+                                                               text-xs font-bold
+                                                               text-gray-600
+                                                               dark:bg-gray-800
+                                                               dark:text-gray-300"
+                                                    >
+                                                        Originally
+                                                        {{ $response->originalSourceLabel() }}
+                                                    </span>
+                                                @endif
+
+                                                @include(
+                                                    'filament.pages.partials.meeting-response-workflow-status',
+                                                    [
+                                                        'workflow' =>
+                                                            $responseWorkflow,
+                                                    ]
+                                                )
                                         </span>
+
+                                        @if ($response->responded_at)
+                                            <span
+                                                class="shrink-0 self-center
+                                                       text-center text-xs
+                                                       text-gray-400"
+                                            >
+                                                {{ $response->responded_at->format('M d · g:i A') }}
+                                            </span>
+                                        @endif
+                                    </span>
+                                </summary>
+
+                                <div
+                                    class="border-t border-emerald-100
+                                           p-4
+                                           dark:border-emerald-900"
+                                >
+                                    @if (
+                                        $response->original_source
+                                        ===
+                                        \App\Models\AttendanceMeetingResponse::RESPONDENT_GUEST
+                                        &&
+                                        filled($response->guest_profile)
+                                    )
+                                        <details class="mb-3">
+                                            <summary
+                                                class="cursor-pointer
+                                                       text-xs font-bold
+                                                       text-indigo-700
+                                                       dark:text-indigo-300"
+                                            >
+                                                Optional guest information
+                                            </summary>
+
+                                            <div
+                                                class="mt-2 space-y-1
+                                                       rounded-lg bg-gray-50
+                                                       p-3 text-xs
+                                                       text-gray-600
+                                                       dark:bg-gray-900
+                                                       dark:text-gray-300"
+                                            >
+                                                @foreach (
+                                                    $response->guest_profile
+                                                    as $key => $value
+                                                )
+                                                    @continue(blank($value))
+
+                                                    <p>
+                                                        <span
+                                                            class="font-semibold"
+                                                        >
+                                                            {{ match ($key) {
+                                                                'firstname' => 'First Name',
+                                                                'lastname' => 'Last Name',
+                                                                'sex' => 'Sex',
+                                                                'locality' => 'Locality',
+                                                                'school_campus' => 'School / Campus',
+                                                                'course_strand' => 'Course / Strand',
+                                                                'grade_level' => 'Grade Level',
+                                                                'contact_number' => 'Contact Number',
+                                                                'email' => 'Email',
+                                                                'facebook_account' => 'Facebook',
+                                                                default => str($key)->headline(),
+                                                            } }}:
+                                                        </span>
+
+                                                        {{ $value }}
+                                                    </p>
+                                                @endforeach
+                                            </div>
+                                        </details>
                                     @endif
 
+                                    @include(
+                                        'filament.pages.partials.meeting-response-promotion',
+                                        [
+                                            'response' => $response,
+                                        ]
+                                    )
+
+                                    @include(
+                                        'filament.pages.partials.meeting-response-campus-promotion',
+                                        [
+                                            'response' => $response,
+                                        ]
+                                    )
+
+                                    @include(
+                                        'filament.pages.partials.meeting-response-attendance-participant',
+                                        [
+                                            'response' => $response,
+                                        ]
+                                    )
+
+                                    @include(
+                                        'filament.pages.partials.meeting-response-delete',
+                                        [
+                                            'response' => $response,
+                                        ]
+                                    )
                                 </div>
-                            </div>
+                            </details>
 
                         @empty
 
