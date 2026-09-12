@@ -5,83 +5,116 @@
     &&
     $response->person_id
 )
+    @php
+        /*
+         * One-time Attendance has no future meeting scope.
+         *
+         * If this partial is ever reused outside Attendance Sheets,
+         * preserve the previous behavior by allowing Onward when
+         * no selected Sheet context exists.
+         */
+        $showOnwardParticipantScope =
+            ! isset($selectedSheet)
+            ||
+            $selectedSheet->schedule_type
+            !==
+            \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME;
+    @endphp
+
     <div
-        class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-900 dark:bg-violet-950"
+        class="mt-4 w-full rounded-xl border border-violet-200
+               bg-violet-50 p-3
+               dark:border-violet-900 dark:bg-violet-950"
     >
-        <p
-            class="text-sm font-bold text-violet-900 dark:text-violet-100"
-        >
-            Attendance Participant
-        </p>
-
-        <p
-            class="mt-1 text-xs text-violet-700 dark:text-violet-300"
-        >
-            Add this Person to the normal attendance checklist.
-            This does not mark the Person as present.
-        </p>
-
         <div
-            class="mt-3 flex flex-col gap-2 sm:flex-row"
+            class="flex w-full flex-col gap-3
+                   lg:flex-row lg:items-center lg:justify-between"
         >
-            <form
-                method="POST"
-                action="{{ route(
-                    'quezonprovinceactivities.attendance-meeting-responses.attendance-participant',
-                    ['response' => $response]
-                ) }}"
+            <div class="min-w-0 flex-1">
+                <p
+                    class="text-sm font-bold
+                           text-violet-900 dark:text-violet-100"
+                >
+                    Attendance Participant
+                </p>
+
+                <p
+                    class="mt-1 text-xs
+                           text-violet-700 dark:text-violet-300"
+                >
+                    Add this Person to the normal attendance checklist.
+                    This does not mark the Person as present.
+                </p>
+            </div>
+
+            <div
+                class="flex shrink-0 flex-wrap gap-2
+                       lg:justify-end"
             >
-                @csrf
-
-                <input
-                    type="hidden"
-                    name="participant_response_id"
-                    value="{{ $response->id }}"
+                <form
+                    method="POST"
+                    action="{{ route(
+                        'quezonprovinceactivities.attendance-meeting-responses.attendance-participant',
+                        ['response' => $response]
+                    ) }}"
                 >
+                    @csrf
 
-                <input
-                    type="hidden"
-                    name="participant_scope"
-                    value="this_meeting"
-                >
+                    <input
+                        type="hidden"
+                        name="participant_response_id"
+                        value="{{ $response->id }}"
+                    >
 
-                <button
-                    type="submit"
-                    class="inline-flex rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white hover:bg-violet-500"
-                >
-                    This Meeting Only
-                </button>
-            </form>
+                    <input
+                        type="hidden"
+                        name="participant_scope"
+                        value="this_meeting"
+                    >
 
+                    <button
+                        type="submit"
+                        class="rounded-lg bg-violet-600
+                               px-3 py-2 text-xs font-bold
+                               text-white hover:bg-violet-500"
+                    >
+                        This Meeting Only
+                    </button>
+                </form>
 
-            <form
-                method="POST"
-                action="{{ route(
-                    'quezonprovinceactivities.attendance-meeting-responses.attendance-participant',
-                    ['response' => $response]
-                ) }}"
-            >
-                @csrf
+                @if ($showOnwardParticipantScope)
+                    <form
+                        method="POST"
+                        action="{{ route(
+                            'quezonprovinceactivities.attendance-meeting-responses.attendance-participant',
+                            ['response' => $response]
+                        ) }}"
+                    >
+                        @csrf
 
-                <input
-                    type="hidden"
-                    name="participant_response_id"
-                    value="{{ $response->id }}"
-                >
+                        <input
+                            type="hidden"
+                            name="participant_response_id"
+                            value="{{ $response->id }}"
+                        >
 
-                <input
-                    type="hidden"
-                    name="participant_scope"
-                    value="onward"
-                >
+                        <input
+                            type="hidden"
+                            name="participant_scope"
+                            value="onward"
+                        >
 
-                <button
-                    type="submit"
-                    class="inline-flex rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500"
-                >
-                    From This Meeting Onward
-                </button>
-            </form>
+                        <button
+                            type="submit"
+                            class="rounded-lg bg-indigo-600
+                                   px-3 py-2 text-xs font-bold
+                                   text-white hover:bg-indigo-500"
+                        >
+                            From This Meeting Onward
+                        </button>
+                    </form>
+                @endif
+            </div>
         </div>
     </div>
 @endif

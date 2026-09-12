@@ -545,16 +545,6 @@
 @if ($selectedSession)
 
 <div class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-        <p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Recorded Attendance
-        </p>
-
-        <h4 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-            {{ $selectedSession->session_date->format('M d, Y') }}
-        </h4>
-    </div>
-
     <div class="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
             <p class="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">

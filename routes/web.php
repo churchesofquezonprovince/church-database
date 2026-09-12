@@ -841,6 +841,18 @@ Route::middleware(['web', 'auth'])
 
     Route::middleware(['web', 'auth'])
     ->post(
+        '/quezonprovinceactivities/attendance-meeting-responses/attendance-participants/bulk',
+        [
+            AttendanceMeetingResponseParticipantController::class,
+            'bulkStore',
+        ]
+    )
+    ->name(
+        'quezonprovinceactivities.attendance-meeting-responses.attendance-participants.bulk'
+    );
+
+    Route::middleware(['web', 'auth'])
+    ->post(
         '/quezonprovinceactivities/attendance-meeting-responses/{response}/attendance-participant',
         [
             AttendanceMeetingResponseParticipantController::class,

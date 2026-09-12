@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSession;
+use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceMeetingResponseParticipantController extends Controller
 {
@@ -63,6 +65,23 @@ class AttendanceMeetingResponseParticipantController extends Controller
 
         $scope =
             $data['participant_scope'];
+
+        $sheet =
+            AttendanceSheet::query()
+                ->findOrFail(
+                    $session->attendance_sheet_id
+                );
+
+        if (
+            $scope === 'onward'
+            && $sheet->schedule_type
+                === AttendanceSheet::SCHEDULE_ONE_TIME
+        ) {
+            return back()->withErrors([
+                'meeting_response_participant' =>
+                    'From This Meeting Onward is not available for a One-time Attendance Sheet.',
+            ]);
+        }
 
         $desiredStart =
             $sessionDate->toDateString();
@@ -218,6 +237,238 @@ class AttendanceMeetingResponseParticipantController extends Controller
             $scope
         );
     }
+
+
+    public function bulkStore(
+        Request $request
+    ): RedirectResponse {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $data = $request->validate([
+            'attendance_session_id' => [
+                'required',
+                'integer',
+                'exists:attendance_sessions,id',
+            ],
+
+            'participant_scope' => [
+                'required',
+                'in:this_meeting,onward',
+            ],
+
+            'response_ids' => [
+                'required',
+                'array',
+                'min:2',
+            ],
+
+            'response_ids.*' => [
+                'required',
+                'integer',
+                'exists:attendance_meeting_responses,id',
+            ],
+        ]);
+
+        $session =
+            AttendanceSession::query()
+                ->findOrFail(
+                    (int) $data['attendance_session_id']
+                );
+
+        $sheet =
+            AttendanceSheet::query()
+                ->findOrFail(
+                    $session->attendance_sheet_id
+                );
+
+        $scope =
+            $data['participant_scope'];
+
+        if (
+            $scope === 'onward'
+            && $sheet->schedule_type
+                === AttendanceSheet::SCHEDULE_ONE_TIME
+        ) {
+            return back()->withErrors([
+                'meeting_response_participant' =>
+                    'From This Meeting Onward is not available for a One-time Attendance Sheet.',
+            ]);
+        }
+
+        /*
+         * Bulk Participant actions apply only to YES responses
+         * already linked to the People Database.
+         *
+         * Guest/Campus entries still require identity review
+         * before they can become Attendance Participants.
+         */
+        $responses =
+            AttendanceMeetingResponse::query()
+                ->whereIn(
+                    'id',
+                    collect(
+                        $data['response_ids']
+                    )
+                        ->map(
+                            fn ($id): int =>
+                                (int) $id
+                        )
+                        ->unique()
+                        ->values()
+                        ->all()
+                )
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'response',
+                    'yes'
+                )
+                ->where(
+                    'respondent_type',
+                    AttendanceMeetingResponse::RESPONDENT_PERSON
+                )
+                ->whereNotNull(
+                    'person_id'
+                )
+                ->orderBy('id')
+                ->get()
+                ->unique('person_id')
+                ->values();
+
+        if ($responses->count() < 2) {
+            return back()->withErrors([
+                'meeting_response_participant' =>
+                    'At least two Participant Review responses are required for this bulk action.',
+            ]);
+        }
+
+        $sessionDate =
+            $session->session_date
+                ->copy()
+                ->startOfDay();
+
+        $desiredStart =
+            $sessionDate->toDateString();
+
+        $desiredEnd =
+            $scope === 'this_meeting'
+                ? $sessionDate->toDateString()
+                : null;
+
+        $personIds = [];
+
+        DB::transaction(
+            function () use (
+                $responses,
+                $session,
+                $desiredStart,
+                $desiredEnd,
+                &$personIds,
+            ): void {
+                foreach ($responses as $response) {
+                    $participant =
+                        AttendanceParticipant::query()
+                            ->where(
+                                'attendance_sheet_id',
+                                $session->attendance_sheet_id
+                            )
+                            ->where(
+                                'person_id',
+                                $response->person_id
+                            )
+                            ->first();
+
+                    if (! $participant) {
+                        $participant =
+                            AttendanceParticipant::query()
+                                ->create([
+                                    'attendance_sheet_id' =>
+                                        $session->attendance_sheet_id,
+
+                                    'person_id' =>
+                                        $response->person_id,
+
+                                    'starts_on' =>
+                                        $desiredStart,
+
+                                    'ends_on' =>
+                                        $desiredEnd,
+
+                                    'is_active' =>
+                                        true,
+                                ]);
+                    } else {
+                        /*
+                         * Same rule as the individual buttons:
+                         * explicitly set the requested scope and
+                         * reactivate an inactive row.
+                         */
+                        $participant->forceFill([
+                            'starts_on' =>
+                                $desiredStart,
+
+                            'ends_on' =>
+                                $desiredEnd,
+
+                            'is_active' =>
+                                true,
+                        ])->save();
+                    }
+
+                    $personIds[] =
+                        (int) $response->person_id;
+                }
+            }
+        );
+
+        ActivityLogger::log(
+            action:
+                'attendance_meeting_response.participants_bulk_updated',
+
+            subject:
+                $session,
+
+            description:
+                'Applied a bulk Attendance Participant scope to linked YES Pre-listed Responses.',
+
+            newValues: [
+                'attendance_sheet_id' =>
+                    $session->attendance_sheet_id,
+
+                'attendance_session_id' =>
+                    $session->id,
+
+                'participant_scope' =>
+                    $scope,
+
+                'participant_count' =>
+                    count($personIds),
+
+                'person_ids' =>
+                    $personIds,
+            ],
+        );
+
+        return back()
+            ->with(
+                'meeting_response_participants_bulk_added',
+                true
+            )
+            ->with(
+                'meeting_response_participants_bulk_count',
+                count($personIds)
+            )
+            ->with(
+                'meeting_response_participants_bulk_scope',
+                $scope
+            );
+    }
+
 
 
     private function logEnrollment(

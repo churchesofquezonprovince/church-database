@@ -148,8 +148,64 @@ $preListedFilterCounts = [
      * Re-open automatically on a fresh page load only while
      * one or more pre-listed responses still need admin work.
      */
+    /*
+     * After successfully adding/updating Attendance Participants,
+     * close Pre-listed Responses for this reload.
+     *
+     * A later normal refresh can auto-open it again if other
+     * responses still genuinely need action.
+     */
+    $participantActionJustCompleted =
+        session('meeting_response_participant_added')
+        ||
+        session('meeting_response_participants_bulk_added');
+
     $meetingResponsesShouldOpen =
-        $meetingResponsesNeedsActionCount > 0;
+        $meetingResponsesNeedsActionCount > 0
+        &&
+        ! $participantActionJustCompleted;
+
+    $bulkParticipantReviewResponses =
+        $yesMeetingResponses
+            ->filter(
+                function ($response) use (
+                    $meetingResponseWorkflowStatuses
+                ): bool {
+                    $workflow =
+                        $meetingResponseWorkflowStatuses
+                            ->get(
+                                $response->id,
+                                []
+                            );
+
+                    return
+                        data_get(
+                            $workflow,
+                            'key'
+                        ) === 'participant_review'
+                        &&
+                        $response->respondent_type
+                            ===
+                            \App\Models\AttendanceMeetingResponse::RESPONDENT_PERSON
+                        &&
+                        filled(
+                            $response->person_id
+                        );
+                }
+            )
+            ->unique('person_id')
+            ->values();
+
+    $bulkParticipantReviewCount =
+        $bulkParticipantReviewResponses
+            ->count();
+
+    $allowOnwardParticipantScope =
+        $selectedSheet
+        &&
+        $selectedSheet->schedule_type
+        !==
+        \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME;
 
 @endphp
 
@@ -168,12 +224,43 @@ $preListedFilterCounts = [
                     Pre-listed Responses
                 </span>
 
-                <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                    {{ $meetingResponses->count() }} response(s)
+                <span
+                    class="flex flex-wrap items-center justify-end gap-2"
+                >
+                    <span
+                        class="text-xs font-semibold
+                               text-indigo-700 dark:text-indigo-300"
+                    >
+                        {{ $meetingResponses->count() }} response(s)
 
-                    @if ($meetingResponsesNeedsActionCount > 0)
-                        · {{ $meetingResponsesNeedsActionCount }} needs action
-                    @endif
+                        @if ($meetingResponsesNeedsActionCount > 0)
+                            · {{ $meetingResponsesNeedsActionCount }} needs action
+                        @endif
+                    </span>
+
+                    <span
+                        class="rounded-full bg-emerald-600
+                               px-2.5 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        YES: {{ $yesMeetingResponses->count() }}
+                    </span>
+
+                    <span
+                        class="rounded-full bg-red-600
+                               px-2.5 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        NO: {{ $noMeetingResponses->count() }}
+                    </span>
+
+                    <span
+                        class="rounded-full bg-indigo-600
+                               px-2.5 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        Total: {{ $meetingResponses->count() }}
+                    </span>
                 </span>
             </span>
         </summary>
@@ -183,13 +270,7 @@ $preListedFilterCounts = [
             class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
         >
             <div>
-                <p
-                    class="mt-1 text-sm text-indigo-700 dark:text-indigo-300"
-                >
-                    Pre-listed responses are separate from actual
-                    attendance. A YES response does not mark a
-                    person as present.
-                </p>
+
 @if (session('meeting_response_promoted_to_campus'))
     <div
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
@@ -267,6 +348,34 @@ $preListedFilterCounts = [
 @endif
 
 
+@if (session('meeting_response_participants_bulk_added'))
+    <div
+        class="mt-4 rounded-xl border border-emerald-200
+               bg-emerald-50 p-3 text-sm text-emerald-800
+               dark:border-emerald-900 dark:bg-emerald-950
+               dark:text-emerald-200"
+    >
+        <strong>
+            Attendance Participants updated.
+        </strong>
+
+        {{ session('meeting_response_participants_bulk_count') }}
+        Participant Review response(s)
+
+        @if (
+            session('meeting_response_participants_bulk_scope')
+            === 'this_meeting'
+        )
+            were set to This Meeting Only.
+        @else
+            were set to From This Meeting Onward.
+        @endif
+
+        Actual attendance was not marked.
+    </div>
+@endif
+
+
 @if (session('meeting_response_participant_already'))
     <div
         class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200"
@@ -312,34 +421,40 @@ $preListedFilterCounts = [
 
             </div>
 
-            <div class="flex flex-wrap gap-2">
-                <span
-                    class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white"
-                >
-                    YES: {{ $yesMeetingResponses->count() }}
-                </span>
 
-                <span
-                    class="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white"
-                >
-                    NO: {{ $noMeetingResponses->count() }}
-                </span>
-
-                <span
-                    class="rounded-full bg-indigo-600 px-3 py-1 text-xs font-bold text-white"
-                >
-                    Total: {{ $meetingResponses->count() }}
-                </span>
-            </div>
         </div>
 
 
 
-<div class="mt-5 flex flex-wrap gap-2">
+<div class="mt-2 flex flex-wrap gap-2">
     @foreach (
         $preListedFilterOptions
         as $filterKey => $filterLabel
     )
+        @php
+            $filterCount =
+                $preListedFilterCounts[
+                    $filterKey
+                ] ?? 0;
+
+            $alwaysShowFilter =
+                in_array(
+                    $filterKey,
+                    [
+                        'all',
+                        'needs_action',
+                        'yes',
+                        'no',
+                    ],
+                    true
+                );
+        @endphp
+
+        @continue(
+            ! $alwaysShowFilter
+            && $filterCount < 1
+        )
+
         <a
             href="{{ $this->preListedFilterUrl($filterKey) }}"
             @class([
@@ -365,7 +480,7 @@ $preListedFilterCounts = [
                         => $selectedPreListedFilter !== $filterKey,
                 ])
             >
-                {{ $preListedFilterCounts[$filterKey] ?? 0 }}
+                {{ $filterCount }}
             </span>
         </a>
     @endforeach
@@ -392,7 +507,7 @@ $preListedFilterCounts = [
 @else
 
 
-            <div class="mt-6 grid gap-6 xl:grid-cols-2">
+            <div class="mt-6 grid gap-6">
 
                 {{-- =========================================
                      YES RESPONSES
@@ -413,6 +528,94 @@ $preListedFilterCounts = [
                             {{ $filteredYesMeetingResponses->count() }}
                         </span>
                     </div>
+
+                    @if ($bulkParticipantReviewCount > 1)
+                        <div
+                            class="mt-3 flex flex-wrap items-center gap-2
+                                   rounded-xl border border-violet-200
+                                   bg-violet-50 p-3
+                                   dark:border-violet-900
+                                   dark:bg-violet-950"
+                        >
+                            <span
+                                class="mr-1 text-xs font-bold
+                                       text-violet-800
+                                       dark:text-violet-200"
+                            >
+                                Apply to all
+                                {{ $bulkParticipantReviewCount }}
+                                Participant Review responses:
+                            </span>
+
+                            <form
+                                method="POST"
+                                action="{{ route(
+                                    'quezonprovinceactivities.attendance-meeting-responses.attendance-participants.bulk'
+                                ) }}"
+                            >
+                                @csrf
+
+                                <input
+                                    type="hidden"
+                                    name="attendance_session_id"
+                                    value="{{ $selectedSession->id }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="participant_scope"
+                                    value="this_meeting"
+                                >
+
+                                <button
+                                    type="submit"
+                                    onclick="return confirm(
+                                        'Set all Participant Review responses to This Meeting Only?'
+                                    )"
+                                    class="rounded-lg bg-violet-600
+                                           px-3 py-2 text-xs font-bold
+                                           text-white hover:bg-violet-500"
+                                >
+                                    All → This Meeting Only
+                                </button>
+                            </form>
+
+                            @if ($allowOnwardParticipantScope)
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'quezonprovinceactivities.attendance-meeting-responses.attendance-participants.bulk'
+                                    ) }}"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="attendance_session_id"
+                                        value="{{ $selectedSession->id }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        name="participant_scope"
+                                        value="onward"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        onclick="return confirm(
+                                            'Set all Participant Review responses to From This Meeting Onward?'
+                                        )"
+                                        class="rounded-lg bg-indigo-600
+                                               px-3 py-2 text-xs font-bold
+                                               text-white hover:bg-indigo-500"
+                                    >
+                                        All → From This Meeting Onward
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
 
                     <div class="mt-3 space-y-3">
 
