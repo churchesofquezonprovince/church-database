@@ -1,6 +1,29 @@
+@php
+    $navigationSearchAliases =
+        \App\Models\NavigationSearchAlias::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get([
+                'phrase',
+                'target_type',
+                'target_group',
+                'target_label',
+            ])
+            ->map(fn ($alias): array => [
+                'phrase' => $alias->phrase,
+                'target_type' => $alias->target_type,
+                'target_group' => $alias->target_group,
+                'target_label' => $alias->target_label,
+            ])
+            ->values()
+            ->all();
+@endphp
+
 <div
     x-data="{
         query: '',
+        aliases: [],
 
         normalize(value) {
             return String(value ?? '')
@@ -21,6 +44,60 @@
             }
 
             const query = this.normalize(this.query);
+
+            /*
+             * Database aliases are additive to the normal
+             * navigation-label search.
+             *
+             * Examples:
+             * ltm   -> Check Attendance
+             * gow   -> whole Shepherding group
+             * setup -> Ministry Books + Users
+             */
+            const matchingAliases =
+                query === ''
+                    ? []
+                    : this.aliases.filter(
+                        (alias) => {
+                            const phrase =
+                                this.normalize(
+                                    alias.phrase
+                                );
+
+                            if (! phrase) {
+                                return false;
+                            }
+
+                            return (
+                                phrase.includes(query)
+                                ||
+                                query.includes(phrase)
+                            );
+                        }
+                    );
+
+            const aliasGroupTargets =
+                new Set(
+                    matchingAliases
+                        .filter(
+                            (alias) =>
+                                alias.target_type
+                                === 'group'
+                        )
+                        .map(
+                            (alias) =>
+                                this.normalize(
+                                    alias.target_label
+                                )
+                        )
+                );
+
+            const aliasItemTargets =
+                matchingAliases.filter(
+                    (alias) =>
+                        alias.target_type
+                        === 'item'
+                );
 
             if (query) {
                 sidebar.setAttribute(
@@ -59,9 +136,17 @@
                  * Attendance
                  * -> show the entire Attendance group.
                  */
+                const groupAliasMatches =
+                    aliasGroupTargets.has(
+                        groupLabel
+                    );
+
                 const groupMatches =
                     query !== ''
-                    && groupLabel.includes(query);
+                    && (
+                        groupLabel.includes(query)
+                        || groupAliasMatches
+                    );
 
                 const items = Array.from(
                     group.querySelectorAll(
@@ -84,10 +169,38 @@
                         ?? item.textContent
                     );
 
+                    const aliasItemMatches =
+                        aliasItemTargets.some(
+                            (alias) => {
+                                const targetLabel =
+                                    this.normalize(
+                                        alias.target_label
+                                    );
+
+                                const targetGroup =
+                                    this.normalize(
+                                        alias.target_group
+                                    );
+
+                                return (
+                                    targetLabel
+                                    === label
+                                    &&
+                                    (
+                                        targetGroup === ''
+                                        ||
+                                        targetGroup
+                                        === groupLabel
+                                    )
+                                );
+                            }
+                        );
+
                     const itemMatches =
                         query === ''
                         || groupMatches
-                        || label.includes(query);
+                        || label.includes(query)
+                        || aliasItemMatches;
 
                     item.style.display =
                         itemMatches
@@ -134,9 +247,18 @@
                         ?? item.textContent
                     );
 
+                    const aliasItemMatches =
+                        aliasItemTargets.some(
+                            (alias) =>
+                                this.normalize(
+                                    alias.target_label
+                                ) === label
+                        );
+
                     item.style.display =
                         query === ''
                         || label.includes(query)
+                        || aliasItemMatches
                             ? ''
                             : 'none';
                 });
@@ -149,6 +271,22 @@
         },
 
         init() {
+            try {
+                this.aliases = JSON.parse(
+                    this.$el.dataset
+                        .navigationSearchAliases
+                    || '[]'
+                );
+            } catch (error) {
+                console.error(
+                    'Navigation search aliases '
+                    + 'could not be loaded.',
+                    error
+                );
+
+                this.aliases = [];
+            }
+
             this.$nextTick(() => {
                 this.applySearch();
             });
@@ -163,6 +301,11 @@
             );
         },
     }"
+    data-navigation-search-aliases="{{ json_encode(
+        $navigationSearchAliases,
+        JSON_UNESCAPED_SLASHES
+        | JSON_UNESCAPED_UNICODE
+    ) }}"
     class="mb-3 w-full px-2"
 >
     <style>
