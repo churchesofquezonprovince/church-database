@@ -205,6 +205,10 @@ class ManageAttendanceSheets extends Page
                 'sessions',
                 'participants',
             ])
+            ->withMax(
+                'sessions as latest_session_date',
+                'session_date'
+            )
             ->with([
                 'sessions' =>
                     fn ($query) =>
@@ -223,11 +227,75 @@ class ManageAttendanceSheets extends Page
                                 'sheets'
                             ),
             ])
-            ->orderByDesc(
-                'is_active'
-            )
-            ->orderByDesc(
-                'created_at'
+            ->when(
+                $this->selectedStatus()
+                    === 'archived',
+
+                /*
+                 * Archived Sheets ignore schedule-type priority.
+                 *
+                 * Recurring Weekly, Consecutive Days, and Manual
+                 * Dates are positioned according to their most
+                 * recent Attendance Session.
+                 *
+                 * start_date is only the fallback when a Sheet
+                 * has no Session.
+                 */
+                fn ($query) =>
+                    $query
+                        ->orderByRaw(
+                            'CASE
+                                WHEN latest_session_date IS NULL
+                                THEN 1
+                                ELSE 0
+                            END'
+                        )
+                        ->orderByDesc(
+                            'latest_session_date'
+                        )
+                        ->orderByDesc(
+                            'start_date'
+                        )
+                        ->orderByDesc(
+                            'id'
+                        ),
+
+                /*
+                 * Active / All retain normal operational priority.
+                 */
+                fn ($query) =>
+                    $query
+                        ->orderByDesc(
+                            'is_active'
+                        )
+                        ->orderByRaw(
+                            'CASE
+                                WHEN schedule_type = ? THEN 1
+                                WHEN schedule_type = ? THEN 2
+                                WHEN schedule_type = ? THEN 3
+                                WHEN schedule_type = ? THEN 4
+                                ELSE 5
+                            END',
+                            [
+                                AttendanceSheet::SCHEDULE_ONE_TIME,
+                                AttendanceSheet::SCHEDULE_CONSECUTIVE,
+                                AttendanceSheet::SCHEDULE_MANUAL,
+                                AttendanceSheet::SCHEDULE_RECURRING,
+                            ]
+                        )
+                        ->orderByRaw(
+                            'CASE
+                                WHEN start_date IS NULL
+                                THEN 1
+                                ELSE 0
+                            END'
+                        )
+                        ->orderBy(
+                            'start_date'
+                        )
+                        ->orderBy(
+                            'id'
+                        )
             )
             ->get();
     }

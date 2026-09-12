@@ -205,12 +205,26 @@ class AttendanceSheets extends Page
                         true
                     ),
         ])
-            ->orderByDesc('is_active')
             ->orderByRaw(
-                'CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END'
+                'CASE
+                    WHEN schedule_type = ? THEN 1
+                    WHEN schedule_type = ? THEN 2
+                    WHEN schedule_type = ? THEN 3
+                    WHEN schedule_type = ? THEN 4
+                    ELSE 5
+                END',
+                [
+                    AttendanceSheet::SCHEDULE_ONE_TIME,
+                    AttendanceSheet::SCHEDULE_CONSECUTIVE,
+                    AttendanceSheet::SCHEDULE_MANUAL,
+                    AttendanceSheet::SCHEDULE_RECURRING,
+                ]
             )
-            ->orderBy('locality')
-            ->latest()
+            ->orderByRaw(
+                'CASE WHEN start_date IS NULL THEN 1 ELSE 0 END'
+            )
+            ->orderBy('start_date')
+            ->orderBy('id')
             ->get();
     }
 
@@ -266,7 +280,26 @@ public function selectedSheet(): ?AttendanceSheet
     }
 
     return $query
-        ->latest()
+        ->orderByRaw(
+            'CASE
+                WHEN schedule_type = ? THEN 1
+                WHEN schedule_type = ? THEN 2
+                WHEN schedule_type = ? THEN 3
+                WHEN schedule_type = ? THEN 4
+                ELSE 5
+            END',
+            [
+                AttendanceSheet::SCHEDULE_ONE_TIME,
+                AttendanceSheet::SCHEDULE_CONSECUTIVE,
+                AttendanceSheet::SCHEDULE_MANUAL,
+                AttendanceSheet::SCHEDULE_RECURRING,
+            ]
+        )
+        ->orderByRaw(
+            'CASE WHEN start_date IS NULL THEN 1 ELSE 0 END'
+        )
+        ->orderBy('start_date')
+        ->orderBy('id')
         ->first();
 }
 
