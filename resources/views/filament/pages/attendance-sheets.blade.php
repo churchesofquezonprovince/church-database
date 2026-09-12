@@ -972,31 +972,63 @@
                 $selectedSession->immichAssets->isNotEmpty()
                 || $selectedSheet->immichAlbum
             )
-                <button
-                    type="button"
-                    wire:click="syncImmich({{ $selectedSession->id }})"
-                    wire:loading.attr="disabled"
-                    wire:target="syncImmich"
-                    class="w-full rounded-xl
-                           bg-violet-600 px-5 py-3
-                           text-sm font-bold text-white
-                           hover:bg-violet-500
-                           disabled:opacity-50"
+                <div
+                    class="grid gap-3 sm:grid-cols-2"
                 >
-                    <span
-                        wire:loading.remove
+                    <button
+                        type="button"
+                        wire:click="syncImmich({{ $selectedSession->id }})"
+                        wire:loading.attr="disabled"
                         wire:target="syncImmich"
+                        class="w-full rounded-xl
+                               bg-violet-600 px-5 py-3
+                               text-sm font-bold text-white
+                               hover:bg-violet-500
+                               disabled:opacity-50"
                     >
-                        Sync Immich Attendance
-                    </span>
+                        <span
+                            wire:loading.remove
+                            wire:target="syncImmich"
+                        >
+                            Sync Immich Attendance
+                        </span>
 
-                    <span
-                        wire:loading
-                        wire:target="syncImmich"
+                        <span
+                            wire:loading
+                            wire:target="syncImmich"
+                        >
+                            Synchronizing...
+                        </span>
+                    </button>
+
+                    <a
+                        href="{{
+                            \App\Filament\Pages\ImmichPeopleLinking::getUrl()
+                            . '?'
+                            . http_build_query([
+                                'sheetId' =>
+                                    $selectedSheet->id,
+
+                                'sessionId' =>
+                                    $selectedSession->id,
+                            ])
+                        }}"
+                        class="inline-flex w-full
+                               items-center justify-center
+                               rounded-xl border
+                               border-violet-300
+                               bg-white px-5 py-3
+                               text-sm font-bold
+                               text-violet-700
+                               hover:bg-violet-50
+                               dark:border-violet-800
+                               dark:bg-gray-950
+                               dark:text-violet-200
+                               dark:hover:bg-violet-950"
                     >
-                        Synchronizing...
-                    </span>
-                </button>
+                        Immich People Linking
+                    </a>
+                </div>
             @endif
 
             @include('filament.pages.partials.attendance-sheets-immich-history')

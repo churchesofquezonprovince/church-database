@@ -27,6 +27,51 @@ class ImmichPeopleLinking extends Page
 
     public array $selectedPeople = [];
 
+    public function mount(): void
+    {
+        $sessionId =
+            request()->integer(
+                'sessionId'
+            );
+
+        $sheetId =
+            request()->integer(
+                'sheetId'
+            );
+
+        if (! $sessionId) {
+            return;
+        }
+
+        /*
+         * Session ID is the primary identity.
+         *
+         * When sheetId is also supplied, verify that both
+         * query parameters refer to the same Attendance
+         * Session before preselecting it.
+         */
+        $session =
+            AttendanceSession::query()
+                ->find(
+                    $sessionId
+                );
+
+        if (! $session) {
+            return;
+        }
+
+        if (
+            $sheetId
+            && (int) $session->attendance_sheet_id
+                !== $sheetId
+        ) {
+            return;
+        }
+
+        $this->selectedSessionId =
+            (int) $session->id;
+    }
+
 public function syncImmich(): void
 {
     $session = $this->selectedSession();

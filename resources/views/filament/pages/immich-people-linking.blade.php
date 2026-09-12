@@ -293,11 +293,11 @@
             class="rounded-xl border-2 border-violet-700 bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:border-violet-800 hover:bg-violet-500 disabled:opacity-50"
         >
             <span wire:loading.remove wire:target="syncImmich">
-                Sync Attendance
+                Sync Attendance from Immich
             </span>
 
             <span wire:loading wire:target="syncImmich">
-                Synchronizing...
+                Syncing from Immich...
             </span>
         </button>
 
