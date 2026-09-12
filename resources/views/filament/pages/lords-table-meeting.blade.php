@@ -89,7 +89,15 @@
                         <option value="">Select person</option>
 
                         @foreach ($otherLocalityCandidates as $person)
-                            <option value="{{ $person->id }}">
+                            <option
+                                value="{{ $person->id }}"
+                                data-lords-table-other-person
+                                data-person-id="{{ $person->id }}"
+                                data-person-name="{{ $person->display_name }}"
+                                data-person-nickname="{{ $person->nickname ?? '' }}"
+                                data-person-locality="{{ $person->locality ?? '' }}"
+                                data-person-status="{{ $person->churchProfile?->status ?? '' }}"
+                            >
                                 {{ $person->display_name }} — {{ $person->locality ?: 'No Locality' }} — {{ $person->churchProfile?->status ?: 'No Status' }}
                             </option>
                         @endforeach
@@ -118,7 +126,15 @@
 
                         <div class="mt-3 space-y-2">
                             @foreach ($otherLocalityPresentRecords as $record)
-                                <div class="flex flex-col gap-3 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                                <div
+                                    data-lords-table-other-present
+                                    data-person-id="{{ $record->person_id }}"
+                                    data-person-name="{{ $record->person?->display_name ?? '' }}"
+                                    data-person-nickname="{{ $record->person?->nickname ?? '' }}"
+                                    data-person-locality="{{ $record->person?->locality ?? '' }}"
+                                    data-person-status="{{ $record->person?->churchProfile?->status ?? '' }}"
+                                    class="flex flex-col gap-3 rounded-lg bg-amber-50 p-3 text-sm dark:bg-amber-950 sm:flex-row sm:items-center sm:justify-between"
+                                >
                                     <div>
                                         <span class="font-bold text-gray-900 dark:text-white">
                                             {{ $record->person?->display_name ?? 'Unknown person' }}
@@ -368,6 +384,10 @@
                         @endif
 
 
+                        @include(
+                            'filament.pages.partials.lords-table-paste-attendance'
+                        )
+
                         <div class="mb-4 grid gap-3 lg:grid-cols-[1fr_240px_auto] lg:items-end">
                             <div>
                                 <label for="lords_table_participant_search" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -478,6 +498,9 @@
                                         @endphp
 
                                         <tr
+                                            data-lords-table-person
+                                            data-person-name="{{ $person->display_name }}"
+                                            data-person-nickname="{{ $person->nickname ?? '' }}"
                                             data-category="{{ \Illuminate\Support\Str::lower($person->churchProfile?->category ?: '__no_category') }}"
                                             data-initial-attendance-status="{{ $attendanceStatus }}"
                                             data-attendance-status="{{ $attendanceStatus }}"
