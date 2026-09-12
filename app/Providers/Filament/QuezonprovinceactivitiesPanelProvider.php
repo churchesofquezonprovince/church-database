@@ -34,6 +34,10 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->sidebarCollapsibleOnDesktop()
+            ->globalSearchKeyBindings([
+                'command+k',
+                'ctrl+k',
+            ])
             ->navigationGroups([
                 "Children's Work",
                 'Attendance',

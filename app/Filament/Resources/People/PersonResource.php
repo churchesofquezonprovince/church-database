@@ -15,10 +15,56 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class PersonResource extends Resource
 {
     protected static ?string $model = Person::class;
+
+    protected static ?string $recordTitleAttribute = 'lastname';
+
+    protected static int $globalSearchResultsLimit = 15;
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'firstname',
+            'middlename',
+            'lastname',
+            'suffix',
+            'nickname',
+            'contact_number',
+            'localityRecord.name',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle(
+        Model $record
+    ): string {
+        return $record->display_name;
+    }
+
+    public static function getGlobalSearchResultDetails(
+        Model $record
+    ): array {
+        return [
+            'Locality' => $record->localityRecord?->name
+                ?? $record->locality
+                ?? 'No Locality',
+            'Status' => $record->churchProfile?->status
+                ?? 'No Status',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()
+            ->with([
+                'localityRecord',
+                'churchProfile',
+            ]);
+    }
 
 //    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 

@@ -27,6 +27,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::SIDEBAR_NAV_START,
+            fn (): string =>
+                filament()->getCurrentPanel()?->getId()
+                    === 'quezonprovinceactivities'
+                    ? view(
+                        'filament.components.navigation-search'
+                    )->render()
+                    : '',
+        );
+
         Schedule::observe(ScheduleObserver::class);
         Person::observe(PersonObserver::class);
         Household::observe(HouseholdObserver::class);
