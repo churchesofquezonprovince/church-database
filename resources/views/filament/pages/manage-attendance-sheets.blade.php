@@ -156,7 +156,8 @@
                         </div>
                     </div>
 
-                    <details class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                    @if ($sheet->is_active)
+<details class="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
                         <summary class="cursor-pointer text-sm font-bold text-gray-900 dark:text-white">
                             Edit sheet details
                         </summary>
@@ -695,6 +696,7 @@
                             </div>
                         </form>
                     </details>
+@endif
 
 
 @php
@@ -717,6 +719,7 @@
         $this->meetingSeriesOptions();
 @endphp
 
+@if ($sheet->is_active)
 <details class="mt-5 overflow-hidden rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
         <span class="min-w-0">
@@ -971,6 +974,7 @@
     @endif
     </div>
 </details>
+@endif
 
 @if ($sheet->meetingFormEnabled())
     @php
@@ -1001,6 +1005,20 @@
         </summary>
 
         <div class="border-t border-emerald-200 p-4 dark:border-emerald-900">
+            @if (! $sheet->is_active)
+                <div
+                    class="mb-4 rounded-xl border border-amber-200
+                           bg-amber-50 p-4 text-sm font-semibold
+                           text-amber-800
+                           dark:border-amber-900
+                           dark:bg-amber-950
+                           dark:text-amber-200"
+                >
+                    Archived sheet — restore this Attendance Sheet
+                    to enable the Session-Specific Meeting Forms.
+                </div>
+            @endif
+
             <div class="space-y-2">
 
             @forelse ($meetingFormSessions as $session)
@@ -1027,38 +1045,73 @@
 
 
 @if ($session->publicMeetingUrl())
-    <div class="flex shrink-0 flex-wrap gap-2">
-        <button
-            type="button"
-            data-short-url="https://m.overcomers.win/{{ $session->public_slug }}"
-            onclick="
-                navigator.clipboard
-                    .writeText(this.dataset.shortUrl)
-                    .then(() => {
-                        const button = this;
-                        const originalText = button.textContent.trim();
+    @if ($sheet->is_active)
+        <div class="flex shrink-0 flex-wrap gap-2">
+            <button
+                type="button"
+                data-short-url="https://m.overcomers.win/{{ $session->public_slug }}"
+                onclick="
+                    navigator.clipboard
+                        .writeText(this.dataset.shortUrl)
+                        .then(() => {
+                            const button = this;
+                            const originalText =
+                                button.textContent.trim();
 
-                        button.textContent = 'Copied!';
+                            button.textContent =
+                                'Copied!';
 
-                        setTimeout(() => {
-                            button.textContent = originalText;
-                        }, 1500);
-                    });
-            "
-            class="rounded-lg bg-sky-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-sky-500"
-        >
-            Shorten Link
-        </button>
+                            setTimeout(() => {
+                                button.textContent =
+                                    originalText;
+                            }, 1500);
+                        });
+                "
+                class="rounded-lg bg-sky-600 px-3 py-2
+                       text-center text-xs font-bold text-white
+                       hover:bg-sky-500"
+            >
+                Shorten Link
+            </button>
 
-        <a
-            href="{{ $session->publicMeetingUrl() }}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-lg bg-emerald-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-emerald-500"
-        >
-            Open Form
-        </a>
-    </div>
+            <a
+                href="{{ $session->publicMeetingUrl() }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-lg bg-emerald-600 px-3 py-2
+                       text-center text-xs font-bold text-white
+                       hover:bg-emerald-500"
+            >
+                Open Form
+            </a>
+        </div>
+    @else
+        <div class="flex shrink-0 flex-wrap gap-2">
+            <button
+                type="button"
+                disabled
+                class="cursor-not-allowed rounded-lg
+                       bg-gray-300 px-3 py-2 text-center
+                       text-xs font-bold text-gray-500
+                       opacity-70
+                       dark:bg-gray-800
+                       dark:text-gray-500"
+            >
+                Shorten Link
+            </button>
+
+            <span
+                class="cursor-not-allowed rounded-lg
+                       bg-gray-300 px-3 py-2 text-center
+                       text-xs font-bold text-gray-500
+                       opacity-70
+                       dark:bg-gray-800
+                       dark:text-gray-500"
+            >
+                Open Form
+            </span>
+        </div>
+    @endif
 @endif
 
                 </div>
