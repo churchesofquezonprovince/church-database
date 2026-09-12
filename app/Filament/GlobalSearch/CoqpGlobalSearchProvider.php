@@ -2,6 +2,8 @@
 
 namespace App\Filament\GlobalSearch;
 
+use App\Models\AttendanceSheet;
+use App\Filament\Pages\CheckAttendance;
 use App\Models\NavigationSearchAlias;
 use Filament\Facades\Filament;
 use Filament\GlobalSearch\GlobalSearchResult;
@@ -25,6 +27,15 @@ class CoqpGlobalSearchProvider implements GlobalSearchProvider
             ->getResults($query)
             ?? GlobalSearchResults::make();
 
+        $sheetResults = $this->getSheetResults($query);
+
+        if ($sheetResults->isNotEmpty()) {
+            $results->category(
+                'Sheets',
+                $sheetResults,
+            );
+        }
+
         $navigationResults = $this->getNavigationResults($query);
 
         if ($navigationResults->isNotEmpty()) {
@@ -35,6 +46,89 @@ class CoqpGlobalSearchProvider implements GlobalSearchProvider
         }
 
         return $results;
+    }
+
+    protected function getSheetResults(
+        string $query
+    ): Collection {
+        $query = $this->normalize($query);
+
+        if ($query === '') {
+            return collect();
+        }
+
+        /*
+         * Search the custom Attendance Sheets shown by
+         * Check Attendance.
+         *
+         * Keep the display details consistent with the
+         * existing Sheets list:
+         *
+         * Locality · X date(s) · Y participant(s)
+         */
+        return AttendanceSheet::query()
+            ->where(
+                'sheet_type',
+                AttendanceSheet::TYPE_CUSTOM
+            )
+            ->where('is_active', true)
+            ->where(
+                function ($sheetQuery) use ($query): void {
+                    $sheetQuery
+                        ->whereRaw(
+                            'LOWER(title) LIKE ?',
+                            ['%' . $query . '%']
+                        )
+                        ->orWhereRaw(
+                            'LOWER(locality) LIKE ?',
+                            ['%' . $query . '%']
+                        );
+                }
+            )
+            ->withCount([
+                'sessions',
+
+                'participants as participants_count' =>
+                    fn ($participantQuery) =>
+                        $participantQuery->where(
+                            'is_active',
+                            true
+                        ),
+            ])
+            ->orderBy('title')
+            ->limit(15)
+            ->get()
+            ->map(
+                function (
+                    AttendanceSheet $sheet
+                ): GlobalSearchResult {
+                    $locality =
+                        filled($sheet->locality)
+                            ? $sheet->locality
+                            : 'No Locality';
+
+                    return new GlobalSearchResult(
+                        title: $sheet->title,
+                        url:
+                            CheckAttendance::getUrl()
+                            . '?'
+                            . http_build_query([
+                                'sheetId' => $sheet->id,
+                            ]),
+                        details: [
+                            'Details' =>
+                                $locality
+                                . ' · '
+                                . $sheet->sessions_count
+                                . ' date(s)'
+                                . ' · '
+                                . $sheet->participants_count
+                                . ' participant(s)',
+                        ],
+                    );
+                }
+            )
+            ->values();
     }
 
     protected function getNavigationResults(
