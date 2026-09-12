@@ -151,10 +151,6 @@ public function mount(): void
             request()->routeIs(
                 'filament.quezonprovinceactivities.pages.attendance-sheets'
             )
-            ||
-            request()->routeIs(
-                'filament.quezonprovinceactivities.pages.check-attendance'
-            )
         ) {
             $sheetId =
                 request()->integer(
@@ -233,15 +229,42 @@ public function mount(): void
                         true
                     ),
         ])
-            ->orderByDesc('is_active')
-            ->latest()
+            ->orderByRaw(
+                'CASE
+                    WHEN schedule_type = ? THEN 1
+                    WHEN schedule_type = ? THEN 2
+                    WHEN schedule_type = ? THEN 3
+                    WHEN schedule_type = ? THEN 4
+                    ELSE 5
+                END',
+                [
+                    AttendanceSheet::SCHEDULE_ONE_TIME,
+                    AttendanceSheet::SCHEDULE_CONSECUTIVE,
+                    AttendanceSheet::SCHEDULE_MANUAL,
+                    AttendanceSheet::SCHEDULE_RECURRING,
+                ]
+            )
+            /*
+             * Within each schedule type, show older meetings first.
+             * Null dates are placed after dated sheets.
+             */
+            ->orderByRaw(
+                'CASE WHEN start_date IS NULL THEN 1 ELSE 0 END'
+            )
+            ->orderBy('start_date')
+            ->orderBy('id')
             ->get();
+
     }
 
     public function selectedSheet(): ?AttendanceSheet
     {
         $query =
             AttendanceSheet::query()
+                ->where(
+                    'sheet_type',
+                    AttendanceSheet::TYPE_CUSTOM
+                )
                 ->where(
                     'is_active',
                     true
@@ -265,13 +288,36 @@ public function mount(): void
          * as component state from mount().
          */
         if ($this->selectedSheetId) {
-            return $query->find(
+            $selectedSheet = $query->find(
                 $this->selectedSheetId
             );
+
+            if ($selectedSheet) {
+                return $selectedSheet;
+            }
         }
 
         return $query
-            ->latest()
+            ->orderByRaw(
+                'CASE
+                    WHEN schedule_type = ? THEN 1
+                    WHEN schedule_type = ? THEN 2
+                    WHEN schedule_type = ? THEN 3
+                    WHEN schedule_type = ? THEN 4
+                    ELSE 5
+                END',
+                [
+                    AttendanceSheet::SCHEDULE_ONE_TIME,
+                    AttendanceSheet::SCHEDULE_CONSECUTIVE,
+                    AttendanceSheet::SCHEDULE_MANUAL,
+                    AttendanceSheet::SCHEDULE_RECURRING,
+                ]
+            )
+            ->orderByRaw(
+                'CASE WHEN start_date IS NULL THEN 1 ELSE 0 END'
+            )
+            ->orderBy('start_date')
+            ->orderBy('id')
             ->first();
     }
 
