@@ -613,7 +613,7 @@ action="{{ route(
     >
         Your name will only be attached to this meeting
         response. It will not automatically create a
-        People or Campus Database record.
+        People, Campus Contact, or Gospel Contact record.
     </p>
 
 
@@ -1155,7 +1155,9 @@ action="{{ route(
 
 
 <p class="privacy">
-    Name search displays names only.
+    Name search checks People, Campus Contacts, and Gospel
+    Contacts, but displays names only. The database source
+    is not shown publicly.
     Optional information entered by a guest is stored
     privately for authorized database users and is not
     shown in public search results.
