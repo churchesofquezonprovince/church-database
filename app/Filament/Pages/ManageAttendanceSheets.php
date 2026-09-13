@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\AttendanceMeetingFormQuestion;
 use App\Models\AttendanceMeetingSeries;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
@@ -12,6 +13,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ManageAttendanceSheets extends Page
 {
@@ -27,6 +29,32 @@ class ManageAttendanceSheets extends Page
     public array $newMeetingSeriesNames = [];
 
     public array $newMeetingSeriesSlugs = [];
+
+    /*
+     * Google Form-like builder state.
+     *
+     * New-question state is keyed by Attendance Sheet ID.
+     * Existing-question state is keyed by Question ID.
+     */
+    public array $newMeetingFormQuestionTypes = [];
+
+    public array $newMeetingFormQuestionTexts = [];
+
+    public array $newMeetingFormQuestionDescriptions = [];
+
+    public array $newMeetingFormQuestionRequired = [];
+
+    public array $newMeetingFormQuestionOptions = [];
+
+    public array $meetingFormQuestionTypes = [];
+
+    public array $meetingFormQuestionTexts = [];
+
+    public array $meetingFormQuestionDescriptions = [];
+
+    public array $meetingFormQuestionRequired = [];
+
+    public array $meetingFormQuestionOptions = [];
 
     public function mount(): void
     {
@@ -71,6 +99,8 @@ class ManageAttendanceSheets extends Page
                             );
                 }
             );
+
+        $this->loadMeetingFormQuestionState();
     }
 
     public function getTitle(): string
@@ -220,6 +250,8 @@ class ManageAttendanceSheets extends Page
                                 'id'
                             ),
 
+                'meetingFormQuestions',
+
                 'meetingSeries' =>
                     fn ($query) =>
                         $query
@@ -299,6 +331,774 @@ class ManageAttendanceSheets extends Page
             )
             ->get();
     }
+
+    /*
+     * ============================================================
+     * PHASE 28M.1 — GOOGLE FORM-LIKE BUILDER
+     * ============================================================
+     */
+
+    public function meetingFormQuestionTypeOptions(): array
+    {
+        return [
+            AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER =>
+                'Short Answer',
+
+            AttendanceMeetingFormQuestion::TYPE_PARAGRAPH =>
+                'Paragraph',
+
+            AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE =>
+                'Multiple Choice',
+
+            AttendanceMeetingFormQuestion::TYPE_CHECKBOXES =>
+                'Checkboxes',
+
+            AttendanceMeetingFormQuestion::TYPE_DROPDOWN =>
+                'Dropdown',
+        ];
+    }
+
+    public function addMeetingFormQuestion(
+        int $sheetId
+    ): void {
+        $this->authorizeManagement();
+
+        $sheet =
+            $this->managedSheet(
+                $sheetId
+            );
+
+        if (! $sheet) {
+            $this->sheetNotFound();
+
+            return;
+        }
+
+        if (
+            $sheet->meeting_form_type
+            !== AttendanceSheet::MEETING_FORM_GOOGLE
+        ) {
+            Notification::make()
+                ->title('Google Form-like mode is not enabled')
+                ->body(
+                    'Save this Attendance Sheet with Google Form-like selected first.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $data = validator(
+            [
+                'question_type' =>
+                    $this
+                        ->newMeetingFormQuestionTypes[
+                            $sheetId
+                        ]
+                        ?? AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER,
+
+                'question_text' =>
+                    $this
+                        ->newMeetingFormQuestionTexts[
+                            $sheetId
+                        ]
+                        ?? '',
+
+                'description' =>
+                    $this
+                        ->newMeetingFormQuestionDescriptions[
+                            $sheetId
+                        ]
+                        ?? null,
+
+                'is_required' =>
+                    (bool) (
+                        $this
+                            ->newMeetingFormQuestionRequired[
+                                $sheetId
+                            ]
+                            ?? false
+                    ),
+
+                'options' =>
+                    $this
+                        ->newMeetingFormQuestionOptions[
+                            $sheetId
+                        ]
+                        ?? null,
+            ],
+            [
+                'question_type' => [
+                    'required',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown',
+                ],
+
+                'question_text' => [
+                    'required',
+                    'string',
+                    'max:500',
+                ],
+
+                'description' => [
+                    'nullable',
+                    'string',
+                    'max:2000',
+                ],
+
+                'is_required' => [
+                    'boolean',
+                ],
+
+                'options' => [
+                    'nullable',
+                    'array',
+                ],
+
+                'options.*' => [
+                    'nullable',
+                    'string',
+                    'max:500',
+                ],
+            ]
+        )->validate();
+
+        $options =
+            $this->normalizedMeetingFormQuestionOptions(
+                $data['options'] ?? null
+            );
+
+        if (
+            $this->meetingFormQuestionRequiresOptions(
+                $data['question_type']
+            )
+            && count($options) < 2
+        ) {
+            throw ValidationException::withMessages([
+                'newMeetingFormQuestionOptions.'
+                . $sheetId =>
+                    'Enter at least two choices, one per line.',
+            ]);
+        }
+
+        $question =
+            $sheet
+                ->meetingFormQuestions()
+                ->create([
+                    'question_type' =>
+                        $data['question_type'],
+
+                    'question_text' =>
+                        trim(
+                            $data['question_text']
+                        ),
+
+                    'description' =>
+                        filled(
+                            $data['description']
+                            ?? null
+                        )
+                            ? trim(
+                                $data['description']
+                            )
+                            : null,
+
+                    'options' =>
+                        $this->meetingFormQuestionRequiresOptions(
+                            $data['question_type']
+                        )
+                            ? $options
+                            : null,
+
+                    'is_required' =>
+                        (bool) $data['is_required'],
+
+                    'sort_order' =>
+                        (
+                            (int) (
+                                $sheet
+                                    ->meetingFormQuestions()
+                                    ->max(
+                                        'sort_order'
+                                    )
+                                ?? 0
+                            )
+                        ) + 10,
+                ]);
+
+        $this->hydrateMeetingFormQuestionState(
+            $question
+        );
+
+        $this->newMeetingFormQuestionTypes[
+            $sheetId
+        ] =
+            AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER;
+
+        $this->newMeetingFormQuestionTexts[
+            $sheetId
+        ] = '';
+
+        $this->newMeetingFormQuestionDescriptions[
+            $sheetId
+        ] = '';
+
+        $this->newMeetingFormQuestionRequired[
+            $sheetId
+        ] = false;
+
+        $this->newMeetingFormQuestionOptions[
+            $sheetId
+        ] = [
+            '',
+            '',
+        ];
+
+        Notification::make()
+            ->title('Question added')
+            ->success()
+            ->send();
+    }
+
+    public function saveMeetingFormQuestion(
+        int $questionId
+    ): void {
+        $this->authorizeManagement();
+
+        $question =
+            $this->managedMeetingFormQuestion(
+                $questionId
+            );
+
+        if (! $question) {
+            Notification::make()
+                ->title('Question not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $data = validator(
+            [
+                'question_type' =>
+                    $this
+                        ->meetingFormQuestionTypes[
+                            $questionId
+                        ]
+                        ?? $question->question_type,
+
+                'question_text' =>
+                    $this
+                        ->meetingFormQuestionTexts[
+                            $questionId
+                        ]
+                        ?? $question->question_text,
+
+                'description' =>
+                    $this
+                        ->meetingFormQuestionDescriptions[
+                            $questionId
+                        ]
+                        ?? $question->description,
+
+                'is_required' =>
+                    (bool) (
+                        $this
+                            ->meetingFormQuestionRequired[
+                                $questionId
+                            ]
+                            ?? false
+                    ),
+
+                'options' =>
+                    $this
+                        ->meetingFormQuestionOptions[
+                            $questionId
+                        ]
+                        ?? null,
+            ],
+            [
+                'question_type' => [
+                    'required',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown',
+                ],
+
+                'question_text' => [
+                    'required',
+                    'string',
+                    'max:500',
+                ],
+
+                'description' => [
+                    'nullable',
+                    'string',
+                    'max:2000',
+                ],
+
+                'is_required' => [
+                    'boolean',
+                ],
+
+                'options' => [
+                    'nullable',
+                    'array',
+                ],
+
+                'options.*' => [
+                    'nullable',
+                    'string',
+                    'max:500',
+                ],
+            ]
+        )->validate();
+
+        $options =
+            $this->normalizedMeetingFormQuestionOptions(
+                $data['options'] ?? null
+            );
+
+        if (
+            $this->meetingFormQuestionRequiresOptions(
+                $data['question_type']
+            )
+            && count($options) < 2
+        ) {
+            throw ValidationException::withMessages([
+                'meetingFormQuestionOptions.'
+                . $questionId =>
+                    'Enter at least two choices, one per line.',
+            ]);
+        }
+
+        $question->update([
+            'question_type' =>
+                $data['question_type'],
+
+            'question_text' =>
+                trim(
+                    $data['question_text']
+                ),
+
+            'description' =>
+                filled(
+                    $data['description']
+                    ?? null
+                )
+                    ? trim(
+                        $data['description']
+                    )
+                    : null,
+
+            'options' =>
+                $this->meetingFormQuestionRequiresOptions(
+                    $data['question_type']
+                )
+                    ? $options
+                    : null,
+
+            'is_required' =>
+                (bool) $data['is_required'],
+        ]);
+
+        $this->hydrateMeetingFormQuestionState(
+            $question->fresh()
+        );
+
+        Notification::make()
+            ->title('Question saved')
+            ->success()
+            ->send();
+    }
+
+    public function deleteMeetingFormQuestion(
+        int $questionId
+    ): void {
+        $this->authorizeManagement();
+
+        $question =
+            $this->managedMeetingFormQuestion(
+                $questionId
+            );
+
+        if (! $question) {
+            Notification::make()
+                ->title('Question not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $question->delete();
+
+        unset(
+            $this->meetingFormQuestionTypes[
+                $questionId
+            ],
+            $this->meetingFormQuestionTexts[
+                $questionId
+            ],
+            $this->meetingFormQuestionDescriptions[
+                $questionId
+            ],
+            $this->meetingFormQuestionRequired[
+                $questionId
+            ],
+            $this->meetingFormQuestionOptions[
+                $questionId
+            ],
+        );
+
+        Notification::make()
+            ->title('Question deleted')
+            ->success()
+            ->send();
+    }
+
+    public function moveMeetingFormQuestion(
+        int $questionId,
+        string $direction
+    ): void {
+        $this->authorizeManagement();
+
+        if (
+            ! in_array(
+                $direction,
+                [
+                    'up',
+                    'down',
+                ],
+                true
+            )
+        ) {
+            return;
+        }
+
+        $question =
+            $this->managedMeetingFormQuestion(
+                $questionId
+            );
+
+        if (! $question) {
+            return;
+        }
+
+        $questions =
+            AttendanceMeetingFormQuestion::query()
+                ->where(
+                    'attendance_sheet_id',
+                    $question->attendance_sheet_id
+                )
+                ->orderBy(
+                    'sort_order'
+                )
+                ->orderBy(
+                    'id'
+                )
+                ->get()
+                ->values();
+
+        $index =
+            $questions->search(
+                fn (
+                    AttendanceMeetingFormQuestion $candidate
+                ): bool =>
+                    (int) $candidate->id
+                    === $questionId
+            );
+
+        if ($index === false) {
+            return;
+        }
+
+        $target =
+            $direction === 'up'
+                ? $index - 1
+                : $index + 1;
+
+        if (
+            $target < 0
+            || $target >= $questions->count()
+        ) {
+            return;
+        }
+
+        $ordered =
+            $questions->all();
+
+        [
+            $ordered[$index],
+            $ordered[$target],
+        ] = [
+            $ordered[$target],
+            $ordered[$index],
+        ];
+
+        DB::transaction(
+            function () use (
+                $ordered
+            ): void {
+                foreach (
+                    $ordered
+                    as $position => $item
+                ) {
+                    $item->update([
+                        'sort_order' =>
+                            ($position + 1) * 10,
+                    ]);
+                }
+            }
+        );
+    }
+
+    private function loadMeetingFormQuestionState(): void
+    {
+        AttendanceMeetingFormQuestion::query()
+            ->whereHas(
+                'sheet',
+                fn ($query) =>
+                    $query->where(
+                        'sheet_type',
+                        AttendanceSheet::TYPE_CUSTOM
+                    )
+            )
+            ->orderBy(
+                'attendance_sheet_id'
+            )
+            ->orderBy(
+                'sort_order'
+            )
+            ->orderBy(
+                'id'
+            )
+            ->get()
+            ->each(
+                fn (
+                    AttendanceMeetingFormQuestion $question
+                ) =>
+                    $this
+                        ->hydrateMeetingFormQuestionState(
+                            $question
+                        )
+            );
+    }
+
+    private function hydrateMeetingFormQuestionState(
+        AttendanceMeetingFormQuestion $question
+    ): void {
+        $questionId =
+            (int) $question->id;
+
+        $this->meetingFormQuestionTypes[
+            $questionId
+        ] =
+            $question->question_type;
+
+        $this->meetingFormQuestionTexts[
+            $questionId
+        ] =
+            $question->question_text;
+
+        $this->meetingFormQuestionDescriptions[
+            $questionId
+        ] =
+            $question->description ?? '';
+
+        $this->meetingFormQuestionRequired[
+            $questionId
+        ] =
+            (bool) $question->is_required;
+
+        $this->meetingFormQuestionOptions[
+            $questionId
+        ] =
+            array_values(
+                $question->options ?? []
+            );
+    }
+
+    public function addNewMeetingFormQuestionOption(
+        int $sheetId
+    ): void {
+        $options =
+            $this->newMeetingFormQuestionOptions[
+                $sheetId
+            ] ?? [];
+
+        if (! is_array($options)) {
+            $options = [];
+        }
+
+        $options =
+            array_values(
+                $options
+            );
+
+        while (count($options) < 2) {
+            $options[] = '';
+        }
+
+        $options[] = '';
+
+        $this->newMeetingFormQuestionOptions[
+            $sheetId
+        ] =
+            array_values(
+                $options
+            );
+    }
+
+    public function removeNewMeetingFormQuestionOption(
+        int $sheetId,
+        int $index
+    ): void {
+        $options =
+            $this->newMeetingFormQuestionOptions[
+                $sheetId
+            ] ?? [];
+
+        if (! is_array($options)) {
+            return;
+        }
+
+        unset(
+            $options[
+                $index
+            ]
+        );
+
+        $this->newMeetingFormQuestionOptions[
+            $sheetId
+        ] =
+            array_values(
+                $options
+            );
+    }
+
+    public function addMeetingFormQuestionOption(
+        int $questionId
+    ): void {
+        $options =
+            $this->meetingFormQuestionOptions[
+                $questionId
+            ] ?? [];
+
+        if (! is_array($options)) {
+            $options = [];
+        }
+
+        $options =
+            array_values(
+                $options
+            );
+
+        while (count($options) < 2) {
+            $options[] = '';
+        }
+
+        $options[] = '';
+
+        $this->meetingFormQuestionOptions[
+            $questionId
+        ] =
+            array_values(
+                $options
+            );
+    }
+
+    public function removeMeetingFormQuestionOption(
+        int $questionId,
+        int $index
+    ): void {
+        $options =
+            $this->meetingFormQuestionOptions[
+                $questionId
+            ] ?? [];
+
+        if (! is_array($options)) {
+            return;
+        }
+
+        unset(
+            $options[
+                $index
+            ]
+        );
+
+        $this->meetingFormQuestionOptions[
+            $questionId
+        ] =
+            array_values(
+                $options
+            );
+    }
+
+    private function normalizedMeetingFormQuestionOptions(
+        mixed $value
+    ): array {
+        $options =
+            is_array($value)
+                ? $value
+                : preg_split(
+                    '/\\R/',
+                    (string) $value
+                );
+
+        return collect(
+            $options
+        )
+            ->map(
+                fn ($option): string =>
+                    trim(
+                        (string) $option
+                    )
+            )
+            ->filter(
+                fn (string $option): bool =>
+                    $option !== ''
+            )
+            ->unique(
+                fn (string $option): string =>
+                    mb_strtolower(
+                        $option
+                    )
+            )
+            ->values()
+            ->all();
+    }
+
+    private function meetingFormQuestionRequiresOptions(
+        string $type
+    ): bool {
+        return in_array(
+            $type,
+            [
+                AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE,
+                AttendanceMeetingFormQuestion::TYPE_CHECKBOXES,
+                AttendanceMeetingFormQuestion::TYPE_DROPDOWN,
+            ],
+            true
+        );
+    }
+
+    private function managedMeetingFormQuestion(
+        int $questionId
+    ): ?AttendanceMeetingFormQuestion {
+        return AttendanceMeetingFormQuestion::query()
+            ->whereHas(
+                'sheet',
+                fn ($query) =>
+                    $query->where(
+                        'sheet_type',
+                        AttendanceSheet::TYPE_CUSTOM
+                    )
+            )
+            ->find(
+                $questionId
+            );
+    }
+
 
     /*
      * ============================================================

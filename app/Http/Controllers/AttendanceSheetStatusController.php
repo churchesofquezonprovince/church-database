@@ -147,7 +147,7 @@ public function update(
 
         'meeting_form_type' => [
             'required',
-            'in:disabled,normal',
+            'in:disabled,normal,google_form',
         ],
 
         'start_date' => [

@@ -1099,26 +1099,47 @@
         </label>
 
 
-        {{-- Future --}}
-        <div
-            class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-100 p-4 opacity-60 dark:border-gray-700 dark:bg-gray-800"
+        {{-- Google Form-like --}}
+        <label
+            class="flex cursor-pointer items-start gap-3
+                   rounded-xl border border-violet-200
+                   bg-violet-50 p-4
+                   hover:bg-violet-100
+                   dark:border-violet-900
+                   dark:bg-violet-950
+                   dark:hover:bg-violet-900"
         >
             <input
                 type="radio"
-                disabled
-                class="mt-1 h-4 w-4"
+                name="meeting_form_type"
+                value="{{ \App\Models\AttendanceSheet::MEETING_FORM_GOOGLE }}"
+                @checked(
+                    $sheet->meeting_form_type
+                    === \App\Models\AttendanceSheet::MEETING_FORM_GOOGLE
+                )
+                class="mt-1 h-4 w-4 border-gray-300
+                       text-violet-600 focus:ring-violet-500"
             >
 
             <span class="min-w-0">
-                <span class="block font-bold text-gray-600 dark:text-gray-300">
+                <span
+                    class="block font-bold
+                           text-violet-900
+                           dark:text-violet-100"
+                >
                     Google Form-like
                 </span>
 
-                <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                    Future feature.
+                <span
+                    class="mt-1 block text-xs
+                           text-violet-700
+                           dark:text-violet-300"
+                >
+                    Build a custom public response form
+                    with configurable questions.
                 </span>
             </span>
-        </div>
+        </label>
 
     </div>
 </div>
@@ -1133,6 +1154,784 @@
                             </div>
                         </form>
                     </details>
+@endif
+
+
+@if (
+    $sheet->is_active
+    &&
+    $sheet->meeting_form_type
+        === \App\Models\AttendanceSheet::MEETING_FORM_GOOGLE
+)
+    <details
+        class="mt-5 overflow-hidden rounded-xl
+               border border-violet-200 bg-violet-50
+               dark:border-violet-900 dark:bg-violet-950"
+        open
+    >
+        <summary
+            class="flex cursor-pointer list-none
+                   items-center justify-between gap-4 p-4"
+        >
+            <span>
+                <span
+                    class="block text-sm font-bold
+                           text-violet-900
+                           dark:text-violet-100"
+                >
+                    Google Form-like Builder
+                </span>
+
+                <span
+                    class="mt-1 block text-xs
+                           text-violet-700
+                           dark:text-violet-300"
+                >
+                    Configure the questions for this
+                    Attendance Sheet.
+                </span>
+            </span>
+
+            <span
+                class="rounded-full bg-violet-100
+                       px-2.5 py-1 text-xs font-bold
+                       text-violet-800
+                       dark:bg-violet-900
+                       dark:text-violet-100"
+            >
+                {{ $sheet->meetingFormQuestions->count() }}
+                question(s)
+            </span>
+        </summary>
+
+        <div
+            class="space-y-5 border-t border-violet-200
+                   p-4 dark:border-violet-900"
+        >
+            {{-- Add Question --}}
+            <div
+                class="rounded-xl border border-violet-200
+                       bg-white p-4
+                       dark:border-violet-800
+                       dark:bg-gray-950"
+            >
+                <h4
+                    class="font-bold text-gray-900
+                           dark:text-white"
+                >
+                    Add Question
+                </h4>
+
+                <div
+                    class="mt-4 grid gap-4 md:grid-cols-2"
+                >
+                    <div>
+                        <label
+                            class="block text-sm font-semibold
+                                   text-gray-700
+                                   dark:text-gray-200"
+                        >
+                            Question Type
+                        </label>
+
+                        <select
+                            wire:model.live="newMeetingFormQuestionTypes.{{ $sheet->id }}"
+                            class="mt-2 block w-full rounded-xl
+                                   border border-gray-300 bg-white
+                                   px-4 py-3 text-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-900"
+                        >
+                            @foreach (
+                                $this->meetingFormQuestionTypeOptions()
+                                as $type => $label
+                            )
+                                <option value="{{ $type }}">
+                                    {{ $label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div
+                        class="flex items-end"
+                    >
+                        <label
+                            class="inline-flex items-center
+                                   gap-2 rounded-xl border
+                                   border-gray-200 px-4 py-3
+                                   text-sm font-semibold
+                                   dark:border-gray-700"
+                        >
+                            <input
+                                type="checkbox"
+                                wire:model="newMeetingFormQuestionRequired.{{ $sheet->id }}"
+                                class="rounded border-gray-300
+                                       text-violet-600
+                                       focus:ring-violet-500"
+                            >
+
+                            Required question
+                        </label>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label
+                            class="block text-sm font-semibold
+                                   text-gray-700
+                                   dark:text-gray-200"
+                        >
+                            Question
+                        </label>
+
+                        <input
+                            type="text"
+                            wire:model="newMeetingFormQuestionTexts.{{ $sheet->id }}"
+                            placeholder="Enter the question..."
+                            class="mt-2 block w-full rounded-xl
+                                   border border-gray-300 bg-white
+                                   px-4 py-3 text-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-900"
+                        >
+
+                        @error(
+                            'newMeetingFormQuestionTexts.'
+                            . $sheet->id
+                        )
+                            <p
+                                class="mt-1 text-xs
+                                       text-red-600"
+                            >
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label
+                            class="block text-sm font-semibold
+                                   text-gray-700
+                                   dark:text-gray-200"
+                        >
+                            Description
+                            <span class="font-normal">
+                                (optional)
+                            </span>
+                        </label>
+
+                        <textarea
+                            wire:model="newMeetingFormQuestionDescriptions.{{ $sheet->id }}"
+                            rows="2"
+                            placeholder="Optional help text..."
+                            class="mt-2 block w-full rounded-xl
+                                   border border-gray-300 bg-white
+                                   px-4 py-3 text-sm
+                                   dark:border-gray-700
+                                   dark:bg-gray-900"
+                        ></textarea>
+                    </div>
+
+                    @php
+                        $newQuestionType =
+                            $this->newMeetingFormQuestionTypes[
+                                $sheet->id
+                            ]
+                            ??
+                            \App\Models\AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER;
+
+                        $newQuestionNeedsOptions =
+                            in_array(
+                                $newQuestionType,
+                                [
+                                    \App\Models\AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE,
+                                    \App\Models\AttendanceMeetingFormQuestion::TYPE_CHECKBOXES,
+                                    \App\Models\AttendanceMeetingFormQuestion::TYPE_DROPDOWN,
+                                ],
+                                true
+                            );
+
+                        $newQuestionOptions =
+                            array_values(
+                                $this->newMeetingFormQuestionOptions[
+                                    $sheet->id
+                                ]
+                                ?? []
+                            );
+
+                        while (
+                            count($newQuestionOptions) < 2
+                        ) {
+                            $newQuestionOptions[] = '';
+                        }
+                    @endphp
+
+                    @if ($newQuestionNeedsOptions)
+                        <div class="md:col-span-2">
+                            <label
+                                class="block text-sm font-semibold
+                                       text-gray-700
+                                       dark:text-gray-200"
+                            >
+                                Options
+                            </label>
+
+                            <div class="mt-3 space-y-2">
+                                @foreach (
+                                    $newQuestionOptions
+                                    as $optionIndex => $option
+                                )
+                                    <div
+                                        class="flex items-center gap-2"
+                                        wire:key="new-question-option-{{ $sheet->id }}-{{ $optionIndex }}"
+                                    >
+                                        <span
+                                            class="flex h-7 w-7 shrink-0
+                                                   items-center justify-center
+                                                   text-sm text-gray-400"
+                                        >
+                                            @if (
+                                                $newQuestionType
+                                                ===
+                                                \App\Models\AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE
+                                            )
+                                                ○
+                                            @elseif (
+                                                $newQuestionType
+                                                ===
+                                                \App\Models\AttendanceMeetingFormQuestion::TYPE_CHECKBOXES
+                                            )
+                                                □
+                                            @else
+                                                {{ $optionIndex + 1 }}.
+                                            @endif
+                                        </span>
+
+                                        <input
+                                            type="text"
+                                            wire:model="newMeetingFormQuestionOptions.{{ $sheet->id }}.{{ $optionIndex }}"
+                                            placeholder="Option {{ $optionIndex + 1 }}"
+                                            class="block min-w-0 flex-1
+                                                   rounded-xl border
+                                                   border-gray-300 bg-white
+                                                   px-4 py-2.5 text-sm
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-900"
+                                        >
+
+                                        @if (count($newQuestionOptions) > 2)
+                                            <button
+                                                type="button"
+                                                wire:click="removeNewMeetingFormQuestionOption({{ $sheet->id }}, {{ $optionIndex }})"
+                                                class="rounded-lg px-2 py-2
+                                                       text-sm font-bold
+                                                       text-red-600
+                                                       hover:bg-red-50
+                                                       dark:hover:bg-red-950"
+                                                title="Remove option"
+                                            >
+                                                ×
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <button
+                                type="button"
+                                wire:click="addNewMeetingFormQuestionOption({{ $sheet->id }})"
+                                class="mt-3 inline-flex items-center
+                                       rounded-lg px-3 py-2
+                                       text-sm font-bold
+                                       text-violet-700
+                                       hover:bg-violet-100
+                                       dark:text-violet-300
+                                       dark:hover:bg-violet-900"
+                            >
+                                + Add Option
+                            </button>
+
+                            @error(
+                                'newMeetingFormQuestionOptions.'
+                                . $sheet->id
+                            )
+                                <p class="mt-2 text-xs text-red-600">
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                    @elseif (
+                        $newQuestionType
+                        ===
+                        \App\Models\AttendanceMeetingFormQuestion::TYPE_PARAGRAPH
+                    )
+                        <div class="md:col-span-2">
+                            <textarea
+                                disabled
+                                rows="3"
+                                placeholder="Long answer text"
+                                class="block w-full cursor-not-allowed
+                                       rounded-xl border
+                                       border-gray-200 bg-gray-50
+                                       px-4 py-3 text-sm
+                                       text-gray-400
+                                       dark:border-gray-800
+                                       dark:bg-gray-900"
+                            ></textarea>
+                        </div>
+
+                    @else
+                        <div class="md:col-span-2">
+                            <input
+                                type="text"
+                                disabled
+                                placeholder="Short answer text"
+                                class="block w-full cursor-not-allowed
+                                       border-0 border-b
+                                       border-gray-300 bg-transparent
+                                       px-1 py-2 text-sm
+                                       text-gray-400
+                                       focus:ring-0
+                                       dark:border-gray-700"
+                            >
+                        </div>
+                    @endif
+                </div>
+
+                <button
+                    type="button"
+                    wire:click="addMeetingFormQuestion({{ $sheet->id }})"
+                    wire:loading.attr="disabled"
+                    wire:target="addMeetingFormQuestion"
+                    class="mt-4 rounded-xl
+                           bg-violet-600 px-4 py-2.5
+                           text-sm font-bold text-white
+                           hover:bg-violet-500
+                           disabled:opacity-50"
+                >
+                    + Add Question
+                </button>
+            </div>
+
+
+            {{-- Existing Questions --}}
+            <div class="space-y-4">
+                @forelse (
+                    $sheet->meetingFormQuestions
+                    as $question
+                )
+                    <details
+                        class="overflow-hidden rounded-xl
+                               border border-gray-200 bg-white
+                               dark:border-gray-700
+                               dark:bg-gray-950"
+                    >
+                        <summary
+                            class="flex cursor-pointer list-none
+                                   items-start justify-between
+                                   gap-4 p-4"
+                        >
+                            <span class="min-w-0">
+                                <span
+                                    class="block font-bold
+                                           text-gray-900
+                                           dark:text-white"
+                                >
+                                    {{ $loop->iteration }}.
+                                    {{ $question->question_text }}
+                                </span>
+
+                                <span
+                                    class="mt-1 block text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    {{ $question->typeLabel() }}
+
+                                    ·
+
+                                    {{
+                                        $question->is_required
+                                            ? 'Required'
+                                            : 'Optional'
+                                    }}
+                                </span>
+                            </span>
+
+                            <span
+                                class="shrink-0 rounded-full
+                                       bg-gray-100 px-2 py-1
+                                       text-xs font-bold
+                                       text-gray-600
+                                       dark:bg-gray-800
+                                       dark:text-gray-300"
+                            >
+                                Edit
+                            </span>
+                        </summary>
+
+                        <div
+                            class="border-t border-gray-200
+                                   p-4 dark:border-gray-700"
+                        >
+                            <div
+                                class="grid gap-4
+                                       md:grid-cols-2"
+                            >
+                                <div>
+                                    <label
+                                        class="block text-sm
+                                               font-semibold"
+                                    >
+                                        Question Type
+                                    </label>
+
+                                    <select
+                                        wire:model.live="meetingFormQuestionTypes.{{ $question->id }}"
+                                        class="mt-2 block w-full
+                                               rounded-xl border
+                                               border-gray-300 bg-white
+                                               px-4 py-3 text-sm
+                                               dark:border-gray-700
+                                               dark:bg-gray-900"
+                                    >
+                                        @foreach (
+                                            $this->meetingFormQuestionTypeOptions()
+                                            as $type => $label
+                                        )
+                                            <option
+                                                value="{{ $type }}"
+                                            >
+                                                {{ $label }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div
+                                    class="flex items-end"
+                                >
+                                    <label
+                                        class="inline-flex
+                                               items-center gap-2
+                                               rounded-xl border
+                                               border-gray-200
+                                               px-4 py-3 text-sm
+                                               font-semibold
+                                               dark:border-gray-700"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            wire:model="meetingFormQuestionRequired.{{ $question->id }}"
+                                            class="rounded
+                                                   border-gray-300
+                                                   text-violet-600"
+                                        >
+
+                                        Required
+                                    </label>
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label
+                                        class="block text-sm
+                                               font-semibold"
+                                    >
+                                        Question
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        wire:model="meetingFormQuestionTexts.{{ $question->id }}"
+                                        class="mt-2 block w-full
+                                               rounded-xl border
+                                               border-gray-300 bg-white
+                                               px-4 py-3 text-sm
+                                               dark:border-gray-700
+                                               dark:bg-gray-900"
+                                    >
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label
+                                        class="block text-sm
+                                               font-semibold"
+                                    >
+                                        Description
+                                    </label>
+
+                                    <textarea
+                                        wire:model="meetingFormQuestionDescriptions.{{ $question->id }}"
+                                        rows="2"
+                                        class="mt-2 block w-full
+                                               rounded-xl border
+                                               border-gray-300 bg-white
+                                               px-4 py-3 text-sm
+                                               dark:border-gray-700
+                                               dark:bg-gray-900"
+                                    ></textarea>
+                                </div>
+
+                                @php
+                                    $questionType =
+                                        $this->meetingFormQuestionTypes[
+                                            $question->id
+                                        ]
+                                        ?? $question->question_type;
+
+                                    $questionNeedsOptions =
+                                        in_array(
+                                            $questionType,
+                                            [
+                                                \App\Models\AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE,
+                                                \App\Models\AttendanceMeetingFormQuestion::TYPE_CHECKBOXES,
+                                                \App\Models\AttendanceMeetingFormQuestion::TYPE_DROPDOWN,
+                                            ],
+                                            true
+                                        );
+
+                                    $questionOptions =
+                                        array_values(
+                                            $this->meetingFormQuestionOptions[
+                                                $question->id
+                                            ]
+                                            ?? []
+                                        );
+
+                                    while (
+                                        $questionNeedsOptions
+                                        &&
+                                        count($questionOptions) < 2
+                                    ) {
+                                        $questionOptions[] = '';
+                                    }
+                                @endphp
+
+                                @if ($questionNeedsOptions)
+                                    <div class="md:col-span-2">
+                                        <label
+                                            class="block text-sm
+                                                   font-semibold"
+                                        >
+                                            Options
+                                        </label>
+
+                                        <div class="mt-3 space-y-2">
+                                            @foreach (
+                                                $questionOptions
+                                                as $optionIndex => $option
+                                            )
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                    wire:key="question-option-{{ $question->id }}-{{ $optionIndex }}"
+                                                >
+                                                    <span
+                                                        class="flex h-7 w-7
+                                                               shrink-0 items-center
+                                                               justify-center
+                                                               text-sm
+                                                               text-gray-400"
+                                                    >
+                                                        @if (
+                                                            $questionType
+                                                            ===
+                                                            \App\Models\AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE
+                                                        )
+                                                            ○
+                                                        @elseif (
+                                                            $questionType
+                                                            ===
+                                                            \App\Models\AttendanceMeetingFormQuestion::TYPE_CHECKBOXES
+                                                        )
+                                                            □
+                                                        @else
+                                                            {{ $optionIndex + 1 }}.
+                                                        @endif
+                                                    </span>
+
+                                                    <input
+                                                        type="text"
+                                                        wire:model="meetingFormQuestionOptions.{{ $question->id }}.{{ $optionIndex }}"
+                                                        placeholder="Option {{ $optionIndex + 1 }}"
+                                                        class="block min-w-0
+                                                               flex-1 rounded-xl
+                                                               border
+                                                               border-gray-300
+                                                               bg-white px-4
+                                                               py-2.5 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-900"
+                                                    >
+
+                                                    @if (count($questionOptions) > 2)
+                                                        <button
+                                                            type="button"
+                                                            wire:click="removeMeetingFormQuestionOption({{ $question->id }}, {{ $optionIndex }})"
+                                                            class="rounded-lg
+                                                                   px-2 py-2
+                                                                   text-sm font-bold
+                                                                   text-red-600
+                                                                   hover:bg-red-50
+                                                                   dark:hover:bg-red-950"
+                                                            title="Remove option"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            wire:click="addMeetingFormQuestionOption({{ $question->id }})"
+                                            class="mt-3 rounded-lg
+                                                   px-3 py-2
+                                                   text-sm font-bold
+                                                   text-violet-700
+                                                   hover:bg-violet-100
+                                                   dark:text-violet-300
+                                                   dark:hover:bg-violet-900"
+                                        >
+                                            + Add Option
+                                        </button>
+
+                                        @error(
+                                            'meetingFormQuestionOptions.'
+                                            . $question->id
+                                        )
+                                            <p
+                                                class="mt-2 text-xs
+                                                       text-red-600"
+                                            >
+                                                {{ $message }}
+                                            </p>
+                                        @enderror
+                                    </div>
+
+                                @elseif (
+                                    $questionType
+                                    ===
+                                    \App\Models\AttendanceMeetingFormQuestion::TYPE_PARAGRAPH
+                                )
+                                    <div class="md:col-span-2">
+                                        <textarea
+                                            disabled
+                                            rows="3"
+                                            placeholder="Long answer text"
+                                            class="block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-200
+                                                   bg-gray-50
+                                                   px-4 py-3
+                                                   text-sm text-gray-400
+                                                   dark:border-gray-800
+                                                   dark:bg-gray-900"
+                                        ></textarea>
+                                    </div>
+
+                                @else
+                                    <div class="md:col-span-2">
+                                        <input
+                                            type="text"
+                                            disabled
+                                            placeholder="Short answer text"
+                                            class="block w-full
+                                                   cursor-not-allowed
+                                                   border-0 border-b
+                                                   border-gray-300
+                                                   bg-transparent
+                                                   px-1 py-2 text-sm
+                                                   text-gray-400
+                                                   focus:ring-0
+                                                   dark:border-gray-700"
+                                        >
+                                    </div>
+                                @endif
+                            </div>
+
+                            <div
+                                class="mt-4 flex flex-wrap
+                                       gap-2"
+                            >
+                                <button
+                                    type="button"
+                                    wire:click="saveMeetingFormQuestion({{ $question->id }})"
+                                    class="rounded-lg
+                                           bg-violet-600
+                                           px-3 py-2
+                                           text-xs font-bold
+                                           text-white
+                                           hover:bg-violet-500"
+                                >
+                                    Save Question
+                                </button>
+
+                                <button
+                                    type="button"
+                                    wire:click="moveMeetingFormQuestion({{ $question->id }}, 'up')"
+                                    @disabled($loop->first)
+                                    class="rounded-lg border
+                                           border-gray-300
+                                           px-3 py-2
+                                           text-xs font-bold
+                                           disabled:opacity-40
+                                           dark:border-gray-700"
+                                >
+                                    Move Up
+                                </button>
+
+                                <button
+                                    type="button"
+                                    wire:click="moveMeetingFormQuestion({{ $question->id }}, 'down')"
+                                    @disabled($loop->last)
+                                    class="rounded-lg border
+                                           border-gray-300
+                                           px-3 py-2
+                                           text-xs font-bold
+                                           disabled:opacity-40
+                                           dark:border-gray-700"
+                                >
+                                    Move Down
+                                </button>
+
+                                <button
+                                    type="button"
+                                    wire:click="deleteMeetingFormQuestion({{ $question->id }})"
+                                    wire:confirm="Delete this question and all of its saved answers? This cannot be undone."
+                                    class="rounded-lg
+                                           border border-red-200
+                                           bg-red-50 px-3 py-2
+                                           text-xs font-bold
+                                           text-red-700
+                                           hover:bg-red-100
+                                           dark:border-red-900
+                                           dark:bg-red-950
+                                           dark:text-red-200"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                @empty
+                    <div
+                        class="rounded-xl border
+                               border-dashed border-violet-300
+                               p-5 text-center text-sm
+                               text-violet-700
+                               dark:border-violet-800
+                               dark:text-violet-300"
+                    >
+                        No custom questions yet.
+                        Add the first question above.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </details>
 @endif
 
 
