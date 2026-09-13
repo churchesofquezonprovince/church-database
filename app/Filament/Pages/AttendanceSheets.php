@@ -4,9 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceMeetingResponse;
+use App\Models\AttendanceMeetingProfileCorrection;
 use App\Models\AttendanceImmichAssetDetection;
 use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
+use App\Support\LocalityOptions;
+use App\Support\MeetingFormDatabaseFieldRegistry;
+use App\Support\MeetingFormProfileCorrectionReviewService;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSessionImmichAsset;
@@ -1024,6 +1028,250 @@ public function schoolIdForName(?string $name): ?int
         ? (int) $matches->first()->id
         : null;
 }
+
+public function pendingMeetingProfileCorrections(): Collection
+{
+    $session =
+        $this->selectedSession();
+
+    if (! $session) {
+        return collect();
+    }
+
+    return AttendanceMeetingProfileCorrection::query()
+        ->with([
+            'response',
+            'question',
+            'person',
+            'campusContact',
+            'gospelContact',
+        ])
+        ->where(
+            'status',
+            AttendanceMeetingProfileCorrection::STATUS_PENDING
+        )
+        ->whereHas(
+            'response',
+            fn ($query) =>
+                $query->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+        )
+        ->orderBy('attendance_meeting_response_id')
+        ->orderBy('id')
+        ->get();
+}
+
+
+public function approveMeetingProfileCorrection(
+    int $correctionId
+): void {
+    $change =
+        $this->pendingMeetingProfileCorrection(
+            $correctionId
+        );
+
+    if (! $change) {
+        Notification::make()
+            ->title('Database change not found')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    try {
+        app(
+            MeetingFormProfileCorrectionReviewService::class
+        )->approve(
+            $change,
+            auth()->id()
+        );
+
+        Notification::make()
+            ->title('Database change approved')
+            ->body(
+                MeetingFormDatabaseFieldRegistry::label(
+                    $change->database_field
+                )
+                . ' was updated.'
+            )
+            ->success()
+            ->send();
+    } catch (\Throwable $e) {
+        report($e);
+
+        Notification::make()
+            ->title('Database change was not approved')
+            ->body(
+                $e->getMessage()
+            )
+            ->danger()
+            ->send();
+    }
+}
+
+
+public function rejectMeetingProfileCorrection(
+    int $correctionId
+): void {
+    $change =
+        $this->pendingMeetingProfileCorrection(
+            $correctionId
+        );
+
+    if (! $change) {
+        Notification::make()
+            ->title('Database change not found')
+            ->warning()
+            ->send();
+
+        return;
+    }
+
+    try {
+        app(
+            MeetingFormProfileCorrectionReviewService::class
+        )->reject(
+            $change,
+            auth()->id()
+        );
+
+        Notification::make()
+            ->title('Database change rejected')
+            ->body(
+                'The canonical database value was left unchanged.'
+            )
+            ->success()
+            ->send();
+    } catch (\Throwable $e) {
+        report($e);
+
+        Notification::make()
+            ->title('Database change was not rejected')
+            ->body(
+                $e->getMessage()
+            )
+            ->danger()
+            ->send();
+    }
+}
+
+
+public function meetingProfileCorrectionValueLabel(
+    AttendanceMeetingProfileCorrection $change,
+    string $which
+): string {
+    $value =
+        $which === 'proposed'
+            ? (
+                $change->proposed_value_json
+                ?? $change->proposed_value_text
+            )
+            : (
+                $change->original_value_json
+                ?? $change->original_value_text
+            );
+
+    if (
+        $value === null
+        || $value === ''
+        || $value === []
+    ) {
+        return 'Not set';
+    }
+
+    if (is_array($value)) {
+        return collect(
+            $value
+        )
+            ->filter(
+                fn ($item): bool =>
+                    filled($item)
+            )
+            ->implode(', ');
+    }
+
+    if (
+        $change->database_field
+        === 'locality'
+        && is_numeric($value)
+    ) {
+        return LocalityOptions::activeConfiguredLocality(
+            (int) $value
+        )?->name
+            ?? (string) $value;
+    }
+
+    if (
+        $change->database_field
+        === 'school'
+        && is_numeric($value)
+    ) {
+        return School::query()
+            ->find(
+                (int) $value
+            )
+            ?->name
+            ?? (string) $value;
+    }
+
+    if (
+        in_array(
+            $change->database_field,
+            [
+                'birthdate',
+                'baptism_date',
+                'first_contact_date',
+            ],
+            true
+        )
+    ) {
+        try {
+            return \Carbon\CarbonImmutable::parse(
+                (string) $value
+            )->format(
+                'M j, Y'
+            );
+        } catch (\Throwable) {
+            // Fall through to raw value.
+        }
+    }
+
+    return (string) $value;
+}
+
+
+private function pendingMeetingProfileCorrection(
+    int $correctionId
+): ?AttendanceMeetingProfileCorrection {
+    $session =
+        $this->selectedSession();
+
+    if (! $session) {
+        return null;
+    }
+
+    return AttendanceMeetingProfileCorrection::query()
+        ->whereKey(
+            $correctionId
+        )
+        ->where(
+            'status',
+            AttendanceMeetingProfileCorrection::STATUS_PENDING
+        )
+        ->whereHas(
+            'response',
+            fn ($query) =>
+                $query->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+        )
+        ->first();
+}
+
 
 public function preListedFilterOptions(): array
 {
