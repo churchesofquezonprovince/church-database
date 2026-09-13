@@ -1200,7 +1200,7 @@
                        dark:text-violet-100"
             >
                 {{ $sheet->meetingFormQuestions->count() }}
-                question(s)
+                form item(s)
             </span>
         </summary>
 
@@ -1219,7 +1219,7 @@
                     class="font-bold text-gray-900
                            dark:text-white"
                 >
-                    Add Question
+                    Add Form Item
                 </h4>
 
                 <div
@@ -1253,6 +1253,21 @@
                         </select>
                     </div>
 
+                    @php
+                        $newBuilderType =
+                            $this->newMeetingFormQuestionTypes[
+                                $sheet->id
+                            ]
+                            ??
+                            \App\Models\AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER;
+
+                        $newBuilderIsNotice =
+                            $newBuilderType
+                            ===
+                            \App\Models\AttendanceMeetingFormQuestion::TYPE_NOTICE;
+                    @endphp
+
+                    @if (! $newBuilderIsNotice)
                     <div
                         class="flex items-end"
                     >
@@ -1274,6 +1289,7 @@
                             Required question
                         </label>
                     </div>
+                    @endif
 
                     <div class="md:col-span-2">
                         <label
@@ -1281,13 +1297,17 @@
                                    text-gray-700
                                    dark:text-gray-200"
                         >
-                            Question
+                            {{ $newBuilderIsNotice
+                                ? 'Notice Title'
+                                : 'Question' }}
                         </label>
 
                         <input
                             type="text"
                             wire:model="newMeetingFormQuestionTexts.{{ $sheet->id }}"
-                            placeholder="Enter the question..."
+                            placeholder="{{ $newBuilderIsNotice
+                                ? 'Enter notice title...'
+                                : 'Enter the question...' }}"
                             class="mt-2 block w-full rounded-xl
                                    border border-gray-300 bg-white
                                    px-4 py-3 text-sm
@@ -1314,7 +1334,9 @@
                                    text-gray-700
                                    dark:text-gray-200"
                         >
-                            Description
+                            {{ $newBuilderIsNotice
+                                ? 'Notice / Message'
+                                : 'Description' }}
                             <span class="font-normal">
                                 (optional)
                             </span>
@@ -1371,7 +1393,22 @@
                         }
                     @endphp
 
-                    @if ($newQuestionIsDatabaseField)
+                    @if ($newBuilderIsNotice)
+                        <div
+                            class="md:col-span-2 rounded-xl
+                                   border border-teal-200
+                                   bg-teal-50 p-4
+                                   text-sm text-teal-900
+                                   dark:border-teal-900
+                                   dark:bg-teal-950
+                                   dark:text-teal-100"
+                        >
+                            This form item displays information only.
+                            Participants will not be asked to answer it,
+                            and nothing will be stored as an answer.
+                        </div>
+
+                    @elseif ($newQuestionIsDatabaseField)
                         <div
                             class="md:col-span-2 rounded-xl
                                    border border-sky-200
@@ -1391,6 +1428,7 @@
 
                                     <select
                                         wire:model.live="newMeetingFormQuestionDatabaseFields.{{ $sheet->id }}"
+                                        wire:change="selectNewMeetingFormDatabaseField({{ $sheet->id }}, $event.target.value)"
                                         class="mt-2 block w-full rounded-xl
                                                border border-sky-300
                                                bg-white px-4 py-3 text-sm
@@ -1566,6 +1604,35 @@
                                             <option>
                                                 Auto-filled School / Campus
                                             </option>
+                                        </select>
+                                        @break
+
+                                    @case('grade_level')
+                                        <select
+                                            disabled
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <option>
+                                                Select grade / year level
+                                            </option>
+
+                                            @foreach (
+                                                \App\Support\MeetingFormDatabaseFieldRegistry::options(
+                                                    'grade_level'
+                                                )
+                                                as $value => $label
+                                            )
+                                                <option value="{{ $value }}">
+                                                    {{ $label }}
+                                                </option>
+                                            @endforeach
                                         </select>
                                         @break
 
@@ -1803,7 +1870,9 @@
                            hover:bg-violet-500
                            disabled:opacity-50"
                 >
-                    + Add Question
+                    {{ $newBuilderIsNotice
+                        ? '+ Add Notice'
+                        : '+ Add Question' }}
                 </button>
             </div>
 
@@ -1814,6 +1883,19 @@
                     $sheet->meetingFormQuestions
                     as $question
                 )
+                    @php
+                        $builderQuestionType =
+                            $this->meetingFormQuestionTypes[
+                                $question->id
+                            ]
+                            ?? $question->question_type;
+
+                        $builderQuestionIsNotice =
+                            $builderQuestionType
+                            ===
+                            \App\Models\AttendanceMeetingFormQuestion::TYPE_NOTICE;
+                    @endphp
+
                     <details
                         class="overflow-hidden rounded-xl
                                border border-gray-200 bg-white
@@ -1842,13 +1924,15 @@
                                 >
                                     {{ $question->typeLabel() }}
 
-                                    ·
+                                    @if (! $question->isNotice())
+                                        ·
 
-                                    {{
-                                        $question->is_required
-                                            ? 'Required'
-                                            : 'Optional'
-                                    }}
+                                        {{
+                                            $question->is_required
+                                                ? 'Required'
+                                                : 'Optional'
+                                        }}
+                                    @endif
                                 </span>
                             </span>
 
@@ -1902,6 +1986,7 @@
                                     </select>
                                 </div>
 
+                                @if (! $builderQuestionIsNotice)
                                 <div
                                     class="flex items-end"
                                 >
@@ -1925,13 +2010,16 @@
                                         Required
                                     </label>
                                 </div>
+                                @endif
 
                                 <div class="md:col-span-2">
                                     <label
                                         class="block text-sm
                                                font-semibold"
                                     >
-                                        Question
+                                        {{ $builderQuestionIsNotice
+                                            ? 'Notice Title'
+                                            : 'Question' }}
                                     </label>
 
                                     <input
@@ -1951,7 +2039,9 @@
                                         class="block text-sm
                                                font-semibold"
                                     >
-                                        Description
+                                        {{ $builderQuestionIsNotice
+                                            ? 'Notice / Message'
+                                            : 'Description' }}
                                     </label>
 
                                     <textarea
@@ -2006,7 +2096,21 @@
                                     }
                                 @endphp
 
-                                @if ($questionIsDatabaseField)
+                                @if ($builderQuestionIsNotice)
+                                    <div
+                                        class="md:col-span-2 rounded-xl
+                                               border border-teal-200
+                                               bg-teal-50 p-4
+                                               text-sm text-teal-900
+                                               dark:border-teal-900
+                                               dark:bg-teal-950
+                                               dark:text-teal-100"
+                                    >
+                                        Notice items display information only
+                                        and do not collect or store answers.
+                                    </div>
+
+                                @elseif ($questionIsDatabaseField)
                                     <div
                                         class="md:col-span-2
                                                rounded-xl border
@@ -2031,6 +2135,7 @@
 
                                                 <select
                                                     wire:model.live="meetingFormQuestionDatabaseFields.{{ $question->id }}"
+                                                    wire:change="selectMeetingFormDatabaseField({{ $question->id }}, $event.target.value)"
                                                     class="mt-2 block w-full
                                                            rounded-xl border
                                                            border-sky-300
@@ -2194,6 +2299,35 @@
                                                         <option>
                                                             Auto-filled School / Campus
                                                         </option>
+                                                    </select>
+                                                    @break
+
+                                                @case('grade_level')
+                                                    <select
+                                                        disabled
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        <option>
+                                                            Select grade / year level
+                                                        </option>
+
+                                                        @foreach (
+                                                            \App\Support\MeetingFormDatabaseFieldRegistry::options(
+                                                                'grade_level'
+                                                            )
+                                                            as $value => $label
+                                                        )
+                                                            <option value="{{ $value }}">
+                                                                {{ $label }}
+                                                            </option>
+                                                        @endforeach
                                                     </select>
                                                     @break
 

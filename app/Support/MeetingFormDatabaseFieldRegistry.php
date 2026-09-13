@@ -4,6 +4,9 @@ namespace App\Support;
 
 final class MeetingFormDatabaseFieldRegistry
 {
+    public const REFERENCE_PROPOSAL_VALUE =
+        '__not_listed__';
+
     /*
      * These fields may silently contribute toward the
      * public form's autofill threshold.
@@ -147,6 +150,7 @@ final class MeetingFormDatabaseFieldRegistry
                     'campus_contact',
                     'gospel_contact',
                 ],
+                'allow_reference_proposal' => true,
             ],
 
             'baptism_date' => [
@@ -314,16 +318,41 @@ final class MeetingFormDatabaseFieldRegistry
                     'education_profile',
                     'campus_contact',
                 ],
+                'allow_reference_proposal' => true,
             ],
 
             'grade_level' => [
                 'label' => 'Grade Level',
                 'group' => 'Education / Campus Information',
-                'input' => 'text',
+                'input' => 'grade_level',
                 'owner' => 'education_profile',
                 'sources' => [
                     'education_profile',
                     'campus_contact',
+                ],
+                'options' => [
+                    'Pre-School' => 'Pre-School',
+                    'Kinder I' => 'Kinder I',
+                    'Kinder II' => 'Kinder II',
+                    'Grade 1' => 'Grade 1',
+                    'Grade 2' => 'Grade 2',
+                    'Grade 3' => 'Grade 3',
+                    'Grade 4' => 'Grade 4',
+                    'Grade 5' => 'Grade 5',
+                    'Grade 6' => 'Grade 6',
+                    'Grade 7' => 'Grade 7',
+                    'Grade 8' => 'Grade 8',
+                    'Grade 9' => 'Grade 9',
+                    'Grade 10' => 'Grade 10',
+                    'Grade 11' => 'Grade 11',
+                    'Grade 12' => 'Grade 12',
+                    'College - Year 1' => 'College - Year 1',
+                    'College - Year 2' => 'College - Year 2',
+                    'College - Year 3' => 'College - Year 3',
+                    'College - Year 4' => 'College - Year 4',
+                    'College - Year 5' => 'College - Year 5',
+                    'Graduated' => 'Graduated',
+                    'Not Applicable' => 'Not Applicable',
                 ],
             ],
 
@@ -436,6 +465,30 @@ final class MeetingFormDatabaseFieldRegistry
         return self::definition(
             $field
         )['input'] ?? null;
+    }
+
+    public static function allowsReferenceProposal(
+        ?string $field
+    ): bool {
+        return (bool) (
+            self::definition(
+                $field
+            )['allow_reference_proposal']
+            ?? false
+        );
+    }
+
+    public static function options(
+        ?string $field
+    ): array {
+        $options =
+            self::definition(
+                $field
+            )['options'] ?? [];
+
+        return is_array($options)
+            ? $options
+            : [];
     }
 
     public static function owner(

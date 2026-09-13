@@ -590,25 +590,9 @@ class PersonForm
 
     private static function gradeLevelOptions(): array
     {
-        return collect([
-            'Pre-School' => 'Pre-School',
-            'Kinder I' => 'Kinder I',
-            'Kinder II' => 'Kinder II',
-        ])
-            ->merge(
-                collect(range(1, 12))
-                    ->mapWithKeys(fn (int $i): array => ["Grade {$i}" => "Grade {$i}"])
-            )
-            ->merge([
-                'College - Year 1' => 'College - Year 1',
-                'College - Year 2' => 'College - Year 2',
-                'College - Year 3' => 'College - Year 3',
-                'College - Year 4' => 'College - Year 4',
-                'College - Year 5' => 'College - Year 5',
-                'Graduated' => 'Graduated',
-                'Not Applicable' => 'Not Applicable',
-            ])
-            ->toArray();
+        return \App\Support\MeetingFormDatabaseFieldRegistry::options(
+            'grade_level'
+        );
     }
     private static function yearOptions(): array
     {

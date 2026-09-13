@@ -21,6 +21,8 @@ class AttendanceMeetingFormQuestion extends Model
 
     public const TYPE_DATABASE_FIELD = 'database_field';
 
+    public const TYPE_NOTICE = 'notice';
+
     public const DATABASE_FIELD_BIRTHDATE = 'birthdate';
 
     public const DATABASE_FIELD_LOCALITY = 'locality';
@@ -81,6 +83,9 @@ class AttendanceMeetingFormQuestion extends Model
             self::TYPE_DATABASE_FIELD =>
                 'Database Field',
 
+            self::TYPE_NOTICE =>
+                'Notice',
+
             default =>
                 'Unknown',
         };
@@ -90,6 +95,12 @@ class AttendanceMeetingFormQuestion extends Model
     {
         return $this->question_type
             === self::TYPE_DATABASE_FIELD;
+    }
+
+    public function isNotice(): bool
+    {
+        return $this->question_type
+            === self::TYPE_NOTICE;
     }
 
     public function databaseFieldLabel(): ?string

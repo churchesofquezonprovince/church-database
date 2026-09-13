@@ -467,6 +467,38 @@
 
         @forelse ($questions as $question)
 
+            @if ($question->isNotice())
+                <section
+                    class="card"
+                    style="
+                        border-left:6px solid #0f9f8f;
+                    "
+                >
+                    <div
+                        style="
+                            font-size:17px;
+                            font-weight:800;
+                            color:#1f2937;
+                        "
+                    >
+                        {{ $question->question_text }}
+                    </div>
+
+                    @if (filled($question->description))
+                        <div
+                            style="
+                                margin-top:12px;
+                                white-space:pre-line;
+                                line-height:1.7;
+                                color:#4b5563;
+                            "
+                        >{{ $question->description }}</div>
+                    @endif
+                </section>
+
+                @continue
+            @endif
+
             @php
                 $fieldName =
                     'answers['
@@ -486,6 +518,21 @@
                 $databaseInput =
                     $definition['input']
                     ?? 'text';
+
+                $databaseOptions =
+                    \App\Support\MeetingFormDatabaseFieldRegistry::options(
+                        $question->database_field
+                    );
+
+                $allowsReferenceProposal =
+                    \App\Support\MeetingFormDatabaseFieldRegistry
+                        ::allowsReferenceProposal(
+                            $question->database_field
+                        );
+
+                $referenceProposalValue =
+                    \App\Support\MeetingFormDatabaseFieldRegistry
+                        ::REFERENCE_PROPOSAL_VALUE;
             @endphp
 
             <section class="card">
@@ -619,7 +666,34 @@
 
                     @elseif ($question->isDatabaseField())
 
-                        @if ($databaseInput === 'date')
+                        @if ($databaseOptions !== [])
+                            <select
+                                name="{{ $fieldName }}"
+                                data-database-question="{{ $question->id }}"
+                                data-database-field="{{ $question->database_field }}"
+                                @required($question->is_required)
+                            >
+                                <option value="">
+                                    Select {{ $question->databaseFieldLabel() }}
+                                </option>
+
+                                @foreach (
+                                    $databaseOptions
+                                    as $value => $label
+                                )
+                                    <option
+                                        value="{{ $value }}"
+                                        @selected(
+                                            (string) $oldValue
+                                            === (string) $value
+                                        )
+                                    >
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                        @elseif ($databaseInput === 'date')
                             <input
                                 type="date"
                                 name="{{ $fieldName }}"
@@ -631,6 +705,8 @@
                             <select
                                 name="{{ $fieldName }}"
                                 data-database-question="{{ $question->id }}"
+                                data-reference-proposal-field="locality"
+                                data-reference-proposal-question="{{ $question->id }}"
                             >
                                 <option value="">
                                     Select Locality
@@ -659,12 +735,98 @@
                                         @endforeach
                                     </optgroup>
                                 @endforeach
+
+                                <option
+                                    value="{{ $referenceProposalValue }}"
+                                    @selected(
+                                        (string) $oldValue
+                                        === (string) $referenceProposalValue
+                                    )
+                                >
+                                    My locality isn't listed
+                                </option>
                             </select>
+
+                            <div
+                                data-reference-proposal-panel="{{ $question->id }}"
+                                hidden
+                                style="
+                                    margin-top:12px;
+                                    padding:14px;
+                                    border:1px solid #d1d5db;
+                                    border-radius:10px;
+                                    background:#f9fafb;
+                                "
+                            >
+                                <label class="field-label">
+                                    Enter your actual locality
+                                </label>
+
+                                <input
+                                    type="text"
+                                    maxlength="150"
+                                    name="reference_proposals[{{ $question->id }}][label]"
+                                    value="{{ old('reference_proposals.' . $question->id . '.label') }}"
+                                    data-reference-proposal-required
+                                    placeholder="Actual locality name"
+                                >
+
+                                @error(
+                                    'reference_proposals.'
+                                    . $question->id
+                                    . '.label'
+                                )
+                                    <div
+                                        style="
+                                            margin-top:6px;
+                                            color:#b91c1c;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+
+                                <label
+                                    class="field-label"
+                                    style="margin-top:12px"
+                                >
+                                    Province
+                                </label>
+
+                                <input
+                                    type="text"
+                                    maxlength="150"
+                                    name="reference_proposals[{{ $question->id }}][province_name]"
+                                    value="{{ old('reference_proposals.' . $question->id . '.province_name') }}"
+                                    data-reference-proposal-required
+                                    placeholder="e.g. Quezon"
+                                    autocomplete="address-level1"
+                                >
+
+                                @error(
+                                    'reference_proposals.'
+                                    . $question->id
+                                    . '.province_name'
+                                )
+                                    <div
+                                        style="
+                                            margin-top:6px;
+                                            color:#b91c1c;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+                            </div>
 
                         @elseif ($databaseInput === 'school')
                             <select
                                 name="{{ $fieldName }}"
                                 data-database-question="{{ $question->id }}"
+                                data-reference-proposal-field="school"
+                                data-reference-proposal-question="{{ $question->id }}"
                             >
                                 <option value="">
                                     Select School / Campus
@@ -684,7 +846,125 @@
                                         {{ $name }}
                                     </option>
                                 @endforeach
+
+                                <option
+                                    value="{{ $referenceProposalValue }}"
+                                    @selected(
+                                        (string) $oldValue
+                                        === (string) $referenceProposalValue
+                                    )
+                                >
+                                    My school isn't listed
+                                </option>
                             </select>
+
+                            <div
+                                data-reference-proposal-panel="{{ $question->id }}"
+                                hidden
+                                style="
+                                    margin-top:12px;
+                                    padding:14px;
+                                    border:1px solid #d1d5db;
+                                    border-radius:10px;
+                                    background:#f9fafb;
+                                "
+                            >
+                                <label class="field-label">
+                                    Enter your actual School / Campus
+                                </label>
+
+                                <input
+                                    type="text"
+                                    maxlength="255"
+                                    name="reference_proposals[{{ $question->id }}][label]"
+                                    value="{{ old('reference_proposals.' . $question->id . '.label') }}"
+                                    data-reference-proposal-required
+                                    placeholder="Actual school name"
+                                >
+
+                                @error(
+                                    'reference_proposals.'
+                                    . $question->id
+                                    . '.label'
+                                )
+                                    <div
+                                        style="
+                                            margin-top:6px;
+                                            color:#b91c1c;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+
+                                <label
+                                    class="field-label"
+                                    style="margin-top:12px"
+                                >
+                                    Province
+                                </label>
+
+                                <input
+                                    type="text"
+                                    maxlength="150"
+                                    name="reference_proposals[{{ $question->id }}][province_name]"
+                                    value="{{ old('reference_proposals.' . $question->id . '.province_name') }}"
+                                    data-reference-proposal-required
+                                    placeholder="e.g. Quezon"
+                                    autocomplete="address-level1"
+                                >
+
+                                @error(
+                                    'reference_proposals.'
+                                    . $question->id
+                                    . '.province_name'
+                                )
+                                    <div
+                                        style="
+                                            margin-top:6px;
+                                            color:#b91c1c;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+
+                                <label
+                                    class="field-label"
+                                    style="margin-top:12px"
+                                >
+                                    City / Municipality
+                                    <span style="font-weight:400">
+                                        (optional)
+                                    </span>
+                                </label>
+
+                                <input
+                                    type="text"
+                                    maxlength="150"
+                                    name="reference_proposals[{{ $question->id }}][city_municipality]"
+                                    value="{{ old('reference_proposals.' . $question->id . '.city_municipality') }}"
+                                    placeholder="e.g. Lucban"
+                                >
+
+                                @error(
+                                    'reference_proposals.'
+                                    . $question->id
+                                    . '.city_municipality'
+                                )
+                                    <div
+                                        style="
+                                            margin-top:6px;
+                                            color:#b91c1c;
+                                            font-size:12px;
+                                        "
+                                    >
+                                        {{ $message }}
+                                    </div>
+                                @enderror
+                            </div>
 
                         @elseif ($databaseInput === 'sex')
                             <select
@@ -855,6 +1135,1076 @@
             )
         );
 
+
+    /*
+     * -------------------------------------------------
+     * FILAMENT-STYLE SEARCHABLE PUBLIC DROPDOWNS
+     * -------------------------------------------------
+     *
+     * Dropdowns with more than five choices become
+     * searchable comboboxes similar to the searchable
+     * Select used inside the People Database.
+     *
+     * The original <select> remains the actual form
+     * control. This custom interface only mirrors and
+     * changes its selected value.
+     */
+    function enhanceSearchableSelects() {
+        if (
+            ! document.getElementById(
+                'meeting-searchable-select-styles'
+            )
+        ) {
+            const style =
+                document.createElement('style');
+
+            style.id =
+                'meeting-searchable-select-styles';
+
+            style.textContent = `
+                .meeting-search-select {
+                    position: relative;
+                    width: 100%;
+                }
+
+                .meeting-search-select-native {
+                    position: absolute !important;
+                    width: 1px !important;
+                    height: 1px !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    overflow: hidden !important;
+                }
+
+                .meeting-search-trigger {
+                    display: flex;
+                    width: 100%;
+                    min-height: 46px;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    box-sizing: border-box;
+                    border: 1px solid #d1d5db;
+                    border-radius: 10px;
+                    background: #ffffff;
+                    padding: 11px 14px;
+                    color: #111827;
+                    font: inherit;
+                    text-align: left;
+                    cursor: pointer;
+                    transition:
+                        border-color .15s ease,
+                        box-shadow .15s ease;
+                }
+
+                .meeting-search-trigger:hover {
+                    border-color: #9ca3af;
+                }
+
+                .meeting-search-trigger:focus,
+                .meeting-search-select.is-open
+                    .meeting-search-trigger {
+                    outline: none;
+                    border-color: #0f9f8f;
+                    box-shadow:
+                        0 0 0 2px
+                        rgba(15, 159, 143, .16);
+                }
+
+                .meeting-search-trigger-text {
+                    min-width: 0;
+                    flex: 1;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                .meeting-search-trigger.is-placeholder
+                    .meeting-search-trigger-text {
+                    color: #6b7280;
+                }
+
+                .meeting-search-chevron {
+                    flex: 0 0 auto;
+                    width: 16px;
+                    height: 16px;
+                    color: #6b7280;
+                    transition: transform .15s ease;
+                }
+
+                .meeting-search-select.is-open
+                    .meeting-search-chevron {
+                    transform: rotate(180deg);
+                }
+
+                .meeting-search-panel {
+                    position: absolute;
+                    z-index: 1000;
+                    top: calc(100% + 5px);
+                    left: 0;
+                    width: 100%;
+                    min-width: 100%;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                    border: 1px solid #d1d5db;
+                    border-radius: 10px;
+                    background: #ffffff;
+                    box-shadow:
+                        0 10px 24px
+                        rgba(15, 23, 42, .16);
+                }
+
+                .meeting-search-select.drop-up
+                    .meeting-search-panel {
+                    top: auto;
+                    bottom: calc(100% + 6px);
+                }
+
+                .meeting-search-box {
+                    position: sticky;
+                    top: 0;
+                    z-index: 2;
+                    padding: 10px;
+                    border-bottom: 1px solid #e5e7eb;
+                    background: #ffffff;
+                }
+
+                .meeting-search-input {
+                    display: block;
+                    width: 100%;
+                    box-sizing: border-box;
+                    border: 0 !important;
+                    border-radius: 0 !important;
+                    background: transparent !important;
+                    padding: 3px 2px !important;
+                    color: #111827 !important;
+                    font: inherit;
+                    box-shadow: none !important;
+                    outline: none !important;
+                }
+
+                .meeting-search-input::placeholder {
+                    color: #9ca3af;
+                }
+
+                .meeting-search-options {
+                    max-height: 210px;
+                    overflow-y: auto;
+                    padding: 6px;
+                    overscroll-behavior: contain;
+                }
+
+                .meeting-search-group {
+                    padding: 8px 10px 5px;
+                    color: #6b7280;
+                    font-size: 11px;
+                    font-weight: 800;
+                    letter-spacing: .04em;
+                    text-transform: uppercase;
+                }
+
+                .meeting-search-option {
+                    display: block;
+                    width: 100%;
+                    box-sizing: border-box;
+                    border: 0;
+                    border-radius: 7px;
+                    background: transparent;
+                    padding: 8px 10px;
+                    color: #111827;
+                    font: inherit;
+                    font-size: 14px;
+                    line-height: 1.4;
+                    text-align: left;
+                    cursor: pointer;
+                }
+
+                .meeting-search-option:hover,
+                .meeting-search-option:focus {
+                    outline: none;
+                    background: #f3f4f6;
+                }
+
+                .meeting-search-option.is-selected {
+                    background: #ecfdf5;
+                    color: #047857;
+                    font-weight: 700;
+                }
+
+                .meeting-search-empty {
+                    padding: 16px 10px;
+                    color: #6b7280;
+                    font-size: 13px;
+                    text-align: center;
+                }
+
+
+            `;
+
+            document.head.appendChild(style);
+        }
+
+        const selects =
+            Array.from(
+                form.querySelectorAll('select')
+            );
+
+        const closeAll =
+            (except = null) => {
+                document
+                    .querySelectorAll(
+                        '.meeting-search-select.is-open'
+                    )
+                    .forEach(
+                        (wrapper) => {
+                            if (wrapper === except) {
+                                return;
+                            }
+
+                            wrapper.classList.remove(
+                                'is-open',
+                                'drop-up'
+                            );
+
+                            const panel =
+                                wrapper.querySelector(
+                                    '.meeting-search-panel'
+                                );
+
+                            if (panel) {
+                                panel.hidden = true;
+                            }
+                        }
+                    );
+            };
+
+        selects.forEach(
+            (select) => {
+                if (
+                    select.dataset.searchEnhanced
+                    === '1'
+                ) {
+                    return;
+                }
+
+                const actualOptions =
+                    Array.from(
+                        select.options
+                    ).filter(
+                        (option) =>
+                            String(
+                                option.value ?? ''
+                            ).trim() !== ''
+                    );
+
+                if (actualOptions.length <= 5) {
+                    return;
+                }
+
+                select.dataset.searchEnhanced = '1';
+
+                const wrapper =
+                    document.createElement('div');
+
+                wrapper.className =
+                    'meeting-search-select';
+
+                select.parentNode.insertBefore(
+                    wrapper,
+                    select
+                );
+
+                wrapper.appendChild(select);
+
+                select.classList.add(
+                    'meeting-search-select-native'
+                );
+
+                const trigger =
+                    document.createElement('button');
+
+                trigger.type = 'button';
+                trigger.className =
+                    'meeting-search-trigger';
+
+                trigger.setAttribute(
+                    'aria-haspopup',
+                    'listbox'
+                );
+
+                trigger.setAttribute(
+                    'aria-expanded',
+                    'false'
+                );
+
+                const triggerText =
+                    document.createElement('span');
+
+                triggerText.className =
+                    'meeting-search-trigger-text';
+
+                const chevron =
+                    document.createElement('span');
+
+                chevron.className =
+                    'meeting-search-chevron';
+
+                chevron.innerHTML = `
+                    <svg
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M6 8l4 4 4-4"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                `;
+
+                trigger.appendChild(
+                    triggerText
+                );
+
+                trigger.appendChild(
+                    chevron
+                );
+
+                wrapper.appendChild(
+                    trigger
+                );
+
+                const panel =
+                    document.createElement('div');
+
+                panel.className =
+                    'meeting-search-panel';
+
+                panel.hidden = true;
+
+                const searchBox =
+                    document.createElement('div');
+
+                searchBox.className =
+                    'meeting-search-box';
+
+                const search =
+                    document.createElement('input');
+
+                search.type = 'search';
+                search.autocomplete = 'off';
+                search.spellcheck = false;
+                search.placeholder =
+                    'Start typing to search...';
+
+                search.className =
+                    'meeting-search-input';
+
+                searchBox.appendChild(
+                    search
+                );
+
+                panel.appendChild(
+                    searchBox
+                );
+
+                const optionsBox =
+                    document.createElement('div');
+
+                optionsBox.className =
+                    'meeting-search-options';
+
+                optionsBox.setAttribute(
+                    'role',
+                    'listbox'
+                );
+
+                panel.appendChild(
+                    optionsBox
+                );
+
+                wrapper.appendChild(
+                    panel
+                );
+
+                const placeholderOption =
+                    Array.from(
+                        select.options
+                    ).find(
+                        (option) =>
+                            String(
+                                option.value ?? ''
+                            ).trim() === ''
+                    );
+
+                const placeholder =
+                    placeholderOption
+                        ? placeholderOption.textContent.trim()
+                        : 'Select';
+
+                const optionRows = [];
+
+                Array.from(
+                    select.children
+                ).forEach(
+                    (child) => {
+                        if (
+                            child.tagName
+                            === 'OPTGROUP'
+                        ) {
+                            Array.from(
+                                child.children
+                            ).forEach(
+                                (option) => {
+                                    if (
+                                        String(
+                                            option.value ?? ''
+                                        ).trim() === ''
+                                    ) {
+                                        return;
+                                    }
+
+                                    optionRows.push({
+                                        option,
+                                        group:
+                                            child.label
+                                            || null,
+                                    });
+                                }
+                            );
+
+                            return;
+                        }
+
+                        if (
+                            child.tagName
+                            === 'OPTION'
+                            &&
+                            String(
+                                child.value ?? ''
+                            ).trim() !== ''
+                        ) {
+                            optionRows.push({
+                                option: child,
+                                group: null,
+                            });
+                        }
+                    }
+                );
+
+                const refreshTrigger =
+                    () => {
+                        const selected =
+                            select.options[
+                                select.selectedIndex
+                            ];
+
+                        const hasValue =
+                            selected
+                            &&
+                            String(
+                                selected.value ?? ''
+                            ).trim() !== '';
+
+                        triggerText.textContent =
+                            hasValue
+                                ? selected.textContent.trim()
+                                : placeholder;
+
+                        trigger.classList.toggle(
+                            'is-placeholder',
+                            ! hasValue
+                        );
+                    };
+
+                const renderOptions =
+                    () => {
+                        const query =
+                            search.value
+                                .trim()
+                                .toLocaleLowerCase();
+
+                        optionsBox.innerHTML = '';
+
+                        let previousGroup = null;
+                        let matchCount = 0;
+
+                        optionRows.forEach(
+                            ({
+                                option,
+                                group,
+                            }) => {
+                                const label =
+                                    String(
+                                        option.textContent
+                                        ?? ''
+                                    ).trim();
+
+                                if (
+                                    query !== ''
+                                    &&
+                                    ! label
+                                        .toLocaleLowerCase()
+                                        .includes(query)
+                                ) {
+                                    return;
+                                }
+
+                                matchCount++;
+
+                                if (
+                                    group
+                                    &&
+                                    group
+                                    !== previousGroup
+                                ) {
+                                    const groupLabel =
+                                        document.createElement(
+                                            'div'
+                                        );
+
+                                    groupLabel.className =
+                                        'meeting-search-group';
+
+                                    groupLabel.textContent =
+                                        group;
+
+                                    optionsBox.appendChild(
+                                        groupLabel
+                                    );
+
+                                    previousGroup =
+                                        group;
+                                }
+
+                                if (! group) {
+                                    previousGroup = null;
+                                }
+
+                                const button =
+                                    document.createElement(
+                                        'button'
+                                    );
+
+                                button.type = 'button';
+
+                                button.className =
+                                    'meeting-search-option';
+
+                                button.setAttribute(
+                                    'role',
+                                    'option'
+                                );
+
+                                button.textContent =
+                                    label;
+
+                                if (
+                                    String(select.value)
+                                    ===
+                                    String(option.value)
+                                ) {
+                                    button.classList.add(
+                                        'is-selected'
+                                    );
+
+                                    button.setAttribute(
+                                        'aria-selected',
+                                        'true'
+                                    );
+                                }
+
+                                button.addEventListener(
+                                    'click',
+                                    () => {
+                                        select.value =
+                                            option.value;
+
+                                        select.dispatchEvent(
+                                            new Event(
+                                                'input',
+                                                {
+                                                    bubbles:
+                                                        true,
+                                                }
+                                            )
+                                        );
+
+                                        select.dispatchEvent(
+                                            new Event(
+                                                'change',
+                                                {
+                                                    bubbles:
+                                                        true,
+                                                }
+                                            )
+                                        );
+
+                                        refreshTrigger();
+
+                                        closeAll();
+
+                                        trigger.focus();
+                                    }
+                                );
+
+                                optionsBox.appendChild(
+                                    button
+                                );
+                            }
+                        );
+
+                        if (matchCount === 0) {
+                            const databaseField =
+                                select.dataset
+                                    .databaseField
+                                ?? null;
+
+                            /*
+                             * Grade Level is a controlled
+                             * canonical list. If the search
+                             * matches nothing, offer the
+                             * existing Not Applicable value
+                             * instead of allowing a new one.
+                             */
+                            if (
+                                databaseField
+                                === 'grade_level'
+                            ) {
+                                const notApplicableOption =
+                                    Array.from(
+                                        select.options
+                                    ).find(
+                                        (option) =>
+                                            String(
+                                                option.value
+                                                ?? ''
+                                            )
+                                            === 'Not Applicable'
+                                    );
+
+                                if (notApplicableOption) {
+                                    const fallbackButton =
+                                        document.createElement(
+                                            'button'
+                                        );
+
+                                    fallbackButton.type =
+                                        'button';
+
+                                    fallbackButton.className =
+                                        'meeting-search-option';
+
+                                    fallbackButton.textContent =
+                                        'Not Applicable';
+
+                                    fallbackButton.addEventListener(
+                                        'click',
+                                        () => {
+                                            select.value =
+                                                notApplicableOption.value;
+
+                                            select.dispatchEvent(
+                                                new Event(
+                                                    'input',
+                                                    {
+                                                        bubbles:
+                                                            true,
+                                                    }
+                                                )
+                                            );
+
+                                            select.dispatchEvent(
+                                                new Event(
+                                                    'change',
+                                                    {
+                                                        bubbles:
+                                                            true,
+                                                    }
+                                                )
+                                            );
+
+                                            refreshTrigger();
+
+                                            closeAll();
+
+                                            trigger.focus();
+                                        }
+                                    );
+
+                                    optionsBox.appendChild(
+                                        fallbackButton
+                                    );
+
+                                    return;
+                                }
+                            }
+
+                            const referenceField =
+                                select.dataset
+                                    .referenceProposalField
+                                ?? null;
+
+                            const proposalOption =
+                                Array.from(
+                                    select.options
+                                ).find(
+                                    (option) =>
+                                        String(
+                                            option.value
+                                            ?? ''
+                                        )
+                                        === '__not_listed__'
+                                );
+
+                            const proposalLabel =
+                                referenceField === 'school'
+                                    ? "My school isn't listed"
+                                    : (
+                                        referenceField
+                                        === 'locality'
+                                            ? "My locality isn't listed"
+                                            : null
+                                    );
+
+                            /*
+                             * School / Locality are controlled
+                             * reference fields that support a
+                             * pending "not listed" proposal.
+                             *
+                             * Make the empty-search result an
+                             * actionable choice instead of a
+                             * dead-end message.
+                             */
+                            if (
+                                proposalLabel
+                                && proposalOption
+                            ) {
+                                const proposalButton =
+                                    document.createElement(
+                                        'button'
+                                    );
+
+                                proposalButton.type =
+                                    'button';
+
+                                proposalButton.className =
+                                    'meeting-search-option';
+
+                                proposalButton.textContent =
+                                    proposalLabel;
+
+                                proposalButton.addEventListener(
+                                    'click',
+                                    () => {
+                                        select.value =
+                                            proposalOption.value;
+
+                                        select.dispatchEvent(
+                                            new Event(
+                                                'input',
+                                                {
+                                                    bubbles:
+                                                        true,
+                                                }
+                                            )
+                                        );
+
+                                        select.dispatchEvent(
+                                            new Event(
+                                                'change',
+                                                {
+                                                    bubbles:
+                                                        true,
+                                                }
+                                            )
+                                        );
+
+                                        refreshTrigger();
+
+                                        closeAll();
+
+                                        trigger.focus();
+                                    }
+                                );
+
+                                optionsBox.appendChild(
+                                    proposalButton
+                                );
+
+                                return;
+                            }
+
+                            const empty =
+                                document.createElement(
+                                    'div'
+                                );
+
+                            empty.className =
+                                'meeting-search-empty';
+
+                            empty.textContent =
+                                'No matching options.';
+
+                            optionsBox.appendChild(
+                                empty
+                            );
+                        }
+                    };
+
+                const openDropdown =
+                    () => {
+                        closeAll(wrapper);
+
+                        wrapper.classList.add(
+                            'is-open'
+                        );
+
+                        panel.hidden = false;
+
+                        trigger.setAttribute(
+                            'aria-expanded',
+                            'true'
+                        );
+
+                        /*
+                         * Open upward automatically when
+                         * there is not enough room below,
+                         * similar to Filament's Select.
+                         */
+                        const rect =
+                            trigger.getBoundingClientRect();
+
+                        const spaceBelow =
+                            window.innerHeight
+                            - rect.bottom;
+
+                        const spaceAbove =
+                            rect.top;
+
+                        wrapper.classList.toggle(
+                            'drop-up',
+                            spaceBelow < 300
+                            &&
+                            spaceAbove > spaceBelow
+                        );
+
+                        search.value = '';
+
+                        renderOptions();
+
+                        requestAnimationFrame(
+                            () => search.focus()
+                        );
+                    };
+
+                const closeDropdown =
+                    () => {
+                        wrapper.classList.remove(
+                            'is-open',
+                            'drop-up'
+                        );
+
+                        panel.hidden = true;
+
+                        trigger.setAttribute(
+                            'aria-expanded',
+                            'false'
+                        );
+                    };
+
+                trigger.addEventListener(
+                    'click',
+                    () => {
+                        if (
+                            wrapper.classList.contains(
+                                'is-open'
+                            )
+                        ) {
+                            closeDropdown();
+
+                            return;
+                        }
+
+                        openDropdown();
+                    }
+                );
+
+                search.addEventListener(
+                    'input',
+                    renderOptions
+                );
+
+                search.addEventListener(
+                    'keydown',
+                    (event) => {
+                        if (event.key === 'Escape') {
+                            event.preventDefault();
+
+                            closeDropdown();
+
+                            trigger.focus();
+                        }
+                    }
+                );
+
+                select.addEventListener(
+                    'change',
+                    () => {
+                        refreshTrigger();
+
+                        if (
+                            wrapper.classList.contains(
+                                'is-open'
+                            )
+                        ) {
+                            renderOptions();
+                        }
+                    }
+                );
+
+                /*
+                 * Required native selects remain the real
+                 * validation controls. Redirect focus to
+                 * the visible combobox when invalid.
+                 */
+                select.addEventListener(
+                    'invalid',
+                    (event) => {
+                        event.preventDefault();
+
+                        openDropdown();
+                    }
+                );
+
+                /*
+                 * Public autofill changes select.value
+                 * programmatically, so expose a refresh
+                 * hook for that code path.
+                 */
+                select.__searchableSelectRefresh =
+                    () => {
+                        refreshTrigger();
+
+                        if (
+                            wrapper.classList.contains(
+                                'is-open'
+                            )
+                        ) {
+                            renderOptions();
+                        }
+                    };
+
+                refreshTrigger();
+            }
+        );
+
+        document.addEventListener(
+            'click',
+            (event) => {
+                if (
+                    event.target.closest(
+                        '.meeting-search-select'
+                    )
+                ) {
+                    return;
+                }
+
+                closeAll();
+            }
+        );
+    }
+
+
+    enhanceSearchableSelects();
+
+
+    /*
+     * -------------------------------------------------
+     * NOT-LISTED REFERENCE PROPOSALS
+     * -------------------------------------------------
+     */
+    const referenceProposalValue =
+        @json(
+            \App\Support\MeetingFormDatabaseFieldRegistry
+                ::REFERENCE_PROPOSAL_VALUE
+        );
+
+    const referenceProposalSelects =
+        Array.from(
+            form.querySelectorAll(
+                '[data-reference-proposal-field]'
+            )
+        );
+
+    function syncReferenceProposalPanel(
+        select
+    ) {
+        const questionId =
+            select.dataset
+                .referenceProposalQuestion;
+
+        const panel =
+            form.querySelector(
+                '[data-reference-proposal-panel="'
+                + questionId
+                + '"]'
+            );
+
+        if (! panel) {
+            return;
+        }
+
+        const enabled =
+            select.value
+            === referenceProposalValue;
+
+        panel.hidden =
+            ! enabled;
+
+        panel
+            .querySelectorAll(
+                '[data-reference-proposal-required]'
+            )
+            .forEach(
+                (field) => {
+                    field.required =
+                        enabled;
+                }
+            );
+
+        if (
+            enabled
+            && select.dataset.autofilled
+            === '1'
+        ) {
+            delete select.dataset.autofilled;
+        }
+    }
+
+    referenceProposalSelects.forEach(
+        (select) => {
+            select.addEventListener(
+                'change',
+                () =>
+                    syncReferenceProposalPanel(
+                        select
+                    )
+            );
+
+            syncReferenceProposalPanel(
+                select
+            );
+        }
+    );
+
+
     let searchTimer = null;
     let searchController = null;
     let autofillController = null;
@@ -876,6 +2226,14 @@
             }
 
             field.value = '';
+
+            if (
+                typeof field.__searchableSelectRefresh
+                === 'function'
+            ) {
+                field.__searchableSelectRefresh();
+            }
+
             delete field.dataset.autofilled;
         });
     }
@@ -1213,6 +2571,13 @@
                                 questionId
                             ]
                         );
+
+                    if (
+                        typeof field.__searchableSelectRefresh
+                        === 'function'
+                    ) {
+                        field.__searchableSelectRefresh();
+                    }
 
                     field.dataset.autofilled =
                         '1';

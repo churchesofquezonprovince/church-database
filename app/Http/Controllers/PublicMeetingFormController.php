@@ -13,6 +13,7 @@ use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\DeveloperSetting;
 use App\Models\School;
+use App\Models\Province;
 use App\Models\Person;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,7 @@ use App\Support\MeetingFormDatabaseFieldMatcher;
 use App\Support\MeetingFormDatabaseFieldRegistry;
 use App\Support\MeetingFormRespondentResolver;
 use App\Support\MeetingFormProfileCorrectionRecorder;
+use App\Support\MeetingFormReferenceProposalRecorder;
 use Illuminate\View\View;
 
 class PublicMeetingFormController extends Controller
@@ -62,6 +64,19 @@ class PublicMeetingFormController extends Controller
 
                     'schools' =>
                         School::query()
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->orderBy('name')
+                            ->pluck(
+                                'name',
+                                'id'
+                            )
+                            ->all(),
+
+                    'provinces' =>
+                        Province::query()
                             ->where(
                                 'is_active',
                                 true
@@ -1325,6 +1340,169 @@ $meetingResponse->forceFill([
     }
 
 
+    private function normalizeGoogleReferenceProposal(
+        AttendanceMeetingFormQuestion $question,
+        mixed $rawValue,
+        mixed $rawProposal,
+        array &$errors
+    ): ?array {
+        $field =
+            (string)
+            $question->database_field;
+
+        if (
+            ! $question->isDatabaseField()
+            || ! MeetingFormDatabaseFieldRegistry
+                ::allowsReferenceProposal(
+                    $field
+                )
+            || (string) $rawValue
+                !== MeetingFormDatabaseFieldRegistry
+                    ::REFERENCE_PROPOSAL_VALUE
+        ) {
+            return null;
+        }
+
+        $proposal =
+            is_array($rawProposal)
+                ? $rawProposal
+                : [];
+
+        $label =
+            trim(
+                preg_replace(
+                    '/\\s+/',
+                    ' ',
+                    (string)
+                    ($proposal['label'] ?? '')
+                )
+            );
+
+        $maxLength =
+            $field === 'locality'
+                ? 150
+                : 255;
+
+        if (
+            mb_strlen($label) < 2
+            || mb_strlen($label) > $maxLength
+        ) {
+            $errors[
+                'reference_proposals.'
+                . $question->id
+                . '.label'
+            ] =
+                $field === 'school'
+                    ? 'Enter the actual School / Campus name.'
+                    : 'Enter the actual Locality name.';
+        }
+
+        $provinceName =
+            trim(
+                preg_replace(
+                    '/\\s+/',
+                    ' ',
+                    (string)
+                    (
+                        $proposal[
+                            'province_name'
+                        ]
+                        ?? ''
+                    )
+                )
+            );
+
+        if (
+            mb_strlen($provinceName) < 2
+            || mb_strlen($provinceName) > 150
+        ) {
+            $errors[
+                'reference_proposals.'
+                . $question->id
+                . '.province_name'
+            ] =
+                'Enter the Province for this '
+                . (
+                    $field === 'school'
+                        ? 'School / Campus.'
+                        : 'Locality.'
+                );
+        }
+
+        /*
+         * If the typed Province uniquely matches an
+         * existing Province, remember its ID now.
+         *
+         * Otherwise leave the ID null. The administrator
+         * will resolve it during proposal review.
+         */
+        $matchingProvinces =
+            $provinceName !== ''
+                ? Province::query()
+                    ->whereRaw(
+                        'LOWER(name) = ?',
+                        [
+                            mb_strtolower(
+                                $provinceName
+                            ),
+                        ]
+                    )
+                    ->get()
+                : collect();
+
+        $province =
+            $matchingProvinces->count() === 1
+                ? $matchingProvinces->first()
+                : null;
+
+        $cityMunicipality =
+            $field === 'school'
+                ? trim(
+                    preg_replace(
+                        '/\\s+/',
+                        ' ',
+                        (string)
+                        (
+                            $proposal[
+                                'city_municipality'
+                            ]
+                            ?? ''
+                        )
+                    )
+                )
+                : '';
+
+        if (
+            mb_strlen(
+                $cityMunicipality
+            ) > 150
+        ) {
+            $errors[
+                'reference_proposals.'
+                . $question->id
+                . '.city_municipality'
+            ] =
+                'City / Municipality may not exceed 150 characters.';
+        }
+
+        return [
+            'label' =>
+                $label,
+
+            'province_id' =>
+                $province?->id,
+
+            'province_name' =>
+                $provinceName,
+
+            'city_municipality' =>
+                $cityMunicipality !== ''
+                    ? $cityMunicipality
+                    : null,
+        ];
+    }
+
+
     private function storeGoogleForm(
         Request $request,
         AttendanceSession $session
@@ -1348,6 +1526,11 @@ $meetingResponse->forceFill([
             ],
 
             'answers' => [
+                'nullable',
+                'array',
+            ],
+
+            'reference_proposals' => [
                 'nullable',
                 'array',
             ],
@@ -1415,10 +1598,32 @@ $meetingResponse->forceFill([
                 ? $data['answers']
                 : [];
 
+        $rawReferenceProposals =
+            is_array(
+                $data[
+                    'reference_proposals'
+                ] ?? null
+            )
+                ? $data[
+                    'reference_proposals'
+                ]
+                : [];
+
         $errors = [];
         $normalizedAnswers = [];
+        $normalizedReferenceProposals = [];
 
         foreach ($questions as $question) {
+            /*
+             * Notice blocks are display-only form items.
+             *
+             * They never require an answer and never create an
+             * AttendanceMeetingFormAnswer row.
+             */
+            if ($question->isNotice()) {
+                continue;
+            }
+
             $questionId =
                 (string) $question->id;
 
@@ -1428,17 +1633,40 @@ $meetingResponse->forceFill([
                 ]
                 ?? null;
 
-            $normalized =
-                $this->normalizeGoogleFormAnswer(
+            $referenceProposal =
+                $this->normalizeGoogleReferenceProposal(
                     $question,
                     $rawValue,
+                    $rawReferenceProposals[
+                        $questionId
+                    ] ?? null,
                     $errors
                 );
 
-            $blank =
-                $this->googleFormAnswerIsBlank(
-                    $normalized
-                );
+            if ($referenceProposal !== null) {
+                $normalized =
+                    null;
+
+                $blank =
+                    false;
+
+                $normalizedReferenceProposals[
+                    (int) $question->id
+                ] =
+                    $referenceProposal;
+            } else {
+                $normalized =
+                    $this->normalizeGoogleFormAnswer(
+                        $question,
+                        $rawValue,
+                        $errors
+                    );
+
+                $blank =
+                    $this->googleFormAnswerIsBlank(
+                        $normalized
+                    );
+            }
 
             if (
                 $question->is_required
@@ -1482,7 +1710,10 @@ $meetingResponse->forceFill([
                 }
             }
 
-            if (! $blank) {
+            if (
+                ! $blank
+                && $referenceProposal === null
+            ) {
                 $normalizedAnswers[
                     (int) $question->id
                 ] = $normalized;
@@ -1503,6 +1734,7 @@ $meetingResponse->forceFill([
                     $guestName,
                     $questions,
                     $normalizedAnswers,
+                    $normalizedReferenceProposals,
                     $rawAnswers
                 ): AttendanceMeetingResponse {
                     $response =
@@ -1564,6 +1796,31 @@ $meetingResponse->forceFill([
                      * Any proposed Database Field change is only
                      * placed into the pending review queue.
                      */
+                    /*
+                     * A "not listed" sentinel is not a real
+                     * School/Locality ID and must never enter
+                     * the ordinary profile-correction queue.
+                     */
+                    $profileRawAnswers =
+                        $rawAnswers;
+
+                    foreach (
+                        array_keys(
+                            $normalizedReferenceProposals
+                        )
+                        as $proposalQuestionId
+                    ) {
+                        unset(
+                            $profileRawAnswers[
+                                $proposalQuestionId
+                            ],
+                            $profileRawAnswers[
+                                (string)
+                                $proposalQuestionId
+                            ]
+                        );
+                    }
+
                     app(
                         MeetingFormProfileCorrectionRecorder::class
                     )->record(
@@ -1577,7 +1834,20 @@ $meetingResponse->forceFill([
                             $questions,
 
                         rawAnswers:
-                            $rawAnswers,
+                            $profileRawAnswers,
+                    );
+
+                    app(
+                        MeetingFormReferenceProposalRecorder::class
+                    )->record(
+                        response:
+                            $response,
+
+                        questions:
+                            $questions,
+
+                        proposals:
+                            $normalizedReferenceProposals,
                     );
 
                     return $response;

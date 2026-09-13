@@ -368,6 +368,9 @@ class ManageAttendanceSheets extends Page
 
             AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD =>
                 'Database Field',
+
+            AttendanceMeetingFormQuestion::TYPE_NOTICE =>
+                'Notice',
         ];
     }
 
@@ -400,6 +403,57 @@ class ManageAttendanceSheets extends Page
             $field
         );
     }
+
+    public function selectNewMeetingFormDatabaseField(
+        int $sheetId,
+        string $field
+    ): void {
+        if (
+            ! MeetingFormDatabaseFieldRegistry::definition(
+                $field
+            )
+        ) {
+            return;
+        }
+
+        $this->newMeetingFormQuestionDatabaseFields[
+            $sheetId
+        ] = $field;
+
+        $this->newMeetingFormQuestionTexts[
+            $sheetId
+        ] =
+            MeetingFormDatabaseFieldRegistry::label(
+                $field
+            )
+            ?? '';
+    }
+
+    public function selectMeetingFormDatabaseField(
+        int $questionId,
+        string $field
+    ): void {
+        if (
+            ! MeetingFormDatabaseFieldRegistry::definition(
+                $field
+            )
+        ) {
+            return;
+        }
+
+        $this->meetingFormQuestionDatabaseFields[
+            $questionId
+        ] = $field;
+
+        $this->meetingFormQuestionTexts[
+            $questionId
+        ] =
+            MeetingFormDatabaseFieldRegistry::label(
+                $field
+            )
+            ?? '';
+    }
+
 
     public function addMeetingFormQuestion(
         int $sheetId
@@ -490,7 +544,7 @@ class ManageAttendanceSheets extends Page
             [
                 'question_type' => [
                     'required',
-                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field,notice',
                 ],
 
                 'question_text' => [
@@ -744,7 +798,7 @@ class ManageAttendanceSheets extends Page
             [
                 'question_type' => [
                     'required',
-                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field,notice',
                 ],
 
                 'question_text' => [
@@ -854,7 +908,10 @@ class ManageAttendanceSheets extends Page
                     : null,
 
             'is_required' =>
-                (bool) $data['is_required'],
+                $data['question_type']
+                === AttendanceMeetingFormQuestion::TYPE_NOTICE
+                    ? false
+                    : (bool) $data['is_required'],
 
             'allow_correction' =>
                 $data['question_type']
