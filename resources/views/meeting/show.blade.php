@@ -444,10 +444,10 @@ action="{{ route(
     >
 
     <input
-        id="respondent_id"
+        id="respondent_token"
         type="hidden"
-        name="respondent_id"
-        value="{{ old('respondent_id') }}"
+        name="respondent_token"
+        value="{{ old('respondent_token') }}"
     >
 
 <input
@@ -466,7 +466,7 @@ action="{{ route(
         "
         aria-live="polite"
     >
-        Type at least 2 characters to search.
+        Type at least 3 characters to search.
     </p>
 
 
@@ -1189,8 +1189,8 @@ const searchUrl = @json(
     const typeInput =
         document.getElementById('respondent_type');
 
-    const idInput =
-        document.getElementById('respondent_id');
+    const tokenInput =
+        document.getElementById('respondent_token');
 
     const hintInput =
         document.getElementById(
@@ -1244,25 +1244,20 @@ const guestOptionalFields =
 
 
     function sourceLabel(type) {
-        if (type === 'person') {
-            return 'People Database';
-        }
-
-        if (type === 'campus') {
-            return 'Campus Database';
-        }
-
-        return '';
+        return type === 'existing'
+            ? 'Existing Record'
+            : '';
     }
 
 
     function selectResult(result) {
-        typeInput.value = result.type;
-        idInput.value = result.id;
+        typeInput.value = 'existing';
+        tokenInput.value = result.token;
         hintInput.value = result.name;
 
         selectedName.textContent = result.name;
-        selectedSource.textContent = result.source;
+        selectedSource.textContent =
+            'Existing Record';
 
         selectedBox.hidden = false;
 
@@ -1300,7 +1295,7 @@ const guestOptionalFields =
 
     function useGuestMode() {
         typeInput.value = 'guest';
-        idInput.value = '';
+        tokenInput.value = '';
         hintInput.value = '';
 
         selectedBox.hidden = true;
@@ -1321,7 +1316,7 @@ const guestOptionalFields =
 
     function resetSelection() {
         typeInput.value = '';
-        idInput.value = '';
+        tokenInput.value = '';
         hintInput.value = '';
 
         selectedBox.hidden = true;
@@ -1335,7 +1330,7 @@ const guestOptionalFields =
         clearResults();
 
         searchStatus.textContent =
-            'Type at least 2 characters to search.';
+            'Type at least 3 characters to search.';
 
         searchInput.focus();
     }
@@ -1391,9 +1386,7 @@ const guestOptionalFields =
                 'margin-top:3px',
                 'font-size:11px',
                 'font-weight:700',
-                result.type === 'person'
-                    ? 'color:#047857'
-                    : 'color:#1d4ed8'
+                'color:#4b5563'
             ].join(';');
 
             button.appendChild(name);
@@ -1478,20 +1471,19 @@ const guestOptionalFields =
              * should no longer silently remain selected.
              */
             if (
-                typeInput.value === 'person'
-                || typeInput.value === 'campus'
+                typeInput.value === 'existing'
             ) {
                 typeInput.value = '';
-                idInput.value = '';
+                tokenInput.value = '';
                 hintInput.value = '';
                 selectedBox.hidden = true;
             }
 
-            if (query.length < 2) {
+            if (query.length < 3) {
                 clearResults();
 
                 searchStatus.textContent =
-                    'Type at least 2 characters to search.';
+                    'Type at least 3 characters to search.';
 
                 return;
             }
@@ -1566,10 +1558,8 @@ const guestOptionalFields =
         searchStatus.textContent =
             'Enter your full name below.';
     } else if (
-        (
-            typeInput.value === 'person'
-            || typeInput.value === 'campus'
-        )
+        typeInput.value === 'existing'
+        && tokenInput.value
         && hintInput.value
     ) {
         selectedName.textContent =

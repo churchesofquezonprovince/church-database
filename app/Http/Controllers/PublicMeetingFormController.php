@@ -6,11 +6,14 @@ use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceMeetingSeries;
 use App\Models\AttendanceSession;
 use App\Models\CampusContact;
+use App\Models\GospelContact;
 use App\Models\Person;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -45,7 +48,8 @@ class PublicMeetingFormController extends Controller
          * Also verifies that the public meeting form
          * is currently active.
          */
-        $this->publicSession($slug);
+        $session =
+            $this->publicSession($slug);
 
         $query = trim(
             (string) $request->query('q', '')
@@ -58,7 +62,7 @@ class PublicMeetingFormController extends Controller
          * Campus databases, but requires at least two
          * typed characters.
          */
-        if (mb_strlen($query) < 2) {
+        if (mb_strlen($query) < 3) {
             return response()->json([
                 'results' => [],
             ]);
@@ -97,21 +101,22 @@ class PublicMeetingFormController extends Controller
             })
             ->orderBy('lastname')
             ->orderBy('firstname')
-            ->limit(15)
+            ->limit(10)
             ->get()
             ->map(
                 fn (Person $person): array => [
-                    'type' =>
-                        AttendanceMeetingResponse::RESPONDENT_PERSON,
-
-                    'id' =>
-                        (int) $person->id,
+                    'token' =>
+                        $this->publicIdentityToken(
+                            $session,
+                            AttendanceMeetingResponse::RESPONDENT_PERSON,
+                            (int) $person->id
+                        ),
 
                     'name' =>
                         $person->display_name,
 
                     'source' =>
-                        'People Database',
+                        'Existing Record',
                 ]
             );
 
@@ -148,35 +153,91 @@ class PublicMeetingFormController extends Controller
             })
             ->orderBy('lastname')
             ->orderBy('firstname')
-            ->limit(15)
+            ->limit(10)
             ->get()
             ->map(
                 fn (CampusContact $contact): array => [
-                    'type' =>
-                        AttendanceMeetingResponse::RESPONDENT_CAMPUS,
-
-                    'id' =>
-                        (int) $contact->id,
+                    'token' =>
+                        $this->publicIdentityToken(
+                            $session,
+                            AttendanceMeetingResponse::RESPONDENT_CAMPUS,
+                            (int) $contact->id
+                        ),
 
                     'name' =>
                         $contact->display_name,
 
                     'source' =>
-                        'Campus Database',
+                        'Existing Record',
                 ]
             );
 
         /*
-         * Merge the two sources and return only the best
-         * 20 display results.
+         * -------------------------------------------------
+         * GOSPEL CONTACTS
+         * -------------------------------------------------
+         *
+         * As with Campus Contacts, linked Gospel Contacts
+         * are represented by their canonical Person record
+         * and must not appear a second time.
+         */
+        $gospel = GospelContact::query()
+            ->whereNull('person_id')
+            ->where(function ($builder) use ($like): void {
+                $builder
+                    ->where('firstname', 'like', $like)
+                    ->orWhere('lastname', 'like', $like)
+                    ->orWhereRaw(
+                        "CONCAT_WS(
+                            ' ',
+                            firstname,
+                            lastname
+                        ) LIKE ?",
+                        [$like]
+                    )
+                    ->orWhereRaw(
+                        "CONCAT_WS(
+                            ' ',
+                            lastname,
+                            firstname
+                        ) LIKE ?",
+                        [$like]
+                    );
+            })
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(10)
+            ->get()
+            ->map(
+                fn (GospelContact $contact): array => [
+                    'token' =>
+                        $this->publicIdentityToken(
+                            $session,
+                            AttendanceMeetingResponse::RESPONDENT_GOSPEL,
+                            (int) $contact->id
+                        ),
+
+                    'name' =>
+                        $contact->display_name,
+
+                    'source' =>
+                        'Existing Record',
+                ]
+            );
+
+        /*
+         * Return only a small number of neutral public
+         * results. The browser never receives the database
+         * source or the underlying numeric record ID.
          */
         $results = $people
             ->concat($campus)
+            ->concat($gospel)
             ->sortBy(
                 fn (array $row): string =>
                     mb_strtolower($row['name'])
             )
-            ->take(20)
+            ->take(10)
             ->values();
 
         return response()->json([
@@ -193,12 +254,13 @@ class PublicMeetingFormController extends Controller
         $data = $request->validate([
             'respondent_type' => [
                 'required',
-                'in:person,campus,guest',
+                'in:existing,guest',
             ],
 
-            'respondent_id' => [
+            'respondent_token' => [
                 'nullable',
-                'integer',
+                'string',
+                'max:4096',
             ],
 
             'guest_name' => [
@@ -282,7 +344,29 @@ class PublicMeetingFormController extends Controller
             ],
         ]);
 
-        $type = $data['respondent_type'];
+        $type =
+            $data['respondent_type'];
+
+        if ($type === 'existing') {
+            $identity =
+                $this->decodePublicIdentityToken(
+                    $session,
+                    $data['respondent_token']
+                        ?? null
+                );
+
+            $type =
+                $identity['type'];
+
+            /*
+             * From this point onward, the existing storage
+             * code may use respondent_id internally.
+             *
+             * This numeric ID never came from the browser.
+             */
+            $data['respondent_id'] =
+                $identity['id'];
+        }
 
         /*
          * -------------------------------------------------
@@ -489,6 +573,131 @@ if (! $meetingResponse->exists) {
 
         /*
          * -------------------------------------------------
+         * GOSPEL CONTACTS
+         * -------------------------------------------------
+         */
+        if (
+            $type
+            === AttendanceMeetingResponse::RESPONDENT_GOSPEL
+        ) {
+            $contact = GospelContact::query()
+                ->with('person')
+                ->find(
+                    (int) $data['respondent_id']
+                );
+
+            if (! $contact) {
+                throw ValidationException::withMessages([
+                    'respondent_type' =>
+                        'The selected record could not be found.',
+                ]);
+            }
+
+            /*
+             * A Gospel Contact may have become linked to a
+             * Person after the search result was issued.
+             *
+             * Person remains canonical.
+             */
+            if ($contact->person_id && $contact->person) {
+                $person =
+                    $contact->person;
+
+                $meetingResponse =
+                    AttendanceMeetingResponse::query()
+                        ->firstOrNew([
+                            'attendance_session_id' =>
+                                $session->id,
+
+                            'person_id' =>
+                                $person->id,
+                        ]);
+
+                if (! $meetingResponse->exists) {
+                    $meetingResponse->original_source =
+                        AttendanceMeetingResponse::RESPONDENT_GOSPEL;
+
+                    $meetingResponse->gospel_contact_id =
+                        $contact->id;
+                }
+
+                $meetingResponse->forceFill([
+                    'respondent_type' =>
+                        AttendanceMeetingResponse::RESPONDENT_PERSON,
+
+                    'person_id' =>
+                        $person->id,
+
+                    'guest_name' =>
+                        null,
+
+                    'respondent_name' =>
+                        $person->display_name,
+
+                    'response' =>
+                        $data['response'],
+
+                    'responded_at' =>
+                        now(),
+                ])->save();
+
+                return $this->savedResponseRedirect(
+                    $session,
+                    $person->display_name,
+                    $data['response'],
+                );
+            }
+
+            $meetingResponse =
+                AttendanceMeetingResponse::query()
+                    ->firstOrNew([
+                        'attendance_session_id' =>
+                            $session->id,
+
+                        'gospel_contact_id' =>
+                            $contact->id,
+                    ]);
+
+            if (! $meetingResponse->exists) {
+                $meetingResponse->original_source =
+                    AttendanceMeetingResponse::RESPONDENT_GOSPEL;
+            }
+
+            $meetingResponse->forceFill([
+                'respondent_type' =>
+                    AttendanceMeetingResponse::RESPONDENT_GOSPEL,
+
+                'person_id' =>
+                    null,
+
+                'campus_contact_id' =>
+                    null,
+
+                'gospel_contact_id' =>
+                    $contact->id,
+
+                'guest_name' =>
+                    null,
+
+                'respondent_name' =>
+                    $contact->display_name,
+
+                'response' =>
+                    $data['response'],
+
+                'responded_at' =>
+                    now(),
+            ])->save();
+
+            return $this->savedResponseRedirect(
+                $session,
+                $contact->display_name,
+                $data['response'],
+            );
+        }
+
+        /*
+         * -------------------------------------------------
          * MANUALLY ENTERED NAME
          * -------------------------------------------------
          */
@@ -576,6 +785,9 @@ $meetingResponse->forceFill([
     'campus_contact_id' =>
         null,
 
+    'gospel_contact_id' =>
+        null,
+
     'guest_name' =>
         $guestName,
 
@@ -655,6 +867,103 @@ return redirect()
                 'meeting_response_value',
                 $response
             );
+    }
+
+    private function publicIdentityToken(
+        AttendanceSession $session,
+        string $type,
+        int $id
+    ): string {
+        return Crypt::encryptString(
+            json_encode(
+                [
+                    'session_id' =>
+                        (int) $session->id,
+
+                    'type' =>
+                        $type,
+
+                    'id' =>
+                        $id,
+                ],
+                JSON_THROW_ON_ERROR
+            )
+        );
+    }
+
+    private function decodePublicIdentityToken(
+        AttendanceSession $session,
+        ?string $token
+    ): array {
+        if (blank($token)) {
+            throw ValidationException::withMessages([
+                'respondent_type' =>
+                    'Please select your name again.',
+            ]);
+        }
+
+        try {
+            $payload =
+                json_decode(
+                    Crypt::decryptString(
+                        $token
+                    ),
+                    true,
+                    512,
+                    JSON_THROW_ON_ERROR
+                );
+        } catch (
+            DecryptException
+            | \JsonException
+        ) {
+            throw ValidationException::withMessages([
+                'respondent_type' =>
+                    'Your name selection is invalid or expired. '
+                    . 'Please select your name again.',
+            ]);
+        }
+
+        $type =
+            $payload['type']
+            ?? null;
+
+        $id =
+            $payload['id']
+            ?? null;
+
+        $sessionId =
+            $payload['session_id']
+            ?? null;
+
+        if (
+            (int) $sessionId
+                !== (int) $session->id
+            || ! in_array(
+                $type,
+                [
+                    AttendanceMeetingResponse::RESPONDENT_PERSON,
+                    AttendanceMeetingResponse::RESPONDENT_CAMPUS,
+                    AttendanceMeetingResponse::RESPONDENT_GOSPEL,
+                ],
+                true
+            )
+            || ! is_numeric($id)
+            || (int) $id < 1
+        ) {
+            throw ValidationException::withMessages([
+                'respondent_type' =>
+                    'Your name selection is invalid. '
+                    . 'Please select your name again.',
+            ]);
+        }
+
+        return [
+            'type' =>
+                $type,
+
+            'id' =>
+                (int) $id,
+        ];
     }
 
     private function publicSession(

@@ -56,7 +56,7 @@ Route::domain('m.overcomers.win')
                 'search',
             ]
         )
-            ->middleware('throttle:120,1')
+            ->middleware('throttle:30,1')
             ->name('meeting.short.search');
 
         Route::get(
@@ -742,7 +742,7 @@ Route::middleware(['web', 'auth'])
                 'search',
             ]
         )
-            ->middleware('throttle:120,1')
+            ->middleware('throttle:30,1')
             ->name('meeting.search');
 
         Route::get(
