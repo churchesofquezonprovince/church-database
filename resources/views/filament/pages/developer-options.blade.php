@@ -315,6 +315,109 @@
     </div>
 
     
+    <details
+        class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+    >
+        <summary
+            class="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5"
+        >
+            <div>
+                <h2
+                    class="text-lg font-bold text-gray-950 dark:text-white"
+                >
+                    Meeting Form Privacy & Autofill
+                </h2>
+
+                <p
+                    class="mt-1 text-sm text-gray-500 dark:text-gray-400"
+                >
+                    Control when public meeting forms may silently
+                    auto-fill existing Database Field information.
+                </p>
+            </div>
+
+            <x-filament::icon
+                icon="heroicon-m-chevron-down"
+                class="h-5 w-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+            />
+        </summary>
+
+        <div
+            class="border-t border-gray-200 px-6 pb-6 pt-5 dark:border-gray-700"
+        >
+            <div
+                class="max-w-xl"
+            >
+                <label
+                    class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
+                >
+                    Database Field matches before autofill
+                </label>
+
+                <p
+                    class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400"
+                >
+                    Default: 2. The participant is never shown a
+                    match count or identity-check message. Once this
+                    many distinct eligible fields silently match the
+                    selected record, remaining blank Database Fields
+                    on that meeting form may be auto-filled.
+                </p>
+
+                <x-filament::input.wrapper
+                    class="mt-3 max-w-32"
+                >
+                    <x-filament::input
+                        wire:model="databaseFieldMatchesBeforeAutofill"
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="1"
+                    />
+                </x-filament::input.wrapper>
+
+                @error('databaseFieldMatchesBeforeAutofill')
+                    <p
+                        class="mt-1 text-xs text-danger-600"
+                    >
+                        {{ $message }}
+                    </p>
+                @enderror
+
+                <div
+                    class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-xs leading-5 text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300"
+                >
+                    <strong>0</strong>
+                    means existing values are never revealed or
+                    auto-filled.
+
+                    <br>
+
+                    <strong>1–5</strong>
+                    is the number of distinct matching Database Fields
+                    required before silent autofill becomes available.
+
+                    <br>
+
+                    Values already typed by the participant will never
+                    be overwritten by autofill.
+                </div>
+
+                <div
+                    class="mt-4"
+                >
+                    <x-filament::button
+                        wire:click="saveMeetingFormAutofillSettings"
+                        icon="heroicon-m-check"
+                    >
+                        Save Meeting Form Setting
+                    </x-filament::button>
+                </div>
+            </div>
+        </div>
+    </details>
+
+
     <!-- Developer Options: Cache & Maintenance -->
     <details
         class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"

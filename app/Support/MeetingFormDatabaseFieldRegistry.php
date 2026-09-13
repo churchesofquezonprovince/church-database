@@ -4,6 +4,30 @@ namespace App\Support;
 
 final class MeetingFormDatabaseFieldRegistry
 {
+    /*
+     * These fields may silently contribute toward the
+     * public form's autofill threshold.
+     *
+     * They are NEVER identified to the participant as
+     * verification fields.
+     *
+     * Names are intentionally excluded because public name
+     * search already reveals them.
+     *
+     * Baptism / church-history fields are intentionally
+     * excluded because they may themselves be information
+     * the form is trying to protect.
+     */
+    public const AUTOFILL_MATCH_ELIGIBLE_FIELDS = [
+        'birthdate',
+        'locality',
+        'school',
+        'grade_level',
+        'course_strand',
+        'contact_number',
+        'email',
+    ];
+
     public static function definitions(): array
     {
         return [
@@ -368,6 +392,22 @@ final class MeetingFormDatabaseFieldRegistry
         return array_keys(
             self::definitions()
         );
+    }
+
+    public static function autofillMatchEligibleKeys(): array
+    {
+        return self::AUTOFILL_MATCH_ELIGIBLE_FIELDS;
+    }
+
+    public static function isAutofillMatchEligible(
+        ?string $field
+    ): bool {
+        return filled($field)
+            && in_array(
+                $field,
+                self::AUTOFILL_MATCH_ELIGIBLE_FIELDS,
+                true
+            );
     }
 
     public static function definition(

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\DeveloperSetting;
 use App\Models\NavigationSearchAlias;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -36,6 +37,15 @@ class DeveloperOptions extends Page
     public string $targetKey = '';
 
     public bool $isActive = true;
+
+    /*
+     * Number of distinct existing Database Fields that must
+     * silently match before remaining configured Database
+     * Fields may be auto-filled on a public meeting form.
+     *
+     * 0 = never reveal / auto-fill stored values.
+     */
+    public int $databaseFieldMatchesBeforeAutofill = 2;
 
     public static function getNavigationLabel(): string
     {
@@ -74,11 +84,57 @@ class DeveloperOptions extends Page
 
     public function mount(): void
     {
-        $this->loadSystemInformation();
         abort_unless(
             auth()->user()?->isAdmin(),
             403
         );
+
+        $this->loadSystemInformation();
+
+        $this->databaseFieldMatchesBeforeAutofill =
+            max(
+                0,
+                min(
+                    5,
+                    DeveloperSetting::integer(
+                        DeveloperSetting::KEY_MEETING_FORM_AUTOFILL_MATCHES,
+                        2
+                    )
+                )
+            );
+    }
+
+    public function saveMeetingFormAutofillSettings(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $data = $this->validate([
+            'databaseFieldMatchesBeforeAutofill' => [
+                'required',
+                'integer',
+                'min:0',
+                'max:5',
+            ],
+        ]);
+
+        DeveloperSetting::putValue(
+            DeveloperSetting::KEY_MEETING_FORM_AUTOFILL_MATCHES,
+            (int) $data[
+                'databaseFieldMatchesBeforeAutofill'
+            ]
+        );
+
+        Notification::make()
+            ->title('Meeting form autofill settings saved')
+            ->body(
+                'The hidden Database Field match threshold '
+                . 'has been updated.'
+            )
+            ->success()
+            ->send();
     }
 
     public function updatedTargetType(): void
