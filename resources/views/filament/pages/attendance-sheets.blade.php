@@ -1043,6 +1043,8 @@
 
                     @include('filament.pages.partials.attendance-sheets-profile-corrections')
 
+@include('filament.pages.partials.attendance-sheets-reference-proposals')
+
                     <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
                         <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
                             Add Participants

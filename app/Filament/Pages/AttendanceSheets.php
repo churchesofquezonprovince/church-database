@@ -5,17 +5,20 @@ namespace App\Filament\Pages;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceMeetingProfileCorrection;
+use App\Models\AttendanceMeetingReferenceProposal;
 use App\Models\AttendanceImmichAssetDetection;
 use App\Models\AttendanceSheetImmichAlbum;
 use App\Services\ImmichAttendanceSyncService;
 use App\Support\LocalityOptions;
 use App\Support\MeetingFormDatabaseFieldRegistry;
 use App\Support\MeetingFormProfileCorrectionReviewService;
+use App\Support\MeetingFormReferenceProposalReviewService;
 use App\Models\AttendanceParticipant;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSessionImmichAsset;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Models\Province;
 use App\Models\School;
 use App\Services\ImmichApiService;
 use Filament\Notifications\Notification;
@@ -28,6 +31,14 @@ class AttendanceSheets extends Page
     public ?int $selectedSheetId = null;
 
     public ?int $selectedSessionId = null;
+
+    /*
+     * Province resolution for pending School / Locality
+     * reference proposals.
+     *
+     * Keyed by AttendanceMeetingReferenceProposal ID.
+     */
+    public array $referenceProposalProvinceSelections = [];
 
     public function mount(): void
     {
@@ -63,6 +74,9 @@ class AttendanceSheets extends Page
                     null;
             }
         }
+
+        $this
+            ->hydrateMeetingReferenceProposalProvinceSelections();
     }
 
     protected string $view = 'filament.pages.attendance-sheets';
@@ -1029,6 +1043,225 @@ public function schoolIdForName(?string $name): ?int
         : null;
 }
 
+    public function pendingMeetingReferenceProposals(): Collection
+    {
+        $session =
+            $this->selectedSession();
+
+        if (! $session) {
+            return collect();
+        }
+
+        return AttendanceMeetingReferenceProposal::query()
+            ->with([
+                'response',
+                'question',
+                'person',
+                'campusContact',
+                'gospelContact',
+                'proposedProvince',
+            ])
+            ->where(
+                'status',
+                AttendanceMeetingReferenceProposal
+                    ::STATUS_PENDING
+            )
+            ->whereHas(
+                'response',
+                fn ($query) =>
+                    $query->where(
+                        'attendance_session_id',
+                        $session->id
+                    )
+            )
+            ->orderBy(
+                'attendance_meeting_response_id'
+            )
+            ->orderBy('id')
+            ->get();
+    }
+
+
+    public function meetingReferenceProposalProvinceOptions(): array
+    {
+        return Province::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->orderBy('name')
+            ->pluck(
+                'name',
+                'id'
+            )
+            ->all();
+    }
+
+
+    public function approveMeetingReferenceProposal(
+        int $proposalId
+    ): void {
+        $proposal =
+            $this->pendingMeetingReferenceProposal(
+                $proposalId
+            );
+
+        if (! $proposal) {
+            Notification::make()
+                ->title(
+                    'Reference proposal not found'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $provinceId =
+            filled(
+                $this
+                    ->referenceProposalProvinceSelections[
+                        $proposalId
+                    ]
+                    ?? null
+            )
+                ? (int) $this
+                    ->referenceProposalProvinceSelections[
+                        $proposalId
+                    ]
+                : null;
+
+        if (! $provinceId) {
+            $this->addError(
+                'referenceProposalProvinceSelections.'
+                . $proposalId,
+                'Select the existing Province to use.'
+            );
+
+            Notification::make()
+                ->title(
+                    'Province required'
+                )
+                ->body(
+                    'Resolve the submitted Province to an existing configured Province before approval.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(
+                MeetingFormReferenceProposalReviewService::class
+            )->approve(
+                $proposal,
+                auth()->id(),
+                $provinceId
+            );
+
+            unset(
+                $this
+                    ->referenceProposalProvinceSelections[
+                        $proposalId
+                    ]
+            );
+
+            $this->resetErrorBag(
+                'referenceProposalProvinceSelections.'
+                . $proposalId
+            );
+
+            Notification::make()
+                ->title(
+                    'Reference proposal approved'
+                )
+                ->body(
+                    $proposal->fieldLabel()
+                    . ' was resolved.'
+                )
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Reference proposal was not approved'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    public function rejectMeetingReferenceProposal(
+        int $proposalId
+    ): void {
+        $proposal =
+            $this->pendingMeetingReferenceProposal(
+                $proposalId
+            );
+
+        if (! $proposal) {
+            Notification::make()
+                ->title(
+                    'Reference proposal not found'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(
+                MeetingFormReferenceProposalReviewService::class
+            )->reject(
+                $proposal,
+                auth()->id()
+            );
+
+            unset(
+                $this
+                    ->referenceProposalProvinceSelections[
+                        $proposalId
+                    ]
+            );
+
+            $this->resetErrorBag(
+                'referenceProposalProvinceSelections.'
+                . $proposalId
+            );
+
+            Notification::make()
+                ->title(
+                    'Reference proposal rejected'
+                )
+                ->body(
+                    'The canonical database was left unchanged.'
+                )
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Reference proposal was not rejected'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
 public function pendingMeetingProfileCorrections(): Collection
 {
     $session =
@@ -1241,6 +1474,109 @@ public function meetingProfileCorrectionValueLabel(
 
     return (string) $value;
 }
+
+
+    private function hydrateMeetingReferenceProposalProvinceSelections(): void
+    {
+        $session =
+            $this->selectedSession();
+
+        if (! $session) {
+            return;
+        }
+
+        $activeProvinceIds =
+            Province::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->pluck('id')
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                );
+
+        AttendanceMeetingReferenceProposal::query()
+            ->where(
+                'status',
+                AttendanceMeetingReferenceProposal
+                    ::STATUS_PENDING
+            )
+            ->whereNotNull(
+                'proposed_province_id'
+            )
+            ->whereHas(
+                'response',
+                fn ($query) =>
+                    $query->where(
+                        'attendance_session_id',
+                        $session->id
+                    )
+            )
+            ->get([
+                'id',
+                'proposed_province_id',
+            ])
+            ->each(
+                function (
+                    AttendanceMeetingReferenceProposal $proposal
+                ) use (
+                    $activeProvinceIds
+                ): void {
+                    $provinceId =
+                        (int)
+                        $proposal
+                            ->proposed_province_id;
+
+                    if (
+                        ! $activeProvinceIds
+                            ->contains(
+                                $provinceId
+                            )
+                    ) {
+                        return;
+                    }
+
+                    $this
+                        ->referenceProposalProvinceSelections[
+                            $proposal->id
+                        ] =
+                            $provinceId;
+                }
+            );
+    }
+
+
+    private function pendingMeetingReferenceProposal(
+        int $proposalId
+    ): ?AttendanceMeetingReferenceProposal {
+        $session =
+            $this->selectedSession();
+
+        if (! $session) {
+            return null;
+        }
+
+        return AttendanceMeetingReferenceProposal::query()
+            ->whereKey(
+                $proposalId
+            )
+            ->where(
+                'status',
+                AttendanceMeetingReferenceProposal
+                    ::STATUS_PENDING
+            )
+            ->whereHas(
+                'response',
+                fn ($query) =>
+                    $query->where(
+                        'attendance_session_id',
+                        $session->id
+                    )
+            )
+            ->first();
+    }
 
 
 private function pendingMeetingProfileCorrection(
