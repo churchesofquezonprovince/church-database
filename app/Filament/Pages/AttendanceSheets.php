@@ -888,19 +888,66 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
 public function meetingResponses(): Collection
 {
     $session = $this->selectedSession();
+    $sheet = $this->selectedSheet();
 
-    if (! $session) {
+    if (! $session || ! $sheet) {
         return collect();
     }
+
+    $submittedFormType =
+        $sheet->meeting_form_type
+        === AttendanceSheet::MEETING_FORM_GOOGLE
+            ? AttendanceMeetingResponse::FORM_GOOGLE
+            : AttendanceMeetingResponse::FORM_NORMAL;
 
     return AttendanceMeetingResponse::query()
         ->with([
             'person',
             'campusContact',
+            'gospelContact',
         ])
         ->where(
             'attendance_session_id',
             $session->id
+        )
+        ->where(
+            'submitted_form_type',
+            $submittedFormType
+        )
+        ->orderByDesc('responded_at')
+        ->orderByDesc('id')
+        ->get();
+}
+
+public function previousMeetingResponses(): Collection
+{
+    $session = $this->selectedSession();
+    $sheet = $this->selectedSheet();
+
+    if (! $session || ! $sheet) {
+        return collect();
+    }
+
+    $submittedFormType =
+        $sheet->meeting_form_type
+        === AttendanceSheet::MEETING_FORM_GOOGLE
+            ? AttendanceMeetingResponse::FORM_GOOGLE
+            : AttendanceMeetingResponse::FORM_NORMAL;
+
+    return AttendanceMeetingResponse::query()
+        ->with([
+            'person',
+            'campusContact',
+            'gospelContact',
+        ])
+        ->where(
+            'attendance_session_id',
+            $session->id
+        )
+        ->where(
+            'submitted_form_type',
+            '!=',
+            $submittedFormType
         )
         ->orderByDesc('responded_at')
         ->orderByDesc('id')
@@ -980,11 +1027,20 @@ public function schoolIdForName(?string $name): ?int
 
 public function preListedFilterOptions(): array
 {
-    return [
+    $options = [
         'all' => 'All',
         'needs_action' => 'Needs Action',
-        'yes' => 'YES',
-        'no' => 'NO',
+    ];
+
+    if (
+        $this->selectedSheet()?->meeting_form_type
+        !== AttendanceSheet::MEETING_FORM_GOOGLE
+    ) {
+        $options['yes'] = 'YES';
+        $options['no'] = 'NO';
+    }
+
+    return $options + [
         'needs_identity_review' => 'Needs Identity Review',
         'ready_for_participant' => 'Ready for Participant',
         'participant_covered' => 'Participant Covered',

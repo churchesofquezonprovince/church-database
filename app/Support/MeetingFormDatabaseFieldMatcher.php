@@ -44,26 +44,17 @@ final class MeetingFormDatabaseFieldMatcher
             return false;
         }
 
-        $definition =
-            MeetingFormDatabaseFieldRegistry::definition(
-                $field
-            );
-
-        $input =
-            $definition['input']
-            ?? 'text';
-
         $submitted =
-            $this->normalize(
-                $submittedValue,
-                $input
+            $this->normalizedValue(
+                $field,
+                $submittedValue
             );
 
         $existing =
-            $this->normalize(
+            $this->normalizedValue(
+                $field,
                 $resolved['value']
-                    ?? null,
-                $input
+                    ?? null
             );
 
         if (
@@ -108,6 +99,26 @@ final class MeetingFormDatabaseFieldMatcher
             array_unique(
                 $matches
             )
+        );
+    }
+
+    public function normalizedValue(
+        string $field,
+        mixed $value
+    ): ?string {
+        $definition =
+            MeetingFormDatabaseFieldRegistry::definition(
+                $field
+            );
+
+        if (! $definition) {
+            return null;
+        }
+
+        return $this->normalize(
+            $value,
+            $definition['input']
+                ?? 'text'
         );
     }
 

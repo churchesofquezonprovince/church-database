@@ -1,6 +1,16 @@
 @php
 $meetingResponses = $this->meetingResponses();
 
+$previousMeetingResponses =
+    $this->previousMeetingResponses();
+
+$isGoogleMeetingForm =
+    $selectedSheet
+    &&
+    $selectedSheet->meeting_form_type
+        ===
+        \App\Models\AttendanceSheet::MEETING_FORM_GOOGLE;
+
         $promotionLocalityOptions =
             \App\Support\LocalityOptions::groupedActiveConfigured();
 
@@ -59,11 +69,13 @@ $filteredMeetingResponses =
         );
 
 $filteredYesMeetingResponses =
-    $filteredMeetingResponses
-        ->where(
-            'response',
-            \App\Models\AttendanceMeetingResponse::RESPONSE_YES
-        );
+    $isGoogleMeetingForm
+        ? $filteredMeetingResponses
+        : $filteredMeetingResponses
+            ->where(
+                'response',
+                \App\Models\AttendanceMeetingResponse::RESPONSE_YES
+            );
 
 $filteredNoMeetingResponses =
     $filteredMeetingResponses
@@ -238,21 +250,34 @@ $preListedFilterCounts = [
                         @endif
                     </span>
 
-                    <span
-                        class="rounded-full bg-emerald-600
-                               px-2.5 py-1 text-[10px]
-                               font-bold text-white"
-                    >
-                        YES: {{ $yesMeetingResponses->count() }}
-                    </span>
+                    @if ($isGoogleMeetingForm)
+                        <span
+                            class="rounded-full bg-emerald-600
+                                   px-2.5 py-1 text-[10px]
+                                   font-bold text-white"
+                        >
+                            Submitted:
+                            {{ $meetingResponses->count() }}
+                        </span>
+                    @else
+                        <span
+                            class="rounded-full bg-emerald-600
+                                   px-2.5 py-1 text-[10px]
+                                   font-bold text-white"
+                        >
+                            YES:
+                            {{ $yesMeetingResponses->count() }}
+                        </span>
 
-                    <span
-                        class="rounded-full bg-red-600
-                               px-2.5 py-1 text-[10px]
-                               font-bold text-white"
-                    >
-                        NO: {{ $noMeetingResponses->count() }}
-                    </span>
+                        <span
+                            class="rounded-full bg-red-600
+                                   px-2.5 py-1 text-[10px]
+                                   font-bold text-white"
+                        >
+                            NO:
+                            {{ $noMeetingResponses->count() }}
+                        </span>
+                    @endif
 
                     <span
                         class="rounded-full bg-indigo-600
@@ -519,7 +544,9 @@ $preListedFilterCounts = [
                         <h4
                             class="font-bold text-emerald-800 dark:text-emerald-200"
                         >
-                            YES — Attending
+                            {{ $isGoogleMeetingForm
+                                ? 'Submitted'
+                                : 'YES — Attending' }}
                         </h4>
 
                         <span
@@ -874,7 +901,12 @@ $preListedFilterCounts = [
                 {{-- =========================================
                      NO RESPONSES
                 ========================================== --}}
-                <div>
+
+                <div
+                    @if ($isGoogleMeetingForm)
+                        style="display:none"
+                    @endif
+                >
                     <div
                         class="flex items-center justify-between"
                     >
@@ -1068,6 +1100,100 @@ $preListedFilterCounts = [
             </div>
 
         @endif
+        </div>
+    </details>
+@endif
+
+
+@if (
+    $selectedSession
+    && $selectedSheet?->meetingFormEnabled()
+    && $previousMeetingResponses->isNotEmpty()
+)
+    <details
+        class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+    >
+        <summary
+            class="cursor-pointer px-5 py-4 text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800 sm:px-6"
+        >
+            <span
+                class="ml-2 inline-flex w-[calc(100%-2rem)] items-center justify-between gap-3 align-middle"
+            >
+                <span class="text-sm font-bold">
+                    Previous Form Responses
+                </span>
+
+                <span
+                    class="rounded-full bg-gray-200 px-2.5 py-1 text-[10px] font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                >
+                    {{ $previousMeetingResponses->count() }}
+                </span>
+            </span>
+        </summary>
+
+        <div
+            class="space-y-3 border-t border-gray-200 p-5 dark:border-gray-700 sm:p-6"
+        >
+            <p
+                class="text-xs leading-5 text-gray-500 dark:text-gray-400"
+            >
+                These responses were submitted using a previous
+                meeting-form type. They are preserved for history
+                but do not participate in the current pre-listed
+                workflow.
+            </p>
+
+            @foreach ($previousMeetingResponses as $response)
+                <div
+                    class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-950"
+                >
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-3"
+                    >
+                        <div>
+                            <div
+                                class="font-bold text-gray-900 dark:text-white"
+                            >
+                                {{ $response->respondent_name }}
+                            </div>
+
+                            <div
+                                class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                            >
+                                @if ($response->submittedViaNormalForm())
+                                    Normal Meeting Form
+
+                                    @if (
+                                        $response->response
+                                        ===
+                                        \App\Models\AttendanceMeetingResponse::RESPONSE_YES
+                                    )
+                                        · YES — Attending
+                                    @elseif (
+                                        $response->response
+                                        ===
+                                        \App\Models\AttendanceMeetingResponse::RESPONSE_NO
+                                    )
+                                        · NO — Unable to Attend
+                                    @endif
+                                @else
+                                    Google Form-like
+                                @endif
+                            </div>
+                        </div>
+
+                        @if ($response->responded_at)
+                            <div
+                                class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                            >
+                                {{ $response->responded_at->format(
+                                    'M j · g:i A'
+                                ) }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
         </div>
     </details>
 @endif

@@ -12,6 +12,10 @@ class AttendanceMeetingResponse extends Model
 
     public const RESPONSE_NO = 'no';
 
+    public const FORM_NORMAL = 'normal';
+
+    public const FORM_GOOGLE = 'google_form';
+
     public const RESPONDENT_PERSON = 'person';
 
     public const RESPONDENT_CAMPUS = 'campus';
@@ -31,6 +35,7 @@ protected $fillable = [
     'guest_profile',
     'respondent_name',
     'response',
+    'submitted_form_type',
     'responded_at',
 ];
 
@@ -67,6 +72,14 @@ public function originalSourceLabel(): string
         );
     }
 
+    public function profileCorrections(): HasMany
+    {
+        return $this->hasMany(
+            AttendanceMeetingProfileCorrection::class,
+            'attendance_meeting_response_id'
+        );
+    }
+
     public function session(): BelongsTo
     {
         return $this->belongsTo(
@@ -96,6 +109,18 @@ public function originalSourceLabel(): string
             GospelContact::class,
             'gospel_contact_id',
         );
+    }
+
+    public function submittedViaNormalForm(): bool
+    {
+        return $this->submitted_form_type
+            === self::FORM_NORMAL;
+    }
+
+    public function submittedViaGoogleForm(): bool
+    {
+        return $this->submitted_form_type
+            === self::FORM_GOOGLE;
     }
 
     public function isAttending(): bool

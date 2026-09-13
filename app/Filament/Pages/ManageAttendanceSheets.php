@@ -484,7 +484,7 @@ class ManageAttendanceSheets extends Page
                             ->newMeetingFormQuestionAllowCorrection[
                                 $sheetId
                             ]
-                            ?? false
+                            ?? true
                     ),
             ],
             [

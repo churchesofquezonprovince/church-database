@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AttendanceMeetingFormAnswer;
 use App\Models\AttendanceMeetingFormQuestion;
+use App\Models\AttendanceMeetingProfileCorrection;
 use App\Models\AttendanceMeetingResponse;
 use App\Models\AttendanceSheet;
 use App\Models\AttendanceMeetingSeries;
@@ -25,6 +26,7 @@ use App\Support\LocalityOptions;
 use App\Support\MeetingFormDatabaseFieldMatcher;
 use App\Support\MeetingFormDatabaseFieldRegistry;
 use App\Support\MeetingFormRespondentResolver;
+use App\Support\MeetingFormProfileCorrectionRecorder;
 use Illuminate\View\View;
 
 class PublicMeetingFormController extends Controller
@@ -348,6 +350,25 @@ class PublicMeetingFormController extends Controller
             ]);
         }
 
+        /*
+         * A previously submitted pending Database Field change
+         * becomes the effective value for future public-form
+         * autofill until it is approved, rejected, replaced,
+         * or reverted to the canonical database value.
+         *
+         * The canonical database itself is NOT modified here.
+         */
+        $existingResponse =
+            $this->existingMeetingResponseForIdentity(
+                $session,
+                $identity
+            );
+
+        $pendingValues =
+            $this->pendingDatabaseFieldValues(
+                $existingResponse
+            );
+
         $questions =
             $session
                 ->sheet
@@ -412,10 +433,79 @@ class PublicMeetingFormController extends Controller
             }
         }
 
+        /*
+         * Start with positive matches against canonical data.
+         */
         $matches =
             $matcher->matchingFields(
                 $identity,
                 $submittedFields
+            );
+
+        /*
+         * Also accept the respondent's latest still-pending
+         * proposed value.
+         *
+         * Example:
+         *
+         * canonical workplace = Southern Luzon State University
+         * pending workplace   = SLSU
+         *
+         * On a later visit, entering SLSU is treated as the
+         * respondent's current effective value.
+         */
+        foreach (
+            $submittedFields
+            as $field => $submittedValue
+        ) {
+            if (
+                in_array(
+                    $field,
+                    $matches,
+                    true
+                )
+                || ! MeetingFormDatabaseFieldRegistry
+                    ::isAutofillMatchEligible(
+                        $field
+                    )
+                || ! array_key_exists(
+                    $field,
+                    $pendingValues
+                )
+            ) {
+                continue;
+            }
+
+            $normalizedSubmitted =
+                $matcher->normalizedValue(
+                    $field,
+                    $submittedValue
+                );
+
+            $normalizedPending =
+                $matcher->normalizedValue(
+                    $field,
+                    $pendingValues[$field]
+                );
+
+            if (
+                $normalizedSubmitted !== null
+                && $normalizedPending !== null
+                && hash_equals(
+                    $normalizedPending,
+                    $normalizedSubmitted
+                )
+            ) {
+                $matches[] =
+                    $field;
+            }
+        }
+
+        $matches =
+            array_values(
+                array_unique(
+                    $matches
+                )
             );
 
         $threshold =
@@ -453,27 +543,45 @@ class PublicMeetingFormController extends Controller
         $values = [];
 
         foreach ($questions as $question) {
-            $resolved =
-                $resolver->fieldValue(
-                    $identity,
-                    (string)
-                    $question->database_field
-                );
+            $field =
+                (string)
+                $question->database_field;
 
+            /*
+             * Pending participant-supplied information wins
+             * over the older canonical value for this public
+             * form's future autofill.
+             */
             if (
-                ! (
-                    $resolved[
-                        'has_existing_value'
-                    ]
-                    ?? false
+                array_key_exists(
+                    $field,
+                    $pendingValues
                 )
             ) {
-                continue;
-            }
+                $value =
+                    $pendingValues[$field];
+            } else {
+                $resolved =
+                    $resolver->fieldValue(
+                        $identity,
+                        $field
+                    );
 
-            $value =
-                $resolved['value']
-                ?? null;
+                if (
+                    ! (
+                        $resolved[
+                            'has_existing_value'
+                        ]
+                        ?? false
+                    )
+                ) {
+                    continue;
+                }
+
+                $value =
+                    $resolved['value']
+                    ?? null;
+            }
 
             if (is_array($value)) {
                 $value =
@@ -699,6 +807,9 @@ class PublicMeetingFormController extends Controller
                 'respondent_name' =>
                     $person->display_name,
 
+                'submitted_form_type' =>
+                    AttendanceMeetingResponse::FORM_NORMAL,
+
                 'response' =>
                     $data['response'],
 
@@ -787,6 +898,9 @@ class PublicMeetingFormController extends Controller
                     'respondent_name' =>
                         $person->display_name,
 
+                    'submitted_form_type' =>
+                        AttendanceMeetingResponse::FORM_NORMAL,
+
                     'response' =>
                         $data['response'],
 
@@ -829,6 +943,9 @@ if (! $meetingResponse->exists) {
 
                 'respondent_name' =>
                     $contact->display_name,
+
+                'submitted_form_type' =>
+                    AttendanceMeetingResponse::FORM_NORMAL,
 
                 'response' =>
                     $data['response'],
@@ -907,6 +1024,9 @@ if (! $meetingResponse->exists) {
                     'respondent_name' =>
                         $person->display_name,
 
+                    'submitted_form_type' =>
+                        AttendanceMeetingResponse::FORM_NORMAL,
+
                     'response' =>
                         $data['response'],
 
@@ -954,6 +1074,9 @@ if (! $meetingResponse->exists) {
 
                 'respondent_name' =>
                     $contact->display_name,
+
+                'submitted_form_type' =>
+                    AttendanceMeetingResponse::FORM_NORMAL,
 
                 'response' =>
                     $data['response'],
@@ -1070,6 +1193,9 @@ $meetingResponse->forceFill([
     'respondent_name' =>
         $guestName,
 
+    'submitted_form_type' =>
+        AttendanceMeetingResponse::FORM_NORMAL,
+
     'response' =>
         $data['response'],
 
@@ -1083,6 +1209,121 @@ $meetingResponse->forceFill([
             $data['response'],
         );
     }
+
+    private function existingMeetingResponseForIdentity(
+        AttendanceSession $session,
+        array $identity
+    ): ?AttendanceMeetingResponse {
+        $person =
+            $identity['person']
+            ?? null;
+
+        if ($person) {
+            return AttendanceMeetingResponse::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'person_id',
+                    $person->id
+                )
+                ->first();
+        }
+
+        $selectedType =
+            $identity['selected_type']
+            ?? null;
+
+        if (
+            $selectedType
+            === AttendanceMeetingResponse::RESPONDENT_CAMPUS
+            && filled(
+                $identity[
+                    'campus_contact'
+                ]?->id
+            )
+        ) {
+            return AttendanceMeetingResponse::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'campus_contact_id',
+                    $identity[
+                        'campus_contact'
+                    ]->id
+                )
+                ->first();
+        }
+
+        if (
+            $selectedType
+            === AttendanceMeetingResponse::RESPONDENT_GOSPEL
+            && filled(
+                $identity[
+                    'gospel_contact'
+                ]?->id
+            )
+        ) {
+            return AttendanceMeetingResponse::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'gospel_contact_id',
+                    $identity[
+                        'gospel_contact'
+                    ]->id
+                )
+                ->first();
+        }
+
+        return null;
+    }
+
+
+    private function pendingDatabaseFieldValues(
+        ?AttendanceMeetingResponse $response
+    ): array {
+        if (! $response) {
+            return [];
+        }
+
+        return $response
+            ->profileCorrections()
+            ->where(
+                'status',
+                AttendanceMeetingProfileCorrection::STATUS_PENDING
+            )
+            ->orderByDesc('id')
+            ->get()
+            /*
+             * If old duplicate pending rows ever exist, the
+             * newest proposal wins.
+             */
+            ->unique(
+                'database_field'
+            )
+            ->mapWithKeys(
+                function (
+                    AttendanceMeetingProfileCorrection $change
+                ): array {
+                    $value =
+                        $change->proposed_value_json
+                        ?? $change->proposed_value_text;
+
+                    return [
+                        $change->database_field =>
+                            $value,
+                    ];
+                }
+            )
+            ->all();
+    }
+
 
     private function storeGoogleForm(
         Request $request,
@@ -1261,7 +1502,8 @@ $meetingResponse->forceFill([
                     $identity,
                     $guestName,
                     $questions,
-                    $normalizedAnswers
+                    $normalizedAnswers,
+                    $rawAnswers
                 ): AttendanceMeetingResponse {
                     $response =
                         $this
@@ -1313,6 +1555,30 @@ $meetingResponse->forceFill([
                                     ],
                             ]);
                     }
+
+                    /*
+                     * Meeting answers are stored independently
+                     * from canonical People / Church / Education
+                     * data.
+                     *
+                     * Any proposed Database Field change is only
+                     * placed into the pending review queue.
+                     */
+                    app(
+                        MeetingFormProfileCorrectionRecorder::class
+                    )->record(
+                        response:
+                            $response,
+
+                        identity:
+                            $identity,
+
+                        questions:
+                            $questions,
+
+                        rawAnswers:
+                            $rawAnswers,
+                    );
 
                     return $response;
                 }
@@ -1401,6 +1667,12 @@ $meetingResponse->forceFill([
                     'respondent_name' =>
                         $person->display_name,
 
+                    'submitted_form_type' =>
+                        AttendanceMeetingResponse::FORM_GOOGLE,
+
+                    'response' =>
+                        null,
+
                     'responded_at' =>
                         now(),
                 ])->save();
@@ -1454,6 +1726,12 @@ $meetingResponse->forceFill([
                     'respondent_name' =>
                         $contact->display_name,
 
+                    'submitted_form_type' =>
+                        AttendanceMeetingResponse::FORM_GOOGLE,
+
+                    'response' =>
+                        null,
+
                     'responded_at' =>
                         now(),
                 ])->save();
@@ -1506,6 +1784,12 @@ $meetingResponse->forceFill([
 
                     'respondent_name' =>
                         $contact->display_name,
+
+                    'submitted_form_type' =>
+                        AttendanceMeetingResponse::FORM_GOOGLE,
+
+                    'response' =>
+                        null,
 
                     'responded_at' =>
                         now(),
@@ -1567,6 +1851,12 @@ $meetingResponse->forceFill([
 
             'respondent_name' =>
                 $guestName,
+
+            'submitted_form_type' =>
+                AttendanceMeetingResponse::FORM_GOOGLE,
+
+            'response' =>
+                null,
 
             'responded_at' =>
                 now(),

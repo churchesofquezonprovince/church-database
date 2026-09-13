@@ -1439,6 +1439,13 @@
                                         <input
                                             type="checkbox"
                                             wire:model="newMeetingFormQuestionAllowCorrection.{{ $sheet->id }}"
+                                            @checked(
+                                                $this
+                                                    ->newMeetingFormQuestionAllowCorrection[
+                                                        $sheet->id
+                                                    ]
+                                                ?? true
+                                            )
                                             class="rounded border-gray-300
                                                    text-sky-600
                                                    focus:ring-sky-500"
