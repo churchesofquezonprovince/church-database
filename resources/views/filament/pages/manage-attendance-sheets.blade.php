@@ -2670,7 +2670,11 @@
         $this->meetingSeriesOptions();
 @endphp
 
-@if ($sheet->is_active)
+@if (
+    $sheet->is_active
+    && $sheet->schedule_type
+        !== \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME
+)
 <details class="mt-5 overflow-hidden rounded-xl border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950">
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
         <span class="min-w-0">
@@ -3078,7 +3082,14 @@
             </div>
 
             <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-300">
-                These links open one exact meeting date. The Permanent Meeting Link follows today's or the next scheduled Session.
+                @if (
+                    $sheet->schedule_type
+                    === \App\Models\AttendanceSheet::SCHEDULE_ONE_TIME
+                )
+                    This link opens the exact one-time meeting date.
+                @else
+                    These links open one exact meeting date. The Permanent Meeting Link follows today's or the next scheduled Session.
+                @endif
             </p>
         </div>
     </details>
