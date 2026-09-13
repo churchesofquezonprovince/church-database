@@ -62,12 +62,12 @@ class MinistryBooks extends Page
 
     public function getTitle(): string
     {
-        return 'Ministry Books';
+        return 'Ministry Books Setup';
     }
 
     public static function getNavigationLabel(): string
     {
-        return 'Ministry Books';
+        return 'Ministry Books Setup';
     }
 
     public static function getNavigationGroup(): ?string
@@ -87,7 +87,7 @@ class MinistryBooks extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return false;
     }
 
     public static function canAccess(): bool

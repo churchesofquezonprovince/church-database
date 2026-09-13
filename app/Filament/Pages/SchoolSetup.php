@@ -68,7 +68,7 @@ class SchoolSetup extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return false;
     }
 
     public static function canAccess(): bool
