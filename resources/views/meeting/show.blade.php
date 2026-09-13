@@ -314,6 +314,11 @@
 
                     <span>
                         {{ $session->sessionTimeLabel() }}
+
+                        @if ($session->sessionEndTimeLabel())
+                            –
+                            {{ $session->sessionEndTimeLabel() }}
+                        @endif
                     </span>
                 </div>
             @endif
