@@ -1145,9 +1145,7 @@ action="{{ route(
                     Meeting information
                 </strong>
 
-                <div style="margin-top:6px">
-                    {{ $sheet->remarks }}
-                </div>
+                <div style="margin-top:6px; white-space:pre-wrap;">{{ $sheet->remarks }}</div>
 
             </div>
 
