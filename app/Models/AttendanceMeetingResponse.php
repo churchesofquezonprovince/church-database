@@ -16,6 +16,8 @@ class AttendanceMeetingResponse extends Model
 
     public const RESPONDENT_CAMPUS = 'campus';
 
+    public const RESPONDENT_GOSPEL = 'gospel';
+
     public const RESPONDENT_GUEST = 'guest';
 
 protected $fillable = [
@@ -24,6 +26,7 @@ protected $fillable = [
     'original_source',
     'person_id',
     'campus_contact_id',
+    'gospel_contact_id',
     'guest_name',
     'guest_profile',
     'respondent_name',
@@ -44,6 +47,9 @@ public function originalSourceLabel(): string
 
         self::RESPONDENT_CAMPUS =>
             'Campus Database',
+
+        self::RESPONDENT_GOSPEL =>
+            'Gospel Contacts',
 
         self::RESPONDENT_GUEST =>
             'Guest',
@@ -84,6 +90,14 @@ public function originalSourceLabel(): string
         );
     }
 
+    public function gospelContact(): BelongsTo
+    {
+        return $this->belongsTo(
+            GospelContact::class,
+            'gospel_contact_id',
+        );
+    }
+
     public function isAttending(): bool
     {
         return $this->response === self::RESPONSE_YES;
@@ -97,6 +111,9 @@ public function originalSourceLabel(): string
 
             self::RESPONDENT_CAMPUS =>
                 'Campus Database',
+
+            self::RESPONDENT_GOSPEL =>
+                'Gospel Contacts',
 
             self::RESPONDENT_GUEST =>
                 'Guest',
