@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceMeetingResponse extends Model
 {
@@ -51,6 +52,14 @@ public function originalSourceLabel(): string
             'Unknown',
     };
 }
+
+    public function formAnswers(): HasMany
+    {
+        return $this->hasMany(
+            AttendanceMeetingFormAnswer::class,
+            'attendance_meeting_response_id'
+        );
+    }
 
     public function session(): BelongsTo
     {

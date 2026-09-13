@@ -22,6 +22,8 @@ class AttendanceSheet extends Model
 
     public const MEETING_FORM_NORMAL = 'normal';
 
+    public const MEETING_FORM_GOOGLE = 'google_form';
+
     public const SCHEDULE_RECURRING = 'recurring';
 
     public const SCHEDULE_ONE_TIME = 'one_time';
@@ -175,6 +177,16 @@ public function immichAlbum(): HasOne
         return $this->hasMany(AttendanceSession::class);
     }
 
+    public function meetingFormQuestions(): HasMany
+    {
+        return $this->hasMany(
+            AttendanceMeetingFormQuestion::class,
+            'attendance_sheet_id'
+        )
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function campusActivity(): HasOne
     {
         return $this->hasOne(
@@ -206,8 +218,14 @@ public function immichAlbum(): HasOne
 public function meetingFormLabel(): string
 {
     return match ($this->meeting_form_type) {
-        self::MEETING_FORM_NORMAL => 'Normal Meeting Form',
-        default => 'Disabled',
+        self::MEETING_FORM_NORMAL =>
+            'Normal Meeting Form',
+
+        self::MEETING_FORM_GOOGLE =>
+            'Google Form-like',
+
+        default =>
+            'Disabled',
     };
 }
 
