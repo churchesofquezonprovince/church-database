@@ -9,6 +9,9 @@
 
     $referenceProvinceOptions =
         $this->meetingReferenceProposalProvinceOptions();
+
+    $referenceCountryOptions =
+        $this->meetingReferenceProposalCountryOptions();
 @endphp
 
 @if ($pendingReferenceProposals->isNotEmpty())
@@ -62,8 +65,9 @@
             >
                 Participants submitted a School / Campus or
                 Locality that was not available in the configured
-                database. Resolve the submitted Province to an
-                existing Province before approval.
+                database. Use an existing Province when appropriate,
+                or create the submitted Province during admin review.
+                Public submissions never create Provinces directly.
             </p>
 
             <div class="mt-5 space-y-5">
@@ -276,38 +280,98 @@
                                                        text-gray-700
                                                        dark:text-gray-200"
                                             >
-                                                Resolve Province
+                                                Province Resolution
                                             </label>
 
-                                            <select
-                                                wire:model="referenceProposalProvinceSelections.{{ $proposal->id }}"
-                                                class="mt-2 block w-full
-                                                       rounded-xl border
-                                                       border-gray-300
-                                                       bg-white px-3 py-2.5
-                                                       text-sm text-gray-900
-                                                       dark:border-gray-700
-                                                       dark:bg-gray-900
-                                                       dark:text-gray-100"
+                                            <div
+                                                class="mt-2 grid gap-2"
                                             >
-                                                <option value="">
-                                                    Select Province...
-                                                </option>
-
-                                                @foreach (
-                                                    $referenceProvinceOptions
-                                                    as $provinceId => $provinceName
-                                                )
-                                                    <option
-                                                        value="{{ $provinceId }}"
+                                                <label
+                                                    class="flex cursor-pointer
+                                                           items-start gap-3
+                                                           rounded-xl border
+                                                           border-gray-200
+                                                           bg-gray-50 p-3
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900"
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        value="existing"
+                                                        wire:model.live="referenceProposalProvinceModes.{{ $proposal->id }}"
+                                                        class="mt-1"
                                                     >
-                                                        {{ $provinceName }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
+
+                                                    <span>
+                                                        <span
+                                                            class="block
+                                                                   text-sm
+                                                                   font-bold
+                                                                   text-gray-900
+                                                                   dark:text-white"
+                                                        >
+                                                            Use existing Province
+                                                        </span>
+
+                                                        <span
+                                                            class="mt-1 block
+                                                                   text-xs
+                                                                   text-gray-500
+                                                                   dark:text-gray-400"
+                                                        >
+                                                            Use this when the
+                                                            submitted name refers
+                                                            to an already configured
+                                                            Province.
+                                                        </span>
+                                                    </span>
+                                                </label>
+
+                                                <label
+                                                    class="flex cursor-pointer
+                                                           items-start gap-3
+                                                           rounded-xl border
+                                                           border-gray-200
+                                                           bg-gray-50 p-3
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900"
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        value="create"
+                                                        wire:model.live="referenceProposalProvinceModes.{{ $proposal->id }}"
+                                                        class="mt-1"
+                                                    >
+
+                                                    <span>
+                                                        <span
+                                                            class="block
+                                                                   text-sm
+                                                                   font-bold
+                                                                   text-gray-900
+                                                                   dark:text-white"
+                                                        >
+                                                            Create new Province
+                                                        </span>
+
+                                                        <span
+                                                            class="mt-1 block
+                                                                   text-xs
+                                                                   text-gray-500
+                                                                   dark:text-gray-400"
+                                                        >
+                                                            Admin approval will
+                                                            create or restore the
+                                                            Province before the
+                                                            School / Locality is
+                                                            resolved.
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </div>
 
                                             @error(
-                                                'referenceProposalProvinceSelections.'
+                                                'referenceProposalProvinceModes.'
                                                 . $proposal->id
                                             )
                                                 <p
@@ -319,6 +383,361 @@
                                                     {{ $message }}
                                                 </p>
                                             @enderror
+
+                                            @if (
+                                                (
+                                                    $this
+                                                        ->referenceProposalProvinceModes[
+                                                            $proposal->id
+                                                        ]
+                                                    ?? 'existing'
+                                                )
+                                                === 'existing'
+                                            )
+                                                <label
+                                                    class="mt-4 block
+                                                           text-sm font-semibold
+                                                           text-gray-700
+                                                           dark:text-gray-200"
+                                                >
+                                                    Existing Province
+                                                </label>
+
+                                                <select
+                                                    wire:model="referenceProposalProvinceSelections.{{ $proposal->id }}"
+                                                    class="mt-2 block w-full
+                                                           rounded-xl border
+                                                           border-gray-300
+                                                           bg-white px-3 py-2.5
+                                                           text-sm text-gray-900
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900
+                                                           dark:text-gray-100"
+                                                >
+                                                    <option value="">
+                                                        Select Province...
+                                                    </option>
+
+                                                    @foreach (
+                                                        $referenceProvinceOptions
+                                                        as $provinceId => $provinceName
+                                                    )
+                                                        <option
+                                                            value="{{ $provinceId }}"
+                                                        >
+                                                            {{ $provinceName }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+
+                                                @error(
+                                                    'referenceProposalProvinceSelections.'
+                                                    . $proposal->id
+                                                )
+                                                    <p
+                                                        class="mt-1 text-xs
+                                                               font-semibold
+                                                               text-red-600
+                                                               dark:text-red-400"
+                                                    >
+                                                        {{ $message }}
+                                                    </p>
+                                                @enderror
+                                            @else
+                                                <div
+                                                    class="mt-4 rounded-xl
+                                                           border border-emerald-200
+                                                           bg-emerald-50 p-3
+                                                           dark:border-emerald-900
+                                                           dark:bg-emerald-950"
+                                                >
+                                                    <label
+                                                        class="block text-sm
+                                                               font-semibold
+                                                               text-emerald-900
+                                                               dark:text-emerald-100"
+                                                    >
+                                                        Country Resolution
+                                                    </label>
+
+                                                    <div
+                                                        class="mt-2 flex
+                                                               flex-wrap gap-4"
+                                                    >
+                                                        <label
+                                                            class="flex
+                                                                   cursor-pointer
+                                                                   items-center gap-2
+                                                                   text-sm font-semibold
+                                                                   text-emerald-900
+                                                                   dark:text-emerald-100"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                value="existing"
+                                                                wire:model.live="referenceProposalCountryModes.{{ $proposal->id }}"
+                                                            >
+                                                            Use existing Country
+                                                        </label>
+
+                                                        <label
+                                                            class="flex
+                                                                   cursor-pointer
+                                                                   items-center gap-2
+                                                                   text-sm font-semibold
+                                                                   text-emerald-900
+                                                                   dark:text-emerald-100"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                value="create"
+                                                                wire:model.live="referenceProposalCountryModes.{{ $proposal->id }}"
+                                                            >
+                                                            Create new Country
+                                                        </label>
+                                                    </div>
+
+                                                    @error(
+                                                        'referenceProposalCountryModes.'
+                                                        . $proposal->id
+                                                    )
+                                                        <p
+                                                            class="mt-1 text-xs
+                                                                   font-semibold
+                                                                   text-red-600
+                                                                   dark:text-red-400"
+                                                        >
+                                                            {{ $message }}
+                                                        </p>
+                                                    @enderror
+
+                                                    @if (
+                                                        (
+                                                            $this
+                                                                ->referenceProposalCountryModes[
+                                                                    $proposal->id
+                                                                ]
+                                                            ?? 'existing'
+                                                        )
+                                                        === 'existing'
+                                                    )
+                                                    <label
+                                                        class="mt-3 block
+                                                               text-sm font-semibold
+                                                               text-emerald-900
+                                                               dark:text-emerald-100"
+                                                    >
+                                                        Country
+                                                    </label>
+
+                                                    <select
+                                                        wire:model="referenceProposalCountrySelections.{{ $proposal->id }}"
+                                                        class="mt-2 block w-full
+                                                               rounded-xl border
+                                                               border-emerald-300
+                                                               bg-white px-3 py-2.5
+                                                               text-sm text-gray-900
+                                                               dark:border-emerald-800
+                                                               dark:bg-gray-900
+                                                               dark:text-gray-100"
+                                                    >
+                                                        <option value="">
+                                                            Select Country...
+                                                        </option>
+
+                                                        @foreach (
+                                                            $referenceCountryOptions
+                                                            as $countryId => $countryName
+                                                        )
+                                                            <option
+                                                                value="{{ $countryId }}"
+                                                            >
+                                                                {{ $countryName }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+
+                                                    @error(
+                                                        'referenceProposalCountrySelections.'
+                                                        . $proposal->id
+                                                    )
+                                                        <p
+                                                            class="mt-1 text-xs
+                                                                   font-semibold
+                                                                   text-red-600
+                                                                   dark:text-red-400"
+                                                        >
+                                                            {{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    @else
+                                                        <label
+                                                            class="mt-3 block
+                                                                   text-sm font-semibold
+                                                                   text-emerald-900
+                                                                   dark:text-emerald-100"
+                                                        >
+                                                            Country Name
+                                                        </label>
+
+                                                        <input
+                                                            type="text"
+                                                            maxlength="150"
+                                                            wire:model="referenceProposalNewCountryNames.{{ $proposal->id }}"
+                                                            placeholder="Country name"
+                                                            class="mt-2 block w-full
+                                                                   rounded-xl border
+                                                                   border-emerald-300
+                                                                   bg-white px-3 py-2.5
+                                                                   text-sm text-gray-900
+                                                                   dark:border-emerald-800
+                                                                   dark:bg-gray-900
+                                                                   dark:text-gray-100"
+                                                        >
+
+                                                        @error(
+                                                            'referenceProposalNewCountryNames.'
+                                                            . $proposal->id
+                                                        )
+                                                            <p
+                                                                class="mt-1 text-xs
+                                                                       font-semibold
+                                                                       text-red-600
+                                                                       dark:text-red-400"
+                                                            >
+                                                                {{ $message }}
+                                                            </p>
+                                                        @enderror
+
+                                                        <label
+                                                            class="mt-3 block
+                                                                   text-sm font-semibold
+                                                                   text-emerald-900
+                                                                   dark:text-emerald-100"
+                                                        >
+                                                            Country Code
+                                                            <span
+                                                                class="font-normal"
+                                                            >
+                                                                (optional)
+                                                            </span>
+                                                        </label>
+
+                                                        <input
+                                                            type="text"
+                                                            maxlength="3"
+                                                            wire:model="referenceProposalNewCountryCodes.{{ $proposal->id }}"
+                                                            placeholder="e.g. PH"
+                                                            class="mt-2 block w-full
+                                                                   rounded-xl border
+                                                                   border-emerald-300
+                                                                   bg-white px-3 py-2.5
+                                                                   text-sm uppercase
+                                                                   text-gray-900
+                                                                   dark:border-emerald-800
+                                                                   dark:bg-gray-900
+                                                                   dark:text-gray-100"
+                                                        >
+
+                                                        @error(
+                                                            'referenceProposalNewCountryCodes.'
+                                                            . $proposal->id
+                                                        )
+                                                            <p
+                                                                class="mt-1 text-xs
+                                                                       font-semibold
+                                                                       text-red-600
+                                                                       dark:text-red-400"
+                                                            >
+                                                                {{ $message }}
+                                                            </p>
+                                                        @enderror
+                                                    @endif
+
+                                                    <label
+                                                        class="mt-3 block
+                                                               text-sm font-semibold
+                                                               text-emerald-900
+                                                               dark:text-emerald-100"
+                                                    >
+                                                        Province / Region
+                                                    </label>
+
+                                                    <input
+                                                        type="text"
+                                                        maxlength="150"
+                                                        wire:model="referenceProposalNewProvinceNames.{{ $proposal->id }}"
+                                                        class="mt-2 block w-full
+                                                               rounded-xl border
+                                                               border-emerald-300
+                                                               bg-white px-3 py-2.5
+                                                               text-sm text-gray-900
+                                                               dark:border-emerald-800
+                                                               dark:bg-gray-900
+                                                               dark:text-gray-100"
+                                                    >
+
+                                                    @error(
+                                                        'referenceProposalNewProvinceNames.'
+                                                        . $proposal->id
+                                                    )
+                                                        <p
+                                                            class="mt-1 text-xs
+                                                                   font-semibold
+                                                                   text-red-600
+                                                                   dark:text-red-400"
+                                                        >
+                                                            {{ $message }}
+                                                        </p>
+                                                    @enderror
+
+                                                    <label
+                                                        class="mt-3 block
+                                                               text-sm font-semibold
+                                                               text-emerald-900
+                                                               dark:text-emerald-100"
+                                                    >
+                                                        Province Code
+                                                        <span
+                                                            class="font-normal
+                                                                   text-emerald-700
+                                                                   dark:text-emerald-300"
+                                                        >
+                                                            (optional)
+                                                        </span>
+                                                    </label>
+
+                                                    <input
+                                                        type="text"
+                                                        maxlength="30"
+                                                        wire:model="referenceProposalNewProvinceCodes.{{ $proposal->id }}"
+                                                        placeholder="Optional"
+                                                        class="mt-2 block w-full
+                                                               rounded-xl border
+                                                               border-emerald-300
+                                                               bg-white px-3 py-2.5
+                                                               text-sm uppercase
+                                                               text-gray-900
+                                                               dark:border-emerald-800
+                                                               dark:bg-gray-900
+                                                               dark:text-gray-100"
+                                                    >
+
+                                                    @error(
+                                                        'referenceProposalNewProvinceCodes.'
+                                                        . $proposal->id
+                                                    )
+                                                        <p
+                                                            class="mt-1 text-xs
+                                                                   font-semibold
+                                                                   text-red-600
+                                                                   dark:text-red-400"
+                                                        >
+                                                            {{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                </div>
+                                            @endif
 
                                             <div
                                                 class="mt-4 flex
@@ -345,7 +764,7 @@
                                                 <button
                                                     type="button"
                                                     wire:click="approveMeetingReferenceProposal({{ $proposal->id }})"
-                                                    wire:confirm="Approve this reference proposal using the selected Province?"
+                                                    wire:confirm="Approve this reference proposal using this Province resolution?"
                                                     class="rounded-xl
                                                            bg-emerald-600
                                                            px-4 py-2

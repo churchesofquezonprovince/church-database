@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\AttendanceMeetingReferenceProposal;
+use App\Models\Country;
 use App\Models\EducationProfile;
 use App\Models\Locality;
 use App\Models\Province;
@@ -15,13 +16,15 @@ final class MeetingFormReferenceProposalReviewService
     public function approve(
         AttendanceMeetingReferenceProposal $proposal,
         ?int $reviewerId,
-        ?int $resolvedProvinceId = null
+        ?int $resolvedProvinceId = null,
+        ?array $newProvince = null
     ): AttendanceMeetingReferenceProposal {
         return DB::transaction(
             function () use (
                 $proposal,
                 $reviewerId,
-                $resolvedProvinceId
+                $resolvedProvinceId,
+                $newProvince
             ): AttendanceMeetingReferenceProposal {
                 $proposal =
                     AttendanceMeetingReferenceProposal::query()
@@ -30,11 +33,15 @@ final class MeetingFormReferenceProposalReviewService
 
                 $this->ensurePending($proposal);
 
-                $province =
+                $provinceResolution =
                     $this->resolveProvince(
                         $proposal,
-                        $resolvedProvinceId
+                        $resolvedProvinceId,
+                        $newProvince
                     );
+
+                $province =
+                    $provinceResolution['province'];
 
                 $reference =
                     match ($proposal->database_field) {
@@ -95,6 +102,8 @@ final class MeetingFormReferenceProposalReviewService
                     reference: $reference,
                     province: $province,
                     reviewerId: $reviewerId,
+                    provinceResolution:
+                        $provinceResolution['resolution'],
                 );
 
                 return $proposal->fresh();
@@ -147,6 +156,7 @@ final class MeetingFormReferenceProposalReviewService
                     province:
                         $proposal->proposedProvince,
                     reviewerId: $reviewerId,
+                    provinceResolution: null,
                 );
 
                 return $proposal->fresh();
@@ -172,15 +182,22 @@ final class MeetingFormReferenceProposalReviewService
 
     private function resolveProvince(
         AttendanceMeetingReferenceProposal $proposal,
-        ?int $resolvedProvinceId
-    ): Province {
+        ?int $resolvedProvinceId,
+        ?array $newProvince = null
+    ): array {
+        if ($newProvince !== null) {
+            return $this->resolveNewProvince(
+                $newProvince
+            );
+        }
+
         $provinceId =
             $resolvedProvinceId
             ?? $proposal->proposed_province_id;
 
         if (! $provinceId) {
             throw new RuntimeException(
-                'Select an existing Province before approving this proposal.'
+                'Select an existing Province or create a new Province before approving this proposal.'
             );
         }
 
@@ -199,7 +216,281 @@ final class MeetingFormReferenceProposalReviewService
             );
         }
 
-        return $province;
+        return [
+            'province' =>
+                $province,
+
+            'resolution' =>
+                'existing',
+        ];
+    }
+
+
+    private function resolveNewProvince(
+        array $newProvince
+    ): array {
+        $countryMode =
+            (string) (
+                $newProvince['country_mode']
+                ?? 'existing'
+            );
+
+        if ($countryMode === 'create') {
+            $countryName =
+                trim(
+                    preg_replace(
+                        '/\\s+/',
+                        ' ',
+                        (string) (
+                            $newProvince['country_name']
+                            ?? ''
+                        )
+                    )
+                );
+
+            if (
+                mb_strlen($countryName) < 2
+                || mb_strlen($countryName) > 150
+            ) {
+                throw new RuntimeException(
+                    'Enter a valid Country name.'
+                );
+            }
+
+            $countryCode =
+                filled(
+                    $newProvince['country_code']
+                    ?? null
+                )
+                    ? strtoupper(
+                        trim(
+                            (string)
+                            $newProvince['country_code']
+                        )
+                    )
+                    : null;
+
+            if (
+                $countryCode !== null
+                && mb_strlen($countryCode) > 3
+            ) {
+                throw new RuntimeException(
+                    'Country Code may not exceed 3 characters.'
+                );
+            }
+
+            /*
+             * Match Province Setup Country identity:
+             *
+             * Country name
+             *
+             * Reuse an existing Country with the same name,
+             * restoring it when archived.
+             */
+            $country =
+                Country::query()
+                    ->where(
+                        'name',
+                        $countryName
+                    )
+                    ->first();
+
+            if ($country) {
+                $countryChanges = [];
+
+                if (! $country->is_active) {
+                    $countryChanges['is_active'] =
+                        true;
+                }
+
+                if (
+                    $countryCode !== null
+                    && $country->code !== $countryCode
+                ) {
+                    $countryChanges['code'] =
+                        $countryCode;
+                }
+
+                if ($countryChanges !== []) {
+                    $country
+                        ->forceFill($countryChanges)
+                        ->save();
+                }
+            } else {
+                $country =
+                    Country::query()
+                        ->create([
+                            'name' =>
+                                $countryName,
+
+                            'code' =>
+                                $countryCode,
+
+                            'is_active' =>
+                                true,
+                        ]);
+            }
+        } elseif ($countryMode === 'existing') {
+            $countryId =
+                filled(
+                    $newProvince['country_id']
+                    ?? null
+                )
+                    ? (int) $newProvince['country_id']
+                    : null;
+
+            if (! $countryId) {
+                throw new RuntimeException(
+                    'Select the Country for the new Province.'
+                );
+            }
+
+            $country =
+                Country::query()
+                    ->whereKey($countryId)
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->first();
+
+            if (! $country) {
+                throw new RuntimeException(
+                    'Select an active existing Country for the new Province.'
+                );
+            }
+        } else {
+            throw new RuntimeException(
+                'Choose how to resolve the Country.'
+            );
+        }
+
+        $name =
+            trim(
+                preg_replace(
+                    '/\\s+/',
+                    ' ',
+                    (string) (
+                        $newProvince['name']
+                        ?? ''
+                    )
+                )
+            );
+
+        if (
+            mb_strlen($name) < 2
+            || mb_strlen($name) > 150
+        ) {
+            throw new RuntimeException(
+                'Enter a valid Province name.'
+            );
+        }
+
+        $code =
+            filled(
+                $newProvince['code']
+                ?? null
+            )
+                ? strtoupper(
+                    trim(
+                        (string)
+                        $newProvince['code']
+                    )
+                )
+                : null;
+
+        if (
+            $code !== null
+            && mb_strlen($code) > 30
+        ) {
+            throw new RuntimeException(
+                'Province Code may not exceed 30 characters.'
+            );
+        }
+
+        /*
+         * Match Province Setup:
+         *
+         * Country + Province name
+         *
+         * If an archived Province already exists, restore
+         * it instead of creating a duplicate.
+         */
+        $province =
+            Province::query()
+                ->where(
+                    'country_id',
+                    $country->id
+                )
+                ->where(
+                    'name',
+                    $name
+                )
+                ->first();
+
+        if ($province) {
+            $resolution =
+                $province->is_active
+                    ? 'existing'
+                    : 'restored';
+
+            $changes = [];
+
+            if (! $province->is_active) {
+                $changes['is_active'] =
+                    true;
+            }
+
+            /*
+             * Preserve an existing Province Code when the
+             * reviewer leaves the optional Code blank.
+             */
+            if (
+                $code !== null
+                && $province->code !== $code
+            ) {
+                $changes['code'] =
+                    $code;
+            }
+
+            if ($changes !== []) {
+                $province
+                    ->forceFill($changes)
+                    ->save();
+            }
+
+            return [
+                'province' =>
+                    $province,
+
+                'resolution' =>
+                    $resolution,
+            ];
+        }
+
+        $province =
+            Province::query()
+                ->create([
+                    'country_id' =>
+                        $country->id,
+
+                    'name' =>
+                        $name,
+
+                    'code' =>
+                        $code,
+
+                    'is_active' =>
+                        true,
+                ]);
+
+        return [
+            'province' =>
+                $province,
+
+            'resolution' =>
+                'created',
+        ];
     }
 
 
@@ -228,6 +519,25 @@ final class MeetingFormReferenceProposalReviewService
         if ($name === '') {
             throw new RuntimeException(
                 'The proposed School name is empty.'
+            );
+        }
+
+        /*
+         * A School / Campus location is part of the
+         * configured geographic hierarchy as well.
+         *
+         * Register or restore its City / Municipality
+         * as a Locality under the resolved Province so
+         * it is visible in Province Setup.
+         *
+         * This does NOT assign that Locality to the
+         * respondent. It only maintains the canonical
+         * Province Setup geography.
+         */
+        if ($cityMunicipality !== null) {
+            $this->resolveProvinceSetupLocality(
+                $province,
+                $cityMunicipality
             );
         }
 
@@ -306,10 +616,45 @@ final class MeetingFormReferenceProposalReviewService
             );
         }
 
+        return $this->resolveProvinceSetupLocality(
+            $province,
+            $name
+        );
+    }
+
+
+    private function resolveProvinceSetupLocality(
+        Province $province,
+        string $name
+    ): Locality {
+        $name =
+            trim(
+                preg_replace(
+                    '/\\s+/',
+                    ' ',
+                    $name
+                )
+            );
+
+        if ($name === '') {
+            throw new RuntimeException(
+                'The Locality name is empty.'
+            );
+        }
+
+        if (mb_strlen($name) > 150) {
+            throw new RuntimeException(
+                'The Locality name may not exceed 150 characters.'
+            );
+        }
+
         /*
-         * Localities are unique by:
+         * Province Setup canonical Locality identity:
          *
-         * province + name
+         * Province + Locality name
+         *
+         * Reuse active records and restore archived
+         * records rather than creating duplicates.
          */
         $locality =
             Locality::query()
@@ -326,7 +671,8 @@ final class MeetingFormReferenceProposalReviewService
         if ($locality) {
             if (! $locality->is_active) {
                 $locality->forceFill([
-                    'is_active' => true,
+                    'is_active' =>
+                        true,
                 ])->save();
             }
 
@@ -513,7 +859,8 @@ final class MeetingFormReferenceProposalReviewService
         bool $approved,
         School|Locality|null $reference,
         ?Province $province,
-        ?int $reviewerId
+        ?int $reviewerId,
+        ?string $provinceResolution
     ): void {
         $proposal->loadMissing([
             'response.session.sheet',
@@ -587,6 +934,12 @@ final class MeetingFormReferenceProposalReviewService
 
                 'resolved_province' =>
                     $province?->name,
+
+                'resolved_country' =>
+                    $province?->country?->name,
+
+                'province_resolution' =>
+                    $provinceResolution,
 
                 'reviewed_by_id' =>
                     $reviewerId,

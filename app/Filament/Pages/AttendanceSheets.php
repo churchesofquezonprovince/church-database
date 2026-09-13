@@ -18,6 +18,7 @@ use App\Models\AttendanceSession;
 use App\Models\AttendanceSessionImmichAsset;
 use App\Models\AttendanceSheet;
 use App\Models\Person;
+use App\Models\Country;
 use App\Models\Province;
 use App\Models\School;
 use App\Services\ImmichApiService;
@@ -39,6 +40,20 @@ class AttendanceSheets extends Page
      * Keyed by AttendanceMeetingReferenceProposal ID.
      */
     public array $referenceProposalProvinceSelections = [];
+
+    public array $referenceProposalProvinceModes = [];
+
+    public array $referenceProposalCountrySelections = [];
+
+    public array $referenceProposalCountryModes = [];
+
+    public array $referenceProposalNewCountryNames = [];
+
+    public array $referenceProposalNewCountryCodes = [];
+
+    public array $referenceProposalNewProvinceNames = [];
+
+    public array $referenceProposalNewProvinceCodes = [];
 
     public function mount(): void
     {
@@ -77,6 +92,9 @@ class AttendanceSheets extends Page
 
         $this
             ->hydrateMeetingReferenceProposalProvinceSelections();
+
+        $this
+            ->hydrateMeetingReferenceProposalCreationSelections();
     }
 
     protected string $view = 'filament.pages.attendance-sheets';
@@ -1098,9 +1116,38 @@ public function schoolIdForName(?string $name): ?int
     }
 
 
+    public function meetingReferenceProposalCountryOptions(): array
+    {
+        return Country::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(
+                fn (Country $country): array => [
+                    $country->id =>
+                        $country->name
+                        . (
+                            filled($country->code)
+                                ? ' (' . $country->code . ')'
+                                : ''
+                        ),
+                ]
+            )
+            ->all();
+    }
+
+
     public function approveMeetingReferenceProposal(
         int $proposalId
     ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
         $proposal =
             $this->pendingMeetingReferenceProposal(
                 $proposalId
@@ -1117,60 +1164,284 @@ public function schoolIdForName(?string $name): ?int
             return;
         }
 
-        $provinceId =
-            filled(
+        $mode =
+            (string) (
                 $this
-                    ->referenceProposalProvinceSelections[
+                    ->referenceProposalProvinceModes[
                         $proposalId
                     ]
-                    ?? null
-            )
-                ? (int) $this
-                    ->referenceProposalProvinceSelections[
-                        $proposalId
-                    ]
-                : null;
-
-        if (! $provinceId) {
-            $this->addError(
-                'referenceProposalProvinceSelections.'
-                . $proposalId,
-                'Select the existing Province to use.'
+                ?? 'existing'
             );
 
-            Notification::make()
-                ->title(
-                    'Province required'
-                )
-                ->body(
-                    'Resolve the submitted Province to an existing configured Province before approval.'
-                )
-                ->warning()
-                ->send();
-
-            return;
-        }
-
-        try {
+        $service =
             app(
                 MeetingFormReferenceProposalReviewService::class
-            )->approve(
-                $proposal,
-                auth()->id(),
-                $provinceId
             );
 
-            unset(
-                $this
-                    ->referenceProposalProvinceSelections[
-                        $proposalId
+        try {
+            if ($mode === 'create') {
+                $countryMode =
+                    (string) (
+                        $this
+                            ->referenceProposalCountryModes[
+                                $proposalId
+                            ]
+                        ?? 'existing'
+                    );
+
+                $countryId =
+                    filled(
+                        $this
+                            ->referenceProposalCountrySelections[
+                                $proposalId
+                            ]
+                        ?? null
+                    )
+                        ? (int) $this
+                            ->referenceProposalCountrySelections[
+                                $proposalId
+                            ]
+                        : null;
+
+                $countryName =
+                    trim(
+                        (string) (
+                            $this
+                                ->referenceProposalNewCountryNames[
+                                    $proposalId
+                                ]
+                            ?? ''
+                        )
+                    );
+
+                $countryCode =
+                    filled(
+                        $this
+                            ->referenceProposalNewCountryCodes[
+                                $proposalId
+                            ]
+                        ?? null
+                    )
+                        ? strtoupper(
+                            trim(
+                                (string)
+                                $this
+                                    ->referenceProposalNewCountryCodes[
+                                        $proposalId
+                                    ]
+                            )
+                        )
+                        : null;
+
+                $provinceName =
+                    trim(
+                        (string) (
+                            $this
+                                ->referenceProposalNewProvinceNames[
+                                    $proposalId
+                                ]
+                            ?? ''
+                        )
+                    );
+
+                $provinceCode =
+                    filled(
+                        $this
+                            ->referenceProposalNewProvinceCodes[
+                                $proposalId
+                            ]
+                        ?? null
+                    )
+                        ? strtoupper(
+                            trim(
+                                (string)
+                                $this
+                                    ->referenceProposalNewProvinceCodes[
+                                        $proposalId
+                                    ]
+                            )
+                        )
+                        : null;
+
+                $hasErrors = false;
+
+                if ($countryMode === 'existing') {
+                    if (! $countryId) {
+                        $this->addError(
+                            'referenceProposalCountrySelections.'
+                            . $proposalId,
+                            'Select the Country for the new Province.'
+                        );
+
+                        $hasErrors = true;
+                    }
+                } elseif ($countryMode === 'create') {
+                    if (
+                        mb_strlen($countryName) < 2
+                        || mb_strlen($countryName) > 150
+                    ) {
+                        $this->addError(
+                            'referenceProposalNewCountryNames.'
+                            . $proposalId,
+                            'Enter a valid Country name.'
+                        );
+
+                        $hasErrors = true;
+                    }
+
+                    if (
+                        $countryCode !== null
+                        && mb_strlen($countryCode) > 3
+                    ) {
+                        $this->addError(
+                            'referenceProposalNewCountryCodes.'
+                            . $proposalId,
+                            'Country Code may not exceed 3 characters.'
+                        );
+
+                        $hasErrors = true;
+                    }
+                } else {
+                    $this->addError(
+                        'referenceProposalCountryModes.'
+                        . $proposalId,
+                        'Choose how to resolve the Country.'
+                    );
+
+                    $hasErrors = true;
+                }
+
+                if (
+                    mb_strlen($provinceName) < 2
+                    || mb_strlen($provinceName) > 150
+                ) {
+                    $this->addError(
+                        'referenceProposalNewProvinceNames.'
+                        . $proposalId,
+                        'Enter a valid Province name.'
+                    );
+
+                    $hasErrors = true;
+                }
+
+                if (
+                    $provinceCode !== null
+                    && mb_strlen($provinceCode) > 30
+                ) {
+                    $this->addError(
+                        'referenceProposalNewProvinceCodes.'
+                        . $proposalId,
+                        'Province Code may not exceed 30 characters.'
+                    );
+
+                    $hasErrors = true;
+                }
+
+                if ($hasErrors) {
+                    Notification::make()
+                        ->title(
+                            'New Province details required'
+                        )
+                        ->body(
+                            'Complete the Province details before approval.'
+                        )
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $service->approve(
+                    $proposal,
+                    auth()->id(),
+                    null,
+                    [
+                        'country_mode' =>
+                            $countryMode,
+
+                        'country_id' =>
+                            $countryMode === 'existing'
+                                ? $countryId
+                                : null,
+
+                        'country_name' =>
+                            $countryMode === 'create'
+                                ? $countryName
+                                : null,
+
+                        'country_code' =>
+                            $countryMode === 'create'
+                                ? $countryCode
+                                : null,
+
+                        'name' =>
+                            $provinceName,
+
+                        'code' =>
+                            $provinceCode,
                     ]
-            );
+                );
+            } elseif ($mode === 'existing') {
+                $provinceId =
+                    filled(
+                        $this
+                            ->referenceProposalProvinceSelections[
+                                $proposalId
+                            ]
+                        ?? null
+                    )
+                        ? (int) $this
+                            ->referenceProposalProvinceSelections[
+                                $proposalId
+                            ]
+                        : null;
 
-            $this->resetErrorBag(
-                'referenceProposalProvinceSelections.'
-                . $proposalId
-            );
+                if (! $provinceId) {
+                    $this->addError(
+                        'referenceProposalProvinceSelections.'
+                        . $proposalId,
+                        'Select the existing Province to use.'
+                    );
+
+                    Notification::make()
+                        ->title(
+                            'Province required'
+                        )
+                        ->body(
+                            'Select an existing Province or choose Create new Province.'
+                        )
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $service->approve(
+                    $proposal,
+                    auth()->id(),
+                    $provinceId
+                );
+            } else {
+                $this->addError(
+                    'referenceProposalProvinceModes.'
+                    . $proposalId,
+                    'Choose how to resolve the Province.'
+                );
+
+                Notification::make()
+                    ->title(
+                        'Province resolution required'
+                    )
+                    ->warning()
+                    ->send();
+
+                return;
+            }
+
+            $this
+                ->clearMeetingReferenceProposalState(
+                    $proposalId
+                );
 
             Notification::make()
                 ->title(
@@ -1201,6 +1472,11 @@ public function schoolIdForName(?string $name): ?int
     public function rejectMeetingReferenceProposal(
         int $proposalId
     ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
         $proposal =
             $this->pendingMeetingReferenceProposal(
                 $proposalId
@@ -1225,17 +1501,10 @@ public function schoolIdForName(?string $name): ?int
                 auth()->id()
             );
 
-            unset(
-                $this
-                    ->referenceProposalProvinceSelections[
-                        $proposalId
-                    ]
-            );
-
-            $this->resetErrorBag(
-                'referenceProposalProvinceSelections.'
-                . $proposalId
-            );
+            $this
+                ->clearMeetingReferenceProposalState(
+                    $proposalId
+                );
 
             Notification::make()
                 ->title(
@@ -1545,6 +1814,162 @@ public function meetingProfileCorrectionValueLabel(
                             $provinceId;
                 }
             );
+    }
+
+
+    private function hydrateMeetingReferenceProposalCreationSelections(): void
+    {
+        $proposals =
+            $this->pendingMeetingReferenceProposals();
+
+        if ($proposals->isEmpty()) {
+            return;
+        }
+
+        $activeProvinceIds =
+            Province::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->pluck('id');
+
+        $activeCountryIds =
+            Country::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->pluck('id');
+
+        $defaultCountryId =
+            $activeCountryIds->count() === 1
+                ? (int) $activeCountryIds->first()
+                : null;
+
+        foreach ($proposals as $proposal) {
+            $proposalId =
+                (int) $proposal->id;
+
+            $hasActiveProposedProvince =
+                filled(
+                    $proposal->proposed_province_id
+                )
+                && $activeProvinceIds->contains(
+                    (int)
+                    $proposal->proposed_province_id
+                );
+
+            $this
+                ->referenceProposalProvinceModes[
+                    $proposalId
+                ] =
+                    $hasActiveProposedProvince
+                        ? 'existing'
+                        : 'create';
+
+            $this
+                ->referenceProposalCountryModes[
+                    $proposalId
+                ] =
+                    'existing';
+
+            $this
+                ->referenceProposalNewCountryNames[
+                    $proposalId
+                ] =
+                    '';
+
+            $this
+                ->referenceProposalNewCountryCodes[
+                    $proposalId
+                ] =
+                    '';
+
+            $this
+                ->referenceProposalNewProvinceNames[
+                    $proposalId
+                ] =
+                    (string) (
+                        $proposal
+                            ->proposed_province_name
+                        ?? ''
+                    );
+
+            $this
+                ->referenceProposalNewProvinceCodes[
+                    $proposalId
+                ] =
+                    '';
+
+            if ($defaultCountryId) {
+                $this
+                    ->referenceProposalCountrySelections[
+                        $proposalId
+                    ] =
+                        $defaultCountryId;
+            }
+        }
+    }
+
+
+    private function clearMeetingReferenceProposalState(
+        int $proposalId
+    ): void {
+        unset(
+            $this
+                ->referenceProposalProvinceSelections[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalProvinceModes[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalCountrySelections[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalCountryModes[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalNewCountryNames[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalNewCountryCodes[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalNewProvinceNames[
+                    $proposalId
+                ],
+            $this
+                ->referenceProposalNewProvinceCodes[
+                    $proposalId
+                ]
+        );
+
+        foreach (
+            [
+                'referenceProposalProvinceSelections',
+                'referenceProposalProvinceModes',
+                'referenceProposalCountrySelections',
+                'referenceProposalCountryModes',
+                'referenceProposalNewCountryNames',
+                'referenceProposalNewCountryCodes',
+                'referenceProposalNewProvinceNames',
+                'referenceProposalNewProvinceCodes',
+            ]
+            as $property
+        ) {
+            $this->resetErrorBag(
+                $property
+                . '.'
+                . $proposalId
+            );
+        }
     }
 
 

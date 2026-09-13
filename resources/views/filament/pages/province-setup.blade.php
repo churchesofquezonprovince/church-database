@@ -2,7 +2,7 @@
     @php
         $settings = $this->primarySetting();
         $localities = $this->localities();
-        $outsideGroups = $this->outsideLocalityGroups();
+        $outsideCountries = $this->outsideCountryGroups();
     @endphp
 
     <div class="space-y-6">
@@ -264,13 +264,14 @@
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <div>
                 <h3 class="text-lg font-bold text-gray-950 dark:text-white">
-                    Outside Primary Province Localities
+                    Outside Primary Province Geography
                 </h3>
 
                 <p class="mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-                    Configure Localities for saints whose church Locality is outside
+                    Manage Countries, Provinces / Regions, and Localities outside
                     {{ $settings?->primaryProvince?->name ?? 'the Primary Province' }}.
-                    These Localities remain separate from the Primary Province list.
+                    Provinces created from School proposals remain visible even when
+                    they do not yet have any Localities.
                 </p>
             </div>
 
@@ -392,60 +393,300 @@
                     </div>
                 </form>
 
-                <div class="mt-8 space-y-5">
-                    @forelse ($outsideGroups as $province)
-                        <div class="rounded-xl border border-gray-200 p-5 dark:border-gray-700">
-                            <div>
-                                <h4 class="font-bold text-gray-900 dark:text-white">
-                                    {{ $province->name }}
-                                </h4>
+                <div class="mt-8 space-y-6">
+                    @forelse ($outsideCountries as $country)
+                        <div
+                            wire:key="outside-country-{{ $country->id }}"
+                            class="overflow-hidden rounded-2xl
+                                   border border-gray-200
+                                   dark:border-gray-700"
+                        >
+                            <div
+                                class="flex flex-col gap-3
+                                       border-b border-gray-200
+                                       bg-gray-50 px-5 py-4
+                                       dark:border-gray-700
+                                       dark:bg-gray-950
+                                       sm:flex-row
+                                       sm:items-center
+                                       sm:justify-between"
+                            >
+                                <div>
+                                    <h4
+                                        class="text-lg font-bold
+                                               text-gray-950
+                                               dark:text-white"
+                                    >
+                                        {{ $country->name }}
 
-                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {{ $province->country?->name }}
-                                </p>
+                                        @if (filled($country->code))
+                                            <span
+                                                class="text-sm font-semibold
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                ({{ $country->code }})
+                                            </span>
+                                        @endif
+                                    </h4>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Country
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="flex flex-wrap
+                                           items-center gap-2"
+                                >
+                                    @if (
+                                        (int) $country->id
+                                        ===
+                                        (int) $settings?->primary_country_id
+                                    )
+                                        <span
+                                            class="rounded-full
+                                                   bg-primary-100
+                                                   px-3 py-1
+                                                   text-xs font-bold
+                                                   text-primary-800
+                                                   dark:bg-primary-900
+                                                   dark:text-primary-100"
+                                        >
+                                            Primary Country
+                                        </span>
+                                    @else
+                                        <button
+                                            type="button"
+                                            wire:click="toggleOutsideCountry({{ $country->id }})"
+                                            @if ($country->is_active)
+                                                wire:confirm="Archive {{ $country->name }}? All Provinces in this Country must already be archived."
+                                            @endif
+                                            class="rounded-full px-3 py-1
+                                                   text-xs font-bold
+                                                {{ $country->is_active
+                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
+                                                    : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
+                                        >
+                                            {{ $country->is_active
+                                                ? 'Active'
+                                                : 'Archived' }}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            wire:click="deleteOutsideCountry({{ $country->id }})"
+                                            wire:confirm="Delete Country {{ $country->name }}? This is only allowed after all Provinces in it have been deleted."
+                                            class="rounded-full
+                                                   bg-red-50 px-3 py-1
+                                                   text-xs font-bold
+                                                   text-red-700
+                                                   hover:bg-red-100
+                                                   dark:bg-red-950
+                                                   dark:text-red-200"
+                                        >
+                                            Delete Country
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
 
-                            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                @foreach ($province->localities as $locality)
-                                    <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                                        <div class="min-w-0">
-                                            <p class="font-semibold text-gray-900 dark:text-white">
-                                                {{ $locality->name }}
-                                            </p>
+                            <div class="space-y-4 p-5">
+                                @forelse ($country->provinces as $province)
+                                    <div
+                                        wire:key="outside-province-{{ $province->id }}"
+                                        class="rounded-xl border
+                                               border-gray-200 p-4
+                                               dark:border-gray-700"
+                                    >
+                                        <div
+                                            class="flex flex-col gap-3
+                                                   sm:flex-row
+                                                   sm:items-start
+                                                   sm:justify-between"
+                                        >
+                                            <div>
+                                                <h5
+                                                    class="font-bold
+                                                           text-gray-900
+                                                           dark:text-white"
+                                                >
+                                                    {{ $province->name }}
+                                                </h5>
 
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $province->name }}
-                                            </p>
+                                                <p
+                                                    class="mt-1 text-xs
+                                                           text-gray-500
+                                                           dark:text-gray-400"
+                                                >
+                                                    Province / Region
+                                                    @if (filled($province->code))
+                                                        · {{ $province->code }}
+                                                    @endif
+                                                </p>
+                                            </div>
+
+                                            <div
+                                                class="flex flex-wrap
+                                                       items-center gap-2"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    wire:click="toggleOutsideProvince({{ $province->id }})"
+                                                    class="rounded-full
+                                                           px-3 py-1
+                                                           text-xs font-bold
+                                                        {{ $province->is_active
+                                                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
+                                                            : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
+                                                >
+                                                    {{ $province->is_active
+                                                        ? 'Active'
+                                                        : 'Archived' }}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    wire:click="deleteOutsideProvince({{ $province->id }})"
+                                                    wire:confirm="Delete Province / Region {{ $province->name }}? This is only allowed when no Schools or Localities reference it."
+                                                    class="rounded-full
+                                                           bg-red-50 px-3 py-1
+                                                           text-xs font-bold
+                                                           text-red-700
+                                                           hover:bg-red-100
+                                                           dark:bg-red-950
+                                                           dark:text-red-200"
+                                                >
+                                                    Delete Province
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        <div class="flex shrink-0 items-center gap-2">
-                                            <button
-                                                type="button"
-                                                wire:click="toggleOutsideLocality({{ $locality->id }})"
-                                                class="rounded-full px-3 py-1 text-xs font-bold
-                                                    {{ $locality->is_active
-                                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
-                                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
-                                            >
-                                                {{ $locality->is_active ? 'Active' : 'Archived' }}
-                                            </button>
+                                        <div
+                                            class="mt-4 grid gap-3
+                                                   md:grid-cols-2
+                                                   xl:grid-cols-3"
+                                        >
+                                            @forelse ($province->localities as $locality)
+                                                <div
+                                                    class="flex items-center
+                                                           justify-between
+                                                           gap-3 rounded-xl
+                                                           border
+                                                           border-gray-200
+                                                           p-4
+                                                           dark:border-gray-700"
+                                                >
+                                                    <div class="min-w-0">
+                                                        <p
+                                                            class="font-semibold
+                                                                   text-gray-900
+                                                                   dark:text-white"
+                                                        >
+                                                            {{ $locality->name }}
+                                                        </p>
 
-                                            <button
-                                                type="button"
-                                                wire:click="deleteOutsideLocality({{ $locality->id }})"
-                                                wire:confirm="Delete {{ $locality->name }}? This is only allowed when it is not used by database records."
-                                                class="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-200"
-                                            >
-                                                Delete
-                                            </button>
+                                                        <p
+                                                            class="mt-1 text-xs
+                                                                   text-gray-500
+                                                                   dark:text-gray-400"
+                                                        >
+                                                            {{ $province->name }}
+                                                        </p>
+                                                    </div>
+
+                                                    <div
+                                                        class="flex shrink-0
+                                                               items-center
+                                                               gap-2"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            wire:click="toggleOutsideLocality({{ $locality->id }})"
+                                                            class="rounded-full
+                                                                   px-3 py-1
+                                                                   text-xs
+                                                                   font-bold
+                                                                {{ $locality->is_active
+                                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100'
+                                                                    : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200' }}"
+                                                        >
+                                                            {{ $locality->is_active
+                                                                ? 'Active'
+                                                                : 'Archived' }}
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            wire:click="deleteOutsideLocality({{ $locality->id }})"
+                                                            wire:confirm="Delete {{ $locality->name }}? This is only allowed when it is not used by database records."
+                                                            class="rounded-full
+                                                                   bg-red-50
+                                                                   px-3 py-1
+                                                                   text-xs
+                                                                   font-bold
+                                                                   text-red-700
+                                                                   hover:bg-red-100
+                                                                   dark:bg-red-950
+                                                                   dark:text-red-200"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div
+                                                    class="rounded-xl border
+                                                           border-dashed
+                                                           border-gray-300
+                                                           p-5 text-sm
+                                                           text-gray-500
+                                                           dark:border-gray-700
+                                                           dark:text-gray-400
+                                                           md:col-span-2
+                                                           xl:col-span-3"
+                                                >
+                                                    No Localities configured
+                                                    for this Province / Region.
+                                                    Schools may still reference
+                                                    this Province independently.
+                                                </div>
+                                            @endforelse
                                         </div>
                                     </div>
-                                @endforeach
+                                @empty
+                                    <div
+                                        class="rounded-xl border
+                                               border-dashed
+                                               border-gray-300
+                                               p-5 text-sm
+                                               text-gray-500
+                                               dark:border-gray-700
+                                               dark:text-gray-400"
+                                    >
+                                        No Provinces / Regions remain in
+                                        this Country. You may delete the
+                                        Country if it is no longer needed.
+                                    </div>
+                                @endforelse
                             </div>
                         </div>
                     @empty
-                        <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                            No outside-province Localities have been configured yet.
+                        <div
+                            class="rounded-xl border
+                                   border-dashed
+                                   border-gray-300
+                                   p-8 text-center
+                                   text-sm text-gray-500
+                                   dark:border-gray-700
+                                   dark:text-gray-400"
+                        >
+                            No outside Countries, Provinces / Regions,
+                            or Localities have been configured yet.
                         </div>
                     @endforelse
                 </div>

@@ -6,6 +6,7 @@ use App\Models\Country;
 use App\Models\Locality;
 use App\Models\Province;
 use App\Models\ProvinceSetting;
+use App\Models\School;
 use App\Support\ActivityLogger;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -687,28 +688,528 @@ public function deleteLocality(int $localityId): void
 }
 
 
-    public function outsideLocalityGroups()
+    public function outsideCountryGroups()
     {
-        $primaryProvinceId =
-            $this->primarySetting()?->primary_province_id;
+        $settings =
+            $this->primarySetting();
 
-        if (! $primaryProvinceId) {
+        if (
+            ! $settings?->primary_country_id
+            || ! $settings?->primary_province_id
+        ) {
             return collect();
         }
 
-        return Province::query()
+        $primaryCountryId =
+            (int) $settings->primary_country_id;
+
+        $primaryProvinceId =
+            (int) $settings->primary_province_id;
+
+        /*
+         * Show the complete outside geography hierarchy.
+         *
+         * This intentionally includes:
+         *
+         * - Provinces with zero Localities
+         * - Countries with zero Provinces
+         * - the Primary Country when it owns additional
+         *   non-primary Provinces
+         *
+         * The Primary Province itself remains excluded.
+         */
+        return Country::query()
             ->with([
-                'country',
-                'localities' => fn ($query) =>
-                    $query
-                        ->orderByDesc('is_active')
-                        ->orderBy('name'),
+                'provinces' =>
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'id',
+                                '!=',
+                                $primaryProvinceId
+                            )
+                            ->with([
+                                'localities' =>
+                                    fn ($query) =>
+                                        $query
+                                            ->orderByDesc(
+                                                'is_active'
+                                            )
+                                            ->orderBy(
+                                                'name'
+                                            ),
+                            ])
+                            ->orderByDesc(
+                                'is_active'
+                            )
+                            ->orderBy(
+                                'name'
+                            ),
             ])
-            ->where('id', '!=', $primaryProvinceId)
-            ->whereHas('localities')
+            ->where(
+                function ($query) use (
+                    $primaryCountryId,
+                    $primaryProvinceId
+                ): void {
+                    $query
+                        ->where(
+                            'id',
+                            '!=',
+                            $primaryCountryId
+                        )
+                        ->orWhereHas(
+                            'provinces',
+                            fn ($provinceQuery) =>
+                                $provinceQuery->where(
+                                    'id',
+                                    '!=',
+                                    $primaryProvinceId
+                                )
+                        );
+                }
+            )
+            ->orderByDesc('is_active')
             ->orderBy('name')
             ->get();
     }
+
+
+    public function toggleOutsideProvince(
+        int $provinceId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $settings =
+            $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_province_id,
+            404
+        );
+
+        $province =
+            Province::query()
+                ->with('country')
+                ->where(
+                    'id',
+                    '!=',
+                    $settings->primary_province_id
+                )
+                ->findOrFail(
+                    $provinceId
+                );
+
+        $wasActive =
+            (bool) $province->is_active;
+
+        if (
+            ! $wasActive
+            && ! $province->country?->is_active
+        ) {
+            Notification::make()
+                ->title(
+                    'Restore the Country first'
+                )
+                ->body(
+                    'An archived Province cannot be restored while its Country is archived.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $province->forceFill([
+            'is_active' =>
+                ! $wasActive,
+        ])->save();
+
+        ActivityLogger::log(
+            action:
+                $wasActive
+                    ? 'outside_province.archived'
+                    : 'outside_province.restored',
+
+            subject:
+                $province,
+
+            description:
+                $wasActive
+                    ? 'Archived an outside Province.'
+                    : 'Restored an outside Province.',
+
+            oldValues: [
+                'is_active' =>
+                    $wasActive,
+            ],
+
+            newValues: [
+                'is_active' =>
+                    ! $wasActive,
+
+                'province' =>
+                    $province->name,
+
+                'country' =>
+                    $province->country?->name,
+            ],
+        );
+
+        Notification::make()
+            ->title(
+                $wasActive
+                    ? 'Province archived'
+                    : 'Province restored'
+            )
+            ->success()
+            ->send();
+    }
+
+
+    public function deleteOutsideProvince(
+        int $provinceId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $settings =
+            $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_province_id,
+            404
+        );
+
+        $province =
+            Province::query()
+                ->with('country')
+                ->where(
+                    'id',
+                    '!=',
+                    $settings->primary_province_id
+                )
+                ->findOrFail(
+                    $provinceId
+                );
+
+        $localityCount =
+            Locality::query()
+                ->where(
+                    'province_id',
+                    $province->id
+                )
+                ->count();
+
+        $schoolCount =
+            School::query()
+                ->where(
+                    'province_id',
+                    $province->id
+                )
+                ->count();
+
+        if (
+            $localityCount > 0
+            || $schoolCount > 0
+        ) {
+            $parts = [];
+
+            if ($localityCount > 0) {
+                $parts[] =
+                    $localityCount
+                    . ' '
+                    . (
+                        $localityCount === 1
+                            ? 'Locality'
+                            : 'Localities'
+                    );
+            }
+
+            if ($schoolCount > 0) {
+                $parts[] =
+                    $schoolCount
+                    . ' '
+                    . (
+                        $schoolCount === 1
+                            ? 'School'
+                            : 'Schools'
+                    );
+            }
+
+            Notification::make()
+                ->title(
+                    'Province cannot be deleted'
+                )
+                ->body(
+                    'This Province is still referenced by '
+                    . implode(
+                        ' and ',
+                        $parts
+                    )
+                    . '. Remove or reassign those records first. You may archive the Province instead.'
+                )
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        ActivityLogger::log(
+            action:
+                'outside_province.deleted',
+
+            subject:
+                $province,
+
+            description:
+                'Deleted an unused outside Province.',
+
+            oldValues: [
+                'province' =>
+                    $province->name,
+
+                'code' =>
+                    $province->code,
+
+                'country' =>
+                    $province->country?->name,
+
+                'is_active' =>
+                    $province->is_active,
+            ],
+        );
+
+        $name =
+            $province->name;
+
+        $province->delete();
+
+        Notification::make()
+            ->title(
+                'Province deleted'
+            )
+            ->body(
+                $name
+                . ' was deleted.'
+            )
+            ->success()
+            ->send();
+    }
+
+
+    public function toggleOutsideCountry(
+        int $countryId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $settings =
+            $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_country_id,
+            404
+        );
+
+        if (
+            (int) $countryId
+            === (int) $settings->primary_country_id
+        ) {
+            Notification::make()
+                ->title(
+                    'Primary Country cannot be archived here'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $country =
+            Country::query()
+                ->findOrFail(
+                    $countryId
+                );
+
+        $wasActive =
+            (bool) $country->is_active;
+
+        if (
+            $wasActive
+            && Province::query()
+                ->where(
+                    'country_id',
+                    $country->id
+                )
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->exists()
+        ) {
+            Notification::make()
+                ->title(
+                    'Archive the Provinces first'
+                )
+                ->body(
+                    'A Country cannot be archived while it still has active Provinces.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $country->forceFill([
+            'is_active' =>
+                ! $wasActive,
+        ])->save();
+
+        ActivityLogger::log(
+            action:
+                $wasActive
+                    ? 'outside_country.archived'
+                    : 'outside_country.restored',
+
+            subject:
+                $country,
+
+            description:
+                $wasActive
+                    ? 'Archived an outside Country.'
+                    : 'Restored an outside Country.',
+
+            oldValues: [
+                'is_active' =>
+                    $wasActive,
+            ],
+
+            newValues: [
+                'is_active' =>
+                    ! $wasActive,
+
+                'country' =>
+                    $country->name,
+            ],
+        );
+
+        Notification::make()
+            ->title(
+                $wasActive
+                    ? 'Country archived'
+                    : 'Country restored'
+            )
+            ->success()
+            ->send();
+    }
+
+
+    public function deleteOutsideCountry(
+        int $countryId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $settings =
+            $this->primarySetting();
+
+        abort_unless(
+            $settings?->primary_country_id,
+            404
+        );
+
+        if (
+            (int) $countryId
+            === (int) $settings->primary_country_id
+        ) {
+            Notification::make()
+                ->title(
+                    'Primary Country cannot be deleted here'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $country =
+            Country::query()
+                ->findOrFail(
+                    $countryId
+                );
+
+        $provinceCount =
+            Province::query()
+                ->where(
+                    'country_id',
+                    $country->id
+                )
+                ->count();
+
+        if ($provinceCount > 0) {
+            Notification::make()
+                ->title(
+                    'Country cannot be deleted'
+                )
+                ->body(
+                    'Delete all Provinces in this Country first. You may archive the Country after its Provinces are archived.'
+                )
+                ->warning()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        ActivityLogger::log(
+            action:
+                'outside_country.deleted',
+
+            subject:
+                $country,
+
+            description:
+                'Deleted an unused outside Country.',
+
+            oldValues: [
+                'country' =>
+                    $country->name,
+
+                'code' =>
+                    $country->code,
+
+                'is_active' =>
+                    $country->is_active,
+            ],
+        );
+
+        $name =
+            $country->name;
+
+        $country->delete();
+
+        Notification::make()
+            ->title(
+                'Country deleted'
+            )
+            ->body(
+                $name
+                . ' was deleted.'
+            )
+            ->success()
+            ->send();
+    }
+
 
     public function addOutsideLocalities(): void
     {
