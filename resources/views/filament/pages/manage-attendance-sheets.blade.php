@@ -1340,6 +1340,11 @@
                             ??
                             \App\Models\AttendanceMeetingFormQuestion::TYPE_SHORT_ANSWER;
 
+                        $newQuestionIsDatabaseField =
+                            $newQuestionType
+                            ===
+                            \App\Models\AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD;
+
                         $newQuestionNeedsOptions =
                             in_array(
                                 $newQuestionType,
@@ -1366,7 +1371,288 @@
                         }
                     @endphp
 
-                    @if ($newQuestionNeedsOptions)
+                    @if ($newQuestionIsDatabaseField)
+                        <div
+                            class="md:col-span-2 rounded-xl
+                                   border border-sky-200
+                                   bg-sky-50 p-4
+                                   dark:border-sky-900
+                                   dark:bg-sky-950"
+                        >
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label
+                                        class="block text-sm font-semibold
+                                               text-sky-900
+                                               dark:text-sky-100"
+                                    >
+                                        Database Field
+                                    </label>
+
+                                    <select
+                                        wire:model.live="newMeetingFormQuestionDatabaseFields.{{ $sheet->id }}"
+                                        class="mt-2 block w-full rounded-xl
+                                               border border-sky-300
+                                               bg-white px-4 py-3 text-sm
+                                               dark:border-sky-800
+                                               dark:bg-gray-900"
+                                    >
+                                        @foreach (
+                                            $this->meetingFormDatabaseFieldGroups()
+                                            as $group => $fields
+                                        )
+                                            <optgroup label="{{ $group }}">
+                                                @foreach (
+                                                    $fields
+                                                    as $field => $label
+                                                )
+                                                    <option value="{{ $field }}">
+                                                        {{ $label }}
+                                                    </option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+
+                                    @error(
+                                        'newMeetingFormQuestionDatabaseFields.'
+                                        . $sheet->id
+                                    )
+                                        <p class="mt-1 text-xs text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div class="flex items-end">
+                                    <label
+                                        class="inline-flex items-center gap-2
+                                               rounded-xl border
+                                               border-sky-200 bg-white
+                                               px-4 py-3 text-sm
+                                               font-semibold
+                                               text-sky-900
+                                               dark:border-sky-800
+                                               dark:bg-gray-900
+                                               dark:text-sky-100"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            wire:model="newMeetingFormQuestionAllowCorrection.{{ $sheet->id }}"
+                                            class="rounded border-gray-300
+                                                   text-sky-600
+                                                   focus:ring-sky-500"
+                                        >
+
+                                        Allow correction request
+                                    </label>
+                                </div>
+                            </div>
+
+                            @php
+                                $databaseField =
+                                    $this
+                                        ->newMeetingFormQuestionDatabaseFields[
+                                            $sheet->id
+                                        ]
+                                    ??
+                                    \App\Models\AttendanceMeetingFormQuestion::DATABASE_FIELD_BIRTHDATE;
+
+                                $databaseFieldDefinition =
+                                    $this
+                                        ->meetingFormDatabaseFieldDefinition(
+                                            $databaseField
+                                        );
+
+                                $databaseFieldInput =
+                                    $databaseFieldDefinition[
+                                        'input'
+                                    ]
+                                    ?? 'text';
+
+                                $databaseFieldLabel =
+                                    $databaseFieldDefinition[
+                                        'label'
+                                    ]
+                                    ?? 'Database Field';
+                            @endphp
+
+                            <div
+                                class="mt-4 rounded-xl
+                                       border border-sky-100
+                                       bg-white p-4
+                                       dark:border-sky-900
+                                       dark:bg-gray-900"
+                            >
+                                <p
+                                    class="text-xs font-bold uppercase
+                                           tracking-wide text-sky-700
+                                           dark:text-sky-300"
+                                >
+                                    Public Form Preview
+                                </p>
+
+                                @switch($databaseFieldInput)
+                                    @case('date')
+                                        <input
+                                            type="date"
+                                            disabled
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                        @break
+
+                                    @case('sex')
+                                        <select
+                                            disabled
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <option>Auto-filled Sex</option>
+                                            <option>Male</option>
+                                            <option>Female</option>
+                                        </select>
+                                        @break
+
+                                    @case('locality')
+                                        <select
+                                            disabled
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <option>
+                                                Auto-filled Locality
+                                            </option>
+                                        </select>
+                                        @break
+
+                                    @case('school')
+                                        <select
+                                            disabled
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            <option>
+                                                Auto-filled School / Campus
+                                            </option>
+                                        </select>
+                                        @break
+
+                                    @case('textarea')
+                                        <textarea
+                                            disabled
+                                            rows="3"
+                                            placeholder="Auto-filled {{ $databaseFieldLabel }}"
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        ></textarea>
+                                        @break
+
+                                    @case('email')
+                                        <input
+                                            type="email"
+                                            disabled
+                                            placeholder="Auto-filled email address"
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                        @break
+
+                                    @case('tel')
+                                        <input
+                                            type="tel"
+                                            disabled
+                                            placeholder="Auto-filled contact number"
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                        @break
+
+                                    @case('multi_value')
+                                        <div
+                                            class="mt-2 rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                            Auto-filled selections
+                                        </div>
+                                        @break
+
+                                    @default
+                                        <input
+                                            type="text"
+                                            disabled
+                                            placeholder="Auto-filled {{ $databaseFieldLabel }}"
+                                            class="mt-2 block w-full
+                                                   cursor-not-allowed
+                                                   rounded-xl border
+                                                   border-gray-300 bg-gray-50
+                                                   px-4 py-3 text-sm
+                                                   text-gray-500
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-950"
+                                        >
+                                @endswitch
+
+                                <p
+                                    class="mt-2 text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Existing People Database data will
+                                    be auto-filled on the public form.
+                                    Corrections will not directly
+                                    overwrite the database.
+                                </p>
+                            </div>
+                        </div>
+
+                    @elseif ($newQuestionNeedsOptions)
                         <div class="md:col-span-2">
                             <label
                                 class="block text-sm font-semibold
@@ -1680,6 +1966,11 @@
                                         ]
                                         ?? $question->question_type;
 
+                                    $questionIsDatabaseField =
+                                        $questionType
+                                        ===
+                                        \App\Models\AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD;
+
                                     $questionNeedsOptions =
                                         in_array(
                                             $questionType,
@@ -1708,7 +1999,288 @@
                                     }
                                 @endphp
 
-                                @if ($questionNeedsOptions)
+                                @if ($questionIsDatabaseField)
+                                    <div
+                                        class="md:col-span-2
+                                               rounded-xl border
+                                               border-sky-200
+                                               bg-sky-50 p-4
+                                               dark:border-sky-900
+                                               dark:bg-sky-950"
+                                    >
+                                        <div
+                                            class="grid gap-4
+                                                   md:grid-cols-2"
+                                        >
+                                            <div>
+                                                <label
+                                                    class="block text-sm
+                                                           font-semibold
+                                                           text-sky-900
+                                                           dark:text-sky-100"
+                                                >
+                                                    Database Field
+                                                </label>
+
+                                                <select
+                                                    wire:model.live="meetingFormQuestionDatabaseFields.{{ $question->id }}"
+                                                    class="mt-2 block w-full
+                                                           rounded-xl border
+                                                           border-sky-300
+                                                           bg-white px-4 py-3
+                                                           text-sm
+                                                           dark:border-sky-800
+                                                           dark:bg-gray-900"
+                                                >
+                                                    @foreach (
+                                                        $this->meetingFormDatabaseFieldGroups()
+                                                        as $group => $fields
+                                                    )
+                                                        <optgroup label="{{ $group }}">
+                                                            @foreach (
+                                                                $fields
+                                                                as $field => $label
+                                                            )
+                                                                <option value="{{ $field }}">
+                                                                    {{ $label }}
+                                                                </option>
+                                                            @endforeach
+                                                        </optgroup>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
+                                            <div class="flex items-end">
+                                                <label
+                                                    class="inline-flex
+                                                           items-center gap-2
+                                                           rounded-xl border
+                                                           border-sky-200
+                                                           bg-white px-4 py-3
+                                                           text-sm font-semibold
+                                                           text-sky-900
+                                                           dark:border-sky-800
+                                                           dark:bg-gray-900
+                                                           dark:text-sky-100"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        wire:model="meetingFormQuestionAllowCorrection.{{ $question->id }}"
+                                                        class="rounded
+                                                               border-gray-300
+                                                               text-sky-600"
+                                                    >
+
+                                                    Allow correction request
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        @php
+                                            $databaseField =
+                                                $this
+                                                    ->meetingFormQuestionDatabaseFields[
+                                                        $question->id
+                                                    ]
+                                                ??
+                                                $question->database_field;
+
+                                            $databaseFieldDefinition =
+                                                $this
+                                                    ->meetingFormDatabaseFieldDefinition(
+                                                        $databaseField
+                                                    );
+
+                                            $databaseFieldInput =
+                                                $databaseFieldDefinition[
+                                                    'input'
+                                                ]
+                                                ?? 'text';
+
+                                            $databaseFieldLabel =
+                                                $databaseFieldDefinition[
+                                                    'label'
+                                                ]
+                                                ?? 'Database Field';
+                                        @endphp
+
+                                        <div
+                                            class="mt-4 rounded-xl
+                                                   border border-sky-100
+                                                   bg-white p-4
+                                                   dark:border-sky-900
+                                                   dark:bg-gray-900"
+                                        >
+                                            <p
+                                                class="text-xs font-bold
+                                                       uppercase tracking-wide
+                                                       text-sky-700
+                                                       dark:text-sky-300"
+                                            >
+                                                Public Form Preview
+                                            </p>
+
+                                            @switch($databaseFieldInput)
+                                                @case('date')
+                                                    <input
+                                                        type="date"
+                                                        disabled
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                    @break
+
+                                                @case('sex')
+                                                    <select
+                                                        disabled
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        <option>Auto-filled Sex</option>
+                                                        <option>Male</option>
+                                                        <option>Female</option>
+                                                    </select>
+                                                    @break
+
+                                                @case('locality')
+                                                    <select
+                                                        disabled
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        <option>
+                                                            Auto-filled Locality
+                                                        </option>
+                                                    </select>
+                                                    @break
+
+                                                @case('school')
+                                                    <select
+                                                        disabled
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        <option>
+                                                            Auto-filled School / Campus
+                                                        </option>
+                                                    </select>
+                                                    @break
+
+                                                @case('textarea')
+                                                    <textarea
+                                                        disabled
+                                                        rows="3"
+                                                        placeholder="Auto-filled {{ $databaseFieldLabel }}"
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    ></textarea>
+                                                    @break
+
+                                                @case('email')
+                                                    <input
+                                                        type="email"
+                                                        disabled
+                                                        placeholder="Auto-filled email address"
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                    @break
+
+                                                @case('tel')
+                                                    <input
+                                                        type="tel"
+                                                        disabled
+                                                        placeholder="Auto-filled contact number"
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                    @break
+
+                                                @case('multi_value')
+                                                    <div
+                                                        class="mt-2 rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               text-gray-500
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        Auto-filled selections
+                                                    </div>
+                                                    @break
+
+                                                @default
+                                                    <input
+                                                        type="text"
+                                                        disabled
+                                                        placeholder="Auto-filled {{ $databaseFieldLabel }}"
+                                                        class="mt-2 block w-full
+                                                               cursor-not-allowed
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-gray-50
+                                                               px-4 py-3 text-sm
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                            @endswitch
+
+                                            <p
+                                                class="mt-2 text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Existing database data
+                                                will be auto-filled when
+                                                the public form is enabled.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                @elseif ($questionNeedsOptions)
                                     <div class="md:col-span-2">
                                         <label
                                             class="block text-sm

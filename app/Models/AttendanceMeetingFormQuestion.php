@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MeetingFormDatabaseFieldRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,19 +19,28 @@ class AttendanceMeetingFormQuestion extends Model
 
     public const TYPE_DROPDOWN = 'dropdown';
 
+    public const TYPE_DATABASE_FIELD = 'database_field';
+
+    public const DATABASE_FIELD_BIRTHDATE = 'birthdate';
+
+    public const DATABASE_FIELD_LOCALITY = 'locality';
+
     protected $fillable = [
         'attendance_sheet_id',
         'question_type',
+        'database_field',
         'question_text',
         'description',
         'options',
         'is_required',
+        'allow_correction',
         'sort_order',
     ];
 
     protected $casts = [
         'options' => 'array',
         'is_required' => 'boolean',
+        'allow_correction' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -68,9 +78,32 @@ class AttendanceMeetingFormQuestion extends Model
             self::TYPE_DROPDOWN =>
                 'Dropdown',
 
+            self::TYPE_DATABASE_FIELD =>
+                'Database Field',
+
             default =>
                 'Unknown',
         };
+    }
+
+    public function isDatabaseField(): bool
+    {
+        return $this->question_type
+            === self::TYPE_DATABASE_FIELD;
+    }
+
+    public function databaseFieldLabel(): ?string
+    {
+        return MeetingFormDatabaseFieldRegistry::label(
+            $this->database_field
+        );
+    }
+
+    public function databaseFieldDefinition(): ?array
+    {
+        return MeetingFormDatabaseFieldRegistry::definition(
+            $this->database_field
+        );
     }
 
     public function requiresOptions(): bool

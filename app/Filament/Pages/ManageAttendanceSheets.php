@@ -7,12 +7,14 @@ use App\Models\AttendanceMeetingSeries;
 use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Support\LocalityOptions;
+use App\Support\MeetingFormDatabaseFieldRegistry;
 use Carbon\CarbonImmutable;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ManageAttendanceSheets extends Page
@@ -46,6 +48,10 @@ class ManageAttendanceSheets extends Page
 
     public array $newMeetingFormQuestionOptions = [];
 
+    public array $newMeetingFormQuestionDatabaseFields = [];
+
+    public array $newMeetingFormQuestionAllowCorrection = [];
+
     public array $meetingFormQuestionTypes = [];
 
     public array $meetingFormQuestionTexts = [];
@@ -55,6 +61,10 @@ class ManageAttendanceSheets extends Page
     public array $meetingFormQuestionRequired = [];
 
     public array $meetingFormQuestionOptions = [];
+
+    public array $meetingFormQuestionDatabaseFields = [];
+
+    public array $meetingFormQuestionAllowCorrection = [];
 
     public function mount(): void
     {
@@ -355,7 +365,40 @@ class ManageAttendanceSheets extends Page
 
             AttendanceMeetingFormQuestion::TYPE_DROPDOWN =>
                 'Dropdown',
+
+            AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD =>
+                'Database Field',
         ];
+    }
+
+    public function meetingFormDatabaseFieldOptions(): array
+    {
+        return collect(
+            MeetingFormDatabaseFieldRegistry::definitions()
+        )
+            ->mapWithKeys(
+                fn (
+                    array $definition,
+                    string $key
+                ): array => [
+                    $key =>
+                        $definition['label'],
+                ]
+            )
+            ->all();
+    }
+
+    public function meetingFormDatabaseFieldGroups(): array
+    {
+        return MeetingFormDatabaseFieldRegistry::groupedOptions();
+    }
+
+    public function meetingFormDatabaseFieldDefinition(
+        ?string $field
+    ): ?array {
+        return MeetingFormDatabaseFieldRegistry::definition(
+            $field
+        );
     }
 
     public function addMeetingFormQuestion(
@@ -427,11 +470,27 @@ class ManageAttendanceSheets extends Page
                             $sheetId
                         ]
                         ?? null,
+
+                'database_field' =>
+                    $this
+                        ->newMeetingFormQuestionDatabaseFields[
+                            $sheetId
+                        ]
+                        ?? null,
+
+                'allow_correction' =>
+                    (bool) (
+                        $this
+                            ->newMeetingFormQuestionAllowCorrection[
+                                $sheetId
+                            ]
+                            ?? false
+                    ),
             ],
             [
                 'question_type' => [
                     'required',
-                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field',
                 ],
 
                 'question_text' => [
@@ -460,8 +519,35 @@ class ManageAttendanceSheets extends Page
                     'string',
                     'max:500',
                 ],
+
+                'database_field' => [
+                    'nullable',
+                    Rule::in(
+                        MeetingFormDatabaseFieldRegistry::keys()
+                    ),
+                ],
+
+                'allow_correction' => [
+                    'boolean',
+                ],
             ]
         )->validate();
+
+        if (
+            $data['question_type']
+            === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+            &&
+            blank(
+                $data['database_field']
+                ?? null
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'newMeetingFormQuestionDatabaseFields.'
+                . $sheetId =>
+                    'Select the database field to use.',
+            ]);
+        }
 
         $options =
             $this->normalizedMeetingFormQuestionOptions(
@@ -488,6 +574,12 @@ class ManageAttendanceSheets extends Page
                     'question_type' =>
                         $data['question_type'],
 
+                    'database_field' =>
+                        $data['question_type']
+                        === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+                            ? $data['database_field']
+                            : null,
+
                     'question_text' =>
                         trim(
                             $data['question_text']
@@ -512,6 +604,12 @@ class ManageAttendanceSheets extends Page
 
                     'is_required' =>
                         (bool) $data['is_required'],
+
+                    'allow_correction' =>
+                        $data['question_type']
+                        === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+                            ? (bool) $data['allow_correction']
+                            : false,
 
                     'sort_order' =>
                         (
@@ -553,6 +651,15 @@ class ManageAttendanceSheets extends Page
             '',
             '',
         ];
+
+        $this->newMeetingFormQuestionDatabaseFields[
+            $sheetId
+        ] =
+            AttendanceMeetingFormQuestion::DATABASE_FIELD_BIRTHDATE;
+
+        $this->newMeetingFormQuestionAllowCorrection[
+            $sheetId
+        ] = true;
 
         Notification::make()
             ->title('Question added')
@@ -617,11 +724,27 @@ class ManageAttendanceSheets extends Page
                             $questionId
                         ]
                         ?? null,
+
+                'database_field' =>
+                    $this
+                        ->meetingFormQuestionDatabaseFields[
+                            $questionId
+                        ]
+                        ?? $question->database_field,
+
+                'allow_correction' =>
+                    (bool) (
+                        $this
+                            ->meetingFormQuestionAllowCorrection[
+                                $questionId
+                            ]
+                            ?? $question->allow_correction
+                    ),
             ],
             [
                 'question_type' => [
                     'required',
-                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown',
+                    'in:short_answer,paragraph,multiple_choice,checkboxes,dropdown,database_field',
                 ],
 
                 'question_text' => [
@@ -650,8 +773,35 @@ class ManageAttendanceSheets extends Page
                     'string',
                     'max:500',
                 ],
+
+                'database_field' => [
+                    'nullable',
+                    Rule::in(
+                        MeetingFormDatabaseFieldRegistry::keys()
+                    ),
+                ],
+
+                'allow_correction' => [
+                    'boolean',
+                ],
             ]
         )->validate();
+
+        if (
+            $data['question_type']
+            === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+            &&
+            blank(
+                $data['database_field']
+                ?? null
+            )
+        ) {
+            throw ValidationException::withMessages([
+                'meetingFormQuestionDatabaseFields.'
+                . $questionId =>
+                    'Select the database field to use.',
+            ]);
+        }
 
         $options =
             $this->normalizedMeetingFormQuestionOptions(
@@ -674,6 +824,12 @@ class ManageAttendanceSheets extends Page
         $question->update([
             'question_type' =>
                 $data['question_type'],
+
+            'database_field' =>
+                $data['question_type']
+                === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+                    ? $data['database_field']
+                    : null,
 
             'question_text' =>
                 trim(
@@ -699,6 +855,12 @@ class ManageAttendanceSheets extends Page
 
             'is_required' =>
                 (bool) $data['is_required'],
+
+            'allow_correction' =>
+                $data['question_type']
+                === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+                    ? (bool) $data['allow_correction']
+                    : false,
         ]);
 
         $this->hydrateMeetingFormQuestionState(
@@ -746,6 +908,12 @@ class ManageAttendanceSheets extends Page
                 $questionId
             ],
             $this->meetingFormQuestionOptions[
+                $questionId
+            ],
+            $this->meetingFormQuestionDatabaseFields[
+                $questionId
+            ],
+            $this->meetingFormQuestionAllowCorrection[
                 $questionId
             ],
         );
@@ -916,6 +1084,17 @@ class ManageAttendanceSheets extends Page
             array_values(
                 $question->options ?? []
             );
+
+        $this->meetingFormQuestionDatabaseFields[
+            $questionId
+        ] =
+            $question->database_field
+            ?? AttendanceMeetingFormQuestion::DATABASE_FIELD_BIRTHDATE;
+
+        $this->meetingFormQuestionAllowCorrection[
+            $questionId
+        ] =
+            (bool) $question->allow_correction;
     }
 
     public function addNewMeetingFormQuestionOption(
