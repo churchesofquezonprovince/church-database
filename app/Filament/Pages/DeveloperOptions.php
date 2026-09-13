@@ -458,24 +458,77 @@ class DeveloperOptions extends Page
 
     protected function loadSystemInformation(): void
     {
-        $this->appVersion = config('app.version', 'Not configured');
-        $this->currentPhase = config('app.phase', 'Not configured');
-        $this->laravelVersion = app()->version();
-        $this->phpVersion = PHP_VERSION;
+        $this->appVersion =
+            config(
+                'app.version',
+                'Not configured'
+            );
+
+        $this->laravelVersion =
+            app()->version();
+
+        $this->phpVersion =
+            PHP_VERSION;
 
         try {
-            $result = Process::path(base_path())
-                ->run('git rev-parse --short HEAD');
+            $commitResult =
+                Process::path(
+                    base_path()
+                )->run(
+                    'git rev-parse --short HEAD'
+                );
 
-            if ($result->successful()) {
-                $hash = trim($result->output());
+            if ($commitResult->successful()) {
+                $hash =
+                    trim(
+                        $commitResult->output()
+                    );
 
                 if ($hash !== '') {
-                    $this->gitCommitHash = $hash;
+                    $this->gitCommitHash =
+                        $hash;
+                }
+            }
+
+            /*
+             * System Information should reflect the latest
+             * committed development phase automatically rather
+             * than relying on a manually maintained APP_PHASE.
+             */
+            $phaseResult =
+                Process::path(
+                    base_path()
+                )->run([
+                    'git',
+                    'log',
+                    '-1',
+                    '--format=%s',
+                    '--grep=^Phase ',
+                ]);
+
+            if ($phaseResult->successful()) {
+                $subject =
+                    trim(
+                        $phaseResult->output()
+                    );
+
+                if (
+                    preg_match(
+                        '/^(Phase\\s+[^\\s]+)/',
+                        $subject,
+                        $matches
+                    ) === 1
+                ) {
+                    $this->currentPhase =
+                        $matches[1];
                 }
             }
         } catch (Throwable $e) {
-            $this->gitCommitHash = 'Unavailable';
+            $this->gitCommitHash =
+                'Unavailable';
+
+            $this->currentPhase =
+                'Unavailable';
         }
     }
 
