@@ -127,6 +127,26 @@ final class MeetingFormProfileCorrectionReviewService
                         null,
                 ])->save();
 
+                $this->logReviewActivity(
+                    change: $change,
+                    action:
+                        'meeting_form.database_change.approved',
+                    description:
+                        'Approved a meeting-form database change for '
+                        . MeetingFormDatabaseFieldRegistry::label(
+                            $field
+                        )
+                        . '.',
+                    canonicalBefore:
+                        $currentValue,
+                    proposedValue:
+                        $proposedValue,
+                    reviewerId:
+                        $reviewerId,
+                    approved:
+                        true,
+                );
+
                 return $change->fresh();
             }
         );
@@ -158,6 +178,29 @@ final class MeetingFormProfileCorrectionReviewService
                     );
                 }
 
+                $identity =
+                    $this->identityFor(
+                        $change
+                    );
+
+                $currentValue =
+                    $identity
+                        ? (
+                            $this->resolver->fieldValue(
+                                $identity,
+                                $change->database_field
+                            )['value']
+                            ?? null
+                        )
+                        : (
+                            $change->original_value_json
+                            ?? $change->original_value_text
+                        );
+
+                $proposedValue =
+                    $change->proposed_value_json
+                    ?? $change->proposed_value_text;
+
                 $change->forceFill([
                     'status' =>
                         AttendanceMeetingProfileCorrection::STATUS_REJECTED,
@@ -172,8 +215,134 @@ final class MeetingFormProfileCorrectionReviewService
                         null,
                 ])->save();
 
+                $this->logReviewActivity(
+                    change: $change,
+                    action:
+                        'meeting_form.database_change.rejected',
+                    description:
+                        'Rejected a meeting-form database change for '
+                        . MeetingFormDatabaseFieldRegistry::label(
+                            $change->database_field
+                        )
+                        . '. Canonical data was left unchanged.',
+                    canonicalBefore:
+                        $currentValue,
+                    proposedValue:
+                        $proposedValue,
+                    reviewerId:
+                        $reviewerId,
+                    approved:
+                        false,
+                );
+
                 return $change->fresh();
             }
+        );
+    }
+
+
+    private function logReviewActivity(
+        AttendanceMeetingProfileCorrection $change,
+        string $action,
+        string $description,
+        mixed $canonicalBefore,
+        mixed $proposedValue,
+        ?int $reviewerId,
+        bool $approved
+    ): void {
+        $change->loadMissing([
+            'response.session.sheet',
+            'person',
+            'campusContact',
+            'gospelContact',
+        ]);
+
+        $response =
+            $change->response;
+
+        $session =
+            $response?->session;
+
+        $sheet =
+            $session?->sheet;
+
+        /*
+         * Prefer the actual database identity as Activity Log
+         * subject so Activity Logs show the person's/contact's
+         * human-readable name.
+         */
+        $subject =
+            $change->person
+            ?? $change->campusContact
+            ?? $change->gospelContact;
+
+        $fieldLabel =
+            MeetingFormDatabaseFieldRegistry::label(
+                $change->database_field
+            );
+
+        ActivityLogger::log(
+            action:
+                $action,
+
+            subject:
+                $subject,
+
+            description:
+                $description,
+
+            oldValues: [
+                'correction_id' =>
+                    $change->id,
+
+                'meeting_response_id' =>
+                    $change->attendance_meeting_response_id,
+
+                'question_id' =>
+                    $change->attendance_meeting_form_question_id,
+
+                'attendance_session_id' =>
+                    $response?->attendance_session_id,
+
+                'attendance_sheet_id' =>
+                    $sheet?->id,
+
+                'attendance_sheet_title' =>
+                    $sheet?->title,
+
+                'database_field' =>
+                    $change->database_field,
+
+                'field_label' =>
+                    $fieldLabel,
+
+                'field_owner' =>
+                    $change->field_owner,
+
+                'change_type' =>
+                    $change->change_type,
+
+                'canonical_value' =>
+                    $canonicalBefore,
+            ],
+
+            newValues: [
+                'proposed_value' =>
+                    $proposedValue,
+
+                'canonical_value_after' =>
+                    $approved
+                        ? $proposedValue
+                        : $canonicalBefore,
+
+                'review_status' =>
+                    $approved
+                        ? AttendanceMeetingProfileCorrection::STATUS_APPROVED
+                        : AttendanceMeetingProfileCorrection::STATUS_REJECTED,
+
+                'reviewed_by_id' =>
+                    $reviewerId,
+            ],
         );
     }
 

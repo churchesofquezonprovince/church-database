@@ -33,6 +33,8 @@ class ActivityLogsTable
                     ->label('Action')
                     ->badge()
                     ->color(fn (?string $state): string => match (true) {
+                        str_contains((string) $state, 'approved') => 'success',
+                        str_contains((string) $state, 'rejected') => 'danger',
                         str_contains((string) $state, 'created') => 'success',
                         str_contains((string) $state, 'updated') => 'warning',
                         str_contains((string) $state, 'deleted') => 'danger',
