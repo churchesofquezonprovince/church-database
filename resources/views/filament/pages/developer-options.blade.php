@@ -346,7 +346,7 @@
             class="border-t border-gray-200 px-6 pb-6 pt-5 dark:border-gray-700"
         >
             <div
-                class="max-w-xl"
+                class="mt-4 max-w-xl"
             >
                 <label
                     class="block text-sm font-semibold text-gray-700 dark:text-gray-200"
