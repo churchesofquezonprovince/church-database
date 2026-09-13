@@ -528,7 +528,41 @@
                                        dark:border-gray-700"
                                 style="max-height: 12rem;"
                             >
-                                @forelse ($gospelContacts as $gospelContact)
+                                
+                                @if ($newGospelContactNames !== [])
+                                    <div
+                                        class="mb-2 flex flex-wrap gap-2"
+                                    >
+                                        @foreach (
+                                            $newGospelContactNames
+                                            as $newGospelIndex => $newGospelName
+                                        )
+                                            <button
+                                                type="button"
+                                                wire:click="removeNewGospelContactCandidate({{ $newGospelIndex }})"
+                                                title="Remove {{ $newGospelName }}"
+                                                class="rounded-full
+                                                       border
+                                                       border-emerald-200
+                                                       bg-emerald-100
+                                                       px-3 py-1.5
+                                                       text-xs font-bold
+                                                       text-emerald-800
+                                                       hover:bg-emerald-200
+                                                       dark:border-emerald-800
+                                                       dark:bg-gray-950
+                                                       dark:text-emerald-300
+                                                       dark:hover:bg-gray-900"
+                                            >
+                                                New Gospel Contact ·
+                                                {{ $newGospelName }}
+                                                ×
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+
+@forelse ($gospelContacts as $gospelContact)
                                     <label
                                         class="flex cursor-pointer
                                                items-start gap-3
@@ -590,6 +624,86 @@
                                         Gospel Contacts.
                                     </p>
                                 @endforelse
+                                @php
+                                    $gospelCreationCandidate =
+                                        $this
+                                            ->gospelContactCreationCandidate();
+
+                                    $gospelCandidateSelected =
+                                        $gospelCreationCandidate['valid']
+                                        &&
+                                        collect(
+                                            $newGospelContactNames
+                                        )->contains(
+                                            fn ($name) =>
+                                                mb_strtolower(
+                                                    trim(
+                                                        (string) $name
+                                                    )
+                                                )
+                                                ===
+                                                mb_strtolower(
+                                                    $gospelCreationCandidate[
+                                                        'display_name'
+                                                    ]
+                                                )
+                                        );
+                                @endphp
+
+                                @if (filled($targetSearch))
+                                    <label
+                                        class="mt-2 flex cursor-pointer
+                                               items-start gap-3
+                                               rounded-lg border
+                                               border-dashed
+                                               border-emerald-300
+                                               bg-emerald-50
+                                               px-3 py-2.5
+                                               dark:border-emerald-700
+                                               dark:bg-gray-950"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            @checked($gospelCandidateSelected)
+                                            wire:click="toggleNewGospelContactCandidate"
+                                            class="mt-1 rounded
+                                                   border-gray-300
+                                                   text-emerald-600
+                                                   focus:ring-emerald-500
+                                                   dark:border-gray-600
+                                                   dark:bg-gray-900"
+                                        >
+
+                                        <span class="min-w-0 text-sm">
+                                            <strong
+                                                class="block
+                                                       font-bold
+                                                       text-emerald-800
+                                                       dark:text-emerald-300"
+                                            >
+                                                Create Gospel Contact:
+                                                {{ $gospelCreationCandidate['valid']
+                                                    ? $gospelCreationCandidate['display_name']
+                                                    : trim($targetSearch) }}
+                                            </strong>
+
+                                            <span
+                                                class="mt-1 block text-xs
+                                                       leading-5
+                                                       text-emerald-700
+                                                       dark:text-gray-400"
+                                            >
+                                                Will be created when the
+                                                Shepherding Record is saved.
+                                                Use Last Name, First Name
+                                                when a last name is known.
+                                                Locality will use the Contact
+                                                Locality selected on this form.
+                                            </span>
+                                        </span>
+                                    </label>
+                                @endif
+
                             </div>
                         </div>
                     </div>
@@ -1806,7 +1920,7 @@
                                                    dark:bg-cyan-950
                                                    dark:text-cyan-300"
                                         >
-                                            Campus ·
+                                            Campus Contact ·
                                             {{ $campusContact->display_name }}
                                         </span>
                                     @endforeach
@@ -1821,7 +1935,7 @@
                                                    dark:bg-emerald-950
                                                    dark:text-emerald-300"
                                         >
-                                            Gospel ·
+                                            Gospel Contact ·
                                             {{ $gospelContact->display_name }}
                                         </span>
                                     @endforeach

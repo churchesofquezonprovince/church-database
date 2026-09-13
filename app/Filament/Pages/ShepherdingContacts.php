@@ -42,6 +42,17 @@ class ShepherdingContacts extends Page
     public array $contactedGospelContactIds = [];
 
     /*
+     * Pending Gospel Contacts entered directly through
+     * Search Contact Targets.
+     *
+     * Names are stored in canonical:
+     * Last Name, First Name
+     *
+     * They are not created until saveContact() succeeds.
+     */
+    public array $newGospelContactNames = [];
+
+    /*
      * person_id => bool
      *
      * true  = present / contacted
@@ -400,25 +411,86 @@ class ShepherdingContacts extends Page
 
     public function gospelContacts(): Collection
     {
-        $search = trim($this->targetSearch);
+        $search =
+            trim($this->targetSearch);
+
+        $candidate =
+            $this->gospelContactCreationCandidate();
 
         return GospelContact::query()
             ->with('localityRecord')
             ->whereNull('person_id')
             ->when(
                 filled($search),
-                function ($query) use ($search): void {
+                function ($query) use (
+                    $search,
+                    $candidate
+                ): void {
+                    /*
+                     * When the search follows:
+                     *
+                     * Last Name, First Name
+                     *
+                     * search the two name columns
+                     * independently so existing records still
+                     * appear before the Create option.
+                     */
+                    if ($candidate['valid']) {
+                        $query
+                            ->where(
+                                'lastname',
+                                'like',
+                                '%'
+                                . $candidate['lastname']
+                                . '%'
+                            )
+                            ->where(
+                                'firstname',
+                                'like',
+                                '%'
+                                . $candidate['firstname']
+                                . '%'
+                            );
+
+                        return;
+                    }
+
                     $query->where(
                         function ($query) use ($search): void {
-                            $like = "%{$search}%";
+                            $like =
+                                "%{$search}%";
 
                             $query
-                                ->where('firstname', 'like', $like)
-                                ->orWhere('lastname', 'like', $like)
-                                ->orWhere('locality', 'like', $like)
-                                ->orWhere('contact_place', 'like', $like)
-                                ->orWhere('contact_number', 'like', $like)
-                                ->orWhere('email', 'like', $like)
+                                ->where(
+                                    'firstname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'lastname',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'locality',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'contact_place',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'contact_number',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'email',
+                                    'like',
+                                    $like
+                                )
                                 ->orWhere(
                                     'facebook_account',
                                     'like',
@@ -433,6 +505,133 @@ class ShepherdingContacts extends Page
             ->limit(75)
             ->get();
     }
+
+
+    public function gospelContactCreationCandidate(): array
+    {
+        $parsed =
+            $this->parseGospelContactName(
+                $this->targetSearch
+            );
+
+        if (! $parsed) {
+            return [
+                'valid' => false,
+
+                'raw' =>
+                    trim(
+                        preg_replace(
+                            '/\\s+/',
+                            ' ',
+                            $this->targetSearch
+                        )
+                    ),
+
+                'firstname' => '',
+                'lastname' => '',
+                'display_name' => '',
+            ];
+        }
+
+        return [
+            'valid' => true,
+
+            'raw' =>
+                $parsed['display_name'],
+
+            'firstname' =>
+                $parsed['firstname'],
+
+            'lastname' =>
+                $parsed['lastname'],
+
+            'display_name' =>
+                $parsed['display_name'],
+        ];
+    }
+
+
+    public function toggleNewGospelContactCandidate(): void
+    {
+        $candidate =
+            $this->gospelContactCreationCandidate();
+
+        if (! $candidate['valid']) {
+            Notification::make()
+                ->title(
+                    'Use Last Name, First Name'
+                )
+                ->body(
+                    'Example: Adona, Maria'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $name =
+            $candidate['display_name'];
+
+        $existingIndex =
+            collect(
+                $this->newGospelContactNames
+            )
+                ->search(
+                    fn ($selected): bool =>
+                        mb_strtolower(
+                            trim(
+                                (string) $selected
+                            )
+                        )
+                        ===
+                        mb_strtolower($name)
+                );
+
+        if ($existingIndex !== false) {
+            $this->newGospelContactNames =
+                collect(
+                    $this->newGospelContactNames
+                )
+                    ->forget(
+                        $existingIndex
+                    )
+                    ->values()
+                    ->all();
+
+            return;
+        }
+
+        $this->newGospelContactNames =
+            collect(
+                $this->newGospelContactNames
+            )
+                ->push($name)
+                ->unique(
+                    fn ($selected): string =>
+                        mb_strtolower(
+                            trim(
+                                (string) $selected
+                            )
+                        )
+                )
+                ->values()
+                ->all();
+    }
+
+
+    public function removeNewGospelContactCandidate(
+        int $index
+    ): void {
+        $this->newGospelContactNames =
+            collect(
+                $this->newGospelContactNames
+            )
+                ->forget($index)
+                ->values()
+                ->all();
+    }
+
 
     public function selectedGospelContacts(): Collection
     {
@@ -948,6 +1147,13 @@ class ShepherdingContacts extends Page
                 'integer',
                 'exists:gospel_contacts,id',
             ],
+            'newGospelContactNames' => [
+                'array',
+            ],
+            'newGospelContactNames.*' => [
+                'string',
+                'max:255',
+            ],
             'householdMemberPresence' => [
                 'array',
             ],
@@ -1025,6 +1231,83 @@ class ShepherdingContacts extends Page
             ->values()
             ->all();
 
+        $newGospelContacts = [];
+
+        foreach (
+            $data['newGospelContactNames'] ?? []
+            as $name
+        ) {
+            $parsed =
+                $this->parseGospelContactName(
+                    (string) $name
+                );
+
+            if (! $parsed) {
+                $this->addError(
+                    'newGospelContactNames',
+                    'New Gospel Contacts must use Last Name, First Name.'
+                );
+
+                Notification::make()
+                    ->title(
+                        'Invalid Gospel Contact name'
+                    )
+                    ->body(
+                        'Use the format Last Name, First Name.'
+                    )
+                    ->warning()
+                    ->send();
+
+                return;
+            }
+
+            $key =
+                mb_strtolower(
+                    $parsed['lastname']
+                    . '|'
+                    . $parsed['firstname']
+                );
+
+            $newGospelContacts[
+                $key
+            ] =
+                $parsed;
+        }
+
+        $newGospelContacts =
+            array_values(
+                $newGospelContacts
+            );
+
+        /*
+         * A newly-created Gospel Contact must inherit
+         * the Contact Locality selected on this form.
+         */
+        if (
+            $newGospelContacts !== []
+            && blank(
+                $data['localityId']
+                    ?? null
+            )
+        ) {
+            $this->addError(
+                'localityId',
+                'Select the Contact Locality before creating a Gospel Contact.'
+            );
+
+            Notification::make()
+                ->title(
+                    'Contact Locality required'
+                )
+                ->body(
+                    'The selected Locality will also be saved to the new Gospel Contact.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $householdMemberSync = [];
 
         foreach (
@@ -1088,6 +1371,7 @@ class ShepherdingContacts extends Page
             && $contactedHouseholdIds === []
             && $contactedCampusContactIds === []
             && $contactedGospelContactIds === []
+            && $newGospelContacts === []
         ) {
             $this->addError(
                 'contactedPersonIds',
@@ -1187,6 +1471,7 @@ class ShepherdingContacts extends Page
                 $contactedHouseholdIds,
                 $contactedCampusContactIds,
                 $contactedGospelContactIds,
+                $newGospelContacts,
                 $householdMemberSync,
                 $activityIds,
                 $ministryIds,
@@ -1279,6 +1564,139 @@ class ShepherdingContacts extends Page
                     ]
                     : [];
 
+                /*
+                 * Create selected Search Contact Target
+                 * candidates only when the entire Shepherding
+                 * Record is being saved.
+                 *
+                 * If an unlinked Gospel Contact with the
+                 * exact same name + Locality already exists,
+                 * reuse it instead of creating a duplicate.
+                 */
+                $resolvedGospelContactIds =
+                    $contactedGospelContactIds;
+
+                if ($newGospelContacts !== []) {
+                    $newGospelLocalityId =
+                        (int) $data[
+                            'localityId'
+                        ];
+
+                    $newGospelLocality =
+                        Locality::query()
+                            ->findOrFail(
+                                $newGospelLocalityId
+                            );
+
+                    foreach (
+                        $newGospelContacts
+                        as $candidate
+                    ) {
+                        $gospelContact =
+                            GospelContact::query()
+                                ->whereNull(
+                                    'person_id'
+                                )
+                                ->where(
+                                    'locality_id',
+                                    $newGospelLocalityId
+                                )
+                                ->when(
+                                    filled(
+                                        $candidate[
+                                            'lastname'
+                                        ]
+                                    ),
+                                    fn ($query) =>
+                                        $query->whereRaw(
+                                            'LOWER(lastname) = ?',
+                                            [
+                                                mb_strtolower(
+                                                    $candidate[
+                                                        'lastname'
+                                                    ]
+                                                ),
+                                            ]
+                                        ),
+                                    fn ($query) =>
+                                        $query->whereNull(
+                                            'lastname'
+                                        )
+                                )
+                                ->whereRaw(
+                                    'LOWER(firstname) = ?',
+                                    [
+                                        mb_strtolower(
+                                            $candidate[
+                                                'firstname'
+                                            ]
+                                        ),
+                                    ]
+                                )
+                                ->first();
+
+                        if (! $gospelContact) {
+                            $gospelContact =
+                                GospelContact::query()
+                                    ->create([
+                                        'firstname' =>
+                                            $candidate[
+                                                'firstname'
+                                            ],
+
+                                        'lastname' =>
+                                            $candidate[
+                                                'lastname'
+                                            ],
+
+                                        'locality_id' =>
+                                            $newGospelLocalityId,
+                                    ]);
+
+                            ActivityLogger::log(
+                                action:
+                                    'gospel_contact.created',
+
+                                subject:
+                                    $gospelContact,
+
+                                description:
+                                    'Created a Gospel Contact from Shepherding Records.',
+
+                                newValues: [
+                                    'firstname' =>
+                                        $gospelContact
+                                            ->firstname,
+
+                                    'lastname' =>
+                                        $gospelContact
+                                            ->lastname,
+
+                                    'locality' =>
+                                        $newGospelLocality
+                                            ->name,
+                                ],
+                            );
+                        }
+
+                        $resolvedGospelContactIds[] =
+                            (int)
+                            $gospelContact->id;
+                    }
+
+                    $resolvedGospelContactIds =
+                        collect(
+                            $resolvedGospelContactIds
+                        )
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->unique()
+                            ->values()
+                            ->all();
+                }
+
                 $contact->fill([
                     'locality_id' =>
                         filled(
@@ -1336,7 +1754,7 @@ class ShepherdingContacts extends Page
                 $contact
                     ->contactedGospelContacts()
                     ->sync(
-                        $contactedGospelContactIds
+                        $resolvedGospelContactIds
                     );
 
                 $contact
@@ -1526,6 +1944,8 @@ class ShepherdingContacts extends Page
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
+
+        $this->newGospelContactNames = [];
 
         $this->householdMemberPresence = [];
         $this->householdMemberHouseholdIds = [];
@@ -2168,6 +2588,106 @@ class ShepherdingContacts extends Page
         ];
     }
 
+    private function parseGospelContactName(
+        string $value
+    ): ?array {
+        $value =
+            trim(
+                preg_replace(
+                    '/\\s+/',
+                    ' ',
+                    $value
+                )
+            );
+
+        if ($value === '') {
+            return null;
+        }
+
+        /*
+         * One-part input:
+         *
+         * Ado
+         *
+         * means First Name only.
+         */
+        if (
+            ! str_contains(
+                $value,
+                ','
+            )
+        ) {
+            if (
+                mb_strlen($value) > 255
+            ) {
+                return null;
+            }
+
+            return [
+                'lastname' =>
+                    null,
+
+                'firstname' =>
+                    $value,
+
+                'display_name' =>
+                    $value,
+            ];
+        }
+
+        /*
+         * Comma input:
+         *
+         * Adona, Ado
+         *
+         * means Last Name, First Name.
+         */
+        [
+            $lastname,
+            $firstname,
+        ] =
+            array_map(
+                'trim',
+                explode(
+                    ',',
+                    $value,
+                    2
+                )
+            );
+
+        if (
+            $lastname === ''
+            || $firstname === ''
+        ) {
+            return null;
+        }
+
+        $displayName =
+            $lastname
+            . ', '
+            . $firstname;
+
+        if (
+            mb_strlen(
+                $displayName
+            ) > 255
+        ) {
+            return null;
+        }
+
+        return [
+            'lastname' =>
+                $lastname,
+
+            'firstname' =>
+                $firstname,
+
+            'display_name' =>
+                $displayName,
+        ];
+    }
+
+
     private function resetContactForm(): void
     {
         $this->editingContactId = null;
@@ -2180,6 +2700,7 @@ class ShepherdingContacts extends Page
         $this->contactedHouseholdIds = [];
         $this->contactedCampusContactIds = [];
         $this->contactedGospelContactIds = [];
+        $this->newGospelContactNames = [];
 
         $this->householdMemberPresence = [];
         $this->householdMemberHouseholdIds = [];
