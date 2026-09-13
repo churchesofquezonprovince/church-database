@@ -1473,7 +1473,8 @@
                                                dark:border-sky-800
                                                dark:bg-gray-900
                                                dark:text-sky-100"
-                                    >
+                                    
+                                                    title="Allow correction request means that a Database Field is allowed to generate a proposed database change when the participant submits something different from the stored value, or fills a value that is currently missing. It never edits the People/Church/Education database immediately: checked = create/update a pending review request; unchecked = keep the submitted answer only as meeting-form data and do not propose a profile change.">
                                         <input
                                             type="checkbox"
                                             wire:model="newMeetingFormQuestionAllowCorrection.{{ $sheet->id }}"
@@ -2174,7 +2175,8 @@
                                                            dark:border-sky-800
                                                            dark:bg-gray-900
                                                            dark:text-sky-100"
-                                                >
+                                                
+                                                    title="Allow correction request means that a Database Field is allowed to generate a proposed database change when the participant submits something different from the stored value, or fills a value that is currently missing. It never edits the People/Church/Education database immediately: checked = create/update a pending review request; unchecked = keep the submitted answer only as meeting-form data and do not propose a profile change.">
                                                     <input
                                                         type="checkbox"
                                                         wire:model="meetingFormQuestionAllowCorrection.{{ $question->id }}"
