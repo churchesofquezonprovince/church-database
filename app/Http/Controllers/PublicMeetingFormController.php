@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceMeetingFormAnswer;
+use App\Models\AttendanceMeetingFormQuestion;
 use App\Models\AttendanceMeetingResponse;
+use App\Models\AttendanceSheet;
 use App\Models\AttendanceMeetingSeries;
 use App\Models\AttendanceSession;
 use App\Models\CampusContact;
 use App\Models\GospelContact;
+use App\Models\DeveloperSetting;
+use App\Models\School;
 use App\Models\Person;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +19,12 @@ use Illuminate\Http\RedirectResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Support\LocalityOptions;
+use App\Support\MeetingFormDatabaseFieldMatcher;
+use App\Support\MeetingFormDatabaseFieldRegistry;
+use App\Support\MeetingFormRespondentResolver;
 use Illuminate\View\View;
 
 class PublicMeetingFormController extends Controller
@@ -22,10 +32,51 @@ class PublicMeetingFormController extends Controller
     public function show(string $slug): View
     {
         $session = $this->publicSession($slug);
+        $sheet = $session->sheet;
+
+        if (
+            $sheet->meeting_form_type
+            === AttendanceSheet::MEETING_FORM_GOOGLE
+        ) {
+            return view(
+                'meeting.google-form',
+                [
+                    'session' =>
+                        $session,
+
+                    'sheet' =>
+                        $sheet,
+
+                    'questions' =>
+                        $sheet
+                            ->meetingFormQuestions()
+                            ->get(),
+
+                    'publicSlug' =>
+                        trim($slug),
+
+                    'localityGroups' =>
+                        LocalityOptions::groupedActiveConfigured(),
+
+                    'schools' =>
+                        School::query()
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->orderBy('name')
+                            ->pluck(
+                                'name',
+                                'id'
+                            )
+                            ->all(),
+                ]
+            );
+        }
 
         return view('meeting.show', [
             'session' => $session,
-            'sheet' => $session->sheet,
+            'sheet' => $sheet,
 
             /*
              * Preserve the public identity used to reach
@@ -245,11 +296,233 @@ class PublicMeetingFormController extends Controller
         ]);
     }
 
+    public function autofill(
+        Request $request,
+        string $slug,
+        MeetingFormRespondentResolver $resolver,
+        MeetingFormDatabaseFieldMatcher $matcher
+    ): JsonResponse {
+        $session =
+            $this->publicSession(
+                $slug
+            );
+
+        abort_unless(
+            $session->sheet
+                && $session
+                    ->sheet
+                    ->meeting_form_type
+                    === AttendanceSheet::MEETING_FORM_GOOGLE,
+            404
+        );
+
+        $data = $request->validate([
+            'respondent_token' => [
+                'required',
+                'string',
+                'max:4096',
+            ],
+
+            'answers' => [
+                'nullable',
+                'array',
+            ],
+        ]);
+
+        $identityToken =
+            $this->decodePublicIdentityToken(
+                $session,
+                $data['respondent_token']
+            );
+
+        $identity =
+            $resolver->resolve(
+                $identityToken['type'],
+                $identityToken['id']
+            );
+
+        if (! $identity) {
+            throw ValidationException::withMessages([
+                'respondent_token' =>
+                    'Please select your name again.',
+            ]);
+        }
+
+        $questions =
+            $session
+                ->sheet
+                ->meetingFormQuestions()
+                ->where(
+                    'question_type',
+                    AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+                )
+                ->get();
+
+        $questionMap =
+            $questions->keyBy(
+                fn (
+                    AttendanceMeetingFormQuestion $question
+                ): string =>
+                    (string) $question->id
+            );
+
+        $submittedFields = [];
+
+        foreach (
+            ($data['answers'] ?? [])
+            as $questionId => $value
+        ) {
+            $question =
+                $questionMap->get(
+                    (string) $questionId
+                );
+
+            if (
+                ! $question
+                || blank(
+                    $question->database_field
+                )
+                || is_array($value)
+                || is_object($value)
+            ) {
+                continue;
+            }
+
+            $field =
+                (string)
+                $question->database_field;
+
+            /*
+             * Duplicate Database Field questions never earn
+             * more than one hidden match.
+             *
+             * Prefer a non-blank submitted value.
+             */
+            if (
+                ! array_key_exists(
+                    $field,
+                    $submittedFields
+                )
+                || blank(
+                    $submittedFields[$field]
+                )
+            ) {
+                $submittedFields[$field] =
+                    $value;
+            }
+        }
+
+        $matches =
+            $matcher->matchingFields(
+                $identity,
+                $submittedFields
+            );
+
+        $threshold =
+            max(
+                0,
+                min(
+                    5,
+                    DeveloperSetting::integer(
+                        DeveloperSetting::KEY_MEETING_FORM_AUTOFILL_MATCHES,
+                        2
+                    )
+                )
+            );
+
+        /*
+         * Absolutely no stored profile values leave the server
+         * until the configured number of DISTINCT positive
+         * matches has been reached.
+         *
+         * Wrong/different values do not subtract anything.
+         */
+        if (
+            $threshold < 1
+            || count($matches) < $threshold
+        ) {
+            return response()->json([
+                'autofill' =>
+                    false,
+
+                'values' =>
+                    [],
+            ]);
+        }
+
+        $values = [];
+
+        foreach ($questions as $question) {
+            $resolved =
+                $resolver->fieldValue(
+                    $identity,
+                    (string)
+                    $question->database_field
+                );
+
+            if (
+                ! (
+                    $resolved[
+                        'has_existing_value'
+                    ]
+                    ?? false
+                )
+            ) {
+                continue;
+            }
+
+            $value =
+                $resolved['value']
+                ?? null;
+
+            if (is_array($value)) {
+                $value =
+                    collect($value)
+                        ->filter(
+                            fn ($item): bool =>
+                                filled($item)
+                        )
+                        ->implode(', ');
+            }
+
+            if (
+                $value === null
+                || $value === ''
+            ) {
+                continue;
+            }
+
+            $values[
+                (string) $question->id
+            ] = $value;
+        }
+
+        return response()->json([
+            'autofill' =>
+                true,
+
+            'values' =>
+                $values,
+        ]);
+    }
+
+
     public function store(
         Request $request,
         string $slug
     ): RedirectResponse {
         $session = $this->publicSession($slug);
+
+        if (
+            $session->sheet
+                ?->meeting_form_type
+            === AttendanceSheet::MEETING_FORM_GOOGLE
+        ) {
+            return $this->storeGoogleForm(
+                $request,
+                $session
+            );
+        }
 
         $data = $request->validate([
             'respondent_type' => [
@@ -811,6 +1084,719 @@ $meetingResponse->forceFill([
         );
     }
 
+    private function storeGoogleForm(
+        Request $request,
+        AttendanceSession $session
+    ): RedirectResponse {
+        $data = $request->validate([
+            'respondent_type' => [
+                'required',
+                'in:existing,guest',
+            ],
+
+            'respondent_token' => [
+                'nullable',
+                'string',
+                'max:4096',
+            ],
+
+            'guest_name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'answers' => [
+                'nullable',
+                'array',
+            ],
+        ]);
+
+        $resolver =
+            app(
+                MeetingFormRespondentResolver::class
+            );
+
+        $identity = null;
+
+        if (
+            $data['respondent_type']
+            === 'existing'
+        ) {
+            $token =
+                $this->decodePublicIdentityToken(
+                    $session,
+                    $data[
+                        'respondent_token'
+                    ] ?? null
+                );
+
+            $identity =
+                $resolver->resolve(
+                    $token['type'],
+                    $token['id']
+                );
+
+            if (! $identity) {
+                throw ValidationException::withMessages([
+                    'respondent_type' =>
+                        'Please select your name again.',
+                ]);
+            }
+        }
+
+        $guestName =
+            trim(
+                (string)
+                ($data['guest_name'] ?? '')
+            );
+
+        if (
+            ! $identity
+            && mb_strlen($guestName) < 2
+        ) {
+            throw ValidationException::withMessages([
+                'guest_name' =>
+                    'Please enter your full name.',
+            ]);
+        }
+
+        $questions =
+            $session
+                ->sheet
+                ->meetingFormQuestions()
+                ->get();
+
+        $rawAnswers =
+            is_array(
+                $data['answers'] ?? null
+            )
+                ? $data['answers']
+                : [];
+
+        $errors = [];
+        $normalizedAnswers = [];
+
+        foreach ($questions as $question) {
+            $questionId =
+                (string) $question->id;
+
+            $rawValue =
+                $rawAnswers[
+                    $questionId
+                ]
+                ?? null;
+
+            $normalized =
+                $this->normalizeGoogleFormAnswer(
+                    $question,
+                    $rawValue,
+                    $errors
+                );
+
+            $blank =
+                $this->googleFormAnswerIsBlank(
+                    $normalized
+                );
+
+            if (
+                $question->is_required
+                && $blank
+            ) {
+                $satisfiedByExistingDatabaseValue =
+                    false;
+
+                if (
+                    $identity
+                    && $question->isDatabaseField()
+                    && filled(
+                        $question->database_field
+                    )
+                ) {
+                    $resolved =
+                        $resolver->fieldValue(
+                            $identity,
+                            (string)
+                            $question->database_field
+                        );
+
+                    $satisfiedByExistingDatabaseValue =
+                        (bool) (
+                            $resolved[
+                                'has_existing_value'
+                            ]
+                            ?? false
+                        );
+                }
+
+                if (
+                    ! $satisfiedByExistingDatabaseValue
+                ) {
+                    $errors[
+                        'answers.'
+                        . $question->id
+                    ] =
+                        $question->question_text
+                        . ' is required.';
+                }
+            }
+
+            if (! $blank) {
+                $normalizedAnswers[
+                    (int) $question->id
+                ] = $normalized;
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages(
+                $errors
+            );
+        }
+
+        $meetingResponse =
+            DB::transaction(
+                function () use (
+                    $session,
+                    $identity,
+                    $guestName,
+                    $questions,
+                    $normalizedAnswers
+                ): AttendanceMeetingResponse {
+                    $response =
+                        $this
+                            ->googleMeetingResponse(
+                                $session,
+                                $identity,
+                                $guestName
+                            );
+
+                    $questionIds =
+                        $questions
+                            ->pluck('id')
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->all();
+
+                    if ($questionIds !== []) {
+                        $response
+                            ->formAnswers()
+                            ->whereIn(
+                                'attendance_meeting_form_question_id',
+                                $questionIds
+                            )
+                            ->delete();
+                    }
+
+                    foreach (
+                        $normalizedAnswers
+                        as $questionId => $answer
+                    ) {
+                        AttendanceMeetingFormAnswer::query()
+                            ->create([
+                                'attendance_meeting_response_id' =>
+                                    $response->id,
+
+                                'attendance_meeting_form_question_id' =>
+                                    $questionId,
+
+                                'answer_text' =>
+                                    $answer[
+                                        'answer_text'
+                                    ],
+
+                                'answer_json' =>
+                                    $answer[
+                                        'answer_json'
+                                    ],
+                            ]);
+                    }
+
+                    return $response;
+                }
+            );
+
+        return redirect()
+            ->to(
+                $request->url()
+            )
+            ->with(
+                'meeting_google_form_saved',
+                true
+            )
+            ->with(
+                'meeting_response_name',
+                $meetingResponse
+                    ->respondent_name
+            );
+    }
+
+
+    private function googleMeetingResponse(
+        AttendanceSession $session,
+        ?array $identity,
+        string $guestName
+    ): AttendanceMeetingResponse {
+        if ($identity) {
+            $selectedType =
+                $identity[
+                    'selected_type'
+                ];
+
+            $person =
+                $identity['person']
+                ?? null;
+
+            if ($person) {
+                $response =
+                    AttendanceMeetingResponse::query()
+                        ->firstOrNew([
+                            'attendance_session_id' =>
+                                $session->id,
+
+                            'person_id' =>
+                                $person->id,
+                        ]);
+
+                if (! $response->exists) {
+                    $response->original_source =
+                        $selectedType;
+
+                    $response->response =
+                        null;
+
+                    if (
+                        $selectedType
+                        === AttendanceMeetingResponse::RESPONDENT_CAMPUS
+                    ) {
+                        $response->campus_contact_id =
+                            $identity[
+                                'campus_contact'
+                            ]?->id;
+                    }
+
+                    if (
+                        $selectedType
+                        === AttendanceMeetingResponse::RESPONDENT_GOSPEL
+                    ) {
+                        $response->gospel_contact_id =
+                            $identity[
+                                'gospel_contact'
+                            ]?->id;
+                    }
+                }
+
+                $response->forceFill([
+                    'respondent_type' =>
+                        AttendanceMeetingResponse::RESPONDENT_PERSON,
+
+                    'person_id' =>
+                        $person->id,
+
+                    'guest_name' =>
+                        null,
+
+                    'respondent_name' =>
+                        $person->display_name,
+
+                    'responded_at' =>
+                        now(),
+                ])->save();
+
+                return $response;
+            }
+
+            if (
+                $selectedType
+                === AttendanceMeetingResponse::RESPONDENT_CAMPUS
+            ) {
+                $contact =
+                    $identity[
+                        'campus_contact'
+                    ];
+
+                $response =
+                    AttendanceMeetingResponse::query()
+                        ->firstOrNew([
+                            'attendance_session_id' =>
+                                $session->id,
+
+                            'campus_contact_id' =>
+                                $contact->id,
+                        ]);
+
+                if (! $response->exists) {
+                    $response->original_source =
+                        AttendanceMeetingResponse::RESPONDENT_CAMPUS;
+
+                    $response->response =
+                        null;
+                }
+
+                $response->forceFill([
+                    'respondent_type' =>
+                        AttendanceMeetingResponse::RESPONDENT_CAMPUS,
+
+                    'person_id' =>
+                        null,
+
+                    'campus_contact_id' =>
+                        $contact->id,
+
+                    'gospel_contact_id' =>
+                        null,
+
+                    'guest_name' =>
+                        null,
+
+                    'respondent_name' =>
+                        $contact->display_name,
+
+                    'responded_at' =>
+                        now(),
+                ])->save();
+
+                return $response;
+            }
+
+            if (
+                $selectedType
+                === AttendanceMeetingResponse::RESPONDENT_GOSPEL
+            ) {
+                $contact =
+                    $identity[
+                        'gospel_contact'
+                    ];
+
+                $response =
+                    AttendanceMeetingResponse::query()
+                        ->firstOrNew([
+                            'attendance_session_id' =>
+                                $session->id,
+
+                            'gospel_contact_id' =>
+                                $contact->id,
+                        ]);
+
+                if (! $response->exists) {
+                    $response->original_source =
+                        AttendanceMeetingResponse::RESPONDENT_GOSPEL;
+
+                    $response->response =
+                        null;
+                }
+
+                $response->forceFill([
+                    'respondent_type' =>
+                        AttendanceMeetingResponse::RESPONDENT_GOSPEL,
+
+                    'person_id' =>
+                        null,
+
+                    'campus_contact_id' =>
+                        null,
+
+                    'gospel_contact_id' =>
+                        $contact->id,
+
+                    'guest_name' =>
+                        null,
+
+                    'respondent_name' =>
+                        $contact->display_name,
+
+                    'responded_at' =>
+                        now(),
+                ])->save();
+
+                return $response;
+            }
+        }
+
+        $response =
+            AttendanceMeetingResponse::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->where(
+                    'respondent_type',
+                    AttendanceMeetingResponse::RESPONDENT_GUEST
+                )
+                ->whereRaw(
+                    'LOWER(guest_name) = ?',
+                    [
+                        mb_strtolower(
+                            $guestName
+                        ),
+                    ]
+                )
+                ->first();
+
+        if (! $response) {
+            $response =
+                new AttendanceMeetingResponse();
+
+            $response->attendance_session_id =
+                $session->id;
+
+            $response->original_source =
+                AttendanceMeetingResponse::RESPONDENT_GUEST;
+
+            $response->response =
+                null;
+        }
+
+        $response->forceFill([
+            'respondent_type' =>
+                AttendanceMeetingResponse::RESPONDENT_GUEST,
+
+            'person_id' =>
+                null,
+
+            'campus_contact_id' =>
+                null,
+
+            'gospel_contact_id' =>
+                null,
+
+            'guest_name' =>
+                $guestName,
+
+            'respondent_name' =>
+                $guestName,
+
+            'responded_at' =>
+                now(),
+        ])->save();
+
+        return $response;
+    }
+
+
+    private function normalizeGoogleFormAnswer(
+        AttendanceMeetingFormQuestion $question,
+        mixed $value,
+        array &$errors
+    ): array {
+        $fieldKey =
+            'answers.'
+            . $question->id;
+
+        if (
+            $question->question_type
+            === AttendanceMeetingFormQuestion::TYPE_CHECKBOXES
+        ) {
+            $values =
+                is_array($value)
+                    ? collect($value)
+                        ->map(
+                            fn ($item): string =>
+                                trim(
+                                    (string) $item
+                                )
+                        )
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all()
+                    : [];
+
+            $allowed =
+                array_values(
+                    $question->options
+                    ?? []
+                );
+
+            foreach ($values as $selected) {
+                if (
+                    ! in_array(
+                        $selected,
+                        $allowed,
+                        true
+                    )
+                ) {
+                    $errors[$fieldKey] =
+                        'One of the selected choices is invalid.';
+
+                    break;
+                }
+            }
+
+            return [
+                'answer_text' =>
+                    null,
+
+                'answer_json' =>
+                    $values,
+            ];
+        }
+
+        if (is_array($value)) {
+            $errors[$fieldKey] =
+                'This answer is invalid.';
+
+            return [
+                'answer_text' =>
+                    null,
+
+                'answer_json' =>
+                    null,
+            ];
+        }
+
+        $value =
+            trim(
+                (string)
+                ($value ?? '')
+            );
+
+        if (
+            in_array(
+                $question->question_type,
+                [
+                    AttendanceMeetingFormQuestion::TYPE_MULTIPLE_CHOICE,
+                    AttendanceMeetingFormQuestion::TYPE_DROPDOWN,
+                ],
+                true
+            )
+            && $value !== ''
+            && ! in_array(
+                $value,
+                array_values(
+                    $question->options
+                    ?? []
+                ),
+                true
+            )
+        ) {
+            $errors[$fieldKey] =
+                'The selected choice is invalid.';
+        }
+
+        if (
+            $question->question_type
+            === AttendanceMeetingFormQuestion::TYPE_DATABASE_FIELD
+            && $value !== ''
+        ) {
+            $definition =
+                MeetingFormDatabaseFieldRegistry::definition(
+                    $question->database_field
+                );
+
+            $input =
+                $definition['input']
+                ?? 'text';
+
+            if (
+                $input === 'date'
+                && ! preg_match(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $value
+                )
+            ) {
+                $errors[$fieldKey] =
+                    'Enter a valid date.';
+            }
+
+            if (
+                $input === 'locality'
+                && (
+                    ! ctype_digit($value)
+                    || ! LocalityOptions::activeConfiguredLocality(
+                        (int) $value
+                    )
+                )
+            ) {
+                $errors[$fieldKey] =
+                    'Select a valid Locality.';
+            }
+
+            if (
+                $input === 'school'
+                && (
+                    ! ctype_digit($value)
+                    || ! School::query()
+                        ->whereKey(
+                            (int) $value
+                        )
+                        ->where(
+                            'is_active',
+                            true
+                        )
+                        ->exists()
+                )
+            ) {
+                $errors[$fieldKey] =
+                    'Select a valid School / Campus.';
+            }
+
+            if (
+                $input === 'email'
+                && ! filter_var(
+                    $value,
+                    FILTER_VALIDATE_EMAIL
+                )
+            ) {
+                $errors[$fieldKey] =
+                    'Enter a valid email address.';
+            }
+        }
+
+        $maxLength =
+            $question->question_type
+                === AttendanceMeetingFormQuestion::TYPE_PARAGRAPH
+                ? 20000
+                : 5000;
+
+        if (
+            mb_strlen($value)
+            > $maxLength
+        ) {
+            $errors[$fieldKey] =
+                'This answer is too long.';
+        }
+
+        return [
+            'answer_text' =>
+                $value !== ''
+                    ? $value
+                    : null,
+
+            'answer_json' =>
+                null,
+        ];
+    }
+
+
+    private function googleFormAnswerIsBlank(
+        array $answer
+    ): bool {
+        if (
+            is_array(
+                $answer['answer_json']
+                ?? null
+            )
+        ) {
+            return collect(
+                $answer['answer_json']
+            )
+                ->filter(
+                    fn ($item): bool =>
+                        filled($item)
+                )
+                ->isEmpty();
+        }
+
+        return blank(
+            $answer['answer_text']
+            ?? null
+        );
+    }
+
+
     private function savedResponseRedirect(
         AttendanceSession $session,
         string $name,
@@ -1072,9 +2058,12 @@ return redirect()
                                 'is_active',
                                 true
                             )
-                            ->where(
+                            ->whereIn(
                                 'meeting_form_type',
-                                'normal'
+                                [
+                                    AttendanceSheet::MEETING_FORM_NORMAL,
+                                    AttendanceSheet::MEETING_FORM_GOOGLE,
+                                ]
                             );
                     }
                 )

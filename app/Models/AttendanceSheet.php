@@ -212,7 +212,14 @@ public function immichAlbum(): HasOne
 
     public function meetingFormEnabled(): bool
 {
-    return $this->meeting_form_type === self::MEETING_FORM_NORMAL;
+    return in_array(
+        $this->meeting_form_type,
+        [
+            self::MEETING_FORM_NORMAL,
+            self::MEETING_FORM_GOOGLE,
+        ],
+        true
+    );
 }
 
 public function meetingFormLabel(): string

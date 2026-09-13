@@ -59,6 +59,16 @@ Route::domain('m.overcomers.win')
             ->middleware('throttle:30,1')
             ->name('meeting.short.search');
 
+        Route::post(
+            '/{slug}/database-autofill',
+            [
+                PublicMeetingFormController::class,
+                'autofill',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.short.autofill');
+
         Route::get(
             '/{slug}',
             [
@@ -744,6 +754,16 @@ Route::middleware(['web', 'auth'])
         )
             ->middleware('throttle:30,1')
             ->name('meeting.search');
+
+        Route::post(
+            '/meeting/{slug}/database-autofill',
+            [
+                PublicMeetingFormController::class,
+                'autofill',
+            ]
+        )
+            ->middleware('throttle:60,1')
+            ->name('meeting.autofill');
 
         Route::get(
             '/meeting/{slug}',
