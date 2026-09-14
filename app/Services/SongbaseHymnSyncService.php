@@ -122,6 +122,13 @@ class SongbaseHymnSyncService
                 'language' =>
                     $language,
 
+                'lyrics' =>
+                    filled(
+                        $song['lyrics'] ?? null
+                    )
+                        ? (string) $song['lyrics']
+                        : null,
+
                 'source_url' =>
                     'https://songbase.life/'
                     . $sourceId,
@@ -178,6 +185,7 @@ class SongbaseHymnSyncService
                             [
                                 'title',
                                 'language',
+                                'lyrics',
                                 'source_url',
                                 'is_active',
                                 'last_synced_at',

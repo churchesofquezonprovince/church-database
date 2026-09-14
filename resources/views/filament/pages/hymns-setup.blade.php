@@ -216,6 +216,10 @@
                             </th>
 
                             <th class="px-4 py-3 text-left">
+                                Lyrics
+                            </th>
+
+                            <th class="px-4 py-3 text-left">
                                 Source
                             </th>
                         </tr>
@@ -268,7 +272,45 @@
                                     @endforelse
                                 </td>
 
-                                <td class="px-4 py-3">
+                                <td class="px-4 py-3 align-top">
+                                    @if (filled($hymn->lyrics))
+                                        <details
+                                            class="min-w-[280px]
+                                                   max-w-xl"
+                                        >
+                                            <summary
+                                                class="cursor-pointer
+                                                       font-semibold
+                                                       text-primary-600
+                                                       hover:underline
+                                                       dark:text-primary-400"
+                                            >
+                                                View Lyrics
+                                            </summary>
+
+                                            <pre
+                                                class="mt-3 max-h-96
+                                                       overflow-auto
+                                                       whitespace-pre-wrap
+                                                       rounded-lg
+                                                       bg-gray-50 p-4
+                                                       font-sans text-sm
+                                                       leading-6
+                                                       text-gray-800
+                                                       dark:bg-gray-950
+                                                       dark:text-gray-200"
+                                            >{{ $hymn->lyrics }}</pre>
+                                        </details>
+                                    @else
+                                        <span
+                                            class="text-gray-400"
+                                        >
+                                            No lyrics available
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td class="px-4 py-3 align-top">
                                     @if ($hymn->source_url)
                                         <a
                                             href="{{ $hymn->source_url }}"
@@ -289,7 +331,7 @@
                         @empty
                             <tr>
                                 <td
-                                    colspan="4"
+                                    colspan="5"
                                     class="px-4 py-8 text-center
                                            text-gray-500"
                                 >

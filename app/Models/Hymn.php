@@ -13,6 +13,7 @@ class Hymn extends Model
         'source_id',
         'title',
         'language',
+        'lyrics',
         'source_url',
         'is_active',
         'last_synced_at',
