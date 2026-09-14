@@ -159,6 +159,132 @@
                 </div>
             </div>
 
+            @php
+                $shepherdingWeekCopyText =
+                    $this->shepherdingThisWeekCopyText();
+            @endphp
+
+            <div
+                x-data="{ copied: false }"
+                class="flex flex-wrap items-center gap-x-4 gap-y-3"
+            >
+                <button
+                    type="button"
+                    @disabled(blank($shepherdingWeekCopyText))
+                    x-on:click="
+                        const text =
+                            @js($shepherdingWeekCopyText);
+
+                        if (! text) {
+                            return;
+                        }
+
+                        navigator.clipboard
+                            .writeText(text)
+                            .then(() => {
+                                copied = true;
+
+                                setTimeout(
+                                    () => copied = false,
+                                    1800
+                                );
+                            });
+                    "
+                    class="inline-flex items-center rounded-lg
+                           bg-primary-600 px-4 py-2
+                           text-sm font-semibold text-white
+                           transition hover:bg-primary-500
+                           disabled:cursor-not-allowed
+                           disabled:opacity-50"
+                >
+                    <span x-show="! copied">
+                        Copy Shepherding This Week
+                    </span>
+
+                    <span
+                        x-show="copied"
+                        x-cloak
+                    >
+                        Copied!
+                    </span>
+                </button>
+
+                <label
+                    class="inline-flex cursor-pointer
+                           items-center gap-2 text-sm
+                           text-gray-700
+                           dark:text-gray-200"
+                >
+                    <input
+                        type="checkbox"
+                        wire:model.live="copyAddServingOnes"
+                        class="rounded border-gray-300
+                               text-primary-600
+                               focus:ring-primary-500
+                               dark:border-gray-600
+                               dark:bg-gray-900"
+                    >
+
+                    <span>
+                        Add Serving Ones
+                    </span>
+                </label>
+
+                <label
+                    class="inline-flex cursor-pointer
+                           items-center gap-2 text-sm
+                           text-gray-700
+                           dark:text-gray-200"
+                >
+                    <input
+                        type="checkbox"
+                        wire:model.live="copySoNickname"
+                        @disabled(! $copyAddServingOnes)
+                        class="rounded border-gray-300
+                               text-primary-600
+                               focus:ring-primary-500
+                               disabled:cursor-not-allowed
+                               disabled:opacity-50
+                               dark:border-gray-600
+                               dark:bg-gray-900"
+                    >
+
+                    <span>
+                        SO Nickname
+                    </span>
+                </label>
+
+                <label
+                    class="inline-flex cursor-pointer
+                           items-center gap-2 text-sm
+                           text-gray-700
+                           dark:text-gray-200"
+                >
+                    <input
+                        type="checkbox"
+                        wire:model.live="copyContactNickname"
+                        class="rounded border-gray-300
+                               text-primary-600
+                               focus:ring-primary-500
+                               dark:border-gray-600
+                               dark:bg-gray-900"
+                    >
+
+                    <span>
+                        Contact Nickname
+                    </span>
+                </label>
+
+                @if (blank($shepherdingWeekCopyText))
+                    <span
+                        class="text-xs text-gray-500
+                               dark:text-gray-400"
+                    >
+                        No Shepherding History for the selected week.
+                    </span>
+                @endif
+            </div>
+
 
             {{-- Gospel Work --}}
             <div>

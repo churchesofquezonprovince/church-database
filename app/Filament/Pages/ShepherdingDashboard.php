@@ -13,6 +13,7 @@ use App\Models\ShepherdingContact;
 use App\Support\LocalityOptions;
 use App\Support\ShepherdingHistoryQuery;
 use App\Support\WeeklyGowSummary;
+use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,12 @@ class ShepherdingDashboard extends Page
     public ?string $locality = null;
 
     public ?string $week = null;
+
+    public bool $copyAddServingOnes = false;
+
+    public bool $copySoNickname = false;
+
+    public bool $copyContactNickname = false;
 
     public array $weeklyGow = [];
 
@@ -1226,6 +1233,768 @@ class ShepherdingDashboard extends Page
                 $params
             )
         );
+    }
+
+    public function shepherdingThisWeekCopyText(): string
+    {
+        $weekStart =
+            trim(
+                (string) (
+                    $this->weeklyGow[
+                        'week_start'
+                    ]
+                    ?? ''
+                )
+            );
+
+        if ($weekStart === '') {
+            return '';
+        }
+
+        $weekEnd =
+            CarbonImmutable::parse(
+                $weekStart
+            )
+                ->addDays(6)
+                ->toDateString();
+
+        $localityId =
+            $this->selectedLocalityId();
+
+        $records =
+            ShepherdingContact::query()
+                ->with([
+                    'locality',
+
+                    'contactedPeople',
+
+                    'contactedHouseholds.head',
+
+                    'contactedCampusContacts.person',
+
+                    'contactedGospelContacts.person',
+
+                    'householdMembers',
+
+                    'activityTypes',
+
+                    'ministryLessons.book',
+
+                    'participants',
+                ])
+                ->whereBetween(
+                    'contact_date',
+                    [
+                        $weekStart,
+                        $weekEnd,
+                    ]
+                )
+                ->when(
+                    $localityId !== null,
+                    fn (Builder $query) =>
+                        $query->where(
+                            'locality_id',
+                            $localityId
+                        )
+                )
+                ->get()
+                ->sortBy(
+                    function (
+                        ShepherdingContact $record
+                    ): string {
+                        $date =
+                            $record
+                                ->contact_date
+                                ?->format('Y-m-d')
+                            ?? '';
+
+                        $locality =
+                            mb_strtolower(
+                                trim(
+                                    (string) (
+                                        $record
+                                            ->locality
+                                            ?->name
+                                        ?? 'No Locality'
+                                    )
+                                )
+                            );
+
+                        $time =
+                            $this
+                                ->shepherdingCopyRawTime(
+                                    $record
+                                        ->contact_time
+                                );
+
+                        return sprintf(
+                            '%s|%s|%s|%010d',
+                            $date,
+                            $locality,
+                            $time,
+                            (int) $record->id
+                        );
+                    }
+                )
+                ->values();
+
+        if ($records->isEmpty()) {
+            return '';
+        }
+
+        /*
+         * A heading has one Locality + Date + Time.
+         *
+         * If two records from the same Locality and date have
+         * different times, keep them as separate numbered
+         * sections so the heading remains truthful.
+         */
+        $groups =
+            $records->groupBy(
+                function (
+                    ShepherdingContact $record
+                ): string {
+                    $date =
+                        $record
+                            ->contact_date
+                            ?->format('Y-m-d')
+                        ?? '';
+
+                    $locality =
+                        trim(
+                            (string) (
+                                $record
+                                    ->locality
+                                    ?->name
+                                ?? 'No Locality'
+                            )
+                        );
+
+                    $time =
+                        $this
+                            ->shepherdingCopyRawTime(
+                                $record
+                                    ->contact_time
+                            );
+
+                    return $date
+                        . '|'
+                        . $locality
+                        . '|'
+                        . $time;
+                }
+            );
+
+        $lines = [];
+
+        $groupNumber = 0;
+
+        foreach ($groups as $groupRecords) {
+            $first =
+                $groupRecords->first();
+
+            if (! $first) {
+                continue;
+            }
+
+            $groupNumber++;
+
+            $locality =
+                trim(
+                    (string) (
+                        $first
+                            ->locality
+                            ?->name
+                        ?? 'No Locality'
+                    )
+                );
+
+            $date =
+                $first
+                    ->contact_date
+                    ?->format('F j')
+                ?? '';
+
+            $time =
+                $this
+                    ->shepherdingCopyTimeLabel(
+                        $first
+                            ->contact_time
+                    );
+
+            $heading =
+                $groupNumber
+                . '. '
+                . $locality
+                . ' - '
+                . $date;
+
+            if ($time !== '') {
+                $heading .=
+                    ' - '
+                    . $time;
+            }
+
+            $lines[] = $heading;
+            $lines[] = '';
+
+            foreach (
+                $groupRecords->values()
+                as $index => $record
+            ) {
+                $names =
+                    collect();
+
+                foreach (
+                    $record->contactedPeople
+                    as $person
+                ) {
+                    $names->push(
+                        $this
+                            ->shepherdingCopyPersonName(
+                                $person,
+                                $this
+                                    ->copyContactNickname
+                            )
+                    );
+                }
+
+                foreach (
+                    $record
+                        ->contactedHouseholds
+                    as $household
+                ) {
+                    $householdName =
+                        trim(
+                            (string) (
+                                $household
+                                    ->display_name
+                                ?? ''
+                            )
+                        );
+
+                    if ($householdName !== '') {
+                        $names->push(
+                            $householdName
+                        );
+                    }
+                }
+
+                foreach (
+                    $record
+                        ->contactedCampusContacts
+                    as $contact
+                ) {
+                    $names->push(
+                        $this
+                            ->shepherdingCopyContactName(
+                                $contact,
+                                $this
+                                    ->copyContactNickname
+                            )
+                    );
+                }
+
+                foreach (
+                    $record
+                        ->contactedGospelContacts
+                    as $contact
+                ) {
+                    $names->push(
+                        $this
+                            ->shepherdingCopyContactName(
+                                $contact,
+                                $this
+                                    ->copyContactNickname
+                            )
+                    );
+                }
+
+                $names =
+                    $names
+                        ->map(
+                            fn ($name): string =>
+                                trim(
+                                    (string) $name
+                                )
+                        )
+                        ->filter()
+                        ->unique()
+                        ->values();
+
+                /*
+                 * Historical Household records can sometimes
+                 * have only the member-presence snapshot.
+                 */
+                if ($names->isEmpty()) {
+                    foreach (
+                        $record
+                            ->householdMembers
+                            ->filter(
+                                fn ($person): bool =>
+                                    (bool) (
+                                        $person
+                                            ->pivot
+                                            ->was_present
+                                        ?? false
+                                    )
+                            )
+                        as $person
+                    ) {
+                        $names->push(
+                            $this
+                                ->shepherdingCopyPersonName(
+                                    $person,
+                                    $this
+                                        ->copyContactNickname
+                                )
+                        );
+                    }
+
+                    $names =
+                        $names
+                            ->filter()
+                            ->unique()
+                            ->values();
+                }
+
+                $nameText =
+                    $names->isNotEmpty()
+                        ? $names->implode(', ')
+                        : 'Unnamed Contact';
+
+                $practiceLabels =
+                    $record
+                        ->activityTypes
+                        ->map(
+                            function ($type): string {
+                                $name =
+                                    trim(
+                                        (string) (
+                                            $type->name
+                                            ?? ''
+                                        )
+                                    );
+
+                                if ($name !== '') {
+                                    return $name;
+                                }
+
+                                return trim(
+                                    (string) (
+                                        $type->code
+                                        ?? ''
+                                    )
+                                );
+                            }
+                        )
+                        ->filter()
+                        ->unique()
+                        ->values();
+
+                $ministryLabels =
+                    $record
+                        ->ministryLessons
+                        ->map(
+                            function ($lesson): string {
+                                $book =
+                                    trim(
+                                        (string) (
+                                            $lesson
+                                                ->book
+                                                ?->code
+                                            ?: $lesson
+                                                ->book
+                                                ?->title
+                                            ?: ''
+                                        )
+                                    );
+
+                                $lessonLabel =
+                                    trim(
+                                        (string) (
+                                            $lesson->title
+                                            ?: $lesson->code
+                                            ?: ''
+                                        )
+                                    );
+
+                                if (
+                                    $book !== ''
+                                    && $lessonLabel !== ''
+                                ) {
+                                    return $book
+                                        . ' '
+                                        . $lessonLabel;
+                                }
+
+                                return $lessonLabel !== ''
+                                    ? $lessonLabel
+                                    : $book;
+                            }
+                        )
+                        ->filter()
+                        ->unique()
+                        ->values();
+
+                $ministryAndPractice =
+                    $practiceLabels
+                        ->concat(
+                            $ministryLabels
+                        )
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->implode('; ');
+
+                if (
+                    $ministryAndPractice === ''
+                    && $record->outcome
+                        !== ShepherdingContact::OUTCOME_COMPLETED
+                ) {
+                    $ministryAndPractice =
+                        trim(
+                            (string)
+                            $record->outcome
+                        );
+                }
+
+                $mainLine =
+                    $this
+                        ->shepherdingCopyLetter(
+                            (int) $index
+                        )
+                    . '. '
+                    . $nameText;
+
+                if ($ministryAndPractice !== '') {
+                    $mainLine .=
+                        ' - '
+                        . $ministryAndPractice;
+                }
+
+                $lines[] = $mainLine;
+
+                /*
+                 * Preserve the exact line structure of Notes.
+                 *
+                 * Only normalize CRLF / CR to LF. Do NOT
+                 * collapse whitespace into one line.
+                 */
+                $notes =
+                    trim(
+                        str_replace(
+                            [
+                                "\r\n",
+                                "\r",
+                            ],
+                            "\n",
+                            (string) (
+                                $record->notes
+                                ?? ''
+                            )
+                        )
+                    );
+
+                if ($notes !== '') {
+                    $lines[] = 'Note:';
+
+                    foreach (
+                        explode(
+                            "\n",
+                            $notes
+                        )
+                        as $noteLine
+                    ) {
+                        $lines[] =
+                            rtrim(
+                                $noteLine
+                            );
+                    }
+                }
+
+                if (
+                    $this->copyAddServingOnes
+                    && $record
+                        ->participants
+                        ->isNotEmpty()
+                ) {
+                    $servingOnes =
+                        $record
+                            ->participants
+                            ->map(
+                                fn ($person): string =>
+                                    $this
+                                        ->shepherdingCopyPersonName(
+                                            $person,
+                                            $this
+                                                ->copySoNickname
+                                        )
+                            )
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->implode(', ');
+
+                    if ($servingOnes !== '') {
+                        $lines[] =
+                            '- SO: '
+                            . $servingOnes;
+                    }
+                }
+
+                /*
+                 * Separate Shepherding records visually,
+                 * especially when Notes span multiple lines.
+                 */
+                $lines[] = '';
+            }
+
+            /*
+             * Leave one blank line between numbered groups.
+             */
+            $lines[] = '';
+        }
+
+        return rtrim(
+            implode(
+                PHP_EOL,
+                $lines
+            )
+        );
+    }
+
+    private function shepherdingCopyPersonName(
+        $person,
+        bool $useNickname = false
+    ): string {
+        if (! $person) {
+            return '';
+        }
+
+        $nickname =
+            trim(
+                (string) (
+                    $person->nickname
+                    ?? ''
+                )
+            );
+
+        $firstname =
+            trim(
+                (string) (
+                    $person->firstname
+                    ?? ''
+                )
+            );
+
+        $lastname =
+            trim(
+                (string) (
+                    $person->lastname
+                    ?? ''
+                )
+            );
+
+        $suffix =
+            trim(
+                (string) (
+                    $person->suffix
+                    ?? ''
+                )
+            );
+
+        /*
+         * Nickname mode:
+         *
+         * "JV Liwag"
+         *
+         * rather than only "JV", so copied reports still
+         * clearly identify the person.
+         */
+        if (
+            $useNickname
+            && $nickname !== ''
+        ) {
+            return collect([
+                $nickname,
+                $lastname,
+                $suffix,
+            ])
+                ->filter(
+                    fn ($part): bool =>
+                        trim(
+                            (string) $part
+                        ) !== ''
+                )
+                ->implode(' ');
+        }
+
+        $middleInitials =
+            collect(
+                preg_split(
+                    '/\s+/',
+                    trim(
+                        (string) (
+                            $person
+                                ->middlename
+                            ?? ''
+                        )
+                    )
+                )
+                ?: []
+            )
+                ->filter()
+                ->map(
+                    fn (string $part): string =>
+                        mb_strtoupper(
+                            mb_substr(
+                                $part,
+                                0,
+                                1
+                            )
+                        )
+                        . '.'
+                )
+                ->implode(' ');
+
+        /*
+         * First-name-first display:
+         *
+         * John Victor Adel T. Liwag
+         *
+         * This deliberately avoids Person::display_name,
+         * which is stored/displayed as "Last, First".
+         */
+        return collect([
+            $firstname,
+            $middleInitials,
+            $lastname,
+            $suffix,
+        ])
+            ->filter(
+                fn ($part): bool =>
+                    trim(
+                        (string) $part
+                    ) !== ''
+            )
+            ->implode(' ');
+    }
+
+    private function shepherdingCopyContactName(
+        $contact,
+        bool $useNickname = false
+    ): string {
+        if (! $contact) {
+            return '';
+        }
+
+        /*
+         * Campus/Gospel contacts linked to People inherit
+         * the canonical Person name and nickname.
+         */
+        if ($contact->person) {
+            return $this
+                ->shepherdingCopyPersonName(
+                    $contact->person,
+                    $useNickname
+                );
+        }
+
+        /*
+         * Unlinked Campus/Gospel contacts currently do not
+         * have their own nickname field, so nickname mode
+         * safely falls back to Firstname Lastname.
+         */
+        return collect([
+            trim(
+                (string) (
+                    $contact->firstname
+                    ?? ''
+                )
+            ),
+
+            trim(
+                (string) (
+                    $contact->lastname
+                    ?? ''
+                )
+            ),
+        ])
+            ->filter(
+                fn ($part): bool =>
+                    $part !== ''
+            )
+            ->implode(' ');
+    }
+
+    private function shepherdingCopyRawTime(
+        mixed $value
+    ): string {
+        return substr(
+            trim(
+                (string) (
+                    $value
+                    ?? ''
+                )
+            ),
+            0,
+            5
+        );
+    }
+
+    private function shepherdingCopyTimeLabel(
+        mixed $value
+    ): string {
+        $time =
+            $this
+                ->shepherdingCopyRawTime(
+                    $value
+                );
+
+        if ($time === '') {
+            return '';
+        }
+
+        try {
+            return CarbonImmutable
+                ::createFromFormat(
+                    'H:i',
+                    $time
+                )
+                ->format('g:i A');
+        } catch (\Throwable) {
+            return $time;
+        }
+    }
+
+    private function shepherdingCopyLetter(
+        int $index
+    ): string {
+        $number =
+            $index + 1;
+
+        $label = '';
+
+        while ($number > 0) {
+            $number--;
+
+            $label =
+                chr(
+                    97 + (
+                        $number % 26
+                    )
+                )
+                . $label;
+
+            $number =
+                intdiv(
+                    $number,
+                    26
+                );
+        }
+
+        return $label;
     }
 
     public function weeklyGowUrl(
