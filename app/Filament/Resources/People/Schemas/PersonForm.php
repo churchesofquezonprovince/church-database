@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
+use App\Models\GospelContact;
 use App\Models\Locality;
 use App\Models\Person;
 use App\Models\Province;
@@ -9,6 +10,7 @@ use App\Models\ProvinceSetting;
 use App\Models\School;
 use App\Support\ChurchProfileOptions;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -147,13 +149,146 @@ class PersonForm
                                     ->searchable()
                                     ->preload()
                                     ->native(false)
+                                    ->live()
+                                    ->afterStateUpdated(
+                                        function (
+                                            $state,
+                                            $set
+                                        ): void {
+                                            if (blank($state)) {
+                                                return;
+                                            }
+
+                                            $set(
+                                                'gospel_contact_id',
+                                                null
+                                            );
+
+                                            $set(
+                                                'parent_name',
+                                                null
+                                            );
+                                        }
+                                    )
                                     ->placeholder('Search name, nickname, locality, or contact number')
                                     ->helperText('Search any part of the name, nickname, locality, or contact number.'),
 
-                                TextInput::make('parent_name')
-                                    ->label('Parent / Guardian Name')
-                                    ->maxLength(255)
-                                    ->helperText('Use this if the parent or guardian is not yet encoded.'),
+                                Select::make('gospel_contact_id')
+                                    ->label('Gospel Contact')
+                                    ->options(
+                                        fn (): array =>
+                                            self::parentGospelContactSearchOptions()
+                                    )
+                                    ->getSearchResultsUsing(
+                                        fn (string $search): array =>
+                                            self::parentGospelContactSearchOptions(
+                                                $search
+                                            )
+                                    )
+                                    ->getOptionLabelUsing(
+                                        fn ($value): ?string =>
+                                            self::parentGospelContactLabel(
+                                                $value
+                                            )
+                                    )
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->live()
+                                    ->afterStateUpdated(
+                                        function (
+                                            $state,
+                                            $set
+                                        ): void {
+                                            if (blank($state)) {
+                                                return;
+                                            }
+
+                                            $contact =
+                                                GospelContact::query()
+                                                    ->find($state);
+
+                                            if (! $contact) {
+                                                return;
+                                            }
+
+                                            if (
+                                                filled(
+                                                    $contact->person_id
+                                                )
+                                            ) {
+                                                $set(
+                                                    'parent_id',
+                                                    $contact->person_id
+                                                );
+
+                                                $set(
+                                                    'gospel_contact_id',
+                                                    null
+                                                );
+
+                                                $set(
+                                                    'parent_name',
+                                                    null
+                                                );
+
+                                                return;
+                                            }
+
+                                            $set(
+                                                'parent_id',
+                                                null
+                                            );
+                                        }
+                                    )
+                                    ->placeholder(
+                                        'Search Gospel Contacts'
+                                    )
+                                    ->helperText(
+                                        'Use this when the parent or guardian is not yet in the People Database.'
+                                    ),
+
+                                Hidden::make('parent_name'),
+
+                                Placeholder::make(
+                                    'legacy_parent_name_display'
+                                )
+                                    ->label(
+                                        'Previously Recorded Parent / Guardian'
+                                    )
+                                    ->content(
+                                        fn ($get): string =>
+                                            trim(
+                                                (string)
+                                                    $get(
+                                                        'parent_name'
+                                                    )
+                                            )
+                                    )
+                                    ->visible(
+                                        fn ($get): bool =>
+                                            blank(
+                                                $get(
+                                                    'parent_id'
+                                                )
+                                            )
+                                            &&
+                                            blank(
+                                                $get(
+                                                    'gospel_contact_id'
+                                                )
+                                            )
+                                            &&
+                                            filled(
+                                                $get(
+                                                    'parent_name'
+                                                )
+                                            )
+                                    )
+                                    ->helperText(
+                                        'Legacy imported name. Select an Existing Person or Gospel Contact when the identity becomes known.'
+                                    )
+                                    ->columnSpanFull(),
                             ])
                             ->columns(3)
                             ->default([])
@@ -468,6 +603,162 @@ class PersonForm
                 $person->id => self::parentPersonOptionLabel($person),
             ])
             ->all();
+    }
+
+    private static function parentGospelContactSearchOptions(
+        ?string $search = ''
+    ): array {
+        $search = trim(
+            (string) $search
+        );
+
+        return GospelContact::query()
+            ->with('person')
+            ->when(
+                filled($search),
+                function ($query) use ($search): void {
+                    collect(
+                        preg_split(
+                            '/\\s+/',
+                            $search
+                        )
+                    )
+                        ->filter()
+                        ->each(
+                            function (
+                                string $term
+                            ) use (
+                                $query
+                            ): void {
+                                $like =
+                                    '%' . $term . '%';
+
+                                $query->where(
+                                    function (
+                                        $query
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $query
+                                            ->where(
+                                                'firstname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lastname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'locality',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'contact_number',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhereHas(
+                                                'person',
+                                                function (
+                                                    $personQuery
+                                                ) use (
+                                                    $like
+                                                ): void {
+                                                    $personQuery
+                                                        ->where(
+                                                            'firstname',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhere(
+                                                            'middlename',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhere(
+                                                            'lastname',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhere(
+                                                            'nickname',
+                                                            'like',
+                                                            $like
+                                                        );
+                                                }
+                                            );
+                                    }
+                                );
+                            }
+                        );
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(75)
+            ->get()
+            ->mapWithKeys(
+                fn (
+                    GospelContact $contact
+                ): array => [
+                    $contact->id =>
+                        self::parentGospelContactOptionLabel(
+                            $contact
+                        ),
+                ]
+            )
+            ->all();
+    }
+
+    private static function parentGospelContactLabel(
+        mixed $id
+    ): ?string {
+        if (blank($id)) {
+            return null;
+        }
+
+        $contact =
+            GospelContact::query()
+                ->with('person')
+                ->find($id);
+
+        return $contact
+            ? self::parentGospelContactOptionLabel(
+                $contact
+            )
+            : null;
+    }
+
+    private static function parentGospelContactOptionLabel(
+        GospelContact $contact
+    ): string {
+        return collect([
+            $contact->display_name,
+
+            filled(
+                $contact->effective_locality
+            )
+                ? $contact->effective_locality
+                : null,
+
+            filled(
+                $contact->effective_contact_number
+            )
+                ? $contact->effective_contact_number
+                : null,
+
+            filled($contact->person_id)
+                ? 'Already linked to People'
+                : 'Gospel Contact',
+        ])
+            ->filter(
+                fn ($value): bool =>
+                    filled($value)
+            )
+            ->implode(' — ');
     }
 
     private static function parentPersonLabel(mixed $id): ?string

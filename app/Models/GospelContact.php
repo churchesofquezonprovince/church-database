@@ -66,6 +66,37 @@ class GospelContact extends Model
                 }
             }
         );
+
+        /*
+         * When a Gospel Contact becomes a Person, promote
+         * every Parent / Guardian relationship that was
+         * temporarily pointing to this Gospel Contact.
+         */
+        static::saved(
+            function (
+                GospelContact $contact
+            ): void {
+                if (blank($contact->person_id)) {
+                    return;
+                }
+
+                ParentRelationship::query()
+                    ->where(
+                        'gospel_contact_id',
+                        $contact->id
+                    )
+                    ->update([
+                        'parent_id' =>
+                            $contact->person_id,
+
+                        'gospel_contact_id' =>
+                            null,
+
+                        'parent_name' =>
+                            null,
+                    ]);
+            }
+        );
     }
 
     public function localityRecord(): BelongsTo
