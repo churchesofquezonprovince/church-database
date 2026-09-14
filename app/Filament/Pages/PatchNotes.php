@@ -111,22 +111,54 @@ class PatchNotes extends Page
 
     private function gitLogOutput(): string
     {
-        $command = 'git -C '
-            . escapeshellarg(base_path())
+        $repositoryPath =
+            base_path();
+
+        /*
+         * The application directory is bind-mounted into Docker
+         * from the host and therefore has a different filesystem
+         * owner from the PHP/container user.
+         *
+         * Modern Git rejects that situation as "dubious
+         * ownership" unless the repository is explicitly marked
+         * safe.
+         *
+         * Keep the exception scoped to this Git invocation rather
+         * than modifying the container's global Git configuration.
+         */
+        $command =
+            'git -c '
+            . escapeshellarg(
+                'safe.directory='
+                . $repositoryPath
+            )
+            . ' -C '
+            . escapeshellarg(
+                $repositoryPath
+            )
             . " log --date=format:'%Y-%m-%d %H:%M' --pretty=format:"
-            . escapeshellarg('%h|%cd|%s')
+            . escapeshellarg(
+                '%h|%cd|%s'
+            )
             . ' 2>/dev/null';
 
         $lines = [];
         $exitCode = 0;
 
-        exec($command, $lines, $exitCode);
+        exec(
+            $command,
+            $lines,
+            $exitCode
+        );
 
         if ($exitCode !== 0) {
             return '';
         }
 
-        return implode("\n", $lines);
+        return implode(
+            "\n",
+            $lines
+        );
     }
 
     private function parseSubject(string $subject): array
@@ -442,8 +474,25 @@ class PatchNotes extends Page
 
     public function getTotalLinesOfCode(): string
     {
-        $command = 'git -C '
-            . escapeshellarg(base_path())
+        $repositoryPath =
+            base_path();
+
+        /*
+         * Use the same scoped safe.directory exception as the
+         * Patch Notes Git history. The repository is bind-mounted
+         * from the host, so its filesystem owner differs from the
+         * container/PHP user.
+         */
+        $command =
+            'git -c '
+            . escapeshellarg(
+                'safe.directory='
+                . $repositoryPath
+            )
+            . ' -C '
+            . escapeshellarg(
+                $repositoryPath
+            )
             . ' ls-files -z 2>/dev/null';
 
         $output = shell_exec($command);
