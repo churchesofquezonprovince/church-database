@@ -64,7 +64,7 @@
 
         <div
             class="grid gap-4 sm:grid-cols-2
-                   lg:grid-cols-5"
+                   lg:grid-cols-3 xl:grid-cols-6"
         >
             @foreach ([
                 'Songs' => $summary['songs'],
@@ -72,6 +72,7 @@
                 'Languages' => $summary['languages'],
                 'Books' => $summary['books'],
                 'Book Entries' => $summary['book_entries'],
+                'Pending Requests' => $summary['pending_requests'],
             ] as $label => $value)
                 <div
                     class="rounded-2xl border border-gray-200
@@ -95,6 +96,10 @@
                 </div>
             @endforeach
         </div>
+
+        @include(
+            'filament.pages.partials.hymn-addition-requests'
+        )
 
         <div
             class="rounded-2xl border border-gray-200
@@ -321,7 +326,11 @@
                                                    hover:underline
                                                    dark:text-primary-400"
                                         >
-                                            Open Songbase
+                                            {{
+                                                $hymn->source === 'songbase'
+                                                    ? 'Open Songbase'
+                                                    : 'Open Source'
+                                            }}
                                         </a>
                                     @else
                                         —

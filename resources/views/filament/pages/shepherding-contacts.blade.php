@@ -1440,19 +1440,89 @@
                                                                     </span>
                                                                 </button>
                                                             @empty
-                                                                <p
-                                                                    class="px-3
-                                                                           py-4
-                                                                           text-sm
-                                                                           text-gray-500
-                                                                           dark:text-gray-400"
+                                                                <div
+                                                                    class="rounded-lg
+                                                                           border
+                                                                           border-sky-200
+                                                                           bg-sky-50/70
+                                                                           px-4 py-4
+                                                                           dark:border-sky-900
+                                                                           dark:bg-sky-950/30"
                                                                 >
-                                                                    No matching
-                                                                    hymns found.
-                                                                </p>
+                                                                    <p
+                                                                        class="text-sm
+                                                                               leading-6
+                                                                               text-gray-700
+                                                                               dark:text-gray-200"
+                                                                    >
+                                                                        <strong>
+                                                                            No matching hymns found.
+                                                                        </strong>
+                                                                        Please add the hymn title
+                                                                        to <strong>Notes</strong>
+                                                                        for this contact.
+                                                                        You may also submit a
+                                                                        Hymn Addition Request
+                                                                        for Admin approval
+                                                                        <span
+                                                                            class="ml-1
+                                                                                   inline-flex
+                                                                                   rounded-full
+                                                                                   bg-sky-100
+                                                                                   px-2 py-0.5
+                                                                                   text-[10px]
+                                                                                   font-bold
+                                                                                   uppercase
+                                                                                   text-sky-700
+                                                                                   ring-1
+                                                                                   ring-sky-200
+                                                                                   dark:bg-sky-500/15
+                                                                                   dark:text-sky-300
+                                                                                   dark:ring-sky-500/30" style="color: #082f49 !important;"
+                                                                        >
+                                                                            Optional
+                                                                        </span>
+                                                                    </p>
+
+                                                                    @if (
+                                                                        ! array_key_exists(
+                                                                            $hymnIndex,
+                                                                            $hymnRequestForms
+                                                                        )
+                                                                    )
+                                                                        <button
+                                                                            type="button"
+                                                                            wire:click="openHymnRequest({{ $hymnIndex }})"
+                                                                            class="mt-3
+                                                                                   rounded-lg
+                                                                                   border
+                                                                                   border-sky-300
+                                                                                   bg-white
+                                                                                   px-3 py-2
+                                                                                   text-xs
+                                                                                   font-bold
+                                                                                   text-sky-700
+                                                                                   hover:bg-sky-100
+                                                                                   dark:border-sky-700
+                                                                                   dark:bg-sky-950/40
+                                                                                   dark:text-sky-300
+                                                                                   dark:hover:bg-sky-900/50"
+                                                                        
+                                                                            style="color: #082f49 !important;">
+                                                                            + Request Hymn Addition
+                                                                        </button>
+                                                                    @endif
+                                                                </div>
                                                             @endforelse
                                                         </div>
                                                     @endif
+
+                                                    @include(
+                                                        'filament.pages.partials.shepherding-hymn-request-form',
+                                                        [
+                                                            'hymnIndex' => $hymnIndex,
+                                                        ]
+                                                    )
                                                 </div>
                                             @endif
                                         </div>

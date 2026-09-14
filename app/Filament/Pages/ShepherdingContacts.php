@@ -6,6 +6,7 @@ use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Hymn;
+use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
 use App\Models\MinistryBook;
 use App\Models\ProvinceSetting;
@@ -97,6 +98,12 @@ class ShepherdingContacts extends Page
      * ]
      */
     public array $hymnRows = [];
+
+    /*
+     * Missing Hymn request forms keyed by
+     * the Hymn row index.
+     */
+    public array $hymnRequestForms = [];
 
     public array $participantIds = [];
 
@@ -1092,6 +1099,226 @@ class ShepherdingContacts extends Page
             ->contains($activityId);
     }
 
+    public function openHymnRequest(
+        int $index
+    ): void {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->hymnRows
+            )
+        ) {
+            return;
+        }
+
+        $search =
+            trim(
+                (string) (
+                    $this->hymnRows[
+                        $index
+                    ]['search']
+                    ?? ''
+                )
+            );
+
+        $this->hymnRequestForms[
+            $index
+        ] = [
+            'title' =>
+                $search,
+
+            'language' =>
+                '',
+
+            'lyrics' =>
+                '',
+
+            'source_url' =>
+                '',
+
+            'book_name' =>
+                '',
+
+            'hymn_number' =>
+                '',
+        ];
+    }
+
+    public function closeHymnRequest(
+        int $index
+    ): void {
+        unset(
+            $this->hymnRequestForms[
+                $index
+            ]
+        );
+    }
+
+    public function submitHymnRequest(
+        int $index
+    ): void {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->hymnRequestForms
+            )
+        ) {
+            return;
+        }
+
+        $form =
+            $this->hymnRequestForms[
+                $index
+            ];
+
+        $title =
+            trim(
+                (string) (
+                    $form['title']
+                    ?? ''
+                )
+            );
+
+        if ($title === '') {
+            $this->addError(
+                "hymnRequestForms.{$index}.title",
+                'The hymn title is required.'
+            );
+
+            return;
+        }
+
+        $sourceUrl =
+            trim(
+                (string) (
+                    $form['source_url']
+                    ?? ''
+                )
+            );
+
+        if (
+            $sourceUrl !== ''
+            && ! filter_var(
+                $sourceUrl,
+                FILTER_VALIDATE_URL
+            )
+        ) {
+            $this->addError(
+                "hymnRequestForms.{$index}.source_url",
+                'Enter a valid source link.'
+            );
+
+            return;
+        }
+
+        $existing =
+            HymnAdditionRequest::query()
+                ->where(
+                    'status',
+                    HymnAdditionRequest::STATUS_PENDING
+                )
+                ->whereRaw(
+                    'LOWER(title) = ?',
+                    [
+                        mb_strtolower(
+                            $title
+                        ),
+                    ]
+                )
+                ->first();
+
+        if ($existing) {
+            Notification::make()
+                ->title(
+                    'Hymn request already pending'
+                )
+                ->body(
+                    'An Admin is already reviewing a request for this hymn.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        HymnAdditionRequest::query()
+            ->create([
+                'requested_by_id' =>
+                    auth()->id(),
+
+                'title' =>
+                    $title,
+
+                'language' =>
+                    filled(
+                        $form['language']
+                            ?? null
+                    )
+                        ? trim(
+                            (string)
+                            $form['language']
+                        )
+                        : null,
+
+                'lyrics' =>
+                    filled(
+                        $form['lyrics']
+                            ?? null
+                    )
+                        ? trim(
+                            (string)
+                            $form['lyrics']
+                        )
+                        : null,
+
+                'source_url' =>
+                    $sourceUrl !== ''
+                        ? $sourceUrl
+                        : null,
+
+                'book_name' =>
+                    filled(
+                        $form['book_name']
+                            ?? null
+                    )
+                        ? trim(
+                            (string)
+                            $form['book_name']
+                        )
+                        : null,
+
+                'hymn_number' =>
+                    filled(
+                        $form['hymn_number']
+                            ?? null
+                    )
+                        ? trim(
+                            (string)
+                            $form['hymn_number']
+                        )
+                        : null,
+
+                'status' =>
+                    HymnAdditionRequest::STATUS_PENDING,
+            ]);
+
+        unset(
+            $this->hymnRequestForms[
+                $index
+            ]
+        );
+
+        Notification::make()
+            ->title(
+                'Hymn addition requested'
+            )
+            ->body(
+                'The request was sent for Admin approval.'
+            )
+            ->success()
+            ->send();
+    }
+
     public function addHymnRow(): void
     {
         $this->hymnRows[] = [
@@ -1113,7 +1340,8 @@ class ShepherdingContacts extends Page
         }
 
         unset(
-            $this->hymnRows[$index]
+            $this->hymnRows[$index],
+            $this->hymnRequestForms[$index]
         );
 
         $this->hymnRows =
@@ -3097,6 +3325,7 @@ class ShepherdingContacts extends Page
         $this->activityTypeIds = [];
         $this->ministryLessonIds = [];
         $this->hymnRows = [];
+        $this->hymnRequestForms = [];
         $this->participantIds = [];
 
         $this->notes = '';

@@ -3,7 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Models\Hymn;
+use App\Models\HymnAdditionRequest;
 use App\Models\HymnBook;
+use App\Services\HymnAdditionRequestReviewService;
 use App\Services\SongbaseHymnSyncService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -22,6 +24,20 @@ class HymnsSetup extends Page
     public string $search = '';
 
     public string $language = 'english';
+
+    /*
+     * Pending Hymn Request resolution state.
+     *
+     * Mode:
+     * - link = attach the request/source to
+     *   an existing canonical Hymn.
+     * - new = create a new canonical Hymn.
+     */
+    public array $hymnRequestModes = [];
+
+    public array $hymnRequestSearches = [];
+
+    public array $hymnRequestTargetIds = [];
 
     public function mount(): void
     {
@@ -91,6 +107,14 @@ class HymnsSetup extends Page
                     'hymn_book_entries'
                 )->count(),
 
+            'pending_requests' =>
+                HymnAdditionRequest::query()
+                    ->where(
+                        'status',
+                        HymnAdditionRequest::STATUS_PENDING
+                    )
+                    ->count(),
+
             'last_synced_at' =>
                 Hymn::query()
                     ->where(
@@ -121,6 +145,368 @@ class HymnsSetup extends Page
             ->orderBy('language')
             ->orderBy('name')
             ->get();
+    }
+
+    public function pendingHymnRequests(): Collection
+    {
+        return HymnAdditionRequest::query()
+            ->with([
+                'requester',
+            ])
+            ->where(
+                'status',
+                HymnAdditionRequest::STATUS_PENDING
+            )
+            ->oldest('created_at')
+            ->get();
+    }
+
+    public function hymnRequestMatches(
+        int $requestId
+    ): Collection {
+        $request =
+            HymnAdditionRequest::query()
+                ->find($requestId);
+
+        if (! $request) {
+            return collect();
+        }
+
+        $search =
+            trim(
+                (string) (
+                    $this->hymnRequestSearches[
+                        $requestId
+                    ]
+                    ?? ''
+                )
+            );
+
+        if ($search === '') {
+            $search =
+                trim(
+                    (string) $request->title
+                );
+        }
+
+        if ($search === '') {
+            return collect();
+        }
+
+        return Hymn::query()
+            ->with([
+                'bookEntries.hymnBook',
+                'sources',
+            ])
+            ->where(
+                'is_active',
+                true
+            )
+            ->where(
+                function ($query) use (
+                    $search
+                ): void {
+                    $query
+                        ->where(
+                            'title',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'lyrics',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhereHas(
+                            'bookEntries',
+                            fn ($entryQuery) =>
+                                $entryQuery
+                                    ->where(
+                                        'number',
+                                        'like',
+                                        "%{$search}%"
+                                    )
+                        );
+                }
+            )
+            ->orderByRaw(
+                'CASE WHEN LOWER(title) = ? '
+                . 'THEN 0 ELSE 1 END',
+                [
+                    mb_strtolower(
+                        $search
+                    ),
+                ]
+            )
+            ->orderBy('title')
+            ->limit(15)
+            ->get();
+    }
+
+    public function setHymnRequestMode(
+        int $requestId,
+        string $mode
+    ): void {
+        if (
+            ! in_array(
+                $mode,
+                [
+                    'link',
+                    'new',
+                ],
+                true
+            )
+        ) {
+            return;
+        }
+
+        $this->hymnRequestModes[
+            $requestId
+        ] = $mode;
+
+        if ($mode === 'new') {
+            unset(
+                $this->hymnRequestTargetIds[
+                    $requestId
+                ]
+            );
+        }
+    }
+
+    public function selectHymnRequestTarget(
+        int $requestId,
+        int $hymnId
+    ): void {
+        $exists =
+            Hymn::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->whereKey(
+                    $hymnId
+                )
+                ->exists();
+
+        if (! $exists) {
+            Notification::make()
+                ->title(
+                    'Hymn not available'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $this->hymnRequestModes[
+            $requestId
+        ] = 'link';
+
+        $this->hymnRequestTargetIds[
+            $requestId
+        ] = $hymnId;
+    }
+
+    public function approveHymnRequest(
+        int $requestId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $request =
+            HymnAdditionRequest::query()
+                ->where(
+                    'status',
+                    HymnAdditionRequest::STATUS_PENDING
+                )
+                ->find($requestId);
+
+        if (! $request) {
+            Notification::make()
+                ->title(
+                    'Hymn request not found'
+                )
+                ->body(
+                    'The request may already '
+                    . 'have been reviewed.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $mode =
+            $this->hymnRequestModes[
+                $requestId
+            ]
+            ?? 'link';
+
+        try {
+            $service =
+                app(
+                    HymnAdditionRequestReviewService::class
+                );
+
+            if ($mode === 'new') {
+                $hymn =
+                    $service->approveNew(
+                        $request,
+                        auth()->id()
+                    );
+
+                $resolution =
+                    'A new Hymn was created.';
+            } else {
+                $targetId =
+                    (int) (
+                        $this->hymnRequestTargetIds[
+                            $requestId
+                        ]
+                        ?? 0
+                    );
+
+                if ($targetId <= 0) {
+                    Notification::make()
+                        ->title(
+                            'Select an existing Hymn'
+                        )
+                        ->body(
+                            'Choose the canonical Hymn '
+                            . 'to link, or choose '
+                            . 'Create New Hymn.'
+                        )
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $target =
+                    Hymn::query()
+                        ->where(
+                            'is_active',
+                            true
+                        )
+                        ->findOrFail(
+                            $targetId
+                        );
+
+                $hymn =
+                    $service->approveLink(
+                        $request,
+                        $target,
+                        auth()->id()
+                    );
+
+                $resolution =
+                    'The request was linked '
+                    . 'to an existing Hymn.';
+            }
+
+            unset(
+                $this->hymnRequestModes[
+                    $requestId
+                ],
+                $this->hymnRequestSearches[
+                    $requestId
+                ],
+                $this->hymnRequestTargetIds[
+                    $requestId
+                ]
+            );
+
+            Notification::make()
+                ->title(
+                    'Hymn request approved'
+                )
+                ->body(
+                    $resolution
+                    . ' Canonical Hymn: '
+                    . $hymn->title
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Hymn request was not approved'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    public function rejectHymnRequest(
+        int $requestId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $request =
+            HymnAdditionRequest::query()
+                ->where(
+                    'status',
+                    HymnAdditionRequest::STATUS_PENDING
+                )
+                ->find($requestId);
+
+        if (! $request) {
+            Notification::make()
+                ->title(
+                    'Hymn request not found'
+                )
+                ->body(
+                    'The request may already '
+                    . 'have been reviewed.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(
+                HymnAdditionRequestReviewService::class
+            )->reject(
+                $request,
+                auth()->id()
+            );
+
+            Notification::make()
+                ->title(
+                    'Hymn request rejected'
+                )
+                ->body(
+                    'The Hymn Catalog was left unchanged.'
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Hymn request was not rejected'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
     }
 
     public function hymns(): Collection

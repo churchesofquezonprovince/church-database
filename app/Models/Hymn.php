@@ -24,6 +24,13 @@ class Hymn extends Model
         'last_synced_at' => 'datetime',
     ];
 
+    public function sources(): HasMany
+    {
+        return $this->hasMany(
+            HymnSource::class
+        );
+    }
+
     public function bookEntries(): HasMany
     {
         return $this->hasMany(
