@@ -1451,7 +1451,7 @@ class ShepherdingContacts extends Page
                             $like
                         )
                         ->orWhere(
-                            'lyrics',
+                            'lyrics_search',
                             'like',
                             $like
                         )

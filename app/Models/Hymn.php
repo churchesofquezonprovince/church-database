@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\HymnLyricsNormalizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ class Hymn extends Model
         'title',
         'language',
         'lyrics',
+        'lyrics_search',
         'source_url',
         'is_active',
         'last_synced_at',
@@ -23,6 +25,18 @@ class Hymn extends Model
         'is_active' => 'boolean',
         'last_synced_at' => 'datetime',
     ];
+
+    public function setLyricsAttribute(
+        ?string $value
+    ): void {
+        $this->attributes['lyrics'] =
+            $value;
+
+        $this->attributes['lyrics_search'] =
+            HymnLyricsNormalizer::forSearch(
+                $value
+            );
+    }
 
     public function sources(): HasMany
     {

@@ -320,7 +320,7 @@
                                                px-3 py-2
                                                text-sm font-bold
                                                {{ $resolutionMode === 'link'
-                                                    ? 'border-sky-500 bg-sky-100 text-sky-950 dark:border-sky-500 dark:bg-sky-500/15 dark:text-sky-200'
+                                                    ? 'border-sky-500 bg-sky-100 text-sky-900 ring-1 ring-sky-200 dark:border-sky-500 dark:bg-sky-500/15 dark:text-sky-900 dark:ring-sky-500/30'
                                                     : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300' }}"
                                     >
                                         Link Existing Hymn
@@ -329,6 +329,10 @@
                                     <button
                                         type="button"
                                         wire:click="setHymnRequestMode({{ $request->id }}, 'new')"
+                                        style="{{ $resolutionMode === 'new'
+                                            ? 'color: #064e3b !important;'
+                                            : ''
+                                        }}"
                                         class="rounded-lg border
                                                px-3 py-2
                                                text-sm font-bold
@@ -534,6 +538,7 @@
                                     </div>
                                 @else
                                     <div
+                                        style="color: #064e3b !important;"
                                         class="mt-4 rounded-lg
                                                border
                                                border-emerald-200

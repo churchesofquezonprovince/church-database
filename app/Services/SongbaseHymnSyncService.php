@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\HymnLyricsNormalizer;
 use App\Models\Hymn;
 use App\Models\HymnBook;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +130,15 @@ class SongbaseHymnSyncService
                         ? (string) $song['lyrics']
                         : null,
 
+                'lyrics_search' =>
+                    HymnLyricsNormalizer::forSearch(
+                        filled(
+                            $song['lyrics'] ?? null
+                        )
+                            ? (string) $song['lyrics']
+                            : null
+                    ),
+
                 'source_url' =>
                     'https://songbase.life/'
                     . $sourceId,
@@ -186,6 +196,7 @@ class SongbaseHymnSyncService
                                 'title',
                                 'language',
                                 'lyrics',
+                                'lyrics_search',
                                 'source_url',
                                 'is_active',
                                 'last_synced_at',

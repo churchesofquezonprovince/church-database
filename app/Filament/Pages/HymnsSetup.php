@@ -7,6 +7,7 @@ use App\Models\HymnAdditionRequest;
 use App\Models\HymnBook;
 use App\Services\HymnAdditionRequestReviewService;
 use App\Services\SongbaseHymnSyncService;
+use App\Support\HymnSourceResolver;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
@@ -23,7 +24,13 @@ class HymnsSetup extends Page
 
     public string $search = '';
 
-    public string $language = 'english';
+    public string $language = '';
+
+    public string $reviewedStatus = 'all';
+
+    public string $reviewedSource = 'all';
+
+    public string $reviewedSearch = '';
 
     /*
      * Pending Hymn Request resolution state.
@@ -147,6 +154,378 @@ class HymnsSetup extends Page
             ->get();
     }
 
+    public function reviewedHymnRequests(): Collection
+    {
+        $search =
+            trim(
+                $this->reviewedSearch
+            );
+
+        return HymnAdditionRequest::query()
+            ->with([
+                'requester',
+                'reviewer',
+                'createdHymn.sources',
+                'createdHymn.bookEntries.hymnBook',
+            ])
+            ->whereIn(
+                'status',
+                [
+                    HymnAdditionRequest::STATUS_APPROVED,
+                    HymnAdditionRequest::STATUS_REJECTED,
+                ]
+            )
+            ->when(
+                in_array(
+                    $this->reviewedStatus,
+                    [
+                        HymnAdditionRequest::STATUS_APPROVED,
+                        HymnAdditionRequest::STATUS_REJECTED,
+                    ],
+                    true
+                ),
+                fn ($query) =>
+                    $query->where(
+                        'status',
+                        $this->reviewedStatus
+                    )
+            )
+            ->when(
+                $this->reviewedSource === 'soundcloud',
+                fn ($query) =>
+                    $query->where(
+                        'source_url',
+                        'like',
+                        '%soundcloud.com%'
+                    )
+            )
+            ->when(
+                $this->reviewedSource === 'youtube',
+                fn ($query) =>
+                    $query->where(
+                        function ($query): void {
+                            $query
+                                ->where(
+                                    'source_url',
+                                    'like',
+                                    '%youtube.com%'
+                                )
+                                ->orWhere(
+                                    'source_url',
+                                    'like',
+                                    '%youtu.be%'
+                                );
+                        }
+                    )
+            )
+            ->when(
+                $this->reviewedSource === 'no_source',
+                fn ($query) =>
+                    $query->where(
+                        function ($query): void {
+                            $query
+                                ->whereNull(
+                                    'source_url'
+                                )
+                                ->orWhere(
+                                    'source_url',
+                                    ''
+                                );
+                        }
+                    )
+            )
+            ->when(
+                $this->reviewedSource === 'other',
+                fn ($query) =>
+                    $query
+                        ->whereNotNull(
+                            'source_url'
+                        )
+                        ->where(
+                            'source_url',
+                            '!=',
+                            ''
+                        )
+                        ->where(
+                            'source_url',
+                            'not like',
+                            '%soundcloud.com%'
+                        )
+                        ->where(
+                            'source_url',
+                            'not like',
+                            '%youtube.com%'
+                        )
+                        ->where(
+                            'source_url',
+                            'not like',
+                            '%youtu.be%'
+                        )
+                        ->where(
+                            'source_url',
+                            'not like',
+                            '%hymnal.net%'
+                        )
+            )
+            ->when(
+                $search !== '',
+                function ($query) use (
+                    $search
+                ): void {
+                    $query->where(
+                        function ($query) use (
+                            $search
+                        ): void {
+                            $query
+                                ->where(
+                                    'title',
+                                    'like',
+                                    "%{$search}%"
+                                )
+                                ->orWhere(
+                                    'source_url',
+                                    'like',
+                                    "%{$search}%"
+                                )
+                                ->orWhereHas(
+                                    'requester',
+                                    fn ($userQuery) =>
+                                        $userQuery->where(
+                                            'name',
+                                            'like',
+                                            "%{$search}%"
+                                        )
+                                )
+                                ->orWhereHas(
+                                    'reviewer',
+                                    fn ($userQuery) =>
+                                        $userQuery->where(
+                                            'name',
+                                            'like',
+                                            "%{$search}%"
+                                        )
+                                )
+                                ->orWhereHas(
+                                    'createdHymn',
+                                    fn ($hymnQuery) =>
+                                        $hymnQuery->where(
+                                            'title',
+                                            'like',
+                                            "%{$search}%"
+                                        )
+                                );
+                        }
+                    );
+                }
+            )
+            ->orderByDesc('reviewed_at')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function reviewedRequestSourceLabel(
+        HymnAdditionRequest $request
+    ): string {
+        if (
+            blank(
+                $request->source_url
+            )
+        ) {
+            return 'No Source Link';
+        }
+
+        $provider =
+            HymnSourceResolver::providerForUrl(
+                $request->source_url
+            );
+
+        return HymnSourceResolver
+            ::labelForProvider(
+                $provider
+            );
+    }
+
+    public function deleteReviewedHymnRequest(
+        int $requestId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $request =
+            HymnAdditionRequest::query()
+                ->with(
+                    'createdHymn'
+                )
+                ->whereIn(
+                    'status',
+                    [
+                        HymnAdditionRequest::STATUS_APPROVED,
+                        HymnAdditionRequest::STATUS_REJECTED,
+                    ]
+                )
+                ->find($requestId);
+
+        if (! $request) {
+            Notification::make()
+                ->title(
+                    'Reviewed Hymn Request not found'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $hymn =
+            $request->createdHymn;
+
+        /*
+         * Only a Hymn created specifically from this
+         * request may be deleted with the request.
+         *
+         * Never delete an existing Songbase or other
+         * canonical Hymn that the request was merely
+         * linked to.
+         */
+        $requestCreatedHymn =
+            $request->status
+                === HymnAdditionRequest::STATUS_APPROVED
+            && $hymn
+            && $hymn->source === 'manual'
+            && $hymn->source_id
+                === 'request:' . $request->id;
+
+        try {
+            DB::transaction(
+                function () use (
+                    $request,
+                    $hymn,
+                    $requestCreatedHymn
+                ): void {
+                    if (
+                        $requestCreatedHymn
+                        && $hymn
+                    ) {
+                        $usedInShepherding =
+                            DB::table(
+                                'shepherding_contact_hymns'
+                            )
+                                ->where(
+                                    'hymn_id',
+                                    $hymn->id
+                                )
+                                ->exists();
+
+                        if ($usedInShepherding) {
+                            throw new \RuntimeException(
+                                'This Hymn is already used '
+                                . 'in a Shepherding record. '
+                                . 'Remove it from those '
+                                . 'records before deleting it.'
+                            );
+                        }
+
+                        /*
+                         * hymn_sources are cascade-deleted
+                         * by their hymn_id foreign key.
+                         */
+                        $hymn->delete();
+                    }
+
+                    $request->delete();
+                }
+            );
+
+            Notification::make()
+                ->title(
+                    $requestCreatedHymn
+                        ? 'Hymn and request deleted'
+                        : 'Reviewed Hymn Request deleted'
+                )
+                ->body(
+                    $requestCreatedHymn
+                        ? 'The request, its created Hymn, '
+                            . 'and attached source links '
+                            . 'were deleted.'
+                        : 'The review record was deleted. '
+                            . 'The existing linked canonical '
+                            . 'Hymn remains unchanged.'
+                )
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Reviewed Hymn Request was not deleted'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    public function showReviewedHymn(
+        int $requestId
+    ): void {
+        $request =
+            HymnAdditionRequest::query()
+                ->with(
+                    'createdHymn'
+                )
+                ->where(
+                    'status',
+                    HymnAdditionRequest::STATUS_APPROVED
+                )
+                ->find($requestId);
+
+        if (
+            ! $request
+            || ! $request->createdHymn
+        ) {
+            Notification::make()
+                ->title(
+                    'Linked Hymn not found'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        /*
+         * Manual Hymns may not have a language,
+         * so do not hide them behind a language
+         * filter when View Hymn is used.
+         */
+        $this->language = '';
+
+        $this->search =
+            $request
+                ->createdHymn
+                ->title;
+
+        Notification::make()
+            ->title(
+                'Hymn Catalog filtered'
+            )
+            ->body(
+                'Showing '
+                . $request
+                    ->createdHymn
+                    ->title
+                . ' in the Hymn Catalog.'
+            )
+            ->success()
+            ->send();
+    }
+
     public function pendingHymnRequests(): Collection
     {
         return HymnAdditionRequest::query()
@@ -213,7 +592,7 @@ class HymnsSetup extends Page
                             "%{$search}%"
                         )
                         ->orWhere(
-                            'lyrics',
+                            'lyrics_search',
                             'like',
                             "%{$search}%"
                         )
@@ -548,7 +927,7 @@ class HymnsSetup extends Page
                                     "%{$search}%"
                                 )
                                 ->orWhere(
-                                    'lyrics',
+                                    'lyrics_search',
                                     'like',
                                     "%{$search}%"
                                 )

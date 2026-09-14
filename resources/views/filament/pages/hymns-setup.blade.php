@@ -101,6 +101,10 @@
             'filament.pages.partials.hymn-addition-requests'
         )
 
+        @include(
+            'filament.pages.partials.hymn-reviewed-requests'
+        )
+
         <div
             class="rounded-2xl border border-gray-200
                    bg-white p-6 shadow-sm
@@ -145,6 +149,7 @@
         </div>
 
         <div
+            id="hymn-catalog"
             class="rounded-2xl border border-gray-200
                    bg-white p-6 shadow-sm
                    dark:border-gray-700
@@ -192,7 +197,7 @@
                        dark:text-gray-400"
             >
                 Showing up to 100 matching active hymns.
-                English is the default filter.
+                All Languages is the default filter.
             </p>
 
             <div
