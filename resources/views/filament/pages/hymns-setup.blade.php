@@ -209,6 +209,13 @@
                     class="min-w-full divide-y divide-gray-200
                            text-sm dark:divide-gray-700"
                 >
+                    <colgroup>
+                        <col style="width: 18%;">
+                        <col style="width: 9%;">
+                        <col style="width: 13%;">
+                        <col style="width: auto;">
+                        <col style="width: 10%;">
+                    </colgroup>
                     <thead
                         class="bg-gray-50 dark:bg-gray-800"
                     >
@@ -321,25 +328,157 @@
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    @if ($hymn->source_url)
-                                        <a
-                                            href="{{ $hymn->source_url }}"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="font-semibold
-                                                   text-primary-600
-                                                   hover:underline
-                                                   dark:text-primary-400"
+                                    @php
+                                        $sources =
+                                            $hymn
+                                                ->sources
+                                                ->sortBy(
+                                                    fn ($source) =>
+                                                        match (
+                                                            $source->provider
+                                                        ) {
+                                                            'songbase' => 10,
+                                                            'soundcloud' => 20,
+                                                            'youtube' => 30,
+                                                            'hymnal_net' => 40,
+                                                            default => 90,
+                                                        }
+                                                )
+                                                ->values();
+
+                                        $providerTotals =
+                                            $sources
+                                                ->groupBy(
+                                                    'provider'
+                                                )
+                                                ->map
+                                                ->count();
+
+                                        $providerSeen = [];
+                                    @endphp
+
+                                    @forelse ($sources as $source)
+                                        @php
+                                            $provider =
+                                                $source->provider
+                                                ?: 'other';
+
+                                            $providerSeen[
+                                                $provider
+                                            ] =
+                                                (
+                                                    $providerSeen[
+                                                        $provider
+                                                    ]
+                                                    ?? 0
+                                                )
+                                                + 1;
+
+                                            $label =
+                                                $source->label
+                                                ?: match ($provider) {
+                                                    'songbase' =>
+                                                        'Songbase',
+
+                                                    'soundcloud' =>
+                                                        'SoundCloud',
+
+                                                    'youtube' =>
+                                                        'YouTube',
+
+                                                    'hymnal_net' =>
+                                                        'Hymnal.net',
+
+                                                    default =>
+                                                        'Other Source',
+                                                };
+
+                                            if (
+                                                (
+                                                    $providerTotals[
+                                                        $provider
+                                                    ]
+                                                    ?? 0
+                                                ) > 1
+                                            ) {
+                                                $label .=
+                                                    ' '
+                                                    . $providerSeen[
+                                                        $provider
+                                                    ];
+                                            }
+                                        @endphp
+
+                                        <div
+                                            class="mb-2 flex
+                                                   min-w-[190px]
+                                                   items-center
+                                                   gap-2
+                                                   last:mb-0"
                                         >
-                                            {{
-                                                $hymn->source === 'songbase'
-                                                    ? 'Open Songbase'
-                                                    : 'Open Source'
-                                            }}
-                                        </a>
-                                    @else
-                                        —
-                                    @endif
+                                            @if ($source->source_url)
+                                                <a
+                                                    href="{{ $source->source_url }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="Open {{ $label }}"
+                                                    style="color: #082f49 !important;"
+                                                    class="inline-flex
+                                                           rounded-full
+                                                           bg-sky-100
+                                                           px-2.5 py-1
+                                                           text-xs
+                                                           font-bold
+                                                           ring-1
+                                                           ring-sky-200
+                                                           hover:underline"
+                                                >
+                                                    {{ $label }}
+                                                </a>
+                                            @else
+                                                <span
+                                                    title="No source link available"
+                                                    style="color: #4b5563 !important;"
+                                                    class="inline-flex
+                                                           rounded-full
+                                                           bg-gray-100
+                                                           px-2.5 py-1
+                                                           text-xs
+                                                           font-bold
+                                                           ring-1
+                                                           ring-gray-200"
+                                                >
+                                                    {{ $label }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @empty
+                                        @if ($hymn->source_url)
+                                            <a
+                                                href="{{ $hymn->source_url }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style="color: #082f49 !important;"
+                                                class="inline-flex
+                                                       rounded-full
+                                                       bg-sky-100
+                                                       px-2.5 py-1
+                                                       text-xs
+                                                       font-bold
+                                                       ring-1
+                                                       ring-sky-200
+                                                       hover:underline"
+                                            >
+                                                {{
+                                                    $hymn->source === 'songbase'
+                                                        ? 'Songbase'
+                                                        : 'Source'
+                                                }}
+                                            </a>
+                                        @else
+                                            —
+                                        @endif
+                                    @endforelse
                                 </td>
                             </tr>
                         @empty

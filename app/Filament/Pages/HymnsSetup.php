@@ -896,6 +896,7 @@ class HymnsSetup extends Page
         return Hymn::query()
             ->with([
                 'bookEntries.hymnBook',
+                'sources',
             ])
             ->where('is_active', true)
             ->when(

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Support\HymnLyricsNormalizer;
 use App\Models\Hymn;
 use App\Models\HymnBook;
+use App\Models\HymnSource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -216,6 +217,88 @@ class SongbaseHymnSyncService
                             'source_id'
                         )
                         ->all();
+
+                /*
+                 * Keep the canonical multi-source table
+                 * synchronized with every Songbase song.
+                 *
+                 * Existing Songbase sources are updated,
+                 * while newly-added Songbase songs receive
+                 * their hymn_sources row automatically.
+                 */
+                $sourceRows = [];
+
+                foreach ($songRows as $songRow) {
+                    $sourceId =
+                        (string) $songRow[
+                            'source_id'
+                        ];
+
+                    $hymnId =
+                        $songIds[
+                            $sourceId
+                        ]
+                        ?? null;
+
+                    if (! $hymnId) {
+                        continue;
+                    }
+
+                    $sourceRows[] = [
+                        'hymn_id' =>
+                            $hymnId,
+
+                        'provider' =>
+                            HymnSource::PROVIDER_SONGBASE,
+
+                        'source_type' =>
+                            HymnSource::TYPE_CATALOG,
+
+                        'external_id' =>
+                            $sourceId,
+
+                        'source_url' =>
+                            $songRow[
+                                'source_url'
+                            ],
+
+                        'label' =>
+                            'Songbase',
+
+                        'metadata' =>
+                            null,
+
+                        'created_at' =>
+                            $syncedAt,
+
+                        'updated_at' =>
+                            $syncedAt,
+                    ];
+                }
+
+                foreach (
+                    array_chunk(
+                        $sourceRows,
+                        500
+                    ) as $chunk
+                ) {
+                    DB::table(
+                        'hymn_sources'
+                    )->upsert(
+                        $chunk,
+                        [
+                            'hymn_id',
+                            'provider',
+                            'external_id',
+                        ],
+                        [
+                            'source_type',
+                            'source_url',
+                            'label',
+                            'updated_at',
+                        ]
+                    );
+                }
 
                 HymnBook::query()
                     ->where(
