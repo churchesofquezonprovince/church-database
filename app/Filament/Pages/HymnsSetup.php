@@ -161,6 +161,11 @@ class HymnsSetup extends Page
                                     'like',
                                     "%{$search}%"
                                 )
+                                ->orWhere(
+                                    'lyrics',
+                                    'like',
+                                    "%{$search}%"
+                                )
                                 ->orWhereHas(
                                     'bookEntries',
                                     fn ($entryQuery) =>

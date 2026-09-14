@@ -151,7 +151,7 @@
                 <input
                     type="search"
                     wire:model.live.debounce.400ms="search"
-                    placeholder="Search title, Songbase ID, or hymn number..."
+                    placeholder="Search title, lyrics, Songbase ID, or hymn number..."
                     class="block w-full rounded-xl
                            border border-gray-300 bg-white
                            px-4 py-3 text-sm text-gray-900
