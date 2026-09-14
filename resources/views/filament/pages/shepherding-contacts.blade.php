@@ -1075,7 +1075,7 @@
                                     <input
                                         type="checkbox"
                                         value="{{ $activity->id }}"
-                                        wire:model="activityTypeIds"
+                                        wire:model.live="activityTypeIds"
                                         class="mt-1 rounded
                                                border-gray-300"
                                     >
@@ -1104,6 +1104,363 @@
                             @endforeach
                         </div>
                     </section>
+
+
+                    {{-- ============================= --}}
+                    {{-- Hymns Sung --}}
+                    {{-- ============================= --}}
+                    @if ($this->isHymnSingingSelected())
+                        <section
+                            class="rounded-xl border
+                                   border-sky-200
+                                   bg-sky-50/40 p-4
+                                   dark:border-sky-900
+                                   dark:bg-sky-950/20"
+                        >
+                            @php
+                                $selectedHymns =
+                                    $this->selectedHymns();
+                            @endphp
+
+                            <div
+                                class="flex flex-col gap-3
+                                       sm:flex-row
+                                       sm:items-start
+                                       sm:justify-between"
+                            >
+                                <div>
+                                    <h4
+                                        class="text-sm font-bold
+                                               text-gray-900
+                                               dark:text-white"
+                                    >
+                                        Hymns Sung
+                                    </h4>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Search by hymn title,
+                                        lyrics, or hymn number.
+                                        Add as many hymns as were
+                                        sung during this contact.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    wire:click="addHymnRow"
+                                    class="shrink-0 rounded-xl
+                                           border border-sky-300
+                                           bg-white px-4 py-2
+                                           text-sm font-bold
+                                           text-sky-700
+                                           hover:bg-sky-100
+                                           dark:border-sky-800
+                                           dark:bg-gray-900
+                                           dark:text-sky-300"
+                                >
+                                    + Hymn
+                                </button>
+                            </div>
+
+                            @if ($hymnRows === [])
+                                <div
+                                    class="mt-4 rounded-xl
+                                           border border-dashed
+                                           border-sky-200
+                                           px-4 py-5
+                                           text-center text-sm
+                                           text-gray-500
+                                           dark:border-sky-900
+                                           dark:text-gray-400"
+                                >
+                                    No hymns added yet.
+                                    Use + Hymn to record one or
+                                    more hymns.
+                                </div>
+                            @else
+                                <div class="mt-4 space-y-4">
+                                    @foreach (
+                                        $hymnRows
+                                        as $hymnIndex => $hymnRow
+                                    )
+                                        @php
+                                            $selectedHymnId =
+                                                filled(
+                                                    $hymnRow[
+                                                        'hymn_id'
+                                                    ] ?? null
+                                                )
+                                                    ? (int) $hymnRow[
+                                                        'hymn_id'
+                                                    ]
+                                                    : null;
+
+                                            $selectedHymn =
+                                                $selectedHymnId
+                                                    ? $selectedHymns
+                                                        ->get(
+                                                            $selectedHymnId
+                                                        )
+                                                    : null;
+                                        @endphp
+
+                                        <div
+                                            wire:key="hymn-row-{{ $hymnIndex }}"
+                                            style="display:flex;
+                                                   align-items:center;
+                                                   gap:0.75rem;"
+                                            class="rounded-xl border
+                                                   border-gray-200
+                                                   bg-white p-4
+                                                   dark:border-gray-700
+                                                   dark:bg-gray-900"
+                                        >
+                                            <div
+                                                style="display: contents;"
+                                            >
+                                                <span
+                                                    style="order:1;
+                                                           width:2rem;
+                                                           height:2rem;
+                                                           flex:0 0 2rem;"
+                                                    class="flex
+                                                           items-center
+                                                           justify-center
+                                                           rounded-full
+                                                           bg-sky-100
+                                                           text-xs font-bold
+                                                           text-sky-700
+                                                           dark:bg-sky-900
+                                                           dark:text-sky-200"
+                                                >
+                                                    {{ $hymnIndex + 1 }}
+                                                </span>
+
+                                                <button
+                                                    type="button"
+                                                    wire:click="removeHymnRow({{ $hymnIndex }})"
+                                                    style="order:3;
+                                                           flex:0 0 auto;"
+                                                    class="rounded-lg
+                                                           px-3 py-2
+                                                           text-xs
+                                                           font-semibold
+                                                           text-gray-400
+                                                           hover:bg-red-50
+                                                           hover:text-red-600
+                                                           dark:hover:bg-red-950/30"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+
+                                            @if ($selectedHymn)
+                                                <div
+                                                    style="order:2;
+                                                           min-width:0;
+                                                           flex:1 1 0%;"
+                                                    class="rounded-xl
+                                                           border
+                                                           border-sky-200
+                                                           bg-sky-50 p-4
+                                                           dark:border-sky-900
+                                                           dark:bg-sky-950"
+                                                >
+                                                    <p
+                                                        class="font-bold
+                                                               text-gray-950
+                                                               dark:text-white"
+                                                    >
+                                                        {{ $selectedHymn->title }}
+                                                    </p>
+
+                                                    <div
+                                                        class="mt-2 flex
+                                                               flex-wrap gap-2"
+                                                    >
+                                                        @foreach (
+                                                            $selectedHymn
+                                                                ->bookEntries
+                                                            as $entry
+                                                        )
+                                                            <span
+                                                                class="rounded-full
+                                                                       bg-white
+                                                                       px-2.5 py-1
+                                                                       text-xs
+                                                                       font-semibold
+                                                                       text-sky-700
+                                                                       dark:bg-gray-900
+                                                                       dark:text-sky-300"
+                                                            >
+                                                                {{
+                                                                    $entry
+                                                                        ->hymnBook
+                                                                        ?->name
+                                                                    ?? 'Hymn'
+                                                                }}
+                                                                #{{ $entry->number }}
+                                                            </span>
+                                                        @endforeach
+
+                                                        @if ($selectedHymn->language)
+                                                            <span
+                                                                class="rounded-full
+                                                                       bg-gray-100
+                                                                       px-2.5 py-1
+                                                                       text-xs
+                                                                       text-gray-600
+                                                                       dark:bg-gray-800
+                                                                       dark:text-gray-300"
+                                                            >
+                                                                {{
+                                                                    ucfirst(
+                                                                        $selectedHymn
+                                                                            ->language
+                                                                    )
+                                                                }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @else
+                                                @php
+                                                    $hymnSearchResults =
+                                                        $this
+                                                            ->hymnSearchResults(
+                                                                $hymnIndex
+                                                            );
+                                                @endphp
+
+                                                <div
+                                                    style="order:2;
+                                                           min-width:0;
+                                                           flex:1 1 0%;"
+                                                >
+                                                    <input
+                                                        type="search"
+                                                        wire:model.live.debounce.350ms="hymnRows.{{ $hymnIndex }}.search"
+                                                        placeholder="Search title, lyrics, or hymn number..."
+                                                        class="block w-full
+                                                               rounded-xl border
+                                                               border-gray-300
+                                                               bg-white
+                                                               px-4 py-3
+                                                               text-sm
+                                                               text-gray-900
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950
+                                                               dark:text-gray-100"
+                                                    >
+
+                                                    @if (
+                                                        filled(
+                                                            $hymnRow[
+                                                                'search'
+                                                            ] ?? ''
+                                                        )
+                                                    )
+                                                        <div
+                                                            class="mt-2
+                                                                   max-h-72
+                                                                   overflow-y-auto
+                                                                   rounded-xl
+                                                                   border
+                                                                   border-gray-200
+                                                                   bg-white p-2
+                                                                   dark:border-gray-700
+                                                                   dark:bg-gray-950"
+                                                        >
+                                                            @forelse (
+                                                                $hymnSearchResults
+                                                                as $hymn
+                                                            )
+                                                                <button
+                                                                    type="button"
+                                                                    wire:key="hymn-result-{{ $hymnIndex }}-{{ $hymn->id }}"
+                                                                    wire:click="selectHymn({{ $hymnIndex }}, {{ $hymn->id }})"
+                                                                    class="block
+                                                                           w-full
+                                                                           rounded-lg
+                                                                           px-3 py-2.5
+                                                                           text-left
+                                                                           hover:bg-sky-50
+                                                                           dark:hover:bg-sky-950"
+                                                                >
+                                                                    <span
+                                                                        class="block
+                                                                               text-sm
+                                                                               font-bold
+                                                                               text-gray-900
+                                                                               dark:text-white"
+                                                                    >
+                                                                        {{ $hymn->title }}
+                                                                    </span>
+
+                                                                    <span
+                                                                        class="mt-1
+                                                                               flex
+                                                                               flex-wrap
+                                                                               gap-x-2
+                                                                               gap-y-1
+                                                                               text-xs
+                                                                               text-gray-500
+                                                                               dark:text-gray-400"
+                                                                    >
+                                                                        @foreach (
+                                                                            $hymn
+                                                                                ->bookEntries
+                                                                            as $entry
+                                                                        )
+                                                                            <span>
+                                                                                {{
+                                                                                    $entry
+                                                                                        ->hymnBook
+                                                                                        ?->name
+                                                                                    ?? 'Hymn'
+                                                                                }}
+                                                                                #{{ $entry->number }}
+                                                                            </span>
+                                                                        @endforeach
+
+                                                                        @if ($hymn->language)
+                                                                            <span>
+                                                                                {{
+                                                                                    ucfirst(
+                                                                                        $hymn
+                                                                                            ->language
+                                                                                    )
+                                                                                }}
+                                                                            </span>
+                                                                        @endif
+                                                                    </span>
+                                                                </button>
+                                                            @empty
+                                                                <p
+                                                                    class="px-3
+                                                                           py-4
+                                                                           text-sm
+                                                                           text-gray-500
+                                                                           dark:text-gray-400"
+                                                                >
+                                                                    No matching
+                                                                    hymns found.
+                                                                </p>
+                                                            @endforelse
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </section>
+                    @endif
 
 
                     {{-- ============================= --}}

@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
+use App\Models\Hymn;
 use App\Models\Locality;
 use App\Models\MinistryBook;
 use App\Models\ProvinceSetting;
@@ -85,6 +86,17 @@ class ShepherdingContacts extends Page
     public array $activityTypeIds = [];
 
     public array $ministryLessonIds = [];
+
+    /*
+     * Ordered Hymns sung during this contact.
+     *
+     * Each row:
+     * [
+     *     'hymn_id' => int|null,
+     *     'search' => string,
+     * ]
+     */
+    public array $hymnRows = [];
 
     public array $participantIds = [];
 
@@ -1029,6 +1041,16 @@ class ShepherdingContacts extends Page
                 : 'No Locality selected.';
     }
 
+    public function updatedActivityTypeIds(): void
+    {
+        if (
+            $this->isHymnSingingSelected()
+            && $this->hymnRows === []
+        ) {
+            $this->addHymnRow();
+        }
+    }
+
     public function activityTypes(): Collection
     {
         return ShepherdingActivityType::query()
@@ -1037,6 +1059,263 @@ class ShepherdingContacts extends Page
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+    }
+
+    public function hymnSingingActivityId(): ?int
+    {
+        $id =
+            ShepherdingActivityType::query()
+                ->where('code', 'HS')
+                ->value('id');
+
+        return $id
+            ? (int) $id
+            : null;
+    }
+
+    public function isHymnSingingSelected(): bool
+    {
+        $activityId =
+            $this->hymnSingingActivityId();
+
+        if (! $activityId) {
+            return false;
+        }
+
+        return collect(
+            $this->activityTypeIds
+        )
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->contains($activityId);
+    }
+
+    public function addHymnRow(): void
+    {
+        $this->hymnRows[] = [
+            'hymn_id' => null,
+            'search' => '',
+        ];
+    }
+
+    public function removeHymnRow(
+        int $index
+    ): void {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->hymnRows
+            )
+        ) {
+            return;
+        }
+
+        unset(
+            $this->hymnRows[$index]
+        );
+
+        $this->hymnRows =
+            array_values(
+                $this->hymnRows
+            );
+    }
+
+    public function selectedHymns(): Collection
+    {
+        $ids = collect(
+            $this->hymnRows
+        )
+            ->pluck('hymn_id')
+            ->filter()
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return Hymn::query()
+            ->with([
+                'bookEntries.hymnBook',
+            ])
+            ->whereIn(
+                'id',
+                $ids->all()
+            )
+            ->get()
+            ->keyBy('id');
+    }
+
+    public function hymnSearchResults(
+        int $index
+    ): Collection {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->hymnRows
+            )
+        ) {
+            return collect();
+        }
+
+        $search =
+            trim(
+                (string) (
+                    $this->hymnRows[
+                        $index
+                    ]['search']
+                    ?? ''
+                )
+            );
+
+        if ($search === '') {
+            return collect();
+        }
+
+        $selectedElsewhere =
+            collect(
+                $this->hymnRows
+            )
+                ->except($index)
+                ->pluck('hymn_id')
+                ->filter()
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        return Hymn::query()
+            ->with([
+                'bookEntries.hymnBook',
+            ])
+            ->where(
+                'is_active',
+                true
+            )
+            ->when(
+                $selectedElsewhere !== [],
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $selectedElsewhere
+                    )
+            )
+            ->where(
+                function ($query) use (
+                    $search
+                ): void {
+                    $like =
+                        "%{$search}%";
+
+                    $query
+                        ->where(
+                            'title',
+                            'like',
+                            $like
+                        )
+                        ->orWhere(
+                            'lyrics',
+                            'like',
+                            $like
+                        )
+                        ->orWhereHas(
+                            'bookEntries',
+                            fn ($entryQuery) =>
+                                $entryQuery
+                                    ->where(
+                                        'number',
+                                        'like',
+                                        $like
+                                    )
+                        );
+                }
+            )
+            ->orderByRaw(
+                "CASE
+                    WHEN language = 'english'
+                    THEN 0
+                    ELSE 1
+                END"
+            )
+            ->orderBy('title')
+            ->limit(30)
+            ->get();
+    }
+
+    public function selectHymn(
+        int $index,
+        int $hymnId
+    ): void {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->hymnRows
+            )
+        ) {
+            return;
+        }
+
+        $exists = Hymn::query()
+            ->whereKey($hymnId)
+            ->where(
+                'is_active',
+                true
+            )
+            ->exists();
+
+        if (! $exists) {
+            Notification::make()
+                ->title(
+                    'Hymn is unavailable'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $alreadySelected =
+            collect(
+                $this->hymnRows
+            )
+                ->except($index)
+                ->pluck('hymn_id')
+                ->filter()
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->contains($hymnId);
+
+        if ($alreadySelected) {
+            Notification::make()
+                ->title(
+                    'Hymn already selected'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $this->hymnRows[
+            $index
+        ] = [
+            'hymn_id' =>
+                $hymnId,
+
+            'search' =>
+                '',
+        ];
     }
 
     public function ministryBooks(): Collection
@@ -1103,6 +1382,7 @@ class ShepherdingContacts extends Page
                 'locality',
                 'activityTypes',
                 'ministryLessons.book',
+                'hymns.bookEntries.hymnBook',
                 'participants',
             ])
             ->orderByDesc(
@@ -1192,6 +1472,19 @@ class ShepherdingContacts extends Page
             'ministryLessonIds.*' => [
                 'integer',
                 'exists:ministry_lessons,id',
+            ],
+            'hymnRows' => [
+                'array',
+            ],
+            'hymnRows.*.hymn_id' => [
+                'nullable',
+                'integer',
+                'exists:hymns,id',
+            ],
+            'hymnRows.*.search' => [
+                'nullable',
+                'string',
+                'max:255',
             ],
             'participantIds' => [
                 'array',
@@ -1405,6 +1698,19 @@ class ShepherdingContacts extends Page
             ->values()
             ->all();
 
+        $hymnIds = collect(
+            $data['hymnRows'] ?? []
+        )
+            ->pluck('hymn_id')
+            ->filter()
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->unique()
+            ->values()
+            ->all();
+
         $participantIds = collect(
             $data['participantIds'] ?? []
         )
@@ -1432,12 +1738,41 @@ class ShepherdingContacts extends Page
             return;
         }
 
+        $hymnSingingActivityId =
+            $this->hymnSingingActivityId();
+
+        if (
+            ! $hymnSingingActivityId
+            || ! in_array(
+                $hymnSingingActivityId,
+                $activityIds,
+                true
+            )
+        ) {
+            $hymnIds = [];
+        }
+
         if (
             $data['outcome']
             === ShepherdingContact::OUTCOME_UNAVAILABLE
         ) {
             $activityIds = [];
             $ministryIds = [];
+            $hymnIds = [];
+        }
+
+        $hymnSync = [];
+
+        foreach (
+            $hymnIds
+            as $index => $hymnId
+        ) {
+            $hymnSync[
+                $hymnId
+            ] = [
+                'sort_order' =>
+                    $index + 1,
+            ];
         }
 
         $isEditing = filled(
@@ -1455,6 +1790,7 @@ class ShepherdingContacts extends Page
                     'locality',
                     'activityTypes',
                     'ministryLessons',
+                    'hymns',
                     'participants',
                 ])
                 ->findOrFail(
@@ -1475,6 +1811,7 @@ class ShepherdingContacts extends Page
                 $householdMemberSync,
                 $activityIds,
                 $ministryIds,
+                $hymnSync,
                 $participantIds
             ): void {
                 $oldValues = $contact->exists
@@ -1551,6 +1888,12 @@ class ShepherdingContacts extends Page
                             $contact
                                 ->ministryLessons
                                 ->pluck('code')
+                                ->all(),
+
+                        'hymns' =>
+                            $contact
+                                ->hymns
+                                ->pluck('title')
                                 ->all(),
 
                         'participants' =>
@@ -1772,6 +2115,10 @@ class ShepherdingContacts extends Page
                     ->sync($ministryIds);
 
                 $contact
+                    ->hymns()
+                    ->sync($hymnSync);
+
+                $contact
                     ->participants()
                     ->sync($participantIds);
 
@@ -1784,6 +2131,7 @@ class ShepherdingContacts extends Page
                     'locality',
                     'activityTypes',
                     'ministryLessons.book',
+                    'hymns.bookEntries.hymnBook',
                     'participants',
                 ]);
 
@@ -1862,6 +2210,12 @@ class ShepherdingContacts extends Page
                             ->pluck('code')
                             ->all(),
 
+                    'hymns' =>
+                        $contact
+                            ->hymns
+                            ->pluck('title')
+                            ->all(),
+
                     'participants' =>
                         $contact
                             ->participants
@@ -1910,6 +2264,7 @@ class ShepherdingContacts extends Page
                 'householdMembers',
                 'activityTypes',
                 'ministryLessons',
+                'hymns.bookEntries.hymnBook',
                 'participants',
             ])
             ->findOrFail($contactId);
@@ -2015,6 +2370,28 @@ class ShepherdingContacts extends Page
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
+
+        $this->hymnRows =
+            $contact
+                ->hymns
+                ->map(
+                    fn ($hymn): array => [
+                        'hymn_id' =>
+                            (int) $hymn->id,
+
+                        'search' =>
+                            '',
+                    ]
+                )
+                ->values()
+                ->all();
+
+        if (
+            $this->isHymnSingingSelected()
+            && $this->hymnRows === []
+        ) {
+            $this->addHymnRow();
+        }
 
         $this->participantIds =
             $contact
@@ -2719,6 +3096,7 @@ class ShepherdingContacts extends Page
 
         $this->activityTypeIds = [];
         $this->ministryLessonIds = [];
+        $this->hymnRows = [];
         $this->participantIds = [];
 
         $this->notes = '';

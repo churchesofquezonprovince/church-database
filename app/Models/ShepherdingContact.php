@@ -129,6 +129,17 @@ class ShepherdingContact extends Model
         )->withTimestamps();
     }
 
+    public function hymns(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Hymn::class,
+            'shepherding_contact_hymns'
+        )
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(
