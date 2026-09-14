@@ -33,6 +33,8 @@ class ShepherdingDashboard extends Page
 
     public bool $copyContactNickname = false;
 
+    public bool $copyNotes = true;
+
     public array $weeklyGow = [];
 
     public array $localities = [];
@@ -1696,7 +1698,10 @@ class ShepherdingDashboard extends Page
                         )
                     );
 
-                if ($notes !== '') {
+                if (
+                    $this->copyNotes
+                    && $notes !== ''
+                ) {
                     $lines[] = 'Note:';
 
                     foreach (

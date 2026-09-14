@@ -166,7 +166,7 @@
 
             <div
                 x-data="{ copied: false }"
-                class="flex flex-wrap items-center gap-x-4 gap-y-3"
+                class="flex flex-wrap items-center gap-3"
             >
                 <button
                     type="button"
@@ -209,71 +209,124 @@
                     </span>
                 </button>
 
-                <label
-                    class="inline-flex cursor-pointer
-                           items-center gap-2 text-sm
-                           text-gray-700
-                           dark:text-gray-200"
+                <div
+                    class="flex flex-wrap items-center gap-2"
                 >
-                    <input
-                        type="checkbox"
-                        wire:model.live="copyAddServingOnes"
-                        class="rounded border-gray-300
-                               text-primary-600
-                               focus:ring-primary-500
-                               dark:border-gray-600
-                               dark:bg-gray-900"
+                    <label
+                        class="inline-flex min-h-10 cursor-pointer
+                               items-center gap-3.5 rounded-lg
+                               border border-gray-300 bg-white
+                               px-3 py-2 text-sm font-medium
+                               text-gray-700 shadow-sm
+                               transition hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-900
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
                     >
+                        <input
+                            type="checkbox"
+                            wire:model.live="copyNotes"
+                            class="h-4 w-4 shrink-0 rounded
+                                   border-gray-300
+                                   text-primary-600
+                                   focus:ring-primary-500
+                                   dark:border-gray-600
+                                   dark:bg-gray-900"
+                        >
 
-                    <span>
-                        Add Serving Ones
-                    </span>
-                </label>
+                        <span
+                            class="whitespace-nowrap"
+                            style="margin-left: 0.5rem;"
+                        >
+                            Notes
+                        </span>
+                    </label>
 
-                <label
-                    class="inline-flex cursor-pointer
-                           items-center gap-2 text-sm
-                           text-gray-700
-                           dark:text-gray-200"
-                >
-                    <input
-                        type="checkbox"
-                        wire:model.live="copySoNickname"
-                        @disabled(! $copyAddServingOnes)
-                        class="rounded border-gray-300
-                               text-primary-600
-                               focus:ring-primary-500
-                               disabled:cursor-not-allowed
-                               disabled:opacity-50
-                               dark:border-gray-600
-                               dark:bg-gray-900"
+                    <label
+                        class="inline-flex min-h-10 cursor-pointer
+                               items-center gap-3.5 rounded-lg
+                               border border-gray-300 bg-white
+                               px-3 py-2 text-sm font-medium
+                               text-gray-700 shadow-sm
+                               transition hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-900
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
                     >
+                        <input
+                            type="checkbox"
+                            wire:model.live="copyAddServingOnes"
+                            class="h-4 w-4 shrink-0 rounded
+                                   border-gray-300
+                                   text-primary-600
+                                   focus:ring-primary-500
+                                   dark:border-gray-600
+                                   dark:bg-gray-900"
+                        >
 
-                    <span>
-                        SO Nickname
-                    </span>
-                </label>
+                        <span class="whitespace-nowrap" style="margin-left: 0.5rem;">
+                            Add Serving Ones
+                        </span>
+                    </label>
 
-                <label
-                    class="inline-flex cursor-pointer
-                           items-center gap-2 text-sm
-                           text-gray-700
-                           dark:text-gray-200"
-                >
-                    <input
-                        type="checkbox"
-                        wire:model.live="copyContactNickname"
-                        class="rounded border-gray-300
-                               text-primary-600
-                               focus:ring-primary-500
-                               dark:border-gray-600
-                               dark:bg-gray-900"
+                    <label
+                        @class([
+                            'inline-flex min-h-10 items-center gap-3.5 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm transition',
+                            'cursor-pointer border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'
+                                => $copyAddServingOnes,
+                            'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-600'
+                                => ! $copyAddServingOnes,
+                        ])
                     >
+                        <input
+                            type="checkbox"
+                            wire:model.live="copySoNickname"
+                            @disabled(! $copyAddServingOnes)
+                            class="h-4 w-4 shrink-0 rounded
+                                   border-gray-300
+                                   text-primary-600
+                                   focus:ring-primary-500
+                                   disabled:cursor-not-allowed
+                                   disabled:opacity-50
+                                   dark:border-gray-600
+                                   dark:bg-gray-900"
+                        >
 
-                    <span>
-                        Contact Nickname
-                    </span>
-                </label>
+                        <span class="whitespace-nowrap" style="margin-left: 0.5rem;">
+                            SO Nickname
+                        </span>
+                    </label>
+
+                    <label
+                        class="inline-flex min-h-10 cursor-pointer
+                               items-center gap-3.5 rounded-lg
+                               border border-gray-300 bg-white
+                               px-3 py-2 text-sm font-medium
+                               text-gray-700 shadow-sm
+                               transition hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-900
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
+                    >
+                        <input
+                            type="checkbox"
+                            wire:model.live="copyContactNickname"
+                            class="h-4 w-4 shrink-0 rounded
+                                   border-gray-300
+                                   text-primary-600
+                                   focus:ring-primary-500
+                                   dark:border-gray-600
+                                   dark:bg-gray-900"
+                        >
+
+                        <span class="whitespace-nowrap" style="margin-left: 0.5rem;">
+                            Contact Nickname
+                        </span>
+                    </label>
+                </div>
 
                 @if (blank($shepherdingWeekCopyText))
                     <span
