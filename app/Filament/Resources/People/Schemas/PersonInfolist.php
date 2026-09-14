@@ -108,12 +108,35 @@ class PersonInfolist
 
                         TextEntry::make('family_father')
                             ->label('Father')
-                            ->state(fn (Person $record): HtmlString => self::personLink(self::family()->father($record)))
+                            ->state(
+                                fn (Person $record): HtmlString =>
+                                    self::parentRelationshipValue(
+                                        $record,
+                                        'Father'
+                                    )
+                            )
                             ->html(),
 
                         TextEntry::make('family_mother')
                             ->label('Mother')
-                            ->state(fn (Person $record): HtmlString => self::personLink(self::family()->mother($record)))
+                            ->state(
+                                fn (Person $record): HtmlString =>
+                                    self::parentRelationshipValue(
+                                        $record,
+                                        'Mother'
+                                    )
+                            )
+                            ->html(),
+
+                        TextEntry::make('family_guardian')
+                            ->label('Guardian')
+                            ->state(
+                                fn (Person $record): HtmlString =>
+                                    self::parentRelationshipValue(
+                                        $record,
+                                        'Guardian'
+                                    )
+                            )
                             ->html(),
 
                         TextEntry::make('family_siblings')
@@ -385,6 +408,100 @@ class PersonInfolist
             ->filter(fn ($part): bool => filled($part))
             ->implode(' ');
     }
+
+    private static function parentRelationshipValue(
+        Person $record,
+        string $relationship
+    ): HtmlString {
+        $relationships =
+            $record
+                ->parentRelationships()
+                ->with([
+                    'parent',
+                    'gospelContact.person',
+                ])
+                ->where(
+                    'relationship',
+                    $relationship
+                )
+                ->orderBy('id')
+                ->get();
+
+        if ($relationships->isEmpty()) {
+            return self::value(null);
+        }
+
+        $items = $relationships
+            ->map(
+                function (
+                    $parentRelationship
+                ): string {
+                    /*
+                     * Canonical Person has first priority.
+                     */
+                    if ($parentRelationship->parent) {
+                        return (string)
+                            self::personLink(
+                                $parentRelationship->parent
+                            );
+                    }
+
+                    /*
+                     * Parent / Guardian still exists only
+                     * as a Gospel Contact.
+                     */
+                    if (
+                        $parentRelationship
+                            ->gospelContact
+                    ) {
+                        return e(
+                            $parentRelationship
+                                ->gospelContact
+                                ->display_name
+                        )
+                        . ' <span>'
+                        . '(Gospel Contact)'
+                        . '</span>';
+                    }
+
+                    /*
+                     * Legacy imported/free-text record.
+                     */
+                    if (
+                        filled(
+                            $parentRelationship
+                                ->parent_name
+                        )
+                    ) {
+                        return e(
+                            $parentRelationship
+                                ->parent_name
+                        );
+                    }
+
+                    return '';
+                }
+            )
+            ->filter(
+                fn (string $value): bool =>
+                    $value !== ''
+            )
+            ->values();
+
+        if ($items->isEmpty()) {
+            return self::value(null);
+        }
+
+        return new HtmlString(
+            $items
+                ->map(
+                    fn (string $value): string =>
+                        '<div>' . $value . '</div>'
+                )
+                ->implode('')
+        );
+    }
+
 
     private static function family(): FamilyRelationshipService
     {

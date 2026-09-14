@@ -143,8 +143,23 @@ class PersonForm
 
                                 Select::make('parent_id')
                                     ->label('Existing Person')
-                                    ->options(fn (): array => self::parentPersonSearchOptions())
-                                    ->getSearchResultsUsing(fn (string $search): array => self::parentPersonSearchOptions($search))
+                                    ->options(
+                                        fn ($livewire): array =>
+                                            self::parentPersonSearchOptions(
+                                                '',
+                                                $livewire->record?->id
+                                            )
+                                    )
+                                    ->getSearchResultsUsing(
+                                        fn (
+                                            string $search,
+                                            $livewire
+                                        ): array =>
+                                            self::parentPersonSearchOptions(
+                                                $search,
+                                                $livewire->record?->id
+                                            )
+                                    )
                                     ->getOptionLabelUsing(fn ($value): ?string => self::parentPersonLabel($value))
                                     ->searchable()
                                     ->preload()
@@ -176,13 +191,20 @@ class PersonForm
                                 Select::make('gospel_contact_id')
                                     ->label('Gospel Contact')
                                     ->options(
-                                        fn (): array =>
-                                            self::parentGospelContactSearchOptions()
+                                        fn ($livewire): array =>
+                                            self::parentGospelContactSearchOptions(
+                                                '',
+                                                $livewire->record?->id
+                                            )
                                     )
                                     ->getSearchResultsUsing(
-                                        fn (string $search): array =>
+                                        fn (
+                                            string $search,
+                                            $livewire
+                                        ): array =>
                                             self::parentGospelContactSearchOptions(
-                                                $search
+                                                $search,
+                                                $livewire->record?->id
                                             )
                                     )
                                     ->getOptionLabelUsing(
@@ -572,11 +594,22 @@ class PersonForm
 
 
 
-    private static function parentPersonSearchOptions(?string $search = ''): array
-    {
+    private static function parentPersonSearchOptions(
+        ?string $search = '',
+        ?int $excludePersonId = null
+    ): array {
         $search = trim((string) $search);
 
         return Person::query()
+            ->when(
+                $excludePersonId,
+                fn ($query) =>
+                    $query->where(
+                        'id',
+                        '!=',
+                        $excludePersonId
+                    )
+            )
             ->when(filled($search), function ($query) use ($search): void {
                 collect(preg_split('/\s+/', $search))
                     ->filter()
@@ -606,7 +639,8 @@ class PersonForm
     }
 
     private static function parentGospelContactSearchOptions(
-        ?string $search = ''
+        ?string $search = '',
+        ?int $excludePersonId = null
     ): array {
         $search = trim(
             (string) $search
@@ -614,6 +648,23 @@ class PersonForm
 
         return GospelContact::query()
             ->with('person')
+            ->when(
+                $excludePersonId,
+                fn ($query) =>
+                    $query->where(
+                        function ($query) use (
+                            $excludePersonId
+                        ): void {
+                            $query
+                                ->whereNull('person_id')
+                                ->orWhere(
+                                    'person_id',
+                                    '!=',
+                                    $excludePersonId
+                                );
+                        }
+                    )
+            )
             ->when(
                 filled($search),
                 function ($query) use ($search): void {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Validation\ValidationException;
 
 class ParentRelationship extends Model
 {
@@ -41,6 +42,22 @@ class ParentRelationship extends Model
             function (
                 ParentRelationship $relationship
             ): void {
+                /*
+                 * A Person cannot be their own parent
+                 * or guardian.
+                 */
+                if (
+                    filled($relationship->person_id)
+                    && filled($relationship->parent_id)
+                    && (int) $relationship->person_id
+                        === (int) $relationship->parent_id
+                ) {
+                    throw ValidationException::withMessages([
+                        'parent_id' =>
+                            'A person cannot be their own parent or guardian.',
+                    ]);
+                }
+
                 /*
                  * An actual Person always takes precedence.
                  */
