@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Hymn;
+use App\Models\HymnalNetEntry;
 use App\Models\HymnSource;
 use App\Support\HymnalNetSource;
 use Filament\Notifications\Notification;
@@ -106,10 +107,15 @@ class HymnalNetSetup extends Page
                             'like',
                             $like
                         )
-                        ->orWhere(
-                            'source_id',
-                            'like',
-                            $like
+                        ->orWhereHas(
+                            'sources',
+                            fn ($sourceQuery) =>
+                                $sourceQuery
+                                    ->where(
+                                        'external_id',
+                                        'like',
+                                        $like
+                                    )
                         )
                         ->orWhereHas(
                             'bookEntries',
@@ -337,10 +343,15 @@ class HymnalNetSetup extends Page
                                                 'like',
                                                 $like
                                             )
-                                            ->orWhere(
-                                                'source_id',
-                                                'like',
-                                                $like
+                                            ->orWhereHas(
+                                                'sources',
+                                                fn ($sourceQuery) =>
+                                                    $sourceQuery
+                                                        ->where(
+                                                            'external_id',
+                                                            'like',
+                                                            $like
+                                                        )
                                             );
                                     }
                                 );
@@ -350,6 +361,72 @@ class HymnalNetSetup extends Page
             )
             ->latest('id')
             ->get();
+    }
+
+    public function catalogSummary(): array
+    {
+        $base =
+            HymnalNetEntry::query()
+                ->where(
+                    'collection_code',
+                    'h'
+                );
+
+        return [
+            'total' =>
+                (clone $base)->count(),
+
+            'linked' =>
+                (clone $base)
+                    ->where(
+                        'match_status',
+                        'linked'
+                    )
+                    ->count(),
+
+            'unmatched' =>
+                (clone $base)
+                    ->where(
+                        'match_status',
+                        'unmatched'
+                    )
+                    ->count(),
+
+            'ambiguous' =>
+                (clone $base)
+                    ->where(
+                        'match_status',
+                        'ambiguous'
+                    )
+                    ->count(),
+
+            'conflict' =>
+                (clone $base)
+                    ->where(
+                        'match_status',
+                        'conflict'
+                    )
+                    ->count(),
+
+            'invalid' =>
+                (clone $base)
+                    ->where(
+                        'validation_status',
+                        'invalid'
+                    )
+                    ->count(),
+
+            'failed' =>
+                (clone $base)
+                    ->whereIn(
+                        'fetch_status',
+                        [
+                            'error',
+                            'http_error',
+                        ]
+                    )
+                    ->count(),
+        ];
     }
 
     public function deleteHymnalNetSource(

@@ -140,6 +140,15 @@ class SongbaseHymnSyncService
                             : null
                     ),
 
+                'first_line_search' =>
+                    HymnLyricsNormalizer::firstLineForSearch(
+                        filled(
+                            $song['lyrics'] ?? null
+                        )
+                            ? (string) $song['lyrics']
+                            : null
+                    ),
+
                 'source_url' =>
                     'https://songbase.life/'
                     . $sourceId,
@@ -198,6 +207,7 @@ class SongbaseHymnSyncService
                                 'language',
                                 'lyrics',
                                 'lyrics_search',
+                                'first_line_search',
                                 'source_url',
                                 'is_active',
                                 'last_synced_at',
@@ -299,6 +309,15 @@ class SongbaseHymnSyncService
                         ]
                     );
                 }
+
+                /*
+                 * Songbase stores alternate tunes inside
+                 * the lyrics field using ### Tune headers.
+                 * Synchronize those into hymn_variants.
+                 */
+                app(
+                    SongbaseHymnVariantSyncService::class
+                )->syncAllLocal();
 
                 HymnBook::query()
                     ->where(

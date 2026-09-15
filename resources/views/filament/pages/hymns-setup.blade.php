@@ -37,28 +37,25 @@
 
                     <p
                         class="mt-2 max-w-3xl text-sm
-                               text-gray-600 dark:text-gray-300"
+                               text-gray-600
+                               dark:text-gray-300"
                     >
-                        Browse the synchronized multilingual
-                        Songbase hymn catalog used by CoQP.
+                        Central administration for canonical
+                        Hymns, variants, review workflows,
+                        books, lyrics, and all attached
+                        source providers.
                     </p>
 
                     <p
-                        class="mt-2 text-xs text-gray-500
+                        class="mt-2 text-xs
+                               text-gray-500
                                dark:text-gray-400"
                     >
-                        Last synchronized:
-                        {{ $summary['last_synced_at'] ?? 'Never' }}
+                        Canonical Hymns are independent of
+                        Songbase, Hymnal.net, SoundCloud,
+                        YouTube, or any other provider.
                     </p>
                 </div>
-
-                <x-filament::button
-                    wire:click="syncSongbase"
-                    wire:confirm="Synchronize the complete Songbase hymn catalog now?"
-                    icon="heroicon-m-arrow-path"
-                >
-                    Sync Songbase
-                </x-filament::button>
             </div>
         </div>
 
@@ -67,12 +64,15 @@
                    lg:grid-cols-3 xl:grid-cols-6"
         >
             @foreach ([
-                'Songs' => $summary['songs'],
+                'Canonical Hymns' => $summary['hymns'],
                 'Active' => $summary['active'],
-                'Languages' => $summary['languages'],
-                'Books' => $summary['books'],
-                'Book Entries' => $summary['book_entries'],
+                'Variants' => $summary['variants'],
+                'Sources' => $summary['sources'],
+                'Providers' => $summary['providers'],
                 'Pending Requests' => $summary['pending_requests'],
+                'Variant Review' => $summary['variant_review'],
+                'Provisional' => $summary['provisional_review'],
+                'Needs Review' => $summary['needs_review'],
             ] as $label => $value)
                 <div
                     class="rounded-2xl border border-gray-200
@@ -103,6 +103,10 @@
 
         @include(
             'filament.pages.partials.hymn-reviewed-requests'
+        )
+
+        @include(
+            'filament.pages.partials.hymn-review-center'
         )
 
         <div
@@ -161,7 +165,7 @@
                 <input
                     type="search"
                     wire:model.live.debounce.400ms="search"
-                    placeholder="Search title, lyrics, Songbase ID, or hymn number..."
+                    placeholder="Search title, lyrics, source ID, or hymn number..."
                     class="block w-full rounded-xl
                            border border-gray-300 bg-white
                            px-4 py-3 text-sm text-gray-900
@@ -211,10 +215,10 @@
                 >
                     <colgroup>
                         <col style="width: 18%;">
-                        <col style="width: 9%;">
+                        <col style="width: 8%;">
                         <col style="width: 13%;">
                         <col style="width: auto;">
-                        <col style="width: 10%;">
+                        <col style="width: 28%;">
                     </colgroup>
                     <thead
                         class="bg-gray-50 dark:bg-gray-800"
@@ -237,7 +241,7 @@
                             </th>
 
                             <th class="px-4 py-3 text-left">
-                                Source
+                                Variants / Sources
                             </th>
                         </tr>
                     </thead>
@@ -262,8 +266,15 @@
                                                text-gray-500
                                                dark:text-gray-400"
                                     >
-                                        Songbase ID:
-                                        {{ $hymn->source_id }}
+                                        Canonical Hymn
+                                        #{{ $hymn->id }}
+                                        ·
+                                        {{
+                                            $hymn
+                                                ->sources
+                                                ->count()
+                                        }}
+                                        source(s)
                                     </div>
                                 </td>
 
@@ -332,6 +343,9 @@
                                         $sources =
                                             $hymn
                                                 ->sources
+                                                ->whereNull(
+                                                    'hymn_variant_id'
+                                                )
                                                 ->sortBy(
                                                     fn ($source) =>
                                                         match (
@@ -431,7 +445,10 @@
                                                            font-bold
                                                            ring-1
                                                            ring-sky-200
-                                                           hover:underline"
+                                                           hover:underline
+                                                           dark:bg-sky-100
+                                                           dark:text-sky-950
+                                                           dark:ring-sky-300"
                                                 >
                                                     {{ $label }}
                                                 </a>
@@ -446,39 +463,225 @@
                                                            text-xs
                                                            font-bold
                                                            ring-1
-                                                           ring-gray-200"
+                                                           ring-gray-200
+                                                           dark:bg-gray-100
+                                                           dark:text-gray-800
+                                                           dark:ring-gray-300"
                                                 >
                                                     {{ $label }}
                                                 </span>
                                             @endif
                                         </div>
                                     @empty
-                                        @if ($hymn->source_url)
-                                            <a
-                                                href="{{ $hymn->source_url }}"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style="color: #082f49 !important;"
-                                                class="inline-flex
-                                                       rounded-full
-                                                       bg-sky-100
-                                                       px-2.5 py-1
-                                                       text-xs
-                                                       font-bold
-                                                       ring-1
-                                                       ring-sky-200
-                                                       hover:underline"
-                                            >
-                                                {{
-                                                    $hymn->source === 'songbase'
-                                                        ? 'Songbase'
-                                                        : 'Source'
-                                                }}
-                                            </a>
-                                        @else
-                                            —
-                                        @endif
+                                        <span
+                                            class="text-xs
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            No Hymn-level sources
+                                        </span>
                                     @endforelse
+
+
+                                    @php
+                                        $activeVariants =
+                                            $hymn
+                                                ->variants
+                                                ->where(
+                                                    'is_active',
+                                                    true
+                                                )
+                                                ->values();
+                                    @endphp
+
+                                    @if ($activeVariants->isNotEmpty())
+                                        <div
+                                            class="mt-4 border-t
+                                                   border-gray-200
+                                                   pt-3
+                                                   dark:border-gray-700"
+                                        >
+                                            <div
+                                                class="mb-2 text-[11px]
+                                                       font-bold uppercase
+                                                       tracking-wide
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Variants
+                                            </div>
+
+                                            <div class="space-y-2">
+                                                @foreach (
+                                                    $activeVariants
+                                                    as $variant
+                                                )
+                                                    <div
+                                                        class="rounded-xl border
+                                                               border-gray-200
+                                                               bg-gray-50 p-3
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-950"
+                                                    >
+                                                        <div
+                                                            class="font-bold
+                                                                   text-gray-950
+                                                                   dark:text-white"
+                                                        >
+                                                            {{ $variant->label }}
+                                                        </div>
+
+                                                        <div
+                                                            class="mt-1 text-xs
+                                                                   text-gray-500
+                                                                   dark:text-gray-400"
+                                                        >
+                                                            {{
+                                                                ucfirst(
+                                                                    $variant->variant_type
+                                                                )
+                                                            }}
+                                                            · Variant
+                                                            #{{ $variant->id }}
+                                                        </div>
+
+                                                        @if (
+                                                            filled(
+                                                                $variant->title_override
+                                                            )
+                                                        )
+                                                            <div
+                                                                class="mt-2 text-xs
+                                                                       text-gray-600
+                                                                       dark:text-gray-300"
+                                                            >
+                                                                {{
+                                                                    $variant
+                                                                        ->title_override
+                                                                }}
+                                                            </div>
+                                                        @endif
+
+                                                        @php
+                                                            $variantSources =
+                                                                $variant
+                                                                    ->sources
+                                                                    ->sortBy(
+                                                                        fn ($source) =>
+                                                                            match (
+                                                                                $source->provider
+                                                                            ) {
+                                                                                'songbase' => 10,
+                                                                                'hymnal_net' => 20,
+                                                                                'soundcloud' => 30,
+                                                                                'youtube' => 40,
+                                                                                default => 90,
+                                                                            }
+                                                                    )
+                                                                    ->values();
+                                                        @endphp
+
+                                                        @if (
+                                                            $variantSources
+                                                                ->isNotEmpty()
+                                                        )
+                                                            <div
+                                                                class="mt-3 flex
+                                                                       flex-wrap gap-2"
+                                                            >
+                                                                @foreach (
+                                                                    $variantSources
+                                                                    as $source
+                                                                )
+                                                                    @php
+                                                                        $variantSourceLabel =
+                                                                            $source->label
+                                                                            ?: match (
+                                                                                $source->provider
+                                                                            ) {
+                                                                                'songbase' =>
+                                                                                    'Songbase',
+
+                                                                                'hymnal_net' =>
+                                                                                    'Hymnal.net',
+
+                                                                                'soundcloud' =>
+                                                                                    'SoundCloud',
+
+                                                                                'youtube' =>
+                                                                                    'YouTube',
+
+                                                                                default =>
+                                                                                    'Other',
+                                                                            };
+                                                                    @endphp
+
+                                                                    @if (
+                                                                        filled(
+                                                                            $source->source_url
+                                                                        )
+                                                                    )
+                                                                        <a
+                                                                            href="{{ $source->source_url }}"
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            title="{{ $source->external_id }}"
+                                                                            class="inline-flex
+                                                                                   rounded-full
+                                                                                   border
+                                                                                   border-emerald-200
+                                                                                   bg-emerald-50
+                                                                                   px-2.5 py-1
+                                                                                   text-xs font-bold
+                                                                                   text-emerald-800
+                                                                                   hover:bg-emerald-100
+                                                                                   hover:underline
+                                                                                   dark:border-emerald-300
+                                                                                   dark:bg-emerald-100
+                                                                                   dark:text-emerald-950
+                                                                                   dark:hover:bg-emerald-200"
+                                                                        >
+                                                                            {{
+                                                                                $variantSourceLabel
+                                                                            }}
+                                                                        </a>
+                                                                    @else
+                                                                        <span
+                                                                            title="{{ $source->external_id }}"
+                                                                            class="inline-flex
+                                                                                   rounded-full
+                                                                                   border
+                                                                                   border-gray-200
+                                                                                   bg-gray-100
+                                                                                   px-2.5 py-1
+                                                                                   text-xs font-bold
+                                                                                   text-gray-700
+                                                                                   dark:border-gray-700
+                                                                                   dark:bg-gray-900
+                                                                                   dark:text-gray-300"
+                                                                        >
+                                                                            {{
+                                                                                $variantSourceLabel
+                                                                            }}
+                                                                        </span>
+                                                                    @endif
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            <div
+                                                                class="mt-2 text-xs
+                                                                       text-gray-500
+                                                                       dark:text-gray-400"
+                                                            >
+                                                                No source attached
+                                                                to this variant.
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

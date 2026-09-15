@@ -6,6 +6,7 @@ use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Hymn;
+use App\Support\HymnSearchRanker;
 use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
 use App\Models\MinistryBook;
@@ -1455,6 +1456,11 @@ class ShepherdingContacts extends Page
                             'like',
                             $like
                         )
+                        ->orWhere(
+                            'first_line_search',
+                            'like',
+                            $like
+                        )
                         ->orWhereHas(
                             'bookEntries',
                             fn ($entryQuery) =>
@@ -1467,14 +1473,15 @@ class ShepherdingContacts extends Page
                         );
                 }
             )
-            ->orderByRaw(
-                "CASE
-                    WHEN language = 'english'
-                    THEN 0
-                    ELSE 1
-                END"
+            ->when(
+                $search !== '',
+                fn ($query) =>
+                    HymnSearchRanker::apply(
+                        $query,
+                        $search,
+                        true
+                    )
             )
-            ->orderBy('title')
             ->limit(30)
             ->get();
     }

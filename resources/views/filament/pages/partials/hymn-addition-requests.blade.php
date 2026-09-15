@@ -337,7 +337,7 @@
                                                px-3 py-2
                                                text-sm font-bold
                                                {{ $resolutionMode === 'new'
-                                                    ? 'border-emerald-500 bg-emerald-100 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-500/15 dark:text-emerald-200'
+                                                    ? 'border-emerald-500 bg-emerald-100 text-emerald-950 dark:border-emerald-300 dark:bg-emerald-100 dark:text-emerald-950'
                                                     : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300' }}"
                                     >
                                         Create New Hymn

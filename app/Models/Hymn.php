@@ -38,6 +38,15 @@ class Hymn extends Model
             );
     }
 
+    public function variants(): HasMany
+    {
+        return $this->hasMany(
+            HymnVariant::class
+        )
+            ->orderBy('sort_order')
+            ->orderBy('variant_index');
+    }
+
     public function sources(): HasMany
     {
         return $this->hasMany(

@@ -36,6 +36,7 @@ class HymnSource extends Model
 
     protected $fillable = [
         'hymn_id',
+        'hymn_variant_id',
         'provider',
         'source_type',
         'external_id',
@@ -47,6 +48,14 @@ class HymnSource extends Model
     protected $casts = [
         'metadata' => 'array',
     ];
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(
+            HymnVariant::class,
+            'hymn_variant_id'
+        );
+    }
 
     public function hymn(): BelongsTo
     {

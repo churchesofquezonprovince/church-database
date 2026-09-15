@@ -3,6 +3,7 @@
         $matches = $this->hymnMatches();
         $selectedHymn = $this->selectedHymn();
         $linkedSources = $this->linkedSources();
+        $summary = $this->catalogSummary();
     @endphp
 
     <div class="space-y-6">
@@ -15,6 +16,85 @@
                    dark:bg-gray-900"
         >
             <div class="mb-5">
+                <h2
+                    class="text-lg font-bold
+                           text-gray-950
+                           dark:text-white"
+                >
+                    Classic Hymnal Sync
+                </h2>
+
+                <p
+                    class="mt-1 text-sm
+                           text-gray-500
+                           dark:text-gray-400"
+                >
+                    Hymnal.net collection
+                    <strong>h/1–1360</strong>.
+                    Automatic synchronization stops at
+                    1360 because h/1361 is a known
+                    corrupted boundary.
+                </p>
+            </div>
+
+            <div
+                class="grid gap-3
+                       sm:grid-cols-2
+                       lg:grid-cols-4"
+            >
+                @foreach ([
+                    'Total' => $summary['total'],
+                    'Linked' => $summary['linked'],
+                    'Unmatched' => $summary['unmatched'],
+                    'Ambiguous' => $summary['ambiguous'],
+                    'Conflicts' => $summary['conflict'],
+                    'Invalid' => $summary['invalid'],
+                    'Failed' => $summary['failed'],
+                ] as $label => $count)
+                    <div
+                        class="rounded-lg border
+                               border-gray-200
+                               bg-gray-50 p-4
+                               dark:border-white/10
+                               dark:bg-gray-950"
+                    >
+                        <div
+                            class="text-xs font-bold
+                                   uppercase tracking-wide
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            {{ $label }}
+                        </div>
+
+                        <div
+                            class="mt-1 text-2xl
+                                   font-black
+                                   text-gray-950
+                                   dark:text-white"
+                        >
+                            {{ $count }}
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+
+
+
+
+
+        <div
+            class="rounded-xl border
+                   border-gray-200
+                   bg-white p-6
+                   shadow-sm
+                   dark:border-white/10
+                   dark:bg-gray-900"
+        >
+            <div class="mb-5"
+            id="hymnal-link-form">
                 <h2
                     class="text-lg font-bold
                            text-gray-950
@@ -80,6 +160,14 @@
                                         class="font-bold
                                                text-gray-950
                                                dark:text-white"
+                                        @if (
+                                            $selectedHymnId
+                                                === $hymn->id
+                                        )
+                                            style="
+                                                color: #064e3b !important;
+                                            "
+                                        @endif
                                     >
                                         {{ $hymn->title }}
                                     </div>
@@ -88,6 +176,14 @@
                                         class="mt-1 text-xs
                                                text-gray-500
                                                dark:text-gray-400"
+                                        @if (
+                                            $selectedHymnId
+                                                === $hymn->id
+                                        )
+                                            style="
+                                                color: #047857 !important;
+                                            "
+                                        @endif
                                     >
                                         {{
                                             $hymn->language
@@ -158,7 +254,10 @@
                         <div
                             class="mt-4 rounded-lg
                                    border border-emerald-200
-                                   bg-emerald-50 p-4"
+                                   bg-emerald-50 p-4
+                                   dark:border-emerald-300
+                                   dark:bg-emerald-50
+                                   dark:text-emerald-950"
                             style="color: #064e3b !important;"
                         >
                             <div
@@ -181,12 +280,17 @@
                                 Existing sources:
                                 {{ $selectedHymn->sources->count() }}
                             </div>
+
+
                         </div>
                     @else
                         <div
                             class="mt-4 rounded-lg
                                    border border-amber-200
-                                   bg-amber-50 p-4"
+                                   bg-amber-50 p-4
+                                   dark:border-amber-300
+                                   dark:bg-amber-50
+                                   dark:text-amber-950"
                             style="color: #78350f !important;"
                         >
                             Select the canonical Hymn first.
@@ -205,20 +309,25 @@
                         </p>
                     @enderror
 
-                    <button
-                        type="button"
-                        wire:click="attachHymnalNetSource"
-                        wire:loading.attr="disabled"
-                        class="mt-4 rounded-lg
-                               bg-primary-600
-                               px-4 py-2
-                               text-sm font-bold
-                               text-white
-                               hover:bg-primary-500
-                               disabled:opacity-50"
+                    <div
+                        class="mt-4 flex
+                               flex-wrap gap-2"
                     >
-                        Link Hymnal.net Source
-                    </button>
+                        <button
+                                type="button"
+                                wire:click="attachHymnalNetSource"
+                                wire:loading.attr="disabled"
+                                class="rounded-lg
+                                       bg-primary-600
+                                       px-4 py-2
+                                       text-sm font-bold
+                                       text-white
+                                       hover:bg-primary-500
+                                       disabled:opacity-50"
+                            >
+                                Link Hymnal.net Source
+                            </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -338,7 +447,10 @@
                                                    font-bold
                                                    ring-1
                                                    ring-sky-200
-                                                   hover:underline"
+                                                   hover:underline
+                                                   dark:bg-sky-100
+                                                   dark:text-sky-950
+                                                   dark:ring-sky-300"
                                         >
                                             Hymnal.net
                                         </a>
@@ -363,7 +475,11 @@
                                                px-3 py-1.5
                                                text-xs
                                                font-bold
-                                               hover:bg-red-100"
+                                               hover:bg-red-100
+                                               dark:border-red-300
+                                               dark:bg-red-50
+                                               dark:text-red-950
+                                               dark:hover:bg-red-100"
                                     >
                                         Remove Link
                                     </button>

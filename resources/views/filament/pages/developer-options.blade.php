@@ -213,10 +213,60 @@
                             class="mt-1 text-xs text-gray-500
                                    dark:text-gray-400"
                         >
-                            Synchronized multilingual hymn catalog
+                            Canonical Hymns, variants, sources and reviews
                         </div>
                     </div>
                 </a>
+
+                <a
+                    href="{{ \App\Filament\Pages\SongbaseSetup::getUrl() }}"
+                    class="group flex items-center gap-4
+                           rounded-xl border border-gray-200
+                           p-4 transition
+                           hover:border-primary-300
+                           hover:bg-primary-50
+                           dark:border-gray-700
+                           dark:hover:border-primary-700
+                           dark:hover:bg-primary-950"
+                >
+                    <div
+                        class="flex h-10 w-10 shrink-0
+                               items-center justify-center
+                               rounded-lg bg-gray-100
+                               text-gray-600
+                               group-hover:bg-primary-100
+                               group-hover:text-primary-700
+                               dark:bg-gray-800
+                               dark:text-gray-300
+                               dark:group-hover:bg-primary-900
+                               dark:group-hover:text-primary-200"
+                    >
+                        <x-filament::icon
+                            icon="heroicon-o-arrow-path"
+                            class="h-5 w-5"
+                        />
+                    </div>
+
+                    <div class="min-w-0">
+                        <div
+                            class="font-bold
+                                   text-gray-950
+                                   dark:text-white"
+                        >
+                            Songbase Setup
+                        </div>
+
+                        <div
+                            class="mt-1 text-xs
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            Songbase sync, books,
+                            languages and source status
+                        </div>
+                    </div>
+                </a>
+
 
                 <a
                     href="{{ \App\Filament\Pages\HymnalNetSetup::getUrl() }}"

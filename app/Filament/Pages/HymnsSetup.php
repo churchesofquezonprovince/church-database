@@ -5,8 +5,11 @@ namespace App\Filament\Pages;
 use App\Models\Hymn;
 use App\Models\HymnAdditionRequest;
 use App\Models\HymnBook;
+use App\Models\HymnalNetEntry;
+use App\Models\HymnSource;
+use App\Models\HymnVariant;
 use App\Services\HymnAdditionRequestReviewService;
-use App\Services\SongbaseHymnSyncService;
+use App\Support\HymnSearchRanker;
 use App\Support\HymnSourceResolver;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -31,6 +34,21 @@ class HymnsSetup extends Page
     public string $reviewedSource = 'all';
 
     public string $reviewedSearch = '';
+
+    /*
+     * Centralized Hymnal.net review state.
+     * Provider synchronization remains in
+     * Hymnal.net Setup; review decisions live here.
+     */
+    public string $hymnalReviewSearch = '';
+
+    public ?int $selectedHymnId = null;
+
+    public string $hymnalUrl = '';
+
+    public ?int $reviewEntryId = null;
+
+    public ?int $selectedVariantId = null;
 
     /*
      * Pending Hymn Request resolution state.
@@ -92,7 +110,7 @@ class HymnsSetup extends Page
     public function summary(): array
     {
         return [
-            'songs' =>
+            'hymns' =>
                 Hymn::query()->count(),
 
             'active' =>
@@ -100,6 +118,48 @@ class HymnsSetup extends Page
                     ->where('is_active', true)
                     ->count(),
 
+            'variants' =>
+                HymnVariant::query()
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->count(),
+
+            'sources' =>
+                HymnSource::query()->count(),
+
+            'providers' =>
+                HymnSource::query()
+                    ->distinct()
+                    ->count('provider'),
+
+            'pending_requests' =>
+                HymnAdditionRequest::query()
+                    ->where(
+                        'status',
+                        HymnAdditionRequest::STATUS_PENDING
+                    )
+                    ->count(),
+
+            'variant_review' =>
+                $this
+                    ->variantReviewEntries()
+                    ->count(),
+
+            'provisional_review' =>
+                $this
+                    ->provisionalReviewEntries()
+                    ->count(),
+
+            'needs_review' =>
+                $this
+                    ->unresolvedEntries()
+                    ->count(),
+
+            /*
+             * Retained for the language/book sections.
+             */
             'languages' =>
                 Hymn::query()
                     ->whereNotNull('language')
@@ -113,22 +173,6 @@ class HymnsSetup extends Page
                 DB::table(
                     'hymn_book_entries'
                 )->count(),
-
-            'pending_requests' =>
-                HymnAdditionRequest::query()
-                    ->where(
-                        'status',
-                        HymnAdditionRequest::STATUS_PENDING
-                    )
-                    ->count(),
-
-            'last_synced_at' =>
-                Hymn::query()
-                    ->where(
-                        'source',
-                        'songbase'
-                    )
-                    ->max('last_synced_at'),
         ];
     }
 
@@ -888,6 +932,512 @@ class HymnsSetup extends Page
         }
     }
 
+    public function hymnalReviewMatches(): Collection
+    {
+        $search =
+            trim($this->hymnalReviewSearch);
+
+        if ($search === '') {
+            return collect();
+        }
+
+        $like =
+            '%' . $search . '%';
+
+        return Hymn::query()
+            ->where(
+                'is_active',
+                true
+            )
+            ->with([
+                'bookEntries.hymnBook',
+                'sources',
+            ])
+            ->where(
+                function ($query) use (
+                    $like
+                ): void {
+                    $query
+                        ->where(
+                            'title',
+                            'like',
+                            $like
+                        )
+                        ->orWhere(
+                            'lyrics_search',
+                            'like',
+                            $like
+                        )
+                        ->orWhere(
+                            'source_id',
+                            'like',
+                            $like
+                        )
+                        ->orWhereHas(
+                            'bookEntries',
+                            fn ($entryQuery) =>
+                                $entryQuery
+                                    ->where(
+                                        'number',
+                                        'like',
+                                        $like
+                                    )
+                        );
+                }
+            )
+            ->orderByRaw(
+                "CASE
+                    WHEN language = 'english'
+                    THEN 0
+                    ELSE 1
+                END"
+            )
+            ->orderBy('title')
+            ->limit(30)
+            ->get();
+    }
+
+
+    public function selectHymnalReviewHymn(
+        int $hymnId
+    ): void {
+        $hymn =
+            Hymn::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->findOrFail(
+                    $hymnId
+                );
+
+        $this->selectedHymnId =
+            $hymn->id;
+
+        $variantIds =
+            $hymn
+                ->variants()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->pluck('id');
+
+        $this->selectedVariantId =
+            $variantIds->count() === 1
+                ? (int) $variantIds->first()
+                : null;
+
+        $this->hymnalReviewSearch =
+            $hymn->title;
+    }
+
+
+    public function selectedHymnalReviewHymn(): ?Hymn
+    {
+        if (! $this->selectedHymnId) {
+            return null;
+        }
+
+        return Hymn::query()
+            ->with([
+                'bookEntries.hymnBook',
+                'sources',
+                'variants.sources',
+            ])
+            ->find(
+                $this->selectedHymnId
+            );
+    }
+
+
+    public function variantReviewEntries(): Collection
+    {
+        return HymnalNetEntry::query()
+            ->where(
+                'collection_code',
+                'h'
+            )
+            ->where(
+                'match_status',
+                'linked'
+            )
+            ->whereNotNull(
+                'matched_hymn_id'
+            )
+            ->whereNull(
+                'matched_hymn_variant_id'
+            )
+            ->with([
+                'matchedHymn.variants' =>
+                    fn ($query) =>
+                        $query->where(
+                            'is_active',
+                            true
+                        ),
+            ])
+            ->orderByRaw(
+                'CAST(number AS UNSIGNED)'
+            )
+            ->get()
+            ->filter(
+                fn (HymnalNetEntry $entry): bool =>
+                    (
+                        $entry
+                            ->matchedHymn
+                            ?->variants
+                            ?->count()
+                        ?? 0
+                    ) > 1
+            )
+            ->values();
+    }
+
+
+    public function provisionalReviewEntries(): Collection
+    {
+        return HymnalNetEntry::query()
+            ->where(
+                'collection_code',
+                'h'
+            )
+            ->where(
+                'match_status',
+                'linked'
+            )
+            ->where(
+                'match_method',
+                'manual_review_provisional'
+            )
+            ->with([
+                'matchedHymn',
+                'matchedVariant',
+            ])
+            ->orderByRaw(
+                'CAST(number AS UNSIGNED)'
+            )
+            ->get();
+    }
+
+
+    public function unresolvedEntries(): Collection
+    {
+        return HymnalNetEntry::query()
+            ->where(
+                'collection_code',
+                'h'
+            )
+            ->where(
+                'match_status',
+                '!=',
+                'linked'
+            )
+            ->orderByRaw(
+                'CAST(number AS UNSIGNED)'
+            )
+            ->get();
+    }
+
+
+    public function reviewedEntry(): ?HymnalNetEntry
+    {
+        if (! $this->reviewEntryId) {
+            return null;
+        }
+
+        return HymnalNetEntry::query()
+            ->find(
+                $this->reviewEntryId
+            );
+    }
+
+
+    public function beginReview(
+        int $entryId
+    ): void {
+        $entry =
+            HymnalNetEntry::query()
+                ->where(
+                    'collection_code',
+                    'h'
+                )
+                ->findOrFail(
+                    $entryId
+                );
+
+        $entry->load(
+            'matchedHymn'
+        );
+
+        $this->reviewEntryId =
+            $entry->id;
+
+        $this->selectedHymnId =
+            $entry->matched_hymn_id;
+
+        $this->selectedVariantId =
+            $entry->matched_hymn_variant_id;
+
+        $this->hymnalReviewSearch =
+            $entry->matchedHymn?->title
+            ?? $entry->title
+            ?? '';
+
+        $this->hymnalUrl =
+            $entry->source_url;
+
+        Notification::make()
+            ->title(
+                'Hymnal.net review loaded'
+            )
+            ->body(
+                $entry->collection_code
+                . '/'
+                . $entry->number
+                . ' — '
+                . ($entry->title ?? 'Untitled')
+            )
+            ->success()
+            ->send();
+    }
+
+
+    public function cancelReview(): void
+    {
+        $this->reviewEntryId =
+            null;
+
+        $this->selectedHymnId =
+            null;
+
+        $this->selectedVariantId =
+            null;
+
+        $this->hymnalReviewSearch = '';
+
+        $this->hymnalUrl = '';
+    }
+
+
+    public function resolveReviewedEntry(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $this->validate([
+            'reviewEntryId' => [
+                'required',
+                'integer',
+                'exists:hymnal_net_entries,id',
+            ],
+
+            'selectedHymnId' => [
+                'required',
+                'integer',
+                'exists:hymns,id',
+            ],
+        ]);
+
+        try {
+            $entry =
+                HymnalNetEntry::query()
+                    ->findOrFail(
+                        $this->reviewEntryId
+                    );
+
+            $hymn =
+                Hymn::query()
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->findOrFail(
+                        $this->selectedHymnId
+                    );
+
+            $activeVariants =
+                $hymn
+                    ->variants()
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->get();
+
+            $variant = null;
+
+            if (
+                $activeVariants->isNotEmpty()
+            ) {
+                if (! $this->selectedVariantId) {
+                    throw new \RuntimeException(
+                        'Select the correct Hymn variant '
+                        . 'before resolving this entry.'
+                    );
+                }
+
+                $variant =
+                    $activeVariants
+                        ->firstWhere(
+                            'id',
+                            $this->selectedVariantId
+                        );
+
+                if (! $variant) {
+                    throw new \RuntimeException(
+                        'The selected variant does not '
+                        . 'belong to this Hymn.'
+                    );
+                }
+            }
+
+            $externalId =
+                HymnalNetSource
+                    ::externalIdForUrl(
+                        $entry->source_url
+                    );
+
+            $existingElsewhere =
+                HymnSource::query()
+                    ->where(
+                        'provider',
+                        HymnSource
+                            ::PROVIDER_HYMNAL_NET
+                    )
+                    ->where(
+                        'external_id',
+                        $externalId
+                    )
+                    ->where(
+                        'hymn_id',
+                        '!=',
+                        $hymn->id
+                    )
+                    ->with('hymn')
+                    ->first();
+
+            if ($existingElsewhere) {
+                throw new \RuntimeException(
+                    'That Hymnal.net page is already '
+                    . 'linked to "'
+                    . (
+                        $existingElsewhere
+                            ->hymn
+                            ?->title
+                        ?? 'another Hymn'
+                    )
+                    . '".'
+                );
+            }
+
+            HymnSource::query()
+                ->updateOrCreate(
+                    [
+                        'hymn_id' =>
+                            $hymn->id,
+
+                        'provider' =>
+                            HymnSource
+                                ::PROVIDER_HYMNAL_NET,
+
+                        'external_id' =>
+                            $externalId,
+                    ],
+                    [
+                        'hymn_variant_id' =>
+                            $variant?->id,
+
+                        'source_type' =>
+                            HymnSource::TYPE_CATALOG,
+
+                        'source_url' =>
+                            $entry->source_url,
+
+                        'label' =>
+                            'Hymnal.net',
+
+                        'metadata' => [
+                            'collection' =>
+                                $entry
+                                    ->collection_code,
+
+                            'number' =>
+                                $entry->number,
+
+                            'title' =>
+                                $entry->title,
+
+                            'sync' =>
+                                'hymnal_net_catalog',
+
+                            'match_method' =>
+                                'manual_review',
+                        ],
+                    ]
+                );
+
+            $entry->update([
+                'matched_hymn_id' =>
+                    $hymn->id,
+
+                'matched_hymn_variant_id' =>
+                    $variant?->id,
+
+                'match_status' =>
+                    'linked',
+
+                'match_method' =>
+                    'manual_review',
+
+                'match_score' =>
+                    100,
+            ]);
+
+            $this->reviewEntryId =
+                null;
+
+            $this->selectedHymnId =
+                null;
+
+            $this->selectedVariantId =
+                null;
+
+            $this->hymnalReviewSearch = '';
+
+            $this->hymnalUrl = '';
+
+            Notification::make()
+                ->title(
+                    'Hymnal.net entry resolved'
+                )
+                ->body(
+                    $entry->collection_code
+                    . '/'
+                    . $entry->number
+                    . ' linked to '
+                    . $hymn->title
+                    . '.'
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Hymnal.net entry was not resolved'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
     public function hymns(): Collection
     {
         $search =
@@ -897,6 +1447,7 @@ class HymnsSetup extends Page
             ->with([
                 'bookEntries.hymnBook',
                 'sources',
+                'variants.sources',
             ])
             ->where('is_active', true)
             ->when(
@@ -923,14 +1474,58 @@ class HymnsSetup extends Page
                                     "%{$search}%"
                                 )
                                 ->orWhere(
-                                    'source_id',
+                                    'lyrics_search',
                                     'like',
                                     "%{$search}%"
                                 )
                                 ->orWhere(
-                                    'lyrics_search',
+                                    'first_line_search',
                                     'like',
                                     "%{$search}%"
+                                )
+                                ->orWhereHas(
+                                    'sources',
+                                    fn ($sourceQuery) =>
+                                        $sourceQuery
+                                            ->where(
+                                                'external_id',
+                                                'like',
+                                                "%{$search}%"
+                                            )
+                                )
+                                ->orWhereHas(
+                                    'variants',
+                                    function ($variantQuery) use (
+                                        $search
+                                    ): void {
+                                        $variantQuery
+                                            ->where(
+                                                'is_active',
+                                                true
+                                            )
+                                            ->where(
+                                                function ($query) use (
+                                                    $search
+                                                ): void {
+                                                    $query
+                                                        ->where(
+                                                            'label',
+                                                            'like',
+                                                            "%{$search}%"
+                                                        )
+                                                        ->orWhere(
+                                                            'title_override',
+                                                            'like',
+                                                            "%{$search}%"
+                                                        )
+                                                        ->orWhere(
+                                                            'source_id',
+                                                            'like',
+                                                            "%{$search}%"
+                                                        );
+                                                }
+                                            );
+                                    }
                                 )
                                 ->orWhereHas(
                                     'bookEntries',
@@ -946,51 +1541,22 @@ class HymnsSetup extends Page
                     );
                 }
             )
-            ->orderBy('title')
+            ->when(
+                $search !== '',
+                fn ($query) =>
+                    HymnSearchRanker::apply(
+                        $query,
+                        $search
+                    )
+            )
+            ->when(
+                $search === '',
+                fn ($query) =>
+                    $query->orderBy('title')
+            )
             ->limit(100)
             ->get();
     }
 
-    public function syncSongbase(): void
-    {
-        abort_unless(
-            auth()->user()?->isAdmin(),
-            403
-        );
 
-        try {
-            $result =
-                app(
-                    SongbaseHymnSyncService::class
-                )->fullSync();
-
-            Notification::make()
-                ->title(
-                    'Songbase synchronization completed'
-                )
-                ->body(
-                    number_format(
-                        $result['songs_received']
-                    )
-                    . ' songs and '
-                    . number_format(
-                        $result['book_entries']
-                    )
-                    . ' book entries synchronized.'
-                )
-                ->success()
-                ->send();
-        } catch (Throwable $e) {
-            Notification::make()
-                ->title(
-                    'Songbase synchronization failed'
-                )
-                ->body(
-                    $e->getMessage()
-                )
-                ->danger()
-                ->persistent()
-                ->send();
-        }
-    }
 }
