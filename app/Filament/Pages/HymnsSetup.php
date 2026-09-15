@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\HymnalNetSource;
 use App\Models\Hymn;
 use App\Models\HymnAdditionRequest;
 use App\Models\HymnBook;
@@ -49,6 +50,12 @@ class HymnsSetup extends Page
     public ?int $reviewEntryId = null;
 
     public ?int $selectedVariantId = null;
+
+    /*
+     * Editable title used when a genuinely-unmatched
+     * Hymnal.net entry needs a new canonical Hymn.
+     */
+    public string $newCanonicalTitle = '';
 
     /*
      * Pending Hymn Request resolution state.
@@ -1226,6 +1233,10 @@ class HymnsSetup extends Page
             ?? $entry->title
             ?? '';
 
+        $this->newCanonicalTitle =
+            $entry->title
+            ?? '';
+
         $this->hymnalUrl =
             $entry->source_url;
 
@@ -1257,6 +1268,8 @@ class HymnsSetup extends Page
             null;
 
         $this->hymnalReviewSearch = '';
+
+        $this->newCanonicalTitle = '';
 
         $this->hymnalUrl = '';
     }
@@ -1449,6 +1462,8 @@ class HymnsSetup extends Page
 
             $this->hymnalReviewSearch = '';
 
+            $this->newCanonicalTitle = '';
+
             $this->hymnalUrl = '';
 
             Notification::make()
@@ -1478,6 +1493,331 @@ class HymnsSetup extends Page
                 ->danger()
                 ->send();
         }
+    }
+
+
+    public function createCanonicalFromReviewedEntry(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $this->validate([
+            'reviewEntryId' => [
+                'required',
+                'integer',
+                'exists:hymnal_net_entries,id',
+            ],
+
+            'newCanonicalTitle' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        try {
+            $entry =
+                HymnalNetEntry::query()
+                    ->where(
+                        'collection_code',
+                        'h'
+                    )
+                    ->findOrFail(
+                        $this->reviewEntryId
+                    );
+
+            /*
+             * Only a genuinely-unmatched entry may
+             * create a new canonical Hymn.
+             *
+             * Ambiguous and conflict cases must be
+             * reconciled with existing Hymns instead.
+             */
+            if (
+                $entry->match_status
+                    !== 'unmatched'
+            ) {
+                throw new \RuntimeException(
+                    'A new canonical Hymn may only be '
+                    . 'created from an unmatched '
+                    . 'Hymnal.net entry.'
+                );
+            }
+
+            $title =
+                preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    trim(
+                        $this->newCanonicalTitle
+                    )
+                )
+                ?? trim(
+                    $this->newCanonicalTitle
+                );
+
+            if ($title === '') {
+                throw new \RuntimeException(
+                    'Enter a canonical Hymn title.'
+                );
+            }
+
+            /*
+             * Check again immediately before creation.
+             *
+             * This protects against creating another
+             * canonical Hymn when an exact normalized
+             * title already exists.
+             */
+            $normalizedTitle =
+                $this->normalizeReviewTitle(
+                    $title
+                );
+
+            $existingTitleMatch =
+                Hymn::query()
+                    ->whereNotNull('title')
+                    ->get([
+                        'id',
+                        'title',
+                    ])
+                    ->first(
+                        fn (Hymn $hymn): bool =>
+                            $this
+                                ->normalizeReviewTitle(
+                                    $hymn->title
+                                )
+                            === $normalizedTitle
+                    );
+
+            if ($existingTitleMatch) {
+                throw new \RuntimeException(
+                    'Canonical Hymn #'
+                    . $existingTitleMatch->id
+                    . ' already has the title "'
+                    . $existingTitleMatch->title
+                    . '". Select that existing Hymn '
+                    . 'instead of creating a duplicate.'
+                );
+            }
+
+            $externalId =
+                HymnalNetSource
+                    ::externalIdForUrl(
+                        $entry->source_url
+                    );
+
+            /*
+             * The same Hymnal.net page must never be
+             * attached to two canonical Hymns.
+             */
+            $existingSource =
+                HymnSource::query()
+                    ->where(
+                        'provider',
+                        HymnSource
+                            ::PROVIDER_HYMNAL_NET
+                    )
+                    ->where(
+                        'external_id',
+                        $externalId
+                    )
+                    ->with('hymn')
+                    ->first();
+
+            if ($existingSource) {
+                throw new \RuntimeException(
+                    'That Hymnal.net page is already '
+                    . 'attached to canonical Hymn #'
+                    . $existingSource->hymn_id
+                    . ' "'
+                    . (
+                        $existingSource
+                            ->hymn
+                            ?->title
+                        ?? 'Unknown Hymn'
+                    )
+                    . '". Review that existing link '
+                    . 'instead.'
+                );
+            }
+
+            $hymn =
+                DB::transaction(
+                    function () use (
+                        $entry,
+                        $externalId,
+                        $title
+                    ): Hymn {
+                        /*
+                         * `source` remains a transitional
+                         * legacy field.
+                         *
+                         * Provider truth is stored in
+                         * hymn_sources, not here.
+                         */
+                        $hymn =
+                            Hymn::query()
+                                ->create([
+                                    'source' =>
+                                        'manual',
+
+                                    'source_id' =>
+                                        null,
+
+                                    'title' =>
+                                        $title,
+
+                                    'language' =>
+                                        'english',
+
+                                    'is_active' =>
+                                        true,
+                                ]);
+
+                        /*
+                         * Do not invent a variant.
+                         *
+                         * Until there is evidence of a
+                         * tune/revision family, attach the
+                         * Hymnal.net source directly to the
+                         * canonical Hymn.
+                         */
+                        HymnSource::query()
+                            ->create([
+                                'hymn_id' =>
+                                    $hymn->id,
+
+                                'hymn_variant_id' =>
+                                    null,
+
+                                'provider' =>
+                                    HymnSource
+                                        ::PROVIDER_HYMNAL_NET,
+
+                                'source_type' =>
+                                    HymnSource
+                                        ::TYPE_CATALOG,
+
+                                'external_id' =>
+                                    $externalId,
+
+                                'source_url' =>
+                                    $entry->source_url,
+
+                                'label' =>
+                                    'Hymnal.net',
+
+                                'metadata' => [
+                                    'collection' =>
+                                        $entry
+                                            ->collection_code,
+
+                                    'number' =>
+                                        $entry->number,
+
+                                    'title' =>
+                                        $entry->title,
+
+                                    'sync' =>
+                                        'hymnal_net_catalog',
+
+                                    'match_method' =>
+                                        'manual_review',
+
+                                    'review_action' =>
+                                        'created_canonical',
+                                ],
+                            ]);
+
+                        $entry->update([
+                            'matched_hymn_id' =>
+                                $hymn->id,
+
+                            'matched_hymn_variant_id' =>
+                                null,
+
+                            'match_status' =>
+                                'linked',
+
+                            'match_method' =>
+                                'manual_review',
+
+                            'match_score' =>
+                                100,
+                        ]);
+
+                        return $hymn;
+                    }
+                );
+
+            $entryNumber =
+                $entry->collection_code
+                . '/'
+                . $entry->number;
+
+            $this->cancelReview();
+
+            Notification::make()
+                ->title(
+                    'Canonical Hymn created'
+                )
+                ->body(
+                    $entryNumber
+                    . ' was linked to new canonical '
+                    . 'Hymn #'
+                    . $hymn->id
+                    . ' "'
+                    . $hymn->title
+                    . '".'
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Canonical Hymn was not created'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    private function normalizeReviewTitle(
+        ?string $title
+    ): string {
+        $title =
+            mb_strtolower(
+                trim(
+                    (string) $title
+                )
+            );
+
+        $title =
+            preg_replace(
+                '/[^\p{L}\p{N}]+/u',
+                ' ',
+                $title
+            )
+            ?? $title;
+
+        $title =
+            preg_replace(
+                '/\s+/u',
+                ' ',
+                $title
+            )
+            ?? $title;
+
+        return trim($title);
     }
 
 

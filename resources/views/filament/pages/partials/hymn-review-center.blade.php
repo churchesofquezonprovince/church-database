@@ -682,13 +682,13 @@
                        text-gray-700
                        dark:text-gray-200"
             >
-                Find canonical Hymn
+                Find Existing Canonical Hymn
             </label>
 
             <input
                 type="search"
                 wire:model.live.debounce.400ms="hymnalReviewSearch"
-                placeholder="Search title, lyrics, Songbase ID, or hymn number..."
+                placeholder="Search title, any source lyrics, source ID, or hymn number..."
                 class="mt-2 block w-full rounded-xl
                        border border-gray-300
                        bg-white px-4 py-3
@@ -756,6 +756,109 @@
                         @endif
                     </button>
                 @endforeach
+            </div>
+        @endif
+
+        @if (
+            $reviewedEntry->match_status
+                === 'unmatched'
+        )
+            <div
+                class="hymn-review-light-sky
+                       mt-6 rounded-xl border
+                       border-sky-300 bg-sky-50
+                       p-5
+                       text-sky-950
+                       dark:border-sky-300
+                       dark:bg-sky-50
+                       dark:text-sky-950"
+            >
+                <div
+                    class="text-sm font-bold
+                           text-sky-950
+                           dark:text-sky-950"
+                >
+                    No correct canonical Hymn exists?
+                </div>
+
+                <p
+                    class="mt-1 text-sm
+                           text-sky-900
+                           dark:text-sky-900"
+                >
+                    Create a new canonical Hymn only
+                    when this Hymnal.net entry represents
+                    a genuine Hymn that does not already
+                    exist in the CoQP catalog.
+                </p>
+
+                <label
+                    class="mt-4 block text-xs
+                           font-bold uppercase
+                           tracking-wide
+                           text-sky-950
+                           dark:text-sky-950"
+                >
+                    New Canonical Hymn Title
+                </label>
+
+                <input
+                    type="text"
+                    wire:model="newCanonicalTitle"
+                    class="mt-2 block w-full
+                           rounded-xl border
+                           border-gray-300 bg-white
+                           px-4 py-3 text-sm
+                           text-gray-950 shadow-sm
+                           dark:border-gray-300
+                           dark:bg-white
+                           dark:text-gray-950"
+                >
+
+                <div
+                    class="mt-3 rounded-lg border
+                           border-gray-200 bg-white p-3
+                           text-xs text-gray-700
+                           dark:border-gray-200
+                           dark:bg-white
+                           dark:text-gray-700"
+                >
+                    <strong>Language:</strong>
+                    English
+
+                    <span class="mx-1">·</span>
+
+                    <strong>Provider:</strong>
+                    Hymnal.net
+
+                    <span class="mx-1">·</span>
+
+                    <strong>Variant:</strong>
+                    None initially
+                </div>
+
+                <p
+                    class="mt-3 text-xs
+                           text-sky-900
+                           dark:text-sky-900"
+                >
+                    This creates the canonical identity
+                    and attaches this Hymnal.net source.
+                    It does not import Hymnal.net lyrics
+                    yet.
+                </p>
+
+                <div class="mt-4">
+                    <x-filament::button
+                        wire:click="createCanonicalFromReviewedEntry"
+                        wire:confirm="Create a new canonical Hymn from this unmatched Hymnal.net entry?"
+                        icon="heroicon-m-plus"
+                        color="success"
+                        :disabled="trim($newCanonicalTitle) === ''"
+                    >
+                        Create New Canonical Hymn
+                    </x-filament::button>
+                </div>
             </div>
         @endif
 
@@ -866,7 +969,7 @@
                 icon="heroicon-m-check"
                 :disabled="! $selectedHymnId"
             >
-                Resolve Review
+                Link Existing Canonical Hymn
             </x-filament::button>
 
             <x-filament::button
