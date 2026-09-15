@@ -19,7 +19,7 @@ class HymnalNetSetup extends Page
     protected static ?string $slug =
         'hymnal-net-setup';
 
-    public string $search = '';
+    public string $hymnSearch = '';
 
     public ?int $selectedHymnId = null;
 
@@ -74,7 +74,7 @@ class HymnalNetSetup extends Page
     public function hymnMatches(): Collection
     {
         $search =
-            trim($this->search);
+            trim($this->hymnSearch);
 
         if ($search === '') {
             return collect();
@@ -102,10 +102,33 @@ class HymnalNetSetup extends Page
                             'like',
                             $like
                         )
-                        ->orWhere(
-                            'lyrics_search',
-                            'like',
-                            $like
+                        ->orWhereHas(
+                            'sources',
+                            function (
+                                $sourceQuery
+                            ) use (
+                                $like
+                            ): void {
+                                $sourceQuery->where(
+                                    function (
+                                        $lyricsQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $lyricsQuery
+                                            ->where(
+                                                'first_line_search',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lyrics_search',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                            }
                         )
                         ->orWhereHas(
                             'sources',
@@ -129,14 +152,16 @@ class HymnalNetSetup extends Page
                         );
                 }
             )
-            ->orderByRaw(
-                "CASE
-                    WHEN language = 'english'
-                    THEN 0
-                    ELSE 1
-                END"
+            ->when(
+                $search !== '',
+                fn ($query) =>
+                    \App\Support\HymnSearchRanker
+                        ::apply(
+                            $query,
+                            $search,
+                            true
+                        )
             )
-            ->orderBy('title')
             ->limit(30)
             ->get();
     }
@@ -157,7 +182,7 @@ class HymnalNetSetup extends Page
         $this->selectedHymnId =
             $hymn->id;
 
-        $this->search =
+        $this->hymnSearch =
             $hymn->title;
     }
 
@@ -342,6 +367,35 @@ class HymnalNetSetup extends Page
                                                 'title',
                                                 'like',
                                                 $like
+                                            )
+                                            ->orWhereHas(
+                                                'sources',
+                                                function (
+                                                    $sourceQuery
+                                                ) use (
+                                                    $like
+                                                ): void {
+                                                    $sourceQuery
+                                                        ->where(
+                                                            function (
+                                                                $lyricsQuery
+                                                            ) use (
+                                                                $like
+                                                            ): void {
+                                                                $lyricsQuery
+                                                                    ->where(
+                                                                        'first_line_search',
+                                                                        'like',
+                                                                        $like
+                                                                    )
+                                                                    ->orWhere(
+                                                                        'lyrics_search',
+                                                                        'like',
+                                                                        $like
+                                                                    );
+                                                            }
+                                                        );
+                                                }
                                             )
                                             ->orWhereHas(
                                                 'sources',

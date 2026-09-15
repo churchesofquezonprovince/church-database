@@ -340,15 +340,39 @@ class SongbaseSetup extends Page
                                     'like',
                                     $like
                                 )
-                                ->orWhere(
-                                    'first_line_search',
-                                    'like',
-                                    $like
-                                )
-                                ->orWhere(
-                                    'lyrics_search',
-                                    'like',
-                                    $like
+                                ->orWhereHas(
+                                    'sources',
+                                    function (
+                                        $sourceQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $sourceQuery
+                                            ->where(
+                                                'provider',
+                                                HymnSource
+                                                    ::PROVIDER_SONGBASE
+                                            )
+                                            ->where(
+                                                function (
+                                                    $lyricsQuery
+                                                ) use (
+                                                    $like
+                                                ): void {
+                                                    $lyricsQuery
+                                                        ->where(
+                                                            'first_line_search',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhere(
+                                                            'lyrics_search',
+                                                            'like',
+                                                            $like
+                                                        );
+                                                }
+                                            );
+                                    }
                                 )
                                 ->orWhereHas(
                                     'sources',
@@ -440,7 +464,10 @@ class SongbaseSetup extends Page
 
                     HymnSearchRanker::apply(
                         $query,
-                        $search
+                        $search,
+                        false,
+                        HymnSource
+                            ::PROVIDER_SONGBASE
                     );
                 }
             )

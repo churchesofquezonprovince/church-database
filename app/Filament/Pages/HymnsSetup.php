@@ -635,10 +635,29 @@ class HymnsSetup extends Page
                             'like',
                             "%{$search}%"
                         )
-                        ->orWhere(
-                            'lyrics_search',
-                            'like',
-                            "%{$search}%"
+                        ->orWhereHas(
+                            'sources',
+                            function ($sourceQuery) use (
+                                $search
+                            ): void {
+                                $sourceQuery->where(
+                                    function ($lyricsQuery) use (
+                                        $search
+                                    ): void {
+                                        $lyricsQuery
+                                            ->where(
+                                                'first_line_search',
+                                                'like',
+                                                "%{$search}%"
+                                            )
+                                            ->orWhere(
+                                                'lyrics_search',
+                                                'like',
+                                                "%{$search}%"
+                                            );
+                                    }
+                                );
+                            }
                         )
                         ->orWhereHas(
                             'bookEntries',
@@ -963,15 +982,38 @@ class HymnsSetup extends Page
                             'like',
                             $like
                         )
-                        ->orWhere(
-                            'lyrics_search',
-                            'like',
-                            $like
+                        ->orWhereHas(
+                            'sources',
+                            function ($sourceQuery) use (
+                                $like
+                            ): void {
+                                $sourceQuery->where(
+                                    function ($lyricsQuery) use (
+                                        $like
+                                    ): void {
+                                        $lyricsQuery
+                                            ->where(
+                                                'first_line_search',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lyrics_search',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                            }
                         )
-                        ->orWhere(
-                            'source_id',
-                            'like',
-                            $like
+                        ->orWhereHas(
+                            'sources',
+                            fn ($sourceQuery) =>
+                                $sourceQuery->where(
+                                    'external_id',
+                                    'like',
+                                    $like
+                                )
                         )
                         ->orWhereHas(
                             'bookEntries',
@@ -985,14 +1027,15 @@ class HymnsSetup extends Page
                         );
                 }
             )
-            ->orderByRaw(
-                "CASE
-                    WHEN language = 'english'
-                    THEN 0
-                    ELSE 1
-                END"
+            ->when(
+                $search !== '',
+                fn ($query) =>
+                    HymnSearchRanker::apply(
+                        $query,
+                        $search,
+                        true
+                    )
             )
-            ->orderBy('title')
             ->limit(30)
             ->get();
     }
@@ -1473,15 +1516,29 @@ class HymnsSetup extends Page
                                     'like',
                                     "%{$search}%"
                                 )
-                                ->orWhere(
-                                    'lyrics_search',
-                                    'like',
-                                    "%{$search}%"
-                                )
-                                ->orWhere(
-                                    'first_line_search',
-                                    'like',
-                                    "%{$search}%"
+                                ->orWhereHas(
+                                    'sources',
+                                    function ($sourceQuery) use (
+                                        $search
+                                    ): void {
+                                        $sourceQuery->where(
+                                            function ($lyricsQuery) use (
+                                                $search
+                                            ): void {
+                                                $lyricsQuery
+                                                    ->where(
+                                                        'first_line_search',
+                                                        'like',
+                                                        "%{$search}%"
+                                                    )
+                                                    ->orWhere(
+                                                        'lyrics_search',
+                                                        'like',
+                                                        "%{$search}%"
+                                                    );
+                                            }
+                                        );
+                                    }
                                 )
                                 ->orWhereHas(
                                     'sources',
@@ -1515,11 +1572,6 @@ class HymnsSetup extends Page
                                                         )
                                                         ->orWhere(
                                                             'title_override',
-                                                            'like',
-                                                            "%{$search}%"
-                                                        )
-                                                        ->orWhere(
-                                                            'source_id',
                                                             'like',
                                                             "%{$search}%"
                                                         );

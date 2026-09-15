@@ -1451,15 +1451,33 @@ class ShepherdingContacts extends Page
                             'like',
                             $like
                         )
-                        ->orWhere(
-                            'lyrics_search',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'first_line_search',
-                            'like',
-                            $like
+                        ->orWhereHas(
+                            'sources',
+                            function (
+                                $sourceQuery
+                            ) use (
+                                $like
+                            ): void {
+                                $sourceQuery->where(
+                                    function (
+                                        $lyricsQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $lyricsQuery
+                                            ->where(
+                                                'first_line_search',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lyrics_search',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                            }
                         )
                         ->orWhereHas(
                             'bookEntries',

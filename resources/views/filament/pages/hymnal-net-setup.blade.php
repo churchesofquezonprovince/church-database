@@ -166,13 +166,13 @@
                                text-gray-700
                                dark:text-gray-200"
                     >
-                        Find Canonical Hymn
+                        Find Existing Canonical Hymn
                     </label>
 
                     <input
                         type="search"
-                        wire:model.live.debounce.300ms="search"
-                        placeholder="Search title, lyrics, hymn number..."
+                        wire:model.live.debounce.300ms="hymnSearch"
+                        placeholder="Search title, any source lyrics, hymn number, or source ID..."
                         class="block w-full rounded-xl
                                border border-gray-300
                                bg-white px-4 py-3
@@ -183,7 +183,7 @@
                                dark:text-white"
                     >
 
-                    @if (trim($search) !== '')
+                    @if (trim($hymnSearch) !== '')
                         <div
                             class="mt-3 max-h-80
                                    space-y-2
@@ -419,7 +419,7 @@
                     <input
                         type="search"
                         wire:model.live.debounce.300ms="linkedSearch"
-                        placeholder="Search linked Hymns..."
+                        placeholder="Filter existing Hymnal.net links by title, URL, or Hymnal.net ID..."
                         class="block w-full rounded-xl
                                border border-gray-300
                                bg-white px-4 py-3
@@ -546,7 +546,7 @@
                                            text-gray-500
                                            dark:text-gray-400"
                                 >
-                                    No Hymnal.net links found.
+                                    No linked Hymnal.net sources match this filter.
                                 </td>
                             </tr>
                         @endforelse
