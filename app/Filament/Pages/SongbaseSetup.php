@@ -6,6 +6,7 @@ use App\Models\Hymn;
 use App\Models\HymnBook;
 use App\Models\HymnSource;
 use App\Services\SongbaseHymnSyncService;
+use App\Support\HymnSearchRanker;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
@@ -19,6 +20,12 @@ class SongbaseSetup extends Page
 
     protected static ?string $slug =
         'songbase-setup';
+
+    public string $songbaseSearch = '';
+
+    public ?int $songbaseBookId = null;
+
+    public string $songbaseLanguage = '';
 
     public function mount(): void
     {
@@ -183,6 +190,266 @@ class SongbaseSetup extends Page
             )
             ->groupBy('language')
             ->orderBy('language')
+            ->get();
+    }
+
+    public function toggleSongbaseBook(
+        int $bookId
+    ): void {
+        $exists =
+            HymnBook::query()
+                ->whereKey($bookId)
+                ->where(
+                    'source',
+                    'songbase'
+                )
+                ->exists();
+
+        abort_unless(
+            $exists,
+            404
+        );
+
+        $this->songbaseBookId =
+            $this->songbaseBookId === $bookId
+                ? null
+                : $bookId;
+    }
+
+    public function toggleSongbaseLanguage(
+        string $language
+    ): void {
+        $exists =
+            Hymn::query()
+                ->where(
+                    'language',
+                    $language
+                )
+                ->whereHas(
+                    'sources',
+                    fn ($query) =>
+                        $query->where(
+                            'provider',
+                            HymnSource::PROVIDER_SONGBASE
+                        )
+                )
+                ->exists();
+
+        abort_unless(
+            $exists,
+            404
+        );
+
+        $this->songbaseLanguage =
+            $this->songbaseLanguage === $language
+                ? ''
+                : $language;
+    }
+
+    public function clearSongbaseFilters(): void
+    {
+        $this->songbaseSearch = '';
+
+        $this->songbaseBookId = null;
+
+        $this->songbaseLanguage = '';
+    }
+
+    public function songbaseHymns(): Collection
+    {
+        $search =
+            preg_replace(
+                '/\s+/u',
+                ' ',
+                trim(
+                    $this->songbaseSearch
+                )
+            )
+            ?? trim(
+                $this->songbaseSearch
+            );
+
+        $hasFilters =
+            $search !== ''
+            || $this->songbaseBookId !== null
+            || $this->songbaseLanguage !== '';
+
+        if (! $hasFilters) {
+            return collect();
+        }
+
+        $like =
+            '%' . $search . '%';
+
+        return Hymn::query()
+            ->with([
+                'bookEntries.hymnBook',
+                'sources',
+                'variants.sources',
+            ])
+            ->where(
+                'is_active',
+                true
+            )
+            /*
+             * This catalog is deliberately restricted
+             * to Hymns actually connected to Songbase.
+             */
+            ->whereHas(
+                'sources',
+                fn ($query) =>
+                    $query->where(
+                        'provider',
+                        HymnSource::PROVIDER_SONGBASE
+                    )
+            )
+            ->when(
+                $this->songbaseBookId !== null,
+                fn ($query) =>
+                    $query->whereHas(
+                        'bookEntries',
+                        fn ($entryQuery) =>
+                            $entryQuery->where(
+                                'hymn_book_id',
+                                $this->songbaseBookId
+                            )
+                    )
+            )
+            ->when(
+                $this->songbaseLanguage !== '',
+                fn ($query) =>
+                    $query->where(
+                        'language',
+                        $this->songbaseLanguage
+                    )
+            )
+            ->when(
+                $search !== '',
+                function ($query) use (
+                    $search,
+                    $like
+                ): void {
+                    $query->where(
+                        function ($query) use (
+                            $search,
+                            $like
+                        ): void {
+                            $query
+                                ->where(
+                                    'title',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'first_line_search',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhere(
+                                    'lyrics_search',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhereHas(
+                                    'sources',
+                                    fn ($sourceQuery) =>
+                                        $sourceQuery
+                                            ->where(
+                                                'provider',
+                                                HymnSource::PROVIDER_SONGBASE
+                                            )
+                                            ->where(
+                                                'external_id',
+                                                'like',
+                                                $like
+                                            )
+                                )
+                                ->orWhereHas(
+                                    'bookEntries',
+                                    function (
+                                        $entryQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $entryQuery
+                                            ->where(
+                                                'number',
+                                                'like',
+                                                $like
+                                            )
+                                            ->whereHas(
+                                                'hymnBook',
+                                                fn ($bookQuery) =>
+                                                    $bookQuery
+                                                        ->where(
+                                                            'source',
+                                                            'songbase'
+                                                        )
+                                            );
+                                    }
+                                )
+                                ->orWhereHas(
+                                    'variants',
+                                    function (
+                                        $variantQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $variantQuery
+                                            ->where(
+                                                'is_active',
+                                                true
+                                            )
+                                            ->where(
+                                                function (
+                                                    $query
+                                                ) use (
+                                                    $like
+                                                ): void {
+                                                    $query
+                                                        ->where(
+                                                            'label',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhere(
+                                                            'title_override',
+                                                            'like',
+                                                            $like
+                                                        )
+                                                        ->orWhereHas(
+                                                            'sources',
+                                                            fn ($sourceQuery) =>
+                                                                $sourceQuery
+                                                                    ->where(
+                                                                        'provider',
+                                                                        HymnSource::PROVIDER_SONGBASE
+                                                                    )
+                                                                    ->where(
+                                                                        'external_id',
+                                                                        'like',
+                                                                        $like
+                                                                    )
+                                                        );
+                                                }
+                                            );
+                                    }
+                                );
+                        }
+                    );
+
+                    HymnSearchRanker::apply(
+                        $query,
+                        $search
+                    );
+                }
+            )
+            ->when(
+                $search === '',
+                fn ($query) =>
+                    $query->orderBy('title')
+            )
+            ->limit(100)
             ->get();
     }
 

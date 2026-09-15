@@ -3,7 +3,32 @@
         $summary = $this->summary();
         $books = $this->books();
         $languages = $this->languages();
+        $songbaseHymns = $this->songbaseHymns();
+
+        $hasSongbaseFilters =
+            trim($songbaseSearch) !== ''
+            || $songbaseBookId !== null
+            || $songbaseLanguage !== '';
+
+        $selectedSongbaseBook =
+            $songbaseBookId
+                ? $books->firstWhere(
+                    'id',
+                    $songbaseBookId
+                )
+                : null;
     @endphp
+
+    <style>
+        /*
+         * Pale-blue controls intentionally remain
+         * light in both light and dark mode.
+         */
+        .songbase-light-sky,
+        .songbase-light-sky * {
+            color: #082f49 !important;
+        }
+    </style>
 
     <div class="space-y-6">
         <div
@@ -125,6 +150,8 @@
             @endforeach
         </div>
 
+
+
         <div
             class="rounded-2xl border
                    border-gray-200
@@ -158,25 +185,36 @@
                        xl:grid-cols-3"
             >
                 @forelse ($books as $book)
-                    <div
+                    <button
+                        type="button"
+                        wire:click="toggleSongbaseBook({{ $book->id }})"
                         class="rounded-xl border
-                               border-gray-200
-                               bg-gray-50 p-4
-                               dark:border-gray-700
-                               dark:bg-gray-950"
+                               p-4 text-left
+                               transition
+                               {{
+                                   $songbaseBookId === $book->id
+                                       ? 'songbase-light-sky border-sky-300 bg-sky-100 dark:border-sky-300 dark:bg-sky-100'
+                                       : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-900'
+                               }}"
                     >
                         <div
                             class="font-semibold
-                                   text-gray-950
-                                   dark:text-white"
+                                   {{
+                                       $songbaseBookId === $book->id
+                                           ? 'text-sky-950 dark:text-sky-950'
+                                           : 'text-gray-950 dark:text-white'
+                                   }}"
                         >
                             {{ $book->name }}
                         </div>
 
                         <div
                             class="mt-1 text-xs
-                                   text-gray-500
-                                   dark:text-gray-400"
+                                   {{
+                                       $songbaseBookId === $book->id
+                                           ? 'text-sky-800 dark:text-sky-900'
+                                           : 'text-gray-500 dark:text-gray-400'
+                                   }}"
                         >
                             {{
                                 $book->language
@@ -190,7 +228,7 @@
                             }}
                             entries
                         </div>
-                    </div>
+                    </button>
                 @empty
                     <div
                         class="text-sm
@@ -237,25 +275,36 @@
                        lg:grid-cols-4"
             >
                 @foreach ($languages as $item)
-                    <div
+                    <button
+                        type="button"
+                        wire:click="toggleSongbaseLanguage(@js($item->language))"
                         class="rounded-xl border
-                               border-gray-200
-                               bg-gray-50 p-4
-                               dark:border-gray-700
-                               dark:bg-gray-950"
+                               p-4 text-left
+                               transition
+                               {{
+                                   $songbaseLanguage === $item->language
+                                       ? 'songbase-light-sky border-sky-300 bg-sky-100 dark:border-sky-300 dark:bg-sky-100'
+                                       : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-900'
+                               }}"
                     >
                         <div
                             class="font-semibold
-                                   text-gray-950
-                                   dark:text-white"
+                                   {{
+                                       $songbaseLanguage === $item->language
+                                           ? 'text-sky-950 dark:text-sky-950'
+                                           : 'text-gray-950 dark:text-white'
+                                   }}"
                         >
                             {{ $item->language }}
                         </div>
 
                         <div
                             class="mt-1 text-xs
-                                   text-gray-500
-                                   dark:text-gray-400"
+                                   {{
+                                       $songbaseLanguage === $item->language
+                                           ? 'text-sky-800 dark:text-sky-900'
+                                           : 'text-gray-500 dark:text-gray-400'
+                                   }}"
                         >
                             {{
                                 number_format(
@@ -264,9 +313,430 @@
                             }}
                             Hymns
                         </div>
-                    </div>
+                    </button>
                 @endforeach
             </div>
         </div>
+
+<div
+            class="rounded-2xl border
+                   border-gray-200
+                   bg-white p-6
+                   shadow-sm
+                   dark:border-gray-700
+                   dark:bg-gray-900"
+        >
+            <div
+                class="flex flex-col gap-4
+                       lg:flex-row
+                       lg:items-end
+                       lg:justify-between"
+            >
+                <div class="flex-1">
+                    <h3
+                        class="text-lg font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        Browse Songbase Catalog
+                    </h3>
+
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Search only Hymns connected to
+                        Songbase. Book and language cards
+                        below act as additional filters.
+                    </p>
+
+                    <input
+                        type="search"
+                        wire:model.live.debounce.350ms="songbaseSearch"
+                        placeholder="Search title, first line, lyrics, Songbase ID, or hymn number..."
+                        class="mt-4 block w-full
+                               rounded-xl border
+                               border-gray-300 bg-white
+                               px-4 py-3 text-sm
+                               text-gray-950 shadow-sm
+                               dark:border-gray-700
+                               dark:bg-gray-950
+                               dark:text-white"
+                    >
+                </div>
+
+                @if ($hasSongbaseFilters)
+                    <button
+                        type="button"
+                        wire:click="clearSongbaseFilters"
+                        class="rounded-xl border
+                               border-gray-300
+                               bg-white px-4 py-3
+                               text-sm font-bold
+                               text-gray-700
+                               hover:bg-gray-50
+                               dark:border-gray-700
+                               dark:bg-gray-950
+                               dark:text-gray-200
+                               dark:hover:bg-gray-900"
+                    >
+                        Clear Filters
+                    </button>
+                @endif
+            </div>
+
+            @if ($hasSongbaseFilters)
+                <div
+                    class="mt-4 flex flex-wrap
+                           items-center gap-2"
+                >
+                    @if (trim($songbaseSearch) !== '')
+                        <span
+                            class="songbase-light-sky
+                                   rounded-full
+                                   bg-sky-100
+                                   px-3 py-1
+                                   text-xs font-bold
+                                   text-sky-950
+                                   ring-1 ring-sky-200
+                                   dark:bg-sky-100
+                                   dark:text-sky-950
+                                   dark:ring-sky-300"
+                        >
+                            Search:
+                            {{ $songbaseSearch }}
+                        </span>
+                    @endif
+
+                    @if ($selectedSongbaseBook)
+                        <span
+                            class="songbase-light-sky
+                                   rounded-full
+                                   bg-sky-100
+                                   px-3 py-1
+                                   text-xs font-bold
+                                   text-sky-950
+                                   ring-1 ring-sky-200
+                                   dark:bg-sky-100
+                                   dark:text-sky-950
+                                   dark:ring-sky-300"
+                        >
+                            Book:
+                            {{ $selectedSongbaseBook->name }}
+                        </span>
+                    @endif
+
+                    @if ($songbaseLanguage !== '')
+                        <span
+                            class="songbase-light-sky
+                                   rounded-full
+                                   bg-sky-100
+                                   px-3 py-1
+                                   text-xs font-bold
+                                   text-sky-950
+                                   ring-1 ring-sky-200
+                                   dark:bg-sky-100
+                                   dark:text-sky-950
+                                   dark:ring-sky-300"
+                        >
+                            Language:
+                            {{ $songbaseLanguage }}
+                        </span>
+                    @endif
+                </div>
+            @endif
+        </div>
+        @if ($hasSongbaseFilters)
+            <div
+                class="rounded-2xl border
+                       border-gray-200
+                       bg-white p-6
+                       shadow-sm
+                       dark:border-gray-700
+                       dark:bg-gray-900"
+            >
+                <div class="mb-5">
+                    <h3
+                        class="text-lg font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        Songbase Results
+                    </h3>
+
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Showing
+                        {{ number_format($songbaseHymns->count()) }}
+                        matching Hymn(s), up to 100.
+                    </p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table
+                        class="w-full text-left text-sm"
+                    >
+                        <thead>
+                            <tr
+                                class="border-b
+                                       border-gray-200
+                                       dark:border-gray-700"
+                            >
+                                <th class="px-4 py-3">
+                                    Canonical Hymn
+                                </th>
+
+                                <th class="px-4 py-3">
+                                    Songbase
+                                </th>
+
+                                <th class="px-4 py-3">
+                                    Language / Book
+                                </th>
+
+                                <th class="px-4 py-3">
+                                    Variants
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @forelse (
+                                $songbaseHymns
+                                as $hymn
+                            )
+                                @php
+                                    $songbaseSources =
+                                        $hymn
+                                            ->sources
+                                            ->where(
+                                                'provider',
+                                                'songbase'
+                                            );
+
+                                    $activeVariants =
+                                        $hymn
+                                            ->variants
+                                            ->where(
+                                                'is_active',
+                                                true
+                                            );
+                                @endphp
+
+                                <tr
+                                    class="border-b
+                                           border-gray-100
+                                           dark:border-gray-800"
+                                >
+                                    <td
+                                        class="px-4 py-4
+                                               align-top"
+                                    >
+                                        <div
+                                            class="font-bold
+                                                   text-gray-950
+                                                   dark:text-white"
+                                        >
+                                            {{ $hymn->title }}
+                                        </div>
+
+                                        <div
+                                            class="mt-1 text-xs
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            Canonical Hymn
+                                            #{{ $hymn->id }}
+                                        </div>
+
+                                        @if ($hymn->first_line_search)
+                                            <div
+                                                class="mt-2 max-w-xl
+                                                       text-xs
+                                                       text-gray-600
+                                                       dark:text-gray-300"
+                                            >
+                                                First line:
+                                                {{
+                                                    $hymn
+                                                        ->first_line_search
+                                                }}
+                                            </div>
+                                        @endif
+                                    </td>
+
+                                    <td
+                                        class="px-4 py-4
+                                               align-top"
+                                    >
+                                        <div
+                                            class="flex flex-wrap
+                                                   gap-2"
+                                        >
+                                            @foreach (
+                                                $songbaseSources
+                                                as $source
+                                            )
+                                                @if ($source->source_url)
+                                                    <a
+                                                        href="{{ $source->source_url }}"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        class="songbase-light-sky
+                                                               rounded-full
+                                                               bg-sky-100
+                                                               px-2.5 py-1
+                                                               text-xs
+                                                               font-bold
+                                                               text-sky-950
+                                                               ring-1
+                                                               ring-sky-200
+                                                               hover:bg-sky-200
+                                                               dark:bg-sky-100
+                                                               dark:text-sky-950
+                                                               dark:ring-sky-300"
+                                                    >
+                                                        {{
+                                                            $source
+                                                                ->external_id
+                                                            ?: 'Songbase'
+                                                        }}
+                                                    </a>
+                                                @else
+                                                    <span
+                                                        class="songbase-light-sky
+                                                               rounded-full
+                                                               bg-sky-100
+                                                               px-2.5 py-1
+                                                               text-xs
+                                                               font-bold
+                                                               text-sky-950
+                                                               ring-1
+                                                               ring-sky-200
+                                                               dark:bg-sky-100
+                                                               dark:text-sky-950
+                                                               dark:ring-sky-300"
+                                                    >
+                                                        {{
+                                                            $source
+                                                                ->external_id
+                                                            ?: 'Songbase'
+                                                        }}
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </td>
+
+                                    <td
+                                        class="px-4 py-4
+                                               align-top"
+                                    >
+                                        <div
+                                            class="font-semibold
+                                                   text-gray-950
+                                                   dark:text-white"
+                                        >
+                                            {{
+                                                $hymn->language
+                                                    ?: 'Not specified'
+                                            }}
+                                        </div>
+
+                                        @if (
+                                            $hymn
+                                                ->bookEntries
+                                                ->isNotEmpty()
+                                        )
+                                            <div
+                                                class="mt-2 flex
+                                                       flex-wrap
+                                                       gap-1.5"
+                                            >
+                                                @foreach (
+                                                    $hymn
+                                                        ->bookEntries
+                                                    as $entry
+                                                )
+                                                    @if (
+                                                        $entry
+                                                            ->hymnBook
+                                                            ?->source
+                                                        === 'songbase'
+                                                    )
+                                                        <span
+                                                            class="rounded-full
+                                                                   bg-gray-100
+                                                                   px-2 py-1
+                                                                   text-xs
+                                                                   text-gray-700
+                                                                   dark:bg-gray-800
+                                                                   dark:text-gray-200"
+                                                        >
+                                                            {{
+                                                                $entry
+                                                                    ->hymnBook
+                                                                    ?->name
+                                                            }}
+                                                            #{{ $entry->number }}
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </td>
+
+                                    <td
+                                        class="px-4 py-4
+                                               align-top"
+                                    >
+                                        @forelse (
+                                            $activeVariants
+                                            as $variant
+                                        )
+                                            <div
+                                                class="mb-1 text-xs
+                                                       font-semibold
+                                                       text-gray-700
+                                                       dark:text-gray-200"
+                                            >
+                                                {{ $variant->label }}
+                                            </div>
+                                        @empty
+                                            <span
+                                                class="text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                No variants
+                                            </span>
+                                        @endforelse
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td
+                                        colspan="4"
+                                        class="px-4 py-10
+                                               text-center
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        No Songbase Hymns match
+                                        the current search and
+                                        filters.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
     </div>
 </x-filament-panels::page>

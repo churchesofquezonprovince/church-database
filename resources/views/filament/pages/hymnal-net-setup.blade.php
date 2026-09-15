@@ -6,102 +6,146 @@
         $summary = $this->catalogSummary();
     @endphp
 
+    <style>
+        /*
+         * These semantic controls intentionally remain
+         * pale in dark mode, so their text must remain
+         * dark too.
+         */
+        .hymnal-light-emerald,
+        .hymnal-light-emerald * {
+            color: #064e3b !important;
+        }
+
+        .hymnal-light-amber,
+        .hymnal-light-amber * {
+            color: #78350f !important;
+        }
+
+        .hymnal-light-sky,
+        .hymnal-light-sky * {
+            color: #082f49 !important;
+        }
+
+        .hymnal-light-red,
+        .hymnal-light-red * {
+            color: #450a0a !important;
+        }
+    </style>
+
     <div class="space-y-6">
         <div
-            class="rounded-xl border
-                   border-gray-200
-                   bg-white p-6
+            class="rounded-2xl border
+                   border-primary-200
+                   bg-primary-50 p-6
                    shadow-sm
-                   dark:border-white/10
-                   dark:bg-gray-900"
+                   dark:border-primary-900
+                   dark:bg-primary-950"
         >
-            <div class="mb-5">
+            <div>
+                <p
+                    class="text-sm font-semibold
+                           uppercase tracking-wide
+                           text-primary-600
+                           dark:text-primary-300"
+                >
+                    Hymn Source Provider
+                </p>
+
                 <h2
-                    class="text-lg font-bold
+                    class="mt-2 text-3xl font-bold
                            text-gray-950
                            dark:text-white"
                 >
-                    Classic Hymnal Sync
+                    Hymnal.net Setup
                 </h2>
 
                 <p
-                    class="mt-1 text-sm
+                    class="mt-2 max-w-3xl
+                           text-sm text-gray-600
+                           dark:text-gray-300"
+                >
+                    Synchronize, inspect, and link the
+                    Hymnal.net source catalog.
+                    Hymnal.net is a provider attached
+                    to canonical Hymns; it is not the
+                    canonical identity.
+                </p>
+
+                <p
+                    class="mt-2 text-xs
                            text-gray-500
                            dark:text-gray-400"
                 >
-                    Hymnal.net collection
+                    Classic Hymnal collection:
                     <strong>h/1–1360</strong>.
-                    Automatic synchronization stops at
-                    1360 because h/1361 is a known
-                    corrupted boundary.
+                    Automatic sequential synchronization
+                    stops at 1360.
                 </p>
-            </div>
-
-            <div
-                class="grid gap-3
-                       sm:grid-cols-2
-                       lg:grid-cols-4"
-            >
-                @foreach ([
-                    'Total' => $summary['total'],
-                    'Linked' => $summary['linked'],
-                    'Unmatched' => $summary['unmatched'],
-                    'Ambiguous' => $summary['ambiguous'],
-                    'Conflicts' => $summary['conflict'],
-                    'Invalid' => $summary['invalid'],
-                    'Failed' => $summary['failed'],
-                ] as $label => $count)
-                    <div
-                        class="rounded-lg border
-                               border-gray-200
-                               bg-gray-50 p-4
-                               dark:border-white/10
-                               dark:bg-gray-950"
-                    >
-                        <div
-                            class="text-xs font-bold
-                                   uppercase tracking-wide
-                                   text-gray-500
-                                   dark:text-gray-400"
-                        >
-                            {{ $label }}
-                        </div>
-
-                        <div
-                            class="mt-1 text-2xl
-                                   font-black
-                                   text-gray-950
-                                   dark:text-white"
-                        >
-                            {{ $count }}
-                        </div>
-                    </div>
-                @endforeach
             </div>
         </div>
 
+        <div
+            class="grid gap-4 sm:grid-cols-2
+                   lg:grid-cols-4 xl:grid-cols-7"
+        >
+            @foreach ([
+                'Total' => $summary['total'],
+                'Linked' => $summary['linked'],
+                'Unmatched' => $summary['unmatched'],
+                'Ambiguous' => $summary['ambiguous'],
+                'Conflicts' => $summary['conflict'],
+                'Invalid' => $summary['invalid'],
+                'Failed' => $summary['failed'],
+            ] as $label => $count)
+                <div
+                    class="rounded-2xl border
+                           border-gray-200
+                           bg-white p-5
+                           shadow-sm
+                           dark:border-gray-700
+                           dark:bg-gray-900"
+                >
+                    <div
+                        class="text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        {{ $label }}
+                    </div>
 
-
-
-
+                    <div
+                        class="mt-2 text-2xl
+                               font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        {{ number_format($count) }}
+                    </div>
+                </div>
+            @endforeach
+        </div>
 
         <div
-            class="rounded-xl border
+            class="rounded-2xl border
                    border-gray-200
                    bg-white p-6
                    shadow-sm
-                   dark:border-white/10
+                   dark:border-gray-700
                    dark:bg-gray-900"
         >
-            <div class="mb-5"
-            id="hymnal-link-form">
-                <h2
+            <div
+                id="hymnal-link-form"
+                class="mb-5"
+            >
+                <h3
                     class="text-lg font-bold
                            text-gray-950
                            dark:text-white"
                 >
                     Link Hymnal.net
-                </h2>
+                </h3>
 
                 <p
                     class="mt-1 text-sm
@@ -129,9 +173,12 @@
                         type="search"
                         wire:model.live.debounce.300ms="search"
                         placeholder="Search title, lyrics, hymn number..."
-                        class="w-full rounded-lg
-                               border-gray-300
-                               dark:border-white/10
+                        class="block w-full rounded-xl
+                               border border-gray-300
+                               bg-white px-4 py-3
+                               text-sm text-gray-950
+                               shadow-sm
+                               dark:border-gray-700
                                dark:bg-gray-950
                                dark:text-white"
                     >
@@ -147,13 +194,13 @@
                                     type="button"
                                     wire:click="selectHymn({{ $hymn->id }})"
                                     class="block w-full
-                                           rounded-lg border
+                                           rounded-xl border
                                            px-4 py-3
                                            text-left
                                            transition
                                            {{ $selectedHymnId === $hymn->id
-                                               ? 'border-emerald-400 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-500/10'
-                                               : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-white/10 dark:bg-gray-950 dark:hover:bg-white/5'
+                                               ? 'hymnal-light-emerald border-emerald-300 bg-emerald-100 dark:border-emerald-300 dark:bg-emerald-100'
+                                               : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-white/5'
                                            }}"
                                 >
                                     <div
@@ -215,11 +262,12 @@
                                 </button>
                             @empty
                                 <div
-                                    class="rounded-lg border
+                                    class="rounded-xl border
                                            border-gray-200
+                                           bg-gray-50
                                            p-4 text-sm
                                            text-gray-500
-                                           dark:border-white/10
+                                           dark:border-gray-700
                                            dark:text-gray-400"
                                 >
                                     No matching canonical Hymns.
@@ -243,22 +291,24 @@
                         type="url"
                         wire:model="hymnalUrl"
                         placeholder="https://www.hymnal.net/en/hymn/..."
-                        class="w-full rounded-lg
-                               border-gray-300
-                               dark:border-white/10
+                        class="block w-full rounded-xl
+                               border border-gray-300
+                               bg-white px-4 py-3
+                               text-sm text-gray-950
+                               shadow-sm
+                               dark:border-gray-700
                                dark:bg-gray-950
                                dark:text-white"
                     >
 
                     @if ($selectedHymn)
                         <div
-                            class="mt-4 rounded-lg
-                                   border border-emerald-200
-                                   bg-emerald-50 p-4
+                            class="hymnal-light-emerald
+                                   mt-4 rounded-xl
+                                   border border-emerald-300
+                                   bg-emerald-100 p-4
                                    dark:border-emerald-300
-                                   dark:bg-emerald-50
-                                   dark:text-emerald-950"
-                            style="color: #064e3b !important;"
+                                   dark:bg-emerald-100"
                         >
                             <div
                                 class="text-xs font-bold
@@ -285,13 +335,12 @@
                         </div>
                     @else
                         <div
-                            class="mt-4 rounded-lg
-                                   border border-amber-200
-                                   bg-amber-50 p-4
+                            class="hymnal-light-amber
+                                   mt-4 rounded-xl
+                                   border border-amber-300
+                                   bg-amber-100 p-4
                                    dark:border-amber-300
-                                   dark:bg-amber-50
-                                   dark:text-amber-950"
-                            style="color: #78350f !important;"
+                                   dark:bg-amber-100"
                         >
                             Select the canonical Hymn first.
                         </div>
@@ -317,7 +366,7 @@
                                 type="button"
                                 wire:click="attachHymnalNetSource"
                                 wire:loading.attr="disabled"
-                                class="rounded-lg
+                                class="rounded-xl
                                        bg-primary-600
                                        px-4 py-2
                                        text-sm font-bold
@@ -333,11 +382,11 @@
         </div>
 
         <div
-            class="rounded-xl border
+            class="rounded-2xl border
                    border-gray-200
                    bg-white p-6
                    shadow-sm
-                   dark:border-white/10
+                   dark:border-gray-700
                    dark:bg-gray-900"
         >
             <div
@@ -346,13 +395,13 @@
                        gap-4"
             >
                 <div>
-                    <h2
+                    <h3
                         class="text-lg font-bold
                                text-gray-950
                                dark:text-white"
                     >
                         Linked Hymnal.net Sources
-                    </h2>
+                    </h3>
 
                     <p
                         class="mt-1 text-sm
@@ -371,9 +420,12 @@
                         type="search"
                         wire:model.live.debounce.300ms="linkedSearch"
                         placeholder="Search linked Hymns..."
-                        class="w-full rounded-lg
-                               border-gray-300
-                               dark:border-white/10
+                        class="block w-full rounded-xl
+                               border border-gray-300
+                               bg-white px-4 py-3
+                               text-sm text-gray-950
+                               shadow-sm
+                               dark:border-gray-700
                                dark:bg-gray-950
                                dark:text-white"
                     >
@@ -385,7 +437,7 @@
                     <thead>
                         <tr
                             class="border-b border-gray-200
-                                   dark:border-white/10"
+                                   dark:border-gray-700"
                         >
                             <th class="px-4 py-3">
                                 Canonical Hymn
@@ -404,7 +456,7 @@
                             <tr
                                 class="border-b
                                        border-gray-100
-                                       dark:border-white/5"
+                                       dark:border-gray-800"
                             >
                                 <td class="px-4 py-3 align-top">
                                     <div
@@ -438,8 +490,8 @@
                                             href="{{ $source->source_url }}"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            style="color: #082f49 !important;"
-                                            class="inline-flex
+                                            class="hymnal-light-sky
+                                                   inline-flex
                                                    rounded-full
                                                    bg-sky-100
                                                    px-2.5 py-1
@@ -468,8 +520,8 @@
                                         type="button"
                                         wire:click="deleteHymnalNetSource({{ $source->id }})"
                                         wire:confirm="Remove this Hymnal.net source link? The canonical Hymn will remain."
-                                        style="color: #450a0a !important;"
-                                        class="rounded-lg
+                                        class="hymnal-light-red
+                                               rounded-xl
                                                border border-red-300
                                                bg-red-50
                                                px-3 py-1.5
@@ -491,7 +543,8 @@
                                     colspan="3"
                                     class="px-4 py-8
                                            text-center
-                                           text-gray-500"
+                                           text-gray-500
+                                           dark:text-gray-400"
                                 >
                                     No Hymnal.net links found.
                                 </td>

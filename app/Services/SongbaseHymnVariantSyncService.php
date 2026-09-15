@@ -2,19 +2,24 @@
 
 namespace App\Services;
 
-use App\Models\Hymn;
 use App\Models\HymnSource;
 use App\Models\HymnVariant;
+use App\Support\HymnLyricsNormalizer;
 use App\Support\SongbaseTuneParser;
 
 class SongbaseHymnVariantSyncService
 {
     public function syncAllLocal(): array
     {
+        /*
+         * Variant identity remains canonical structural
+         * data, but lyrics now belong to provider
+         * source rows.
+         */
         HymnVariant::query()
             ->where(
                 'source',
-                'songbase'
+                HymnSource::PROVIDER_SONGBASE
             )
             ->where(
                 'variant_type',
@@ -24,11 +29,19 @@ class SongbaseHymnVariantSyncService
                 'is_active' => false,
             ]);
 
-        $hymns =
-            Hymn::query()
+        /*
+         * Read Songbase lyrics from its provider source,
+         * not from hymns.lyrics.
+         */
+        $songbaseSources =
+            HymnSource::query()
+                ->with('hymn')
                 ->where(
-                    'source',
-                    'songbase'
+                    'provider',
+                    HymnSource::PROVIDER_SONGBASE
+                )
+                ->whereNull(
+                    'hymn_variant_id'
                 )
                 ->whereNotNull(
                     'lyrics'
@@ -44,13 +57,46 @@ class SongbaseHymnVariantSyncService
 
         $variantCount = 0;
 
-        foreach ($hymns as $hymn) {
-            $variants =
-                SongbaseTuneParser::parse(
-                    $hymn->lyrics
+        foreach (
+            $songbaseSources
+            as $songbaseSource
+        ) {
+            $hymn =
+                $songbaseSource->hymn;
+
+            if (! $hymn) {
+                continue;
+            }
+
+            $sourceId =
+                trim(
+                    (string)
+                        $songbaseSource
+                            ->external_id
                 );
 
-            foreach ($variants as $variantData) {
+            if ($sourceId === '') {
+                continue;
+            }
+
+            $variants =
+                SongbaseTuneParser::parse(
+                    (string)
+                        $songbaseSource
+                            ->lyrics
+                );
+
+            foreach (
+                $variants
+                as $variantData
+            ) {
+                /*
+                 * hymn_variants identifies Tune 1,
+                 * Tune 2, revisions, etc.
+                 *
+                 * It intentionally does not receive
+                 * provider lyric content anymore.
+                 */
                 $variant =
                     HymnVariant::query()
                         ->updateOrCreate(
@@ -59,10 +105,11 @@ class SongbaseHymnVariantSyncService
                                     $hymn->id,
 
                                 'source' =>
-                                    'songbase',
+                                    HymnSource
+                                        ::PROVIDER_SONGBASE,
 
                                 'source_id' =>
-                                    $hymn->source_id,
+                                    $sourceId,
 
                                 'variant_type' =>
                                     'tune',
@@ -80,16 +127,6 @@ class SongbaseHymnVariantSyncService
 
                                 'title_override' =>
                                     null,
-
-                                'lyrics' =>
-                                    $variantData[
-                                        'lyrics'
-                                    ],
-
-                                'lyrics_search' =>
-                                    $variantData[
-                                        'lyrics_search'
-                                    ],
 
                                 'metadata' => [
                                     'songbase_tune_parameter' =>
@@ -114,7 +151,7 @@ class SongbaseHymnVariantSyncService
                         );
 
                 $externalId =
-                    $hymn->source_id
+                    $sourceId
                     . ':tune:'
                     . $variantData[
                         'songbase_tune_parameter'
@@ -122,6 +159,11 @@ class SongbaseHymnVariantSyncService
 
                 $expectedExternalIds[] =
                     $externalId;
+
+                $variantLyrics =
+                    $variantData[
+                        'lyrics'
+                    ];
 
                 HymnSource::query()
                     ->updateOrCreate(
@@ -145,7 +187,7 @@ class SongbaseHymnVariantSyncService
 
                             'source_url' =>
                                 'https://songbase.life/'
-                                . $hymn->source_id
+                                . $sourceId
                                 . '?tune='
                                 . $variantData[
                                     'songbase_tune_parameter'
@@ -156,6 +198,30 @@ class SongbaseHymnVariantSyncService
                                 . $variantData[
                                     'label'
                                 ],
+
+                            'lyrics' =>
+                                $variantLyrics,
+
+                            'lyrics_search' =>
+                                HymnLyricsNormalizer
+                                    ::forSearch(
+                                        $variantLyrics
+                                    ),
+
+                            'first_line_search' =>
+                                HymnLyricsNormalizer
+                                    ::firstLineForSearch(
+                                        $variantLyrics
+                                    ),
+
+                            'lyrics_format' =>
+                                HymnSource
+                                    ::LYRICS_FORMAT_CHORDED,
+
+                            'lyrics_synced_at' =>
+                                $songbaseSource
+                                    ->lyrics_synced_at
+                                ?? now(),
 
                             'metadata' => [
                                 'variant_type' =>
@@ -198,19 +264,24 @@ class SongbaseHymnVariantSyncService
 
         return [
             'hymns_with_tune_headers' =>
-                $hymns->count(),
+                $songbaseSources->count(),
 
             'variants' =>
                 $variantCount,
 
             'multiple_tune_hymns' =>
-                $hymns
+                $songbaseSources
                     ->filter(
-                        fn (Hymn $hymn): bool =>
+                        fn (
+                            HymnSource $source
+                        ): bool =>
                             count(
-                                SongbaseTuneParser::parse(
-                                    $hymn->lyrics
-                                )
+                                SongbaseTuneParser
+                                    ::parse(
+                                        (string)
+                                            $source
+                                                ->lyrics
+                                    )
                             ) > 1
                     )
                     ->count(),

@@ -75,6 +75,8 @@ class SongbaseHymnSyncService
 
         $songRows = [];
         $songLanguageBySourceId = [];
+
+        $songLyricsBySourceId = [];
         $skippedSongs = 0;
 
         foreach ($songs as $song) {
@@ -111,6 +113,31 @@ class SongbaseHymnSyncService
                 $sourceId
             ] = $language;
 
+            $lyrics =
+                filled(
+                    $song['lyrics'] ?? null
+                )
+                    ? (string) $song['lyrics']
+                    : null;
+
+            $songLyricsBySourceId[
+                $sourceId
+            ] = [
+                'lyrics' =>
+                    $lyrics,
+
+                'lyrics_search' =>
+                    HymnLyricsNormalizer::forSearch(
+                        $lyrics
+                    ),
+
+                'first_line_search' =>
+                    HymnLyricsNormalizer
+                        ::firstLineForSearch(
+                            $lyrics
+                        ),
+            ];
+
             $songRows[] = [
                 'source' =>
                     self::SOURCE,
@@ -123,31 +150,6 @@ class SongbaseHymnSyncService
 
                 'language' =>
                     $language,
-
-                'lyrics' =>
-                    filled(
-                        $song['lyrics'] ?? null
-                    )
-                        ? (string) $song['lyrics']
-                        : null,
-
-                'lyrics_search' =>
-                    HymnLyricsNormalizer::forSearch(
-                        filled(
-                            $song['lyrics'] ?? null
-                        )
-                            ? (string) $song['lyrics']
-                            : null
-                    ),
-
-                'first_line_search' =>
-                    HymnLyricsNormalizer::firstLineForSearch(
-                        filled(
-                            $song['lyrics'] ?? null
-                        )
-                            ? (string) $song['lyrics']
-                            : null
-                    ),
 
                 'source_url' =>
                     'https://songbase.life/'
@@ -172,6 +174,7 @@ class SongbaseHymnSyncService
                 $songRows,
                 $books,
                 $songLanguageBySourceId,
+                $songLyricsBySourceId,
                 $syncedAt,
                 $skippedSongs
             ): array {
@@ -205,9 +208,6 @@ class SongbaseHymnSyncService
                             [
                                 'title',
                                 'language',
-                                'lyrics',
-                                'lyrics_search',
-                                'first_line_search',
                                 'source_url',
                                 'is_active',
                                 'last_synced_at',
@@ -254,6 +254,21 @@ class SongbaseHymnSyncService
                         continue;
                     }
 
+                    $sourceLyrics =
+                        $songLyricsBySourceId[
+                            $sourceId
+                        ]
+                        ?? [
+                            'lyrics' =>
+                                null,
+
+                            'lyrics_search' =>
+                                null,
+
+                            'first_line_search' =>
+                                null,
+                        ];
+
                     $sourceRows[] = [
                         'hymn_id' =>
                             $hymnId,
@@ -274,6 +289,40 @@ class SongbaseHymnSyncService
 
                         'label' =>
                             'Songbase',
+
+                        'lyrics' =>
+                            $sourceLyrics[
+                                'lyrics'
+                            ],
+
+                        'lyrics_search' =>
+                            $sourceLyrics[
+                                'lyrics_search'
+                            ],
+
+                        'first_line_search' =>
+                            $sourceLyrics[
+                                'first_line_search'
+                            ],
+
+                        'lyrics_format' =>
+                            filled(
+                                $sourceLyrics[
+                                    'lyrics'
+                                ]
+                            )
+                                ? HymnSource
+                                    ::LYRICS_FORMAT_CHORDED
+                                : null,
+
+                        'lyrics_synced_at' =>
+                            filled(
+                                $sourceLyrics[
+                                    'lyrics'
+                                ]
+                            )
+                                ? $syncedAt
+                                : null,
 
                         'metadata' =>
                             null,
@@ -305,6 +354,11 @@ class SongbaseHymnSyncService
                             'source_type',
                             'source_url',
                             'label',
+                            'lyrics',
+                            'lyrics_search',
+                            'first_line_search',
+                            'lyrics_format',
+                            'lyrics_synced_at',
                             'updated_at',
                         ]
                     );
