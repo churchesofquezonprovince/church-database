@@ -9,6 +9,7 @@ class HymnalNetEntry extends Model
 {
     protected $fillable = [
         'collection_code',
+        'section_code',
         'number',
         'title',
         'source_url',

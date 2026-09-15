@@ -4,6 +4,8 @@
         $selectedHymn = $this->selectedHymn();
         $linkedSources = $this->linkedSources();
         $summary = $this->catalogSummary();
+        $collectionSummaries =
+            $this->collectionSummaries();
     @endphp
 
     <style>
@@ -65,11 +67,12 @@
                            text-sm text-gray-600
                            dark:text-gray-300"
                 >
-                    Synchronize, inspect, and link the
-                    Hymnal.net source catalog.
-                    Hymnal.net is a provider attached
-                    to canonical Hymns; it is not the
-                    canonical identity.
+                    Discover, synchronize, inspect,
+                    and link all supported Hymnal.net
+                    collections. Hymnal.net remains a
+                    provider attached to canonical
+                    Hymns; it is not the canonical
+                    identity.
                 </p>
 
                 <p
@@ -77,17 +80,19 @@
                            text-gray-500
                            dark:text-gray-400"
                 >
-                    Classic Hymnal collection:
+                    Classic sequential sync remains
+                    safely limited to
                     <strong>h/1–1360</strong>.
-                    Automatic sequential synchronization
-                    stops at 1360.
+                    Multi-collection imports use the
+                    official Hymnal.net song indexes and
+                    synchronize only discovered links.
                 </p>
             </div>
         </div>
 
         <div
             class="grid gap-4 sm:grid-cols-2
-                   lg:grid-cols-4 xl:grid-cols-7"
+                   lg:grid-cols-4 xl:grid-cols-8"
         >
             @foreach ([
                 'Total' => $summary['total'],
@@ -96,6 +101,8 @@
                 'Ambiguous' => $summary['ambiguous'],
                 'Conflicts' => $summary['conflict'],
                 'Invalid' => $summary['invalid'],
+                'Variant Review' =>
+                    $summary['variant_review'],
                 'Failed' => $summary['failed'],
             ] as $label => $count)
                 <div
@@ -125,6 +132,197 @@
                     </div>
                 </div>
             @endforeach
+        </div>
+
+        <div
+            class="rounded-2xl border
+                   border-gray-200 bg-white p-6
+                   shadow-sm
+                   dark:border-gray-700
+                   dark:bg-gray-900"
+        >
+            <div class="mb-5">
+                <h3
+                    class="text-lg font-bold
+                           text-gray-950
+                           dark:text-white"
+                >
+                    Hymnal.net Collections
+                </h3>
+
+                <p
+                    class="mt-1 text-sm
+                           text-gray-500
+                           dark:text-gray-400"
+                >
+                    Logical collections are discovered
+                    from Hymnal.net's own indexes.
+                    Physical route codes such as
+                    <strong>ns</strong> and
+                    <strong>lb</strong> remain visible
+                    so provider identity is preserved.
+                </p>
+            </div>
+
+            <div
+                class="grid gap-4
+                       md:grid-cols-2
+                       xl:grid-cols-4"
+            >
+                @foreach (
+                    $collectionSummaries
+                    as $collection
+                )
+                    <div
+                        class="rounded-xl border
+                               border-gray-200
+                               bg-gray-50 p-5
+                               dark:border-gray-700
+                               dark:bg-gray-950"
+                    >
+                        <div
+                            class="text-base font-bold
+                                   text-gray-950
+                                   dark:text-white"
+                        >
+                            {{ $collection['label'] }}
+                        </div>
+
+                        <div
+                            class="mt-1 text-xs
+                                   text-gray-500
+                                   dark:text-gray-400"
+                        >
+                            Index:
+                            <strong>
+                                {{ $collection['index_code'] }}
+                            </strong>
+
+                            · Routes:
+                            <strong>
+                                {{
+                                    $collection['routes']
+                                        ->isNotEmpty()
+                                            ? $collection['routes']
+                                                ->join(', ')
+                                            : $collection[
+                                                'primary_route'
+                                            ]
+                                }}
+                            </strong>
+                        </div>
+
+                        <div
+                            class="mt-4 grid grid-cols-2
+                                   gap-3 text-sm"
+                        >
+                            <div>
+                                <div
+                                    class="text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Discovered
+                                </div>
+
+                                <div
+                                    class="font-bold
+                                           text-gray-950
+                                           dark:text-white"
+                                >
+                                    {{
+                                        number_format(
+                                            $collection['total']
+                                        )
+                                    }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div
+                                    class="text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Linked
+                                </div>
+
+                                <div
+                                    class="font-bold
+                                           text-gray-950
+                                           dark:text-white"
+                                >
+                                    {{
+                                        number_format(
+                                            $collection['linked']
+                                        )
+                                    }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div
+                                    class="text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Pending Sync
+                                </div>
+
+                                <div
+                                    class="font-bold
+                                           text-gray-950
+                                           dark:text-white"
+                                >
+                                    {{
+                                        number_format(
+                                            $collection['pending']
+                                        )
+                                    }}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div
+                                    class="text-xs
+                                           text-gray-500
+                                           dark:text-gray-400"
+                                >
+                                    Needs Review
+                                </div>
+
+                                <div
+                                    class="font-bold
+                                           text-gray-950
+                                           dark:text-white"
+                                >
+                                    {{
+                                        number_format(
+                                            $collection['review']
+                                        )
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+
+                        @if ($collection['failed'] > 0)
+                            <div
+                                class="mt-3 text-xs
+                                       font-semibold
+                                       text-red-600
+                                       dark:text-red-400"
+                            >
+                                {{
+                                    number_format(
+                                        $collection['failed']
+                                    )
+                                }}
+                                failed request(s)
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
         </div>
 
         <div

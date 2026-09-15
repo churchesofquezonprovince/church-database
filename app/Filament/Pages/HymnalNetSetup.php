@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Hymn;
 use App\Models\HymnalNetEntry;
 use App\Models\HymnSource;
+use App\Support\HymnalNetCollectionCatalog;
 use App\Support\HymnalNetSource;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -420,11 +421,7 @@ class HymnalNetSetup extends Page
     public function catalogSummary(): array
     {
         $base =
-            HymnalNetEntry::query()
-                ->where(
-                    'collection_code',
-                    'h'
-                );
+            HymnalNetEntry::query();
 
         return [
             'total' =>
@@ -470,6 +467,14 @@ class HymnalNetSetup extends Page
                     )
                     ->count(),
 
+            'variant_review' =>
+                (clone $base)
+                    ->where(
+                        'match_status',
+                        'variant_review'
+                    )
+                    ->count(),
+
             'failed' =>
                 (clone $base)
                     ->whereIn(
@@ -481,6 +486,108 @@ class HymnalNetSetup extends Page
                     )
                     ->count(),
         ];
+    }
+
+    public function collectionSummaries(): Collection
+    {
+        return collect(
+            HymnalNetCollectionCatalog
+                ::sections()
+        )
+            ->map(
+                function (
+                    array $config,
+                    string $section
+                ): array {
+                    $base =
+                        HymnalNetEntry::query()
+                            ->where(
+                                'section_code',
+                                $section
+                            );
+
+                    $routes =
+                        (clone $base)
+                            ->whereNotNull(
+                                'collection_code'
+                            )
+                            ->distinct()
+                            ->orderBy(
+                                'collection_code'
+                            )
+                            ->pluck(
+                                'collection_code'
+                            )
+                            ->values();
+
+                    $review =
+                        (clone $base)
+                            ->whereIn(
+                                'match_status',
+                                [
+                                    'unmatched',
+                                    'ambiguous',
+                                    'conflict',
+                                    'variant_review',
+                                ]
+                            )
+                            ->count();
+
+                    return [
+                        'code' =>
+                            $section,
+
+                        'label' =>
+                            $config['label'],
+
+                        'index_code' =>
+                            $config['index_code'],
+
+                        'primary_route' =>
+                            $config[
+                                'primary_route'
+                            ],
+
+                        'routes' =>
+                            $routes,
+
+                        'total' =>
+                            (clone $base)
+                                ->count(),
+
+                        'pending' =>
+                            (clone $base)
+                                ->where(
+                                    'fetch_status',
+                                    'pending'
+                                )
+                                ->count(),
+
+                        'linked' =>
+                            (clone $base)
+                                ->where(
+                                    'match_status',
+                                    'linked'
+                                )
+                                ->count(),
+
+                        'review' =>
+                            $review,
+
+                        'failed' =>
+                            (clone $base)
+                                ->whereIn(
+                                    'fetch_status',
+                                    [
+                                        'error',
+                                        'http_error',
+                                    ]
+                                )
+                                ->count(),
+                    ];
+                }
+            )
+            ->values();
     }
 
     public function deleteHymnalNetSource(

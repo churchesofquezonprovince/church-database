@@ -6,6 +6,178 @@ use InvalidArgumentException;
 
 class HymnalNetCollectionCatalog
 {
+    /*
+     * Logical Hymnal.net collections shown in the UI.
+     *
+     * The logical section is intentionally separate
+     * from the physical hymn URL route.
+     *
+     * Example:
+     *
+     * New Songs
+     * ├── /en/hymn/ns/...
+     * └── /en/hymn/lb/...
+     *
+     * Discovery learns physical route families from
+     * Hymnal.net's own indexes instead of requiring
+     * every route to be hard-coded here.
+     */
+    public static function sections(): array
+    {
+        return [
+            'classic' => [
+                'code' =>
+                    'classic',
+
+                'label' =>
+                    'Classic Hymns',
+
+                'index_code' =>
+                    'h',
+
+                'index_url' =>
+                    'https://www.hymnal.net/en/song-index/h/',
+
+                'primary_route' =>
+                    'h',
+
+                'language' =>
+                    'english',
+
+                'match_strategy' =>
+                    'classic',
+
+                'canonical_book_source' =>
+                    'songbase',
+
+                'canonical_book_source_id' =>
+                    '2',
+
+                'canonical_book_name' =>
+                    'Hymnal',
+            ],
+
+            'new_tunes' => [
+                'code' =>
+                    'new_tunes',
+
+                'label' =>
+                    'New Tunes',
+
+                'index_code' =>
+                    'nt',
+
+                'index_url' =>
+                    'https://www.hymnal.net/en/song-index/nt',
+
+                'primary_route' =>
+                    'nt',
+
+                'language' =>
+                    'english',
+
+                /*
+                 * A New Tune belongs to the existing
+                 * canonical Hymn family.
+                 *
+                 * It must never create a duplicate
+                 * canonical Hymn automatically.
+                 */
+                'match_strategy' =>
+                    'new_tune',
+
+                'canonical_book_source' =>
+                    'songbase',
+
+                'canonical_book_source_id' =>
+                    '2',
+
+                'canonical_book_name' =>
+                    'Hymnal',
+            ],
+
+            'new_songs' => [
+                'code' =>
+                    'new_songs',
+
+                'label' =>
+                    'New Songs',
+
+                'index_code' =>
+                    'ns',
+
+                'index_url' =>
+                    'https://www.hymnal.net/en/song-index/ns',
+
+                'primary_route' =>
+                    'ns',
+
+                'language' =>
+                    'english',
+
+                /*
+                 * New Songs may use more than one
+                 * physical route (for example ns and
+                 * lb). Discovery learns those routes.
+                 */
+                'match_strategy' =>
+                    'title',
+            ],
+
+            'children' => [
+                'code' =>
+                    'children',
+
+                'label' =>
+                    "Children's Songs",
+
+                'index_code' =>
+                    'c',
+
+                'index_url' =>
+                    'https://www.hymnal.net/en/song-index/c',
+
+                'primary_route' =>
+                    'c',
+
+                'language' =>
+                    'english',
+
+                'match_strategy' =>
+                    'title',
+            ],
+        ];
+    }
+
+    public static function section(
+        string $section
+    ): array {
+        $section =
+            strtolower(
+                trim($section)
+            );
+
+        $config =
+            self::sections()[$section]
+            ?? null;
+
+        if (! $config) {
+            throw new InvalidArgumentException(
+                'Unsupported Hymnal.net section: '
+                . $section
+            );
+        }
+
+        return $config;
+    }
+
+    /*
+     * Existing safe sequential catalog.
+     *
+     * Keep this separate from index discovery. We do
+     * not invent sequential ranges for New Tunes,
+     * New Songs, Children, or hidden route families.
+     */
     public static function all(): array
     {
         return [
@@ -13,8 +185,11 @@ class HymnalNetCollectionCatalog
                 'code' =>
                     'h',
 
+                'section_code' =>
+                    'classic',
+
                 'label' =>
-                    'Classic Hymnal',
+                    'Classic Hymns',
 
                 'language' =>
                     'english',
@@ -23,11 +198,9 @@ class HymnalNetCollectionCatalog
                     1,
 
                 /*
-                 * Known-good Hymnal.net boundary.
-                 *
-                 * h/1361 currently returns corrupted /
-                 * mismatched page content, so automatic
-                 * synchronization MUST stop at 1360.
+                 * Known-good sequential boundary.
+                 * Sparse/discovered Classic IDs are
+                 * synchronized separately.
                  */
                 'max_number' =>
                     1360,
@@ -58,25 +231,64 @@ class HymnalNetCollectionCatalog
 
         if (! $config) {
             throw new InvalidArgumentException(
-                'Unsupported Hymnal.net '
+                'Unsupported sequential Hymnal.net '
                 . 'collection: '
                 . $collection
+                . '. Use Hymnal.net discovery for '
+                . 'multi-collection imports.'
             );
         }
 
         return $config;
     }
 
+    /*
+     * Physical routes are discovered from Hymnal.net.
+     *
+     * Do not require every possible route code to be
+     * present in all(). This is what allows routes such
+     * as lb to be imported when the New Songs index
+     * exposes them.
+     */
     public static function url(
         string $collection,
         int|string $number
     ): string {
-        $config =
-            self::get($collection);
+        $collection =
+            strtolower(
+                trim($collection)
+            );
+
+        $number =
+            trim(
+                (string) $number
+            );
+
+        if (
+            ! preg_match(
+                '/^[a-z0-9_-]+$/',
+                $collection
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Invalid Hymnal.net route code.'
+            );
+        }
+
+        if (
+            ! preg_match(
+                '/^[A-Za-z0-9._-]+$/',
+                $number
+            )
+        ) {
+            throw new InvalidArgumentException(
+                'Invalid Hymnal.net hymn number.'
+            );
+        }
 
         return
             'https://www.hymnal.net/en/hymn/'
-            . $config['code']
+            . $collection
             . '/'
             . $number;
     }

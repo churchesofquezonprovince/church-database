@@ -160,6 +160,10 @@ class HymnalNetCatalogSyncService
                             (string) $number,
                     ]);
 
+            $entry->section_code =
+                $config['section_code']
+                ?? 'classic';
+
             $entry->source_url =
                 $url;
 
@@ -316,6 +320,332 @@ class HymnalNetCatalogSyncService
         return $result;
     }
 
+    public function syncDiscovered(
+        string $section,
+        int $delayMs = 500,
+        bool $resync = false,
+        int $limit = 0
+    ): array {
+        $config =
+            HymnalNetCollectionCatalog
+                ::section(
+                    $section
+                );
+
+        $section =
+            $config['code'];
+
+        $strategy =
+            $config[
+                'match_strategy'
+            ];
+
+        $book =
+            $this->matchingBookForSection(
+                $config
+            );
+
+        $query =
+            HymnalNetEntry::query()
+                ->where(
+                    'section_code',
+                    $section
+                )
+                ->orderBy(
+                    'collection_code'
+                )
+                ->orderByRaw(
+                    'CAST(number AS UNSIGNED)'
+                )
+                ->orderBy(
+                    'number'
+                );
+
+        if (! $resync) {
+            $query->where(
+                'fetch_status',
+                'pending'
+            );
+        }
+
+        if ($limit > 0) {
+            $query->limit(
+                $limit
+            );
+        }
+
+        $entries =
+            $query->get();
+
+        $result = [
+            'section' =>
+                $section,
+
+            'processed' =>
+                0,
+
+            'fetched' =>
+                0,
+
+            'valid' =>
+                0,
+
+            'linked' =>
+                0,
+
+            'variant_review' =>
+                0,
+
+            'unmatched' =>
+                0,
+
+            'ambiguous' =>
+                0,
+
+            'conflicts' =>
+                0,
+
+            'invalid' =>
+                0,
+
+            'failed' =>
+                0,
+        ];
+
+        foreach (
+            $entries
+            as $index => $entry
+        ) {
+            $result[
+                'processed'
+            ]++;
+
+            try {
+                $response =
+                    Http::accept(
+                        'text/html'
+                    )
+                        ->withHeaders([
+                            'User-Agent' =>
+                                'CoQP-HymnalNet-Catalog/1.0',
+                        ])
+                        ->timeout(30)
+                        ->retry(
+                            2,
+                            750
+                        )
+                        ->get(
+                            $entry->source_url
+                        );
+
+                $entry->http_status =
+                    $response->status();
+
+                $entry->last_fetched_at =
+                    now();
+
+                if (! $response->successful()) {
+                    $entry->fetch_status =
+                        'http_error';
+
+                    $entry->validation_status =
+                        'failed';
+
+                    $entry->validation_note =
+                        'HTTP '
+                        . $response->status();
+
+                    $entry->match_status =
+                        'not_checked';
+
+                    $entry->matched_hymn_id =
+                        null;
+
+                    $entry
+                        ->matched_hymn_variant_id =
+                        null;
+
+                    $entry->save();
+
+                    $result['failed']++;
+
+                    continue;
+                }
+
+                $body =
+                    $response->body();
+
+                $entry->title =
+                    $this->extractTitle(
+                        $body
+                    );
+
+                $entry->fetch_status =
+                    'fetched';
+
+                $result['fetched']++;
+
+                $validation =
+                    $this->validatePage(
+                        $entry
+                            ->collection_code,
+                        $entry->number,
+                        $entry->title,
+                        $body
+                    );
+
+                if (! $validation['valid']) {
+                    $entry->validation_status =
+                        'invalid';
+
+                    $entry->validation_note =
+                        $validation['note'];
+
+                    $entry->match_status =
+                        'not_checked';
+
+                    $entry->matched_hymn_id =
+                        null;
+
+                    $entry
+                        ->matched_hymn_variant_id =
+                        null;
+
+                    $entry->match_method =
+                        null;
+
+                    $entry->match_score =
+                        null;
+
+                    $entry->save();
+
+                    $result['invalid']++;
+
+                    continue;
+                }
+
+                $entry->validation_status =
+                    'valid';
+
+                $entry->validation_note =
+                    $validation['note'];
+
+                $result['valid']++;
+
+                $matchResult =
+                    $this->matchAndLink(
+                        $entry,
+                        $book,
+                        $strategy
+                    );
+
+                if (
+                    ! array_key_exists(
+                        $matchResult,
+                        $result
+                    )
+                ) {
+                    throw new RuntimeException(
+                        'Unknown Hymnal.net match '
+                        . 'result: '
+                        . $matchResult
+                    );
+                }
+
+                $result[
+                    $matchResult
+                ]++;
+
+                $entry->save();
+            } catch (Throwable $e) {
+                report($e);
+
+                $entry->fetch_status =
+                    'error';
+
+                $entry->validation_status =
+                    'failed';
+
+                $entry->validation_note =
+                    $e->getMessage();
+
+                $entry->match_status =
+                    'not_checked';
+
+                $entry->last_fetched_at =
+                    now();
+
+                $entry->save();
+
+                $result['failed']++;
+            } finally {
+                if (
+                    $delayMs > 0
+                    && $index
+                        < $entries->count() - 1
+                ) {
+                    usleep(
+                        $delayMs * 1000
+                    );
+                }
+            }
+        }
+
+        return $result;
+    }
+
+
+    private function matchingBookForSection(
+        array $config
+    ): ?HymnBook {
+        $source =
+            $config[
+                'canonical_book_source'
+            ]
+            ?? null;
+
+        $sourceId =
+            $config[
+                'canonical_book_source_id'
+            ]
+            ?? null;
+
+        if (
+            blank($source)
+            || blank($sourceId)
+        ) {
+            return null;
+        }
+
+        $book =
+            HymnBook::query()
+                ->where(
+                    'source',
+                    $source
+                )
+                ->where(
+                    'source_id',
+                    $sourceId
+                )
+                ->first();
+
+        if (! $book) {
+            throw new RuntimeException(
+                'Matching Songbase book was '
+                . 'not found: '
+                . (
+                    $config[
+                        'canonical_book_name'
+                    ]
+                    ?? $sourceId
+                )
+            );
+        }
+
+        return $book;
+    }
+
+
     private function extractTitle(
         string $html
     ): ?string {
@@ -356,7 +686,7 @@ class HymnalNetCatalogSyncService
 
     private function validatePage(
         string $collection,
-        int $number,
+        int|string $number,
         ?string $title,
         string $html
     ): array {
@@ -394,7 +724,7 @@ class HymnalNetCatalogSyncService
 
             if (
                 $internalNumber
-                !== $number
+                !== (int) $number
             ) {
                 return [
                     'valid' => false,
@@ -426,23 +756,37 @@ class HymnalNetCatalogSyncService
 
     private function matchAndLink(
         HymnalNetEntry $entry,
-        HymnBook $book
+        ?HymnBook $book,
+        string $strategy = 'classic'
     ): string {
         $bookHymnIds =
-            HymnBookEntry::query()
-                ->where(
-                    'hymn_book_id',
-                    $book->id
-                )
-                ->where(
-                    'number',
-                    $entry->number
-                )
-                ->pluck(
-                    'hymn_id'
-                )
-                ->unique()
-                ->values();
+            collect();
+
+        if ($strategy !== 'title') {
+            if (! $book) {
+                throw new RuntimeException(
+                    'This Hymnal.net matching strategy '
+                    . 'requires the canonical Hymnal '
+                    . 'book.'
+                );
+            }
+
+            $bookHymnIds =
+                HymnBookEntry::query()
+                    ->where(
+                        'hymn_book_id',
+                        $book->id
+                    )
+                    ->where(
+                        'number',
+                        $entry->number
+                    )
+                    ->pluck(
+                        'hymn_id'
+                    )
+                    ->unique()
+                    ->values();
+        }
 
         $hymnId = null;
         $matchMethod = null;
@@ -458,7 +802,9 @@ class HymnalNetCatalogSyncService
                 (int) $bookHymnIds->first();
 
             $matchMethod =
-                'songbase_book_number';
+                $strategy === 'new_tune'
+                    ? 'new_tune_classic_number'
+                    : 'songbase_book_number';
 
             $matchScore =
                 100;
@@ -505,7 +851,9 @@ class HymnalNetCatalogSyncService
                         ->id;
 
                 $matchMethod =
-                    'songbase_book_number_title';
+                    $strategy === 'new_tune'
+                        ? 'new_tune_classic_number_title'
+                        : 'songbase_book_number_title';
 
                 $matchScore =
                     100;
@@ -625,6 +973,53 @@ class HymnalNetCatalogSyncService
                 null;
 
             return 'unmatched';
+        }
+
+        /*
+         * New Tunes are not new canonical Hymns.
+         *
+         * We identify the canonical family but stop
+         * before assigning a source to a tune/version.
+         * Central review must explicitly decide the
+         * correct HymnVariant.
+         */
+        if ($strategy === 'new_tune') {
+            /*
+             * Preserve a later explicit human review.
+             */
+            if (
+                $entry->match_status
+                    === 'linked'
+                && $entry->match_method
+                    === 'manual_review'
+                && (int)
+                    $entry->matched_hymn_id
+                    === $hymnId
+            ) {
+                return 'linked';
+            }
+
+            $entry->matched_hymn_id =
+                $hymnId;
+
+            $entry->matched_hymn_variant_id =
+                null;
+
+            $entry->match_status =
+                'variant_review';
+
+            $entry->match_method =
+                str_starts_with(
+                    (string) $matchMethod,
+                    'new_tune_'
+                )
+                    ? $matchMethod
+                    : 'new_tune_exact_title';
+
+            $entry->match_score =
+                $matchScore;
+
+            return 'variant_review';
         }
 
         /*
@@ -777,6 +1172,10 @@ class HymnalNetCatalogSyncService
                         'collection' =>
                             $entry
                                 ->collection_code,
+
+                        'section' =>
+                            $entry
+                                ->section_code,
 
                         'number' =>
                             $entry->number,

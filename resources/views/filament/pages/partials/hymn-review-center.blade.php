@@ -41,9 +41,9 @@
                            text-gray-500
                            dark:text-gray-400"
                 >
-                    The canonical Hymn is known,
-                    but it has multiple tunes or versions.
-                    Select the correct variant manually.
+                    The canonical Hymn family is known,
+                    but the correct tune or version still
+                    needs an explicit variant assignment.
                 </p>
             </div>
 
@@ -56,7 +56,7 @@
                                    dark:border-white/10"
                         >
                             <th class="px-4 py-3">
-                                Hymnal #
+                                Source / Number
                             </th>
 
                             <th class="px-4 py-3">
@@ -92,7 +92,31 @@
                                            align-top
                                            font-bold"
                                 >
-                                    {{ $entry->number }}
+                                    {{
+                                        strtoupper(
+                                            $entry->collection_code
+                                        )
+                                    }}{{ $entry->number }}
+
+                                    @if ($entry->section_code)
+                                        <div
+                                            class="mt-1 text-xs
+                                                   font-normal
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            {{
+                                                str(
+                                                    $entry->section_code
+                                                )
+                                                    ->replace(
+                                                        '_',
+                                                        ' '
+                                                    )
+                                                    ->title()
+                                            }}
+                                        </div>
+                                    @endif
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
@@ -439,8 +463,9 @@
                            text-gray-500
                            dark:text-gray-400"
                 >
-                    Only unresolved Classic Hymnal
-                    entries appear here.
+                    Unmatched, ambiguous, and conflicting
+                    Hymnal.net entries from all synchronized
+                    collections appear here.
                 </p>
             </div>
 
@@ -453,7 +478,7 @@
                                    dark:border-white/10"
                         >
                             <th class="px-4 py-3">
-                                Number
+                                Source / Number
                             </th>
 
                             <th class="px-4 py-3">
@@ -485,7 +510,31 @@
                                            align-top
                                            font-bold"
                                 >
-                                    {{ $entry->number }}
+                                    {{
+                                        strtoupper(
+                                            $entry->collection_code
+                                        )
+                                    }}{{ $entry->number }}
+
+                                    @if ($entry->section_code)
+                                        <div
+                                            class="mt-1 text-xs
+                                                   font-normal
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            {{
+                                                str(
+                                                    $entry->section_code
+                                                )
+                                                    ->replace(
+                                                        '_',
+                                                        ' '
+                                                    )
+                                                    ->title()
+                                            }}
+                                        </div>
+                                    @endif
                                 </td>
 
                                 <td
@@ -532,9 +581,14 @@
                                         "
                                     >
                                         {{
-                                            ucfirst(
+                                            str(
                                                 $entry->match_status
                                             )
+                                                ->replace(
+                                                    '_',
+                                                    ' '
+                                                )
+                                                ->title()
                                         }}
                                     </span>
                                 </td>
@@ -587,8 +641,8 @@
                                            text-center
                                            text-gray-500"
                                 >
-                                    All Classic Hymnal entries
-                                    are resolved.
+                                    No Hymnal.net entries currently
+                                    require canonical review.
                                 </td>
                             </tr>
                         @endforelse
@@ -611,6 +665,11 @@
     .hymn-review-light-sky,
     .hymn-review-light-sky * {
         color: #082f49 !important;
+    }
+
+    .hymn-review-light-amber,
+    .hymn-review-light-amber * {
+        color: #78350f !important;
     }
 </style>
 
@@ -652,7 +711,24 @@
                            dark:text-gray-400"
                 >
                     Hymnal.net
-                    {{ $reviewedEntry->collection_code }}/{{ $reviewedEntry->number }}
+                    {{
+                        strtoupper(
+                            $reviewedEntry
+                                ->collection_code
+                        )
+                    }}{{ $reviewedEntry->number }}
+
+                    @if ($reviewedEntry->section_code)
+                        ·
+                        {{
+                            str(
+                                $reviewedEntry
+                                    ->section_code
+                            )
+                                ->replace('_', ' ')
+                                ->title()
+                        }}
+                    @endif
                 </p>
             </div>
 
@@ -762,6 +838,8 @@
         @if (
             $reviewedEntry->match_status
                 === 'unmatched'
+            && $reviewedEntry->section_code
+                !== 'new_tunes'
         )
             <div
                 class="hymn-review-light-sky
@@ -862,6 +940,37 @@
             </div>
         @endif
 
+        @if (
+            $reviewedEntry->section_code
+                === 'new_tunes'
+        )
+            <div
+                class="hymn-review-light-amber
+                       mt-6 rounded-xl border
+                       border-amber-300
+                       bg-amber-100 p-4
+                       text-amber-950
+                       dark:border-amber-300
+                       dark:bg-amber-100
+                       dark:text-amber-950"
+                style="
+                    color: #78350f !important;
+                "
+            >
+                <div class="font-bold">
+                    New Tune
+                </div>
+
+                <p class="mt-1 text-sm">
+                    This Hymnal.net entry belongs to an
+                    existing canonical Hymn family.
+                    Select an explicit tune variant.
+                    It must not create another canonical
+                    Hymn or attach at canonical level.
+                </p>
+            </div>
+        @endif
+
         @if ($selectedHymn)
             <div
                 class="hymn-review-light-green
@@ -951,11 +1060,24 @@
                         </div>
                     </div>
                 @else
-                    <p class="mt-3 text-sm">
-                        This Hymn has no active variants.
-                        The Hymnal.net source will be linked
-                        at the canonical Hymn level.
-                    </p>
+                    @if (
+                        $reviewedEntry->section_code
+                            === 'new_tunes'
+                    )
+                        <p class="mt-3 text-sm">
+                            This Hymn has no active variants
+                            yet. A tune variant must be
+                            created before this New Tune can
+                            be resolved.
+                        </p>
+                    @else
+                        <p class="mt-3 text-sm">
+                            This Hymn has no active variants.
+                            The Hymnal.net source will be
+                            linked at the canonical Hymn
+                            level.
+                        </p>
+                    @endif
                 @endif
             </div>
         @endif
@@ -967,7 +1089,14 @@
             <x-filament::button
                 wire:click="resolveReviewedEntry"
                 icon="heroicon-m-check"
-                :disabled="! $selectedHymnId"
+                :disabled="
+                    ! $selectedHymnId
+                    || (
+                        $reviewedEntry->section_code
+                            === 'new_tunes'
+                        && ! $selectedVariantId
+                    )
+                "
             >
                 Link Existing Canonical Hymn
             </x-filament::button>

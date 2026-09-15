@@ -1073,10 +1073,19 @@ class HymnsSetup extends Page
                 )
                 ->pluck('id');
 
+        $reviewEntry =
+            $this->reviewedEntry();
+
         $this->selectedVariantId =
-            $variantIds->count() === 1
-                ? (int) $variantIds->first()
-                : null;
+            $reviewEntry?->section_code
+                === 'new_tunes'
+                ? null
+                : (
+                    $variantIds->count() === 1
+                        ? (int)
+                            $variantIds->first()
+                        : null
+                );
 
         $this->hymnalReviewSearch =
             $hymn->title;
@@ -1104,13 +1113,12 @@ class HymnsSetup extends Page
     public function variantReviewEntries(): Collection
     {
         return HymnalNetEntry::query()
-            ->where(
-                'collection_code',
-                'h'
-            )
-            ->where(
+            ->whereIn(
                 'match_status',
-                'linked'
+                [
+                    'linked',
+                    'variant_review',
+                ]
             )
             ->whereNotNull(
                 'matched_hymn_id'
@@ -1126,19 +1134,35 @@ class HymnsSetup extends Page
                             true
                         ),
             ])
+            ->orderBy(
+                'section_code'
+            )
+            ->orderBy(
+                'collection_code'
+            )
             ->orderByRaw(
                 'CAST(number AS UNSIGNED)'
             )
             ->get()
             ->filter(
-                fn (HymnalNetEntry $entry): bool =>
-                    (
+                function (
+                    HymnalNetEntry $entry
+                ): bool {
+                    if (
+                        $entry->match_status
+                            === 'variant_review'
+                    ) {
+                        return true;
+                    }
+
+                    return (
                         $entry
                             ->matchedHymn
                             ?->variants
                             ?->count()
                         ?? 0
-                    ) > 1
+                    ) > 1;
+                }
             )
             ->values();
     }
@@ -1147,10 +1171,6 @@ class HymnsSetup extends Page
     public function provisionalReviewEntries(): Collection
     {
         return HymnalNetEntry::query()
-            ->where(
-                'collection_code',
-                'h'
-            )
             ->where(
                 'match_status',
                 'linked'
@@ -1163,6 +1183,12 @@ class HymnsSetup extends Page
                 'matchedHymn',
                 'matchedVariant',
             ])
+            ->orderBy(
+                'section_code'
+            )
+            ->orderBy(
+                'collection_code'
+            )
             ->orderByRaw(
                 'CAST(number AS UNSIGNED)'
             )
@@ -1173,14 +1199,19 @@ class HymnsSetup extends Page
     public function unresolvedEntries(): Collection
     {
         return HymnalNetEntry::query()
-            ->where(
-                'collection_code',
-                'h'
-            )
-            ->where(
+            ->whereIn(
                 'match_status',
-                '!=',
-                'linked'
+                [
+                    'unmatched',
+                    'ambiguous',
+                    'conflict',
+                ]
+            )
+            ->orderBy(
+                'section_code'
+            )
+            ->orderBy(
+                'collection_code'
             )
             ->orderByRaw(
                 'CAST(number AS UNSIGNED)'
@@ -1207,10 +1238,6 @@ class HymnsSetup extends Page
     ): void {
         $entry =
             HymnalNetEntry::query()
-                ->where(
-                    'collection_code',
-                    'h'
-                )
                 ->findOrFail(
                     $entryId
                 );
@@ -1322,6 +1349,20 @@ class HymnsSetup extends Page
                     )
                     ->get();
 
+            if (
+                $entry->section_code
+                    === 'new_tunes'
+                && $activeVariants->isEmpty()
+            ) {
+                throw new \RuntimeException(
+                    'This New Tunes entry belongs to '
+                    . 'the canonical Hymn family, but '
+                    . 'that Hymn has no active variants '
+                    . 'yet. Create the tune variant '
+                    . 'before resolving this entry.'
+                );
+            }
+
             $variant = null;
 
             if (
@@ -1418,6 +1459,10 @@ class HymnsSetup extends Page
                             'collection' =>
                                 $entry
                                     ->collection_code,
+
+                            'section' =>
+                                $entry
+                                    ->section_code,
 
                             'number' =>
                                 $entry->number,
@@ -1520,13 +1565,21 @@ class HymnsSetup extends Page
         try {
             $entry =
                 HymnalNetEntry::query()
-                    ->where(
-                        'collection_code',
-                        'h'
-                    )
                     ->findOrFail(
                         $this->reviewEntryId
                     );
+
+            if (
+                $entry->section_code
+                    === 'new_tunes'
+            ) {
+                throw new \RuntimeException(
+                    'A New Tunes entry cannot create '
+                    . 'a new canonical Hymn. Link it '
+                    . 'to the existing canonical Hymn '
+                    . 'and an explicit tune variant.'
+                );
+            }
 
             /*
              * Only a genuinely-unmatched entry may
@@ -1714,6 +1767,10 @@ class HymnsSetup extends Page
                                     'collection' =>
                                         $entry
                                             ->collection_code,
+
+                                    'section' =>
+                                        $entry
+                                            ->section_code,
 
                                     'number' =>
                                         $entry->number,
