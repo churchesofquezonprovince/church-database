@@ -122,9 +122,18 @@
                 @endif
             </div>
 
-            <div class="overflow-x-auto">
+            <div
+                class="overflow-x-auto"
+                @if ($variantReview->count() >= 10)
+                    style="
+                        max-height: 34rem;
+                        overflow-y: scroll;
+                        scrollbar-gutter: stable;
+                    "
+                @endif
+            >
                 <table class="w-full text-left text-sm">
-                    <thead>
+                    <thead style="position: sticky; top: 0; z-index: 20; background: #ffffff; color: #111827 !important;">
                         <tr
                             class="border-b
                                    border-gray-200
@@ -359,13 +368,22 @@
                 </p>
             </div>
 
-            <div class="overflow-x-auto">
+            <div
+                class="overflow-x-auto"
+                @if ($provisionalReview->count() >= 10)
+                    style="
+                        max-height: 34rem;
+                        overflow-y: scroll;
+                        scrollbar-gutter: stable;
+                    "
+                @endif
+            >
                 <table
                     class="w-full text-left text-sm
                            text-amber-950
                            dark:text-amber-950"
                 >
-                    <thead>
+                    <thead style="position: sticky; top: 0; z-index: 20; background: #fffbeb;">
                         <tr
                             class="border-b
                                    border-amber-200
@@ -570,9 +588,18 @@
                 </p>
             </div>
 
-            <div class="overflow-x-auto">
+            <div
+                class="overflow-x-auto"
+                @if ($unresolved->count() >= 10)
+                    style="
+                        max-height: 34rem;
+                        overflow-y: scroll;
+                        scrollbar-gutter: stable;
+                    "
+                @endif
+            >
                 <table class="w-full text-left text-sm">
-                    <thead>
+                    <thead style="position: sticky; top: 0; z-index: 20; background: #ffffff; color: #111827 !important;">
                         <tr
                             class="border-b
                                    border-gray-200
