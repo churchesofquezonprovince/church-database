@@ -762,7 +762,78 @@ class HymnalNetCatalogSyncService
         $bookHymnIds =
             collect();
 
-        if ($strategy !== 'title') {
+        $lookupNumber =
+            (string) $entry->number;
+
+        /*
+         * Alternate Tunes retain their full provider
+         * number (for example 10b), but canonical-family
+         * lookup uses only the corresponding Classic
+         * number (10).
+         *
+         * This must NEVER choose a Tune variant.
+         */
+        if (
+            $strategy === 'alternate_tune'
+        ) {
+            if (
+                ! preg_match(
+                    '/^([0-9]+)([A-Za-z]+)$/',
+                    $lookupNumber,
+                    $alternateMatches
+                )
+            ) {
+                throw new RuntimeException(
+                    'Alternate Tune number must contain '
+                    . 'a numeric Classic number followed '
+                    . 'by a letter suffix.'
+                );
+            }
+
+            $lookupNumber =
+                $alternateMatches[1];
+
+            /*
+             * Prefer Hymnal.net's already-linked Classic
+             * counterpart as the canonical-family anchor.
+             */
+            $classicEntry =
+                HymnalNetEntry::query()
+                    ->where(
+                        'section_code',
+                        'classic'
+                    )
+                    ->where(
+                        'collection_code',
+                        'h'
+                    )
+                    ->where(
+                        'number',
+                        $lookupNumber
+                    )
+                    ->where(
+                        'match_status',
+                        'linked'
+                    )
+                    ->whereNotNull(
+                        'matched_hymn_id'
+                    )
+                    ->first();
+
+            if ($classicEntry) {
+                $bookHymnIds =
+                    collect([
+                        (int)
+                            $classicEntry
+                                ->matched_hymn_id,
+                    ]);
+            }
+        }
+
+        if (
+            $strategy !== 'title'
+            && $bookHymnIds->isEmpty()
+        ) {
             if (! $book) {
                 throw new RuntimeException(
                     'This Hymnal.net matching strategy '
@@ -779,7 +850,7 @@ class HymnalNetCatalogSyncService
                     )
                     ->where(
                         'number',
-                        $entry->number
+                        $lookupNumber
                     )
                     ->pluck(
                         'hymn_id'
@@ -802,9 +873,16 @@ class HymnalNetCatalogSyncService
                 (int) $bookHymnIds->first();
 
             $matchMethod =
-                $strategy === 'new_tune'
-                    ? 'new_tune_classic_number'
-                    : 'songbase_book_number';
+                match ($strategy) {
+                    'new_tune' =>
+                        'new_tune_classic_number',
+
+                    'alternate_tune' =>
+                        'alternate_tune_classic_number',
+
+                    default =>
+                        'songbase_book_number',
+                };
 
             $matchScore =
                 100;
@@ -851,9 +929,16 @@ class HymnalNetCatalogSyncService
                         ->id;
 
                 $matchMethod =
-                    $strategy === 'new_tune'
-                        ? 'new_tune_classic_number_title'
-                        : 'songbase_book_number_title';
+                    match ($strategy) {
+                        'new_tune' =>
+                            'new_tune_classic_number_title',
+
+                        'alternate_tune' =>
+                            'alternate_tune_classic_number_title',
+
+                        default =>
+                            'songbase_book_number_title',
+                    };
 
                 $matchScore =
                     100;
@@ -983,7 +1068,16 @@ class HymnalNetCatalogSyncService
          * Central review must explicitly decide the
          * correct HymnVariant.
          */
-        if ($strategy === 'new_tune') {
+        if (
+            in_array(
+                $strategy,
+                [
+                    'new_tune',
+                    'alternate_tune',
+                ],
+                true
+            )
+        ) {
             /*
              * Preserve a later explicit human review.
              */
@@ -1008,13 +1102,23 @@ class HymnalNetCatalogSyncService
             $entry->match_status =
                 'variant_review';
 
+            $strategyPrefix =
+                $strategy === 'alternate_tune'
+                    ? 'alternate_tune_'
+                    : 'new_tune_';
+
+            $fallbackMethod =
+                $strategy === 'alternate_tune'
+                    ? 'alternate_tune_exact_title'
+                    : 'new_tune_exact_title';
+
             $entry->match_method =
                 str_starts_with(
                     (string) $matchMethod,
-                    'new_tune_'
+                    $strategyPrefix
                 )
                     ? $matchMethod
-                    : 'new_tune_exact_title';
+                    : $fallbackMethod;
 
             $entry->match_score =
                 $matchScore;

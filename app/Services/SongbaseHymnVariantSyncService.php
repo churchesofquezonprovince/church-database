@@ -193,14 +193,20 @@ class SongbaseHymnVariantSyncService
                                 function (
                                     HymnVariant $candidate
                                 ): bool {
-                                    return (
-                                        $candidate
-                                            ->metadata[
-                                                'created_by'
-                                            ]
-                                        ?? null
-                                    ) ===
-                                        'hymnal_net_new_tune_review';
+                                    return in_array(
+                                        (
+                                            $candidate
+                                                ->metadata[
+                                                    'created_by'
+                                                ]
+                                            ?? null
+                                        ),
+                                        [
+                                            'hymnal_net_new_tune_review',
+                                            'hymnal_net_alternate_tune_review',
+                                        ],
+                                        true
+                                    );
                                 }
                             )
                             ->values();

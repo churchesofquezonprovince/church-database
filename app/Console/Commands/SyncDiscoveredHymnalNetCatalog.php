@@ -11,7 +11,7 @@ class SyncDiscoveredHymnalNetCatalog extends Command
 {
     protected $signature =
         'hymnal-net:sync-discovered
-        {section=all : classic, new_tunes, new_songs, children, or all}
+        {section=all : classic, alternate_tunes, new_tunes, new_songs, children, or all}
         {--delay=500 : Delay between hymn requests in milliseconds}
         {--limit=0 : Maximum rows per section; 0 means all}
         {--resync : Include rows already fetched}';

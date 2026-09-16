@@ -11,7 +11,7 @@ class DiscoverHymnalNetCatalog extends Command
 {
     protected $signature =
         'hymnal-net:discover
-        {section=all : classic, new_tunes, new_songs, children, or all}
+        {section=all : classic, alternate_tunes, new_tunes, new_songs, children, or all}
         {--delay=250 : Delay between index requests in milliseconds}';
 
     protected $description =

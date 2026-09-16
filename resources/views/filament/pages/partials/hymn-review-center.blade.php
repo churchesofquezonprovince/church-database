@@ -1113,10 +1113,16 @@
                             ->values();
 
                     $selectableReviewVariants =
-                        $reviewedEntry->section_code
-                            === 'new_tunes'
-                                ? $reviewTuneVariants
-                                : $reviewVariants;
+                        in_array(
+                            $reviewedEntry->section_code,
+                            [
+                                'new_tunes',
+                                'alternate_tunes',
+                            ],
+                            true
+                        )
+                            ? $reviewTuneVariants
+                            : $reviewVariants;
                 @endphp
 
                 @if ($selectableReviewVariants->isNotEmpty())
@@ -1126,10 +1132,18 @@
                                    uppercase tracking-wide"
                         >
                             {{
-                                $reviewedEntry->section_code
-                                    === 'new_tunes'
-                                    ? 'New Tune Variant'
-                                    : 'Choose Variant'
+                                match (
+                                    $reviewedEntry->section_code
+                                ) {
+                                    'new_tunes' =>
+                                        'New Tune Variant',
+
+                                    'alternate_tunes' =>
+                                        'Alternate Tune Variant',
+
+                                    default =>
+                                        'Choose Variant',
+                                }
                             }}
                         </div>
 
@@ -1401,9 +1415,15 @@
                 @endif
 
                 @if (
-                    $reviewedEntry->section_code
-                        === 'new_tunes'
+                in_array(
+                    $reviewedEntry->section_code,
+                    [
+                        'new_tunes',
+                        'alternate_tunes',
+                    ],
+                    true
                 )
+            )
                     @if ($reviewTuneVariants->isEmpty())
                         <div
                             class="mt-5 rounded-xl border
@@ -1428,13 +1448,13 @@
                                 <strong>Tune 1</strong>
                                 and create
                                 <strong>Tune 2</strong>
-                                for this Hymnal.net New Tune.
+                                for this Hymnal.net tune page.
                             </p>
 
                             <div class="mt-4">
                                 <x-filament::button
                                     wire:click="createNewTuneVariantFromReviewedEntry"
-                                    wire:confirm="This Hymn has no Tune variants yet. Create Tune 1 for the existing/default tune and Tune 2 for this Hymnal.net New Tune?"
+                                    wire:confirm="This Hymn has no Tune variants yet. Create Tune 1 for the existing/default tune and Tune 2 for this Hymnal.net tune page?"
                                     icon="heroicon-m-plus"
                                     color="success"
                                 >
@@ -1498,7 +1518,7 @@
                                 <div class="mt-4">
                                     <x-filament::button
                                         wire:click="createNewTuneVariantFromReviewedEntry"
-                                        wire:confirm="Are you sure NONE of the existing Tune variants match this Hymnal.net New Tune? This will create a BRAND-NEW Tune variant."
+                                        wire:confirm="Are you sure NONE of the existing Tune variants match this Hymnal.net tune page? This will create a BRAND-NEW Tune variant."
                                         icon="heroicon-m-plus"
                                         color="danger"
                                     >

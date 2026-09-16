@@ -2002,16 +2002,22 @@ class HymnsSetup extends Page
                     ->get();
 
             if (
-                $entry->section_code
-                    === 'new_tunes'
+                in_array(
+                    $entry->section_code,
+                    [
+                        'new_tunes',
+                        'alternate_tunes',
+                    ],
+                    true
+                )
                 && $activeVariants->isEmpty()
             ) {
                 throw new \RuntimeException(
-                    'This New Tunes entry belongs to '
-                    . 'the canonical Hymn family, but '
+                    'This Hymnal.net tune entry belongs '
+                    . 'to the canonical Hymn family, but '
                     . 'that Hymn has no active variants '
-                    . 'yet. Create the tune variant '
-                    . 'before resolving this entry.'
+                    . 'yet. Establish or create the Tune '
+                    . 'variants before resolving it.'
                 );
             }
 
@@ -2042,8 +2048,14 @@ class HymnsSetup extends Page
                 }
 
                 if (
-                    $entry->section_code
-                        === 'new_tunes'
+                    in_array(
+                        $entry->section_code,
+                        [
+                            'new_tunes',
+                            'alternate_tunes',
+                        ],
+                        true
+                    )
                     && $variant->variant_type
                         !== 'tune'
                 ) {
@@ -2485,12 +2497,19 @@ class HymnsSetup extends Page
                     );
 
             if (
-                $entry->section_code
-                    !== 'new_tunes'
+                ! in_array(
+                    $entry->section_code,
+                    [
+                        'new_tunes',
+                        'alternate_tunes',
+                    ],
+                    true
+                )
             ) {
                 throw new \RuntimeException(
-                    'Only Hymnal.net New Tunes entries '
-                    . 'can create a new Tune variant '
+                    'Only Hymnal.net New Tunes or '
+                    . 'Alternate Tunes entries can '
+                    . 'create a new Tune variant '
                     . 'through this action.'
                 );
             }
@@ -2507,7 +2526,7 @@ class HymnsSetup extends Page
                 )
             ) {
                 throw new \RuntimeException(
-                    'This New Tunes entry is not '
+                    'This Hymnal.net tune entry is not '
                     . 'available for new-variant review.'
                 );
             }
@@ -2561,7 +2580,7 @@ class HymnsSetup extends Page
                                 === 'linked'
                         ) {
                             throw new \RuntimeException(
-                                'This New Tunes entry has '
+                                'This Hymnal.net tune entry has '
                                 . 'already been resolved.'
                             );
                         }
@@ -2573,6 +2592,12 @@ class HymnsSetup extends Page
                                 )
                                 ->lockForUpdate()
                                 ->firstOrFail();
+
+                        $reviewCreatedBy =
+                            $lockedEntry->section_code
+                                === 'alternate_tunes'
+                                ? 'hymnal_net_alternate_tune_review'
+                                : 'hymnal_net_new_tune_review';
 
                         /*
                          * Provider identity belongs to
@@ -2611,7 +2636,7 @@ class HymnsSetup extends Page
                             }
 
                             throw new \RuntimeException(
-                                'This Hymnal.net New Tune '
+                                'This Hymnal.net tune page '
                                 . 'already has a source '
                                 . 'record. Review the '
                                 . 'existing link instead '
@@ -2703,7 +2728,7 @@ class HymnsSetup extends Page
 
                                         'metadata' => [
                                             'created_by' =>
-                                                'hymnal_net_new_tune_review',
+                                                $reviewCreatedBy,
 
                                             'role' =>
                                                 'existing_tune_baseline',
@@ -2729,6 +2754,24 @@ class HymnsSetup extends Page
                              * left untouched because we
                              * should not guess their tune.
                              */
+                            $classicNumber =
+                                (string)
+                                    $lockedEntry
+                                        ->number;
+
+                            if (
+                                $lockedEntry->section_code
+                                    === 'alternate_tunes'
+                                && preg_match(
+                                    '/^([0-9]+)[A-Za-z]+$/',
+                                    $classicNumber,
+                                    $classicMatches
+                                )
+                            ) {
+                                $classicNumber =
+                                    $classicMatches[1];
+                            }
+
                             $classicEntry =
                                 HymnalNetEntry::query()
                                     ->where(
@@ -2741,7 +2784,7 @@ class HymnsSetup extends Page
                                     )
                                     ->where(
                                         'number',
-                                        $lockedEntry->number
+                                        $classicNumber
                                     )
                                     ->where(
                                         'matched_hymn_id',
@@ -2878,7 +2921,7 @@ class HymnsSetup extends Page
 
                                     'metadata' => [
                                         'created_by' =>
-                                            'hymnal_net_new_tune_review',
+                                            $reviewCreatedBy,
 
                                         'section' =>
                                             $lockedEntry
@@ -3014,7 +3057,7 @@ class HymnsSetup extends Page
 
             Notification::make()
                 ->title(
-                    'New Tune variant created'
+                    'Tune variant created'
                 )
                 ->body(
                     $baseline
@@ -3045,7 +3088,7 @@ class HymnsSetup extends Page
 
             Notification::make()
                 ->title(
-                    'New Tune variant was not created'
+                    'Tune variant was not created'
                 )
                 ->body(
                     $e->getMessage()

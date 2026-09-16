@@ -28,6 +28,8 @@ class HymnalNetSetup extends Page
 
     public string $linkedSearch = '';
 
+    public string $linkedSectionFilter = '';
+
     public function mount(): void
     {
         abort_unless(
@@ -318,6 +320,40 @@ class HymnalNetSetup extends Page
         }
     }
 
+    public function filterLinkedSourcesBySection(
+        string $section
+    ): void {
+        if (
+            ! array_key_exists(
+                $section,
+                HymnalNetCollectionCatalog
+                    ::sections()
+            )
+        ) {
+            throw new \RuntimeException(
+                'Unknown Hymnal.net collection filter.'
+            );
+        }
+
+        $this->linkedSectionFilter =
+            $section;
+
+        $this->dispatch(
+            'scroll-to-linked-hymnal-sources'
+        );
+    }
+
+
+    public function clearLinkedSourcesSectionFilter(): void
+    {
+        $this->linkedSectionFilter = '';
+
+        $this->dispatch(
+            'scroll-to-linked-hymnal-sources'
+        );
+    }
+
+
     public function linkedSources(): Collection
     {
         $search =
@@ -329,6 +365,46 @@ class HymnalNetSetup extends Page
             ->where(
                 'provider',
                 HymnSource::PROVIDER_HYMNAL_NET
+            )
+            ->when(
+                $this->linkedSectionFilter !== '',
+                function ($query): void {
+                    $section =
+                        $this->linkedSectionFilter;
+
+                    $query->where(
+                        function ($query) use (
+                            $section
+                        ): void {
+                            $query
+                                ->where(
+                                    'metadata->section',
+                                    $section
+                                )
+                                ->orWhereExists(
+                                    function (
+                                        $entryQuery
+                                    ) use (
+                                        $section
+                                    ): void {
+                                        $entryQuery
+                                            ->selectRaw('1')
+                                            ->from(
+                                                'hymnal_net_entries'
+                                            )
+                                            ->whereColumn(
+                                                'hymnal_net_entries.source_url',
+                                                'hymn_sources.source_url'
+                                            )
+                                            ->where(
+                                                'hymnal_net_entries.section_code',
+                                                $section
+                                            );
+                                    }
+                                );
+                        }
+                    );
+                }
             )
             ->with([
                 'hymn.bookEntries.hymnBook',

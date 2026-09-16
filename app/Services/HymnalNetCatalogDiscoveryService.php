@@ -175,6 +175,28 @@ class HymnalNetCatalogDiscoveryService
                 $number =
                     $matches[2];
 
+                /*
+                 * Logical sections may share a physical
+                 * route. Classic and Alternate Tunes
+                 * both use h/..., so classify provider
+                 * numbers before storing them.
+                 */
+                $numberPattern =
+                    $config[
+                        'discovery_number_pattern'
+                    ]
+                    ?? null;
+
+                if (
+                    $numberPattern
+                    && ! preg_match(
+                        $numberPattern,
+                        $number
+                    )
+                ) {
+                    continue;
+                }
+
                 $key =
                     $route
                     . ':'
@@ -204,6 +226,49 @@ class HymnalNetCatalogDiscoveryService
                     $delayMs * 1000
                 );
             }
+        }
+
+        /*
+         * Some Hymnal.net pages are valid provider
+         * identities but are not guaranteed to appear
+         * in the visible index.
+         *
+         * Add only explicitly-known identifiers from
+         * the collection catalog. Never generate a
+         * suffix range.
+         */
+        foreach (
+            $config['known_numbers']
+                ?? []
+            as $knownNumber
+        ) {
+            $route =
+                $config['primary_route'];
+
+            $number =
+                trim(
+                    (string) $knownNumber
+                );
+
+            $key =
+                $route
+                . ':'
+                . $number;
+
+            $songs[$key] = [
+                'route' =>
+                    $route,
+
+                'number' =>
+                    $number,
+
+                'url' =>
+                    HymnalNetCollectionCatalog
+                        ::url(
+                            $route,
+                            $number
+                        ),
+            ];
         }
 
         $created = 0;

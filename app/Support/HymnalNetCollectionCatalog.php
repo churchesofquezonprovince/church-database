@@ -47,6 +47,76 @@ class HymnalNetCollectionCatalog
                 'match_strategy' =>
                     'classic',
 
+                /*
+                 * Numeric h/... pages belong to
+                 * Classic Hymns. Suffixed h/... pages
+                 * belong to Alternate Tunes.
+                 */
+                'discovery_number_pattern' =>
+                    '/^[0-9]+$/',
+
+                'canonical_book_source' =>
+                    'songbase',
+
+                'canonical_book_source_id' =>
+                    '2',
+
+                'canonical_book_name' =>
+                    'Hymnal',
+            ],
+
+            'alternate_tunes' => [
+                'code' =>
+                    'alternate_tunes',
+
+                'label' =>
+                    'Alternate Tunes',
+
+                /*
+                 * Alternate Tunes share the physical
+                 * h/... route with Classic Hymns.
+                 *
+                 * Examples:
+                 *
+                 * h/10b
+                 * h/12b
+                 */
+                'index_code' =>
+                    'h',
+
+                'index_url' =>
+                    'https://www.hymnal.net/en/song-index/h/',
+
+                'primary_route' =>
+                    'h',
+
+                'language' =>
+                    'english',
+
+                /*
+                 * Only suffixed Hymnal numbers belong
+                 * to this logical collection.
+                 */
+                'discovery_number_pattern' =>
+                    '/^[0-9]+[A-Za-z]+$/',
+
+                /*
+                 * Explicitly-known provider identities.
+                 * Never generate a suffix sequence.
+                 */
+                'known_numbers' => [
+                    '10b',
+                    '12b',
+                ],
+
+                /*
+                 * Identify the existing Classic
+                 * canonical family, then stop for
+                 * musician Tune review.
+                 */
+                'match_strategy' =>
+                    'alternate_tune',
+
                 'canonical_book_source' =>
                     'songbase',
 

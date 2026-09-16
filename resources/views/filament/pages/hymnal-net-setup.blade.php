@@ -6,6 +6,20 @@
         $summary = $this->catalogSummary();
         $collectionSummaries =
             $this->collectionSummaries();
+
+        $linkedSectionFilter =
+            $this->linkedSectionFilter;
+
+        $linkedSectionLabel =
+            $linkedSectionFilter !== ''
+                ? (
+                    \App\Support\HymnalNetCollectionCatalog
+                        ::sections()[
+                            $linkedSectionFilter
+                        ]['label']
+                    ?? null
+                )
+                : null;
     @endphp
 
     <style>
@@ -35,7 +49,23 @@
         }
     </style>
 
-    <div class="space-y-6">
+    <div
+        class="space-y-6"
+        x-on:scroll-to-linked-hymnal-sources.window="
+            $nextTick(() => {
+                setTimeout(() => {
+                    document
+                        .getElementById(
+                            'linked-hymnal-sources'
+                        )
+                        ?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                        });
+                }, 50);
+            })
+        "
+    >
         <div
             class="rounded-2xl border
                    border-primary-200
@@ -135,33 +165,58 @@
         </div>
 
         <div
+            id="linked-hymnal-sources"
             class="rounded-2xl border
                    border-gray-200 bg-white p-6
                    shadow-sm
                    dark:border-gray-700
                    dark:bg-gray-900"
         >
-            <div class="mb-5">
-                <h3
-                    class="text-lg font-bold
-                           text-gray-950
-                           dark:text-white"
-                >
-                    Hymnal.net Collections
-                </h3>
+            <div
+                class="mb-5 flex flex-col gap-3
+                       lg:flex-row lg:items-start
+                       lg:justify-between"
+            >
+                <div>
+                    <h3
+                        class="text-lg font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        Hymnal.net Collections
+                    </h3>
 
-                <p
-                    class="mt-1 text-sm
-                           text-gray-500
-                           dark:text-gray-400"
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Click a collection to filter
+                        Linked Hymnal.net Sources.
+                        Logical collections remain
+                        separate from physical provider
+                        routes such as
+                        <strong>h</strong>,
+                        <strong>nt</strong>,
+                        <strong>ns</strong>, and
+                        <strong>lb</strong>.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    wire:click="clearLinkedSourcesSectionFilter"
+                    class="rounded-lg border
+                           border-gray-300 bg-white
+                           px-3 py-2 text-sm font-bold
+                           text-gray-700
+                           hover:bg-gray-50
+                           dark:border-gray-600
+                           dark:bg-gray-950
+                           dark:text-gray-200"
                 >
-                    Logical collections are discovered
-                    from Hymnal.net's own indexes.
-                    Physical route codes such as
-                    <strong>ns</strong> and
-                    <strong>lb</strong> remain visible
-                    so provider identity is preserved.
-                </p>
+                    All Collections
+                </button>
             </div>
 
             <div
@@ -173,12 +228,25 @@
                     $collectionSummaries
                     as $collection
                 )
-                    <div
-                        class="rounded-xl border
+                    <button
+                        type="button"
+                        wire:click="filterLinkedSourcesBySection('{{ $collection['code'] }}')"
+                        class="w-full rounded-xl border
                                border-gray-200
                                bg-gray-50 p-5
+                               text-left
+                               transition
+                               hover:border-primary-400
+                               hover:bg-primary-50
                                dark:border-gray-700
-                               dark:bg-gray-950"
+                               dark:bg-gray-950
+                               dark:hover:border-primary-500
+                               {{
+                                   $linkedSectionFilter
+                                       === $collection['code']
+                                           ? 'ring-2 ring-primary-500'
+                                           : ''
+                               }}"
                     >
                         <div
                             class="text-base font-bold
@@ -320,7 +388,7 @@
                                 failed request(s)
                             </div>
                         @endif
-                    </div>
+                    </button>
                 @endforeach
             </div>
         </div>
@@ -613,7 +681,29 @@
                     </p>
                 </div>
 
-                <div class="w-full sm:w-80">
+                <div class="w-full sm:w-96">
+                    @if ($linkedSectionLabel)
+                        <div
+                            class="mb-2 flex items-center
+                                   justify-between gap-2
+                                   text-xs font-semibold
+                                   text-primary-700
+                                   dark:text-primary-300"
+                        >
+                            <span>
+                                Filtering:
+                                {{ $linkedSectionLabel }}
+                            </span>
+
+                            <button
+                                type="button"
+                                wire:click="clearLinkedSourcesSectionFilter"
+                                class="underline"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    @endif
                     <input
                         type="search"
                         wire:model.live.debounce.300ms="linkedSearch"
