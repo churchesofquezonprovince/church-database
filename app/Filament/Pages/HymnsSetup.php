@@ -1388,6 +1388,18 @@ class HymnsSetup extends Page
                         . 'belong to this Hymn.'
                     );
                 }
+
+                if (
+                    $entry->section_code
+                        === 'new_tunes'
+                    && $variant->variant_type
+                        !== 'tune'
+                ) {
+                    throw new \RuntimeException(
+                        'A New Tunes entry may only be '
+                        . 'linked to a Tune variant.'
+                    );
+                }
             }
 
             $externalId =
@@ -1531,6 +1543,592 @@ class HymnsSetup extends Page
             Notification::make()
                 ->title(
                     'Hymnal.net entry was not resolved'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
+    public function createNewTuneVariantFromReviewedEntry(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $this->validate([
+            'reviewEntryId' => [
+                'required',
+                'integer',
+                'exists:hymnal_net_entries,id',
+            ],
+
+            'selectedHymnId' => [
+                'required',
+                'integer',
+                'exists:hymns,id',
+            ],
+        ]);
+
+        try {
+            $entry =
+                HymnalNetEntry::query()
+                    ->findOrFail(
+                        $this->reviewEntryId
+                    );
+
+            if (
+                $entry->section_code
+                    !== 'new_tunes'
+            ) {
+                throw new \RuntimeException(
+                    'Only Hymnal.net New Tunes entries '
+                    . 'can create a new Tune variant '
+                    . 'through this action.'
+                );
+            }
+
+            if (
+                ! in_array(
+                    $entry->match_status,
+                    [
+                        'variant_review',
+                        'unmatched',
+                        'ambiguous',
+                    ],
+                    true
+                )
+            ) {
+                throw new \RuntimeException(
+                    'This New Tunes entry is not '
+                    . 'available for new-variant review.'
+                );
+            }
+
+            $hymn =
+                Hymn::query()
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->findOrFail(
+                        $this->selectedHymnId
+                    );
+
+            $externalId =
+                HymnalNetSource
+                    ::externalIdForUrl(
+                        $entry->source_url
+                    );
+
+            $result =
+                DB::transaction(
+                    function () use (
+                        $entry,
+                        $hymn,
+                        $externalId
+                    ): array {
+                        /*
+                         * Lock the review row so a rapid
+                         * double-click cannot create two
+                         * Tune variants.
+                         */
+                        $lockedEntry =
+                            HymnalNetEntry::query()
+                                ->whereKey(
+                                    $entry->id
+                                )
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                        if (
+                            $lockedEntry->match_status
+                                === 'linked'
+                        ) {
+                            throw new \RuntimeException(
+                                'This New Tunes entry has '
+                                . 'already been resolved.'
+                            );
+                        }
+
+                        $lockedHymn =
+                            Hymn::query()
+                                ->whereKey(
+                                    $hymn->id
+                                )
+                                ->lockForUpdate()
+                                ->firstOrFail();
+
+                        /*
+                         * Provider identity belongs to
+                         * hymn_sources. Never create a
+                         * second variant if this NT page
+                         * is already attached somewhere.
+                         */
+                        $existingSource =
+                            HymnSource::query()
+                                ->where(
+                                    'provider',
+                                    HymnSource
+                                        ::PROVIDER_HYMNAL_NET
+                                )
+                                ->where(
+                                    'external_id',
+                                    $externalId
+                                )
+                                ->lockForUpdate()
+                                ->first();
+
+                        if ($existingSource) {
+                            if (
+                                (int)
+                                    $existingSource
+                                        ->hymn_id
+                                !== (int)
+                                    $lockedHymn->id
+                            ) {
+                                throw new \RuntimeException(
+                                    'This Hymnal.net page '
+                                    . 'is already linked to '
+                                    . 'another canonical '
+                                    . 'Hymn.'
+                                );
+                            }
+
+                            throw new \RuntimeException(
+                                'This Hymnal.net New Tune '
+                                . 'already has a source '
+                                . 'record. Review the '
+                                . 'existing link instead '
+                                . 'of creating another '
+                                . 'variant.'
+                            );
+                        }
+
+                        /*
+                         * Include inactive Tune variants
+                         * when calculating the next index.
+                         * An old Tune number must not be
+                         * reused merely because that row
+                         * was deactivated later.
+                         */
+                        $tuneVariants =
+                            HymnVariant::query()
+                                ->where(
+                                    'hymn_id',
+                                    $lockedHymn->id
+                                )
+                                ->where(
+                                    'variant_type',
+                                    'tune'
+                                )
+                                ->orderBy(
+                                    'variant_index'
+                                )
+                                ->orderBy(
+                                    'id'
+                                )
+                                ->lockForUpdate()
+                                ->get();
+
+                        $baselineVariant =
+                            null;
+
+                        /*
+                         * First explicit alternate tune:
+                         *
+                         * The existing canonical/default
+                         * tune becomes Tune 1 and this NT
+                         * page becomes Tune 2.
+                         *
+                         * This prevents the new tune from
+                         * becoming the sole active variant,
+                         * which could cause future syncs to
+                         * mistake it for the default tune.
+                         */
+                        if ($tuneVariants->isEmpty()) {
+                            $baselineVariant =
+                                HymnVariant::query()
+                                    ->create([
+                                        'hymn_id' =>
+                                            $lockedHymn->id,
+
+                                        /*
+                                         * These legacy
+                                         * provenance fields
+                                         * identify a manual
+                                         * variant decision.
+                                         * Provider identity
+                                         * remains in
+                                         * hymn_sources.
+                                         */
+                                        'source' =>
+                                            'manual',
+
+                                        'source_id' =>
+                                            'baseline:hymn:'
+                                            . $lockedHymn->id,
+
+                                        'variant_type' =>
+                                            'tune',
+
+                                        /*
+                                         * Tune parser uses
+                                         * zero-based indexes:
+                                         * index 0 = Tune 1.
+                                         */
+                                        'variant_index' =>
+                                            0,
+
+                                        'label' =>
+                                            'Tune 1',
+
+                                        'title_override' =>
+                                            null,
+
+                                        'metadata' => [
+                                            'created_by' =>
+                                                'hymnal_net_new_tune_review',
+
+                                            'role' =>
+                                                'existing_tune_baseline',
+                                        ],
+
+                                        'sort_order' =>
+                                            0,
+
+                                        'is_active' =>
+                                            true,
+                                    ]);
+
+                            /*
+                             * If the matching Classic
+                             * Hymnal.net entry already
+                             * exists, h/{number} is the
+                             * baseline tune counterpart of
+                             * nt/{number}. Assign that
+                             * Classic source to Tune 1.
+                             *
+                             * Other canonical-level
+                             * providers are intentionally
+                             * left untouched because we
+                             * should not guess their tune.
+                             */
+                            $classicEntry =
+                                HymnalNetEntry::query()
+                                    ->where(
+                                        'section_code',
+                                        'classic'
+                                    )
+                                    ->where(
+                                        'collection_code',
+                                        'h'
+                                    )
+                                    ->where(
+                                        'number',
+                                        $lockedEntry->number
+                                    )
+                                    ->where(
+                                        'matched_hymn_id',
+                                        $lockedHymn->id
+                                    )
+                                    ->where(
+                                        'match_status',
+                                        'linked'
+                                    )
+                                    ->first();
+
+                            if ($classicEntry) {
+                                if (
+                                    ! $classicEntry
+                                        ->matched_hymn_variant_id
+                                ) {
+                                    $classicEntry->update([
+                                        'matched_hymn_variant_id' =>
+                                            $baselineVariant->id,
+                                    ]);
+                                }
+
+                                $classicExternalId =
+                                    HymnalNetSource
+                                        ::externalIdForUrl(
+                                            $classicEntry
+                                                ->source_url
+                                        );
+
+                                $classicSource =
+                                    HymnSource::query()
+                                        ->where(
+                                            'hymn_id',
+                                            $lockedHymn->id
+                                        )
+                                        ->where(
+                                            'provider',
+                                            HymnSource
+                                                ::PROVIDER_HYMNAL_NET
+                                        )
+                                        ->where(
+                                            'external_id',
+                                            $classicExternalId
+                                        )
+                                        ->first();
+
+                                if (
+                                    $classicSource
+                                    && ! $classicSource
+                                        ->hymn_variant_id
+                                ) {
+                                    $classicSource->update([
+                                        'hymn_variant_id' =>
+                                            $baselineVariant->id,
+                                    ]);
+                                }
+                            }
+
+                            $nextIndex =
+                                1;
+
+                            $nextSortOrder =
+                                1;
+                        } else {
+                            $indexes =
+                                $tuneVariants
+                                    ->pluck(
+                                        'variant_index'
+                                    )
+                                    ->filter(
+                                        fn ($value): bool =>
+                                            $value !== null
+                                    );
+
+                            $nextIndex =
+                                $indexes->isEmpty()
+                                    ? $tuneVariants
+                                        ->count()
+                                    : (
+                                        (int)
+                                            $indexes->max()
+                                        + 1
+                                    );
+
+                            $maxSortOrder =
+                                $tuneVariants
+                                    ->pluck(
+                                        'sort_order'
+                                    )
+                                    ->filter(
+                                        fn ($value): bool =>
+                                            $value !== null
+                                    )
+                                    ->max();
+
+                            $nextSortOrder =
+                                $maxSortOrder === null
+                                    ? $nextIndex
+                                    : (
+                                        (int)
+                                            $maxSortOrder
+                                        + 1
+                                    );
+                        }
+
+                        $newVariant =
+                            HymnVariant::query()
+                                ->create([
+                                    'hymn_id' =>
+                                        $lockedHymn->id,
+
+                                    'source' =>
+                                        'manual',
+
+                                    'source_id' =>
+                                        'review:hymnal-net-entry:'
+                                        . $lockedEntry->id,
+
+                                    'variant_type' =>
+                                        'tune',
+
+                                    'variant_index' =>
+                                        $nextIndex,
+
+                                    'label' =>
+                                        'Tune '
+                                        . (
+                                            $nextIndex
+                                            + 1
+                                        ),
+
+                                    'title_override' =>
+                                        null,
+
+                                    'metadata' => [
+                                        'created_by' =>
+                                            'hymnal_net_new_tune_review',
+
+                                        'section' =>
+                                            $lockedEntry
+                                                ->section_code,
+
+                                        'collection' =>
+                                            $lockedEntry
+                                                ->collection_code,
+
+                                        'number' =>
+                                            $lockedEntry
+                                                ->number,
+
+                                        'external_id' =>
+                                            $externalId,
+                                    ],
+
+                                    'sort_order' =>
+                                        $nextSortOrder,
+
+                                    'is_active' =>
+                                        true,
+                                ]);
+
+                        /*
+                         * This is the provider-owned row.
+                         * The NT page is attached directly
+                         * to the newly-created Tune.
+                         */
+                        HymnSource::query()
+                            ->create([
+                                'hymn_id' =>
+                                    $lockedHymn->id,
+
+                                'hymn_variant_id' =>
+                                    $newVariant->id,
+
+                                'provider' =>
+                                    HymnSource
+                                        ::PROVIDER_HYMNAL_NET,
+
+                                'source_type' =>
+                                    HymnSource
+                                        ::TYPE_CATALOG,
+
+                                'external_id' =>
+                                    $externalId,
+
+                                'source_url' =>
+                                    $lockedEntry
+                                        ->source_url,
+
+                                'label' =>
+                                    'Hymnal.net',
+
+                                'metadata' => [
+                                    'collection' =>
+                                        $lockedEntry
+                                            ->collection_code,
+
+                                    'section' =>
+                                        $lockedEntry
+                                            ->section_code,
+
+                                    'number' =>
+                                        $lockedEntry
+                                            ->number,
+
+                                    'title' =>
+                                        $lockedEntry
+                                            ->title,
+
+                                    'sync' =>
+                                        'hymnal_net_catalog',
+
+                                    'match_method' =>
+                                        'manual_review',
+
+                                    'review_action' =>
+                                        'created_tune_variant',
+                                ],
+                            ]);
+
+                        $lockedEntry->update([
+                            'matched_hymn_id' =>
+                                $lockedHymn->id,
+
+                            'matched_hymn_variant_id' =>
+                                $newVariant->id,
+
+                            'match_status' =>
+                                'linked',
+
+                            'match_method' =>
+                                'manual_review',
+
+                            'match_score' =>
+                                100,
+                        ]);
+
+                        return [
+                            'variant' =>
+                                $newVariant,
+
+                            'baseline' =>
+                                $baselineVariant,
+                        ];
+                    }
+                );
+
+            $variant =
+                $result['variant'];
+
+            $baseline =
+                $result['baseline'];
+
+            $entryNumber =
+                strtoupper(
+                    $entry->collection_code
+                )
+                . $entry->number;
+
+            $hymnTitle =
+                $hymn->title;
+
+            $this->cancelReview();
+
+            Notification::make()
+                ->title(
+                    'New Tune variant created'
+                )
+                ->body(
+                    $baseline
+                        ? (
+                            'Created Tune 1 as the '
+                            . 'existing-tune baseline and '
+                            . $variant->label
+                            . ' for '
+                            . $entryNumber
+                            . ' under "'
+                            . $hymnTitle
+                            . '".'
+                        )
+                        : (
+                            'Created '
+                            . $variant->label
+                            . ' for '
+                            . $entryNumber
+                            . ' under "'
+                            . $hymnTitle
+                            . '".'
+                        )
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'New Tune variant was not created'
                 )
                 ->body(
                     $e->getMessage()

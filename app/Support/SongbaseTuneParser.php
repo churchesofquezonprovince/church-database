@@ -11,8 +11,25 @@ class SongbaseTuneParser
             return [];
         }
 
+        /*
+         * Songbase uses many level-3 tune-heading
+         * conventions, including:
+         *
+         * ### Tune 1
+         * ### Tune 2 (simple)
+         * ### Original tune
+         * ### New Tune & Lyrics
+         * ### Alternate Classic tune
+         * ### Tune of 782: ...
+         *
+         * Treat any level-3 heading containing the
+         * standalone word "tune" as a tune section.
+         *
+         * The Songbase tune query parameter remains
+         * zero-based according to section order.
+         */
         preg_match_all(
-            '/^###\s*Tune\s+([^\r\n]+)\s*$/mi',
+            '/^###\\s*([^\\r\\n]*\\btune\\b[^\\r\\n]*)\\s*$/mi',
             $lyrics,
             $matches,
             PREG_OFFSET_CAPTURE
@@ -22,7 +39,7 @@ class SongbaseTuneParser
             $matches[0]
             ?? [];
 
-        $numbers =
+        $headings =
             $matches[1]
             ?? [];
 
@@ -60,12 +77,48 @@ class SongbaseTuneParser
                     )
                 );
 
-            $headingNumber =
+            $sourceHeading =
                 trim(
                     (string)
-                        ($numbers[$index][0]
-                            ?? ($index + 1))
+                        ($headings[$index][0]
+                            ?? '')
                 );
+
+            /*
+             * Explicit "Tune N" headings retain N.
+             *
+             * Semantic headings such as Original tune
+             * and New tune receive their Tune number
+             * from section order:
+             *
+             * Original tune -> Tune 1 -> ?tune=0
+             * New tune      -> Tune 2 -> ?tune=1
+             */
+            $headingNumber =
+                (string) ($index + 1);
+
+            if (
+                preg_match(
+                    '/^Tune\\s+(.+)$/i',
+                    $sourceHeading,
+                    $headingMatch
+                )
+            ) {
+                $explicitHeadingNumber =
+                    trim(
+                        (string)
+                            ($headingMatch[1]
+                                ?? '')
+                    );
+
+                if (
+                    $explicitHeadingNumber
+                    !== ''
+                ) {
+                    $headingNumber =
+                        $explicitHeadingNumber;
+                }
+            }
 
             $variants[] = [
                 'variant_index' =>
@@ -76,6 +129,9 @@ class SongbaseTuneParser
 
                 'heading_number' =>
                     $headingNumber,
+
+                'source_heading' =>
+                    $sourceHeading,
 
                 'label' =>
                     'Tune ' . $headingNumber,

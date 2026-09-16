@@ -6,6 +6,7 @@ use App\Models\HymnSource;
 use App\Models\HymnVariant;
 use App\Support\HymnLyricsNormalizer;
 use App\Support\SongbaseTuneParser;
+use RuntimeException;
 
 class SongbaseHymnVariantSyncService
 {
@@ -46,12 +47,33 @@ class SongbaseHymnVariantSyncService
                 ->whereNotNull(
                     'lyrics'
                 )
-                ->where(
-                    'lyrics',
-                    'like',
-                    '%### Tune%'
+                /*
+                 * Keep database selection broad and cheap:
+                 * only load lyrics that contain both a
+                 * Markdown level-3 marker and the word
+                 * "tune" somewhere afterward.
+                 *
+                 * SongbaseTuneParser remains the final
+                 * authority for deciding whether actual
+                 * tune sections exist.
+                 */
+                ->whereRaw(
+                    'LOWER(lyrics) LIKE ?',
+                    [
+                        '%###%tune%',
+                    ]
                 )
-                ->get();
+                ->get()
+                ->filter(
+                    fn (
+                        HymnSource $source
+                    ): bool =>
+                        SongbaseTuneParser::parse(
+                            (string)
+                                $source->lyrics
+                        ) !== []
+                )
+                ->values();
 
         $expectedExternalIds = [];
 
@@ -97,58 +119,199 @@ class SongbaseHymnVariantSyncService
                  * It intentionally does not receive
                  * provider lyric content anymore.
                  */
+                /*
+                 * Prefer the existing Songbase structural
+                 * variant when it already exists.
+                 */
                 $variant =
                     HymnVariant::query()
-                        ->updateOrCreate(
-                            [
-                                'hymn_id' =>
-                                    $hymn->id,
-
-                                'source' =>
-                                    HymnSource
-                                        ::PROVIDER_SONGBASE,
-
-                                'source_id' =>
-                                    $sourceId,
-
-                                'variant_type' =>
-                                    'tune',
-
-                                'variant_index' =>
-                                    $variantData[
-                                        'variant_index'
-                                    ],
-                            ],
-                            [
-                                'label' =>
-                                    $variantData[
-                                        'label'
-                                    ],
-
-                                'title_override' =>
-                                    null,
-
-                                'metadata' => [
-                                    'songbase_tune_parameter' =>
-                                        $variantData[
-                                            'songbase_tune_parameter'
-                                        ],
-
-                                    'heading_number' =>
-                                        $variantData[
-                                            'heading_number'
-                                        ],
-                                ],
-
-                                'sort_order' =>
-                                    $variantData[
-                                        'variant_index'
-                                    ],
-
-                                'is_active' =>
-                                    true,
+                        ->where(
+                            'hymn_id',
+                            $hymn->id
+                        )
+                        ->where(
+                            'source',
+                            HymnSource
+                                ::PROVIDER_SONGBASE
+                        )
+                        ->where(
+                            'source_id',
+                            $sourceId
+                        )
+                        ->where(
+                            'variant_type',
+                            'tune'
+                        )
+                        ->where(
+                            'variant_index',
+                            $variantData[
+                                'variant_index'
                             ]
+                        )
+                        ->first();
+
+                $promotedFromReview =
+                    false;
+
+                $reviewMetadata =
+                    null;
+
+                /*
+                 * Phase 28T may already have established
+                 * the canonical tune structure during a
+                 * Hymnal.net New Tune review.
+                 *
+                 * If exactly one review-created manual
+                 * Tune occupies this same structural
+                 * index, promote that row into the real
+                 * Songbase structural variant rather than
+                 * creating Tune 1 / Tune 2 duplicates.
+                 */
+                if (! $variant) {
+                    $reviewCandidates =
+                        HymnVariant::query()
+                            ->where(
+                                'hymn_id',
+                                $hymn->id
+                            )
+                            ->where(
+                                'source',
+                                'manual'
+                            )
+                            ->where(
+                                'variant_type',
+                                'tune'
+                            )
+                            ->where(
+                                'variant_index',
+                                $variantData[
+                                    'variant_index'
+                                ]
+                            )
+                            ->get()
+                            ->filter(
+                                function (
+                                    HymnVariant $candidate
+                                ): bool {
+                                    return (
+                                        $candidate
+                                            ->metadata[
+                                                'created_by'
+                                            ]
+                                        ?? null
+                                    ) ===
+                                        'hymnal_net_new_tune_review';
+                                }
+                            )
+                            ->values();
+
+                    if (
+                        $reviewCandidates->count()
+                            > 1
+                    ) {
+                        throw new RuntimeException(
+                            'Multiple review-created Tune '
+                            . 'variants occupy Hymn #'
+                            . $hymn->id
+                            . ' Tune index '
+                            . $variantData[
+                                'variant_index'
+                            ]
+                            . '. Songbase reconciliation '
+                            . 'was stopped.'
                         );
+                    }
+
+                    if (
+                        $reviewCandidates->count()
+                            === 1
+                    ) {
+                        $variant =
+                            $reviewCandidates
+                                ->first();
+
+                        $reviewMetadata =
+                            $variant->metadata;
+
+                        $promotedFromReview =
+                            true;
+                    }
+                }
+
+                if (! $variant) {
+                    $variant =
+                        new HymnVariant();
+
+                    $variant->hymn_id =
+                        $hymn->id;
+                }
+
+                $metadata = [
+                    'songbase_tune_parameter' =>
+                        $variantData[
+                            'songbase_tune_parameter'
+                        ],
+
+                    'heading_number' =>
+                        $variantData[
+                            'heading_number'
+                        ],
+
+                    'source_heading' =>
+                        $variantData[
+                            'source_heading'
+                        ]
+                        ?? null,
+                ];
+
+                if ($promotedFromReview) {
+                    $metadata[
+                        'promoted_from_review'
+                    ] = true;
+
+                    $metadata[
+                        'review_metadata'
+                    ] = $reviewMetadata;
+                }
+
+                $variant->fill([
+                    'source' =>
+                        HymnSource
+                            ::PROVIDER_SONGBASE,
+
+                    'source_id' =>
+                        $sourceId,
+
+                    'variant_type' =>
+                        'tune',
+
+                    'variant_index' =>
+                        $variantData[
+                            'variant_index'
+                        ],
+
+                    'label' =>
+                        $variantData[
+                            'label'
+                        ],
+
+                    'title_override' =>
+                        null,
+
+                    'metadata' =>
+                        $metadata,
+
+                    'sort_order' =>
+                        $variantData[
+                            'variant_index'
+                        ],
+
+                    'is_active' =>
+                        true,
+                ]);
+
+                $variant->save();
+
 
                 $externalId =
                     $sourceId
@@ -231,6 +394,12 @@ class SongbaseHymnVariantSyncService
                                     $variantData[
                                         'variant_index'
                                     ],
+
+                                'source_heading' =>
+                                    $variantData[
+                                        'source_heading'
+                                    ]
+                                    ?? null,
                             ],
                         ]
                     );

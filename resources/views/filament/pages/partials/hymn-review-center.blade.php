@@ -153,11 +153,29 @@
                                 </td>
 
                                 <td class="px-4 py-3 align-top">
-                                    @foreach (
-                                        $entry
-                                            ->matchedHymn
-                                            ?->variants
-                                            ?? collect()
+                                    @php
+                                        $entryVariants =
+                                            $entry
+                                                ->matchedHymn
+                                                ?->variants
+                                            ?? collect();
+
+                                        if (
+                                            $entry->section_code
+                                                === 'new_tunes'
+                                        ) {
+                                            $entryVariants =
+                                                $entryVariants
+                                                    ->where(
+                                                        'variant_type',
+                                                        'tune'
+                                                    )
+                                                    ->values();
+                                        }
+                                    @endphp
+
+                                    @forelse (
+                                        $entryVariants
                                         as $variant
                                     )
                                         <div
@@ -166,7 +184,15 @@
                                         >
                                             {{ $variant->label }}
                                         </div>
-                                    @endforeach
+                                    @empty
+                                        <div
+                                            class="text-xs
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            No tune variants yet
+                                        </div>
+                                    @endforelse
                                 </td>
 
                                 <td
@@ -1002,9 +1028,23 @@
                                 true
                             )
                             ->values();
+
+                    $reviewTuneVariants =
+                        $reviewVariants
+                            ->where(
+                                'variant_type',
+                                'tune'
+                            )
+                            ->values();
+
+                    $selectableReviewVariants =
+                        $reviewedEntry->section_code
+                            === 'new_tunes'
+                                ? $reviewTuneVariants
+                                : $reviewVariants;
                 @endphp
 
-                @if ($reviewVariants->isNotEmpty())
+                @if ($selectableReviewVariants->isNotEmpty())
                     <div class="mt-4">
                         <div
                             class="text-xs font-bold
@@ -1018,7 +1058,7 @@
                                    md:grid-cols-2"
                         >
                             @foreach (
-                                $reviewVariants
+                                $selectableReviewVariants
                                 as $variant
                             )
                                 <label
@@ -1078,6 +1118,69 @@
                             level.
                         </p>
                     @endif
+                @endif
+
+                @if (
+                    $reviewedEntry->section_code
+                        === 'new_tunes'
+                )
+                    <div
+                        class="mt-5 rounded-xl border
+                               border-emerald-300
+                               bg-white p-4
+                               text-emerald-950"
+                    >
+                        <div
+                            class="text-sm font-bold"
+                        >
+                            Create New Tune Variant
+                        </div>
+
+                        @if ($reviewTuneVariants->isEmpty())
+                            <p class="mt-1 text-sm">
+                                This canonical Hymn has no
+                                Tune variants yet. CoQP will
+                                establish the existing/default
+                                tune as <strong>Tune 1</strong>
+                                and create
+                                <strong>Tune 2</strong> for
+                                this Hymnal.net New Tune.
+                            </p>
+                        @else
+                            <p class="mt-1 text-sm">
+                                Use this only when the
+                                Hymnal.net page represents a
+                                genuinely different tune.
+                                CoQP will create the next
+                                Tune variant and attach this
+                                NT source to it.
+                            </p>
+                        @endif
+
+                        <p
+                            class="mt-2 text-xs
+                                   text-emerald-800"
+                        >
+                            If Hymnal.net is actually using
+                            one of the Tune variants already
+                            shown above, select that variant
+                            instead and use
+                            <strong>
+                                Link Existing Canonical Hymn
+                            </strong>.
+                        </p>
+
+                        <div class="mt-4">
+                            <x-filament::button
+                                wire:click="createNewTuneVariantFromReviewedEntry"
+                                wire:confirm="Create a new Tune variant for this Hymnal.net New Tune and link the source to it?"
+                                icon="heroicon-m-plus"
+                                color="success"
+                            >
+                                Create New Tune Variant & Link
+                            </x-filament::button>
+                        </div>
+                    </div>
                 @endif
             </div>
         @endif
