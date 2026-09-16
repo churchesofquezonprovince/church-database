@@ -1103,6 +1103,12 @@ class HymnsSetup extends Page
             $reviewEntry?->section_code
                 === 'new_tunes'
         ) {
+            $classicNumber =
+                $this
+                    ->classicCounterpartNumberForEntry(
+                        $reviewEntry
+                    );
+
             $classicCounterpart =
                 HymnalNetEntry::query()
                     ->where(
@@ -1115,7 +1121,7 @@ class HymnsSetup extends Page
                     )
                     ->where(
                         'number',
-                        $reviewEntry->number
+                        $classicNumber
                     )
                     ->where(
                         'matched_hymn_id',
@@ -1278,6 +1284,34 @@ class HymnsSetup extends Page
     }
 
 
+    private function classicCounterpartNumberForEntry(
+        HymnalNetEntry $entry
+    ): string {
+        $number =
+            (string) $entry->number;
+
+        if (
+            in_array(
+                $entry->section_code,
+                [
+                    'new_tunes',
+                    'alternate_tunes',
+                ],
+                true
+            )
+            && preg_match(
+                '/^([0-9]+)[A-Za-z]+$/',
+                $number,
+                $matches
+            )
+        ) {
+            return $matches[1];
+        }
+
+        return $number;
+    }
+
+
     public function classicCounterpartForReviewedEntry(): ?HymnalNetEntry
     {
         $entry =
@@ -1299,6 +1333,12 @@ class HymnsSetup extends Page
             return null;
         }
 
+        $classicNumber =
+            $this
+                ->classicCounterpartNumberForEntry(
+                    $entry
+                );
+
         return HymnalNetEntry::query()
             ->where(
                 'section_code',
@@ -1310,7 +1350,7 @@ class HymnsSetup extends Page
             )
             ->where(
                 'number',
-                $entry->number
+                $classicNumber
             )
             ->where(
                 'matched_hymn_id',
@@ -1873,6 +1913,12 @@ class HymnsSetup extends Page
                 === 'new_tunes'
             && $entry->matched_hymn_id
         ) {
+            $classicNumber =
+                $this
+                    ->classicCounterpartNumberForEntry(
+                        $entry
+                    );
+
             $this->selectedClassicVariantId =
                 HymnalNetEntry::query()
                     ->where(
@@ -1885,7 +1931,7 @@ class HymnsSetup extends Page
                     )
                     ->where(
                         'number',
-                        $entry->number
+                        $classicNumber
                     )
                     ->where(
                         'matched_hymn_id',
@@ -2076,6 +2122,12 @@ class HymnsSetup extends Page
                 $entry->section_code
                     === 'new_tunes'
             ) {
+                $classicNumber =
+                    $this
+                        ->classicCounterpartNumberForEntry(
+                            $entry
+                        );
+
                 $classicEntry =
                     HymnalNetEntry::query()
                         ->where(
@@ -2088,7 +2140,7 @@ class HymnsSetup extends Page
                         )
                         ->where(
                             'number',
-                            $entry->number
+                            $classicNumber
                         )
                         ->where(
                             'matched_hymn_id',
@@ -2755,22 +2807,10 @@ class HymnsSetup extends Page
                              * should not guess their tune.
                              */
                             $classicNumber =
-                                (string)
-                                    $lockedEntry
-                                        ->number;
-
-                            if (
-                                $lockedEntry->section_code
-                                    === 'alternate_tunes'
-                                && preg_match(
-                                    '/^([0-9]+)[A-Za-z]+$/',
-                                    $classicNumber,
-                                    $classicMatches
-                                )
-                            ) {
-                                $classicNumber =
-                                    $classicMatches[1];
-                            }
+                                $this
+                                    ->classicCounterpartNumberForEntry(
+                                        $lockedEntry
+                                    );
 
                             $classicEntry =
                                 HymnalNetEntry::query()

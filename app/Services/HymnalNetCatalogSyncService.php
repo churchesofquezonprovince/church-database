@@ -767,35 +767,51 @@ class HymnalNetCatalogSyncService
 
         /*
          * Alternate Tunes retain their full provider
-         * number (for example 10b), but canonical-family
-         * lookup uses only the corresponding Classic
-         * number (10).
+         * number (for example h/10b), but
+         * canonical-family lookup uses only the
+         * corresponding numeric Classic number (10).
+         *
+         * Suffixed New Tunes such as nt/350b follow
+         * the same family-lookup rule: use 350 only
+         * to identify the canonical Hymn family.
          *
          * This must NEVER choose a Tune variant.
          */
+        $suffixedTuneNumberMatches = [];
+
+        $hasSuffixedTuneNumber =
+            preg_match(
+                '/^([0-9]+)([A-Za-z]+)$/',
+                $lookupNumber,
+                $suffixedTuneNumberMatches
+            ) === 1;
+
         if (
             $strategy === 'alternate_tune'
+            && ! $hasSuffixedTuneNumber
         ) {
-            if (
-                ! preg_match(
-                    '/^([0-9]+)([A-Za-z]+)$/',
-                    $lookupNumber,
-                    $alternateMatches
-                )
-            ) {
-                throw new RuntimeException(
-                    'Alternate Tune number must contain '
-                    . 'a numeric Classic number followed '
-                    . 'by a letter suffix.'
-                );
-            }
+            throw new RuntimeException(
+                'Alternate Tune number must contain '
+                . 'a numeric Classic number followed '
+                . 'by a letter suffix.'
+            );
+        }
 
+        $usesClassicBaseNumber =
+            $strategy === 'alternate_tune'
+            || (
+                $strategy === 'new_tune'
+                && $hasSuffixedTuneNumber
+            );
+
+        if ($usesClassicBaseNumber) {
             $lookupNumber =
-                $alternateMatches[1];
+                $suffixedTuneNumberMatches[1];
 
             /*
-             * Prefer Hymnal.net's already-linked Classic
-             * counterpart as the canonical-family anchor.
+             * Prefer Hymnal.net's already-linked
+             * Classic counterpart as the
+             * canonical-family anchor.
              */
             $classicEntry =
                 HymnalNetEntry::query()
