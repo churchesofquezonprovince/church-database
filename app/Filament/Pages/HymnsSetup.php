@@ -52,6 +52,15 @@ class HymnsSetup extends Page
     public ?int $selectedVariantId = null;
 
     /*
+     * When reviewing Hymnal.net New Tunes, the
+     * corresponding Classic h/{number} page must also
+     * receive an explicit tune assignment.
+     *
+     * Never infer this from Songbase variant order.
+     */
+    public ?int $selectedClassicVariantId = null;
+
+    /*
      * Editable title used when a genuinely-unmatched
      * Hymnal.net entry needs a new canonical Hymn.
      */
@@ -1087,6 +1096,42 @@ class HymnsSetup extends Page
                         : null
                 );
 
+        $this->selectedClassicVariantId =
+            null;
+
+        if (
+            $reviewEntry?->section_code
+                === 'new_tunes'
+        ) {
+            $classicCounterpart =
+                HymnalNetEntry::query()
+                    ->where(
+                        'section_code',
+                        'classic'
+                    )
+                    ->where(
+                        'collection_code',
+                        'h'
+                    )
+                    ->where(
+                        'number',
+                        $reviewEntry->number
+                    )
+                    ->where(
+                        'matched_hymn_id',
+                        $hymn->id
+                    )
+                    ->where(
+                        'match_status',
+                        'linked'
+                    )
+                    ->first();
+
+            $this->selectedClassicVariantId =
+                $classicCounterpart
+                    ?->matched_hymn_variant_id;
+        }
+
         $this->hymnalReviewSearch =
             $hymn->title;
     }
@@ -1233,6 +1278,571 @@ class HymnsSetup extends Page
     }
 
 
+    public function classicCounterpartForReviewedEntry(): ?HymnalNetEntry
+    {
+        $entry =
+            $this->reviewedEntry();
+
+        if (
+            ! $entry
+            || $entry->section_code
+                !== 'new_tunes'
+        ) {
+            return null;
+        }
+
+        $hymnId =
+            $this->selectedHymnId
+            ?? $entry->matched_hymn_id;
+
+        if (! $hymnId) {
+            return null;
+        }
+
+        return HymnalNetEntry::query()
+            ->where(
+                'section_code',
+                'classic'
+            )
+            ->where(
+                'collection_code',
+                'h'
+            )
+            ->where(
+                'number',
+                $entry->number
+            )
+            ->where(
+                'matched_hymn_id',
+                $hymnId
+            )
+            ->where(
+                'match_status',
+                'linked'
+            )
+            ->orderBy('id')
+            ->first();
+    }
+
+
+    private function variantReviewUndoSessionKey(): string
+    {
+        return 'hymns_setup.variant_review_undo';
+    }
+
+
+    public function variantReviewUndoSummary(): ?array
+    {
+        $undo =
+            session()->get(
+                $this->variantReviewUndoSessionKey()
+            );
+
+        if (
+            ! is_array($undo)
+            || (int) ($undo['user_id'] ?? 0)
+                !== (int) auth()->id()
+        ) {
+            return null;
+        }
+
+        return [
+            'label' =>
+                (string) (
+                    $undo['label']
+                    ?? 'Last Variant Review save'
+                ),
+
+            'saved_at' =>
+                $undo['saved_at']
+                ?? null,
+        ];
+    }
+
+
+    private function snapshotVariantReviewFamily(
+        int $hymnId,
+        array $extraEntryIds = []
+    ): array {
+        $entryIds =
+            collect($extraEntryIds)
+                ->filter()
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $entries =
+            DB::table(
+                'hymnal_net_entries'
+            )
+                ->where(
+                    function ($query) use (
+                        $hymnId,
+                        $entryIds
+                    ): void {
+                        $query->where(
+                            'matched_hymn_id',
+                            $hymnId
+                        );
+
+                        if ($entryIds !== []) {
+                            $query->orWhereIn(
+                                'id',
+                                $entryIds
+                            );
+                        }
+                    }
+                )
+                ->orderBy('id')
+                ->get()
+                ->map(
+                    fn ($row): array =>
+                        (array) $row
+                )
+                ->all();
+
+        return [
+            'hymn_id' =>
+                $hymnId,
+
+            'variants' =>
+                DB::table(
+                    'hymn_variants'
+                )
+                    ->where(
+                        'hymn_id',
+                        $hymnId
+                    )
+                    ->orderBy('id')
+                    ->get()
+                    ->map(
+                        fn ($row): array =>
+                            (array) $row
+                    )
+                    ->all(),
+
+            'sources' =>
+                DB::table(
+                    'hymn_sources'
+                )
+                    ->where(
+                        'hymn_id',
+                        $hymnId
+                    )
+                    ->orderBy('id')
+                    ->get()
+                    ->map(
+                        fn ($row): array =>
+                            (array) $row
+                    )
+                    ->all(),
+
+            'entries' =>
+                $entries,
+        ];
+    }
+
+
+    private function variantReviewSnapshotHash(
+        array $snapshot
+    ): string {
+        return hash(
+            'sha256',
+            serialize($snapshot)
+        );
+    }
+
+
+    private function storeVariantReviewUndo(
+        int $hymnId,
+        HymnalNetEntry $entry,
+        array $before
+    ): void {
+        $entryIds =
+            collect(
+                $before['entries']
+                ?? []
+            )
+                ->pluck('id')
+                ->push($entry->id)
+                ->filter()
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $after =
+            $this->snapshotVariantReviewFamily(
+                $hymnId,
+                $entryIds
+            );
+
+        session()->put(
+            $this->variantReviewUndoSessionKey(),
+            [
+                'user_id' =>
+                    (int) auth()->id(),
+
+                'hymn_id' =>
+                    $hymnId,
+
+                'entry_ids' =>
+                    $entryIds,
+
+                'label' =>
+                    strtoupper(
+                        (string)
+                            $entry->collection_code
+                    )
+                    . $entry->number
+                    . ' — '
+                    . (
+                        $entry->title
+                        ?? 'Untitled'
+                    ),
+
+                'saved_at' =>
+                    now()->toIso8601String(),
+
+                'before' =>
+                    $before,
+
+                'after' =>
+                    $after,
+
+                'after_hash' =>
+                    $this
+                        ->variantReviewSnapshotHash(
+                            $after
+                        ),
+            ]
+        );
+    }
+
+
+    private function restoreVariantReviewRows(
+        string $table,
+        array $rows
+    ): void {
+        foreach ($rows as $row) {
+            if (
+                ! is_array($row)
+                || ! isset($row['id'])
+            ) {
+                throw new \RuntimeException(
+                    'Invalid Variant Review undo snapshot.'
+                );
+            }
+
+            $id =
+                (int) $row['id'];
+
+            unset($row['id']);
+
+            DB::table($table)
+                ->where(
+                    'id',
+                    $id
+                )
+                ->update($row);
+        }
+    }
+
+
+    public function rollbackLastVariantReviewSave(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $undo =
+            session()->get(
+                $this->variantReviewUndoSessionKey()
+            );
+
+        if (
+            ! is_array($undo)
+            || (int) ($undo['user_id'] ?? 0)
+                !== (int) auth()->id()
+        ) {
+            Notification::make()
+                ->title(
+                    'No Variant Review save to rollback'
+                )
+                ->body(
+                    'Only the most recent save made after '
+                    . 'this rollback feature was enabled '
+                    . 'can be undone.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $hymnId =
+                (int) (
+                    $undo['hymn_id']
+                    ?? 0
+                );
+
+            $before =
+                $undo['before']
+                ?? null;
+
+            $after =
+                $undo['after']
+                ?? null;
+
+            if (
+                $hymnId < 1
+                || ! is_array($before)
+                || ! is_array($after)
+            ) {
+                throw new \RuntimeException(
+                    'The saved rollback snapshot is invalid.'
+                );
+            }
+
+            $entryIds =
+                collect(
+                    $undo['entry_ids']
+                    ?? []
+                )
+                    ->filter()
+                    ->map(
+                        fn ($id): int =>
+                            (int) $id
+                    )
+                    ->unique()
+                    ->values()
+                    ->all();
+
+            DB::transaction(
+                function () use (
+                    $hymnId,
+                    $entryIds,
+                    $before,
+                    $after,
+                    $undo
+                ): void {
+                    Hymn::query()
+                        ->whereKey(
+                            $hymnId
+                        )
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $current =
+                        $this
+                            ->snapshotVariantReviewFamily(
+                                $hymnId,
+                                $entryIds
+                            );
+
+                    $expectedHash =
+                        (string) (
+                            $undo['after_hash']
+                            ?? ''
+                        );
+
+                    $currentHash =
+                        $this
+                            ->variantReviewSnapshotHash(
+                                $current
+                            );
+
+                    if (
+                        $expectedHash === ''
+                        || ! hash_equals(
+                            $expectedHash,
+                            $currentHash
+                        )
+                    ) {
+                        throw new \RuntimeException(
+                            'Rollback stopped because this '
+                            . 'Hymn changed after the saved '
+                            . 'review. No data was changed.'
+                        );
+                    }
+
+                    /*
+                     * Restore every row that existed
+                     * before the save.
+                     */
+                    $this
+                        ->restoreVariantReviewRows(
+                            'hymn_variants',
+                            $before[
+                                'variants'
+                            ] ?? []
+                        );
+
+                    $this
+                        ->restoreVariantReviewRows(
+                            'hymnal_net_entries',
+                            $before[
+                                'entries'
+                            ] ?? []
+                        );
+
+                    $this
+                        ->restoreVariantReviewRows(
+                            'hymn_sources',
+                            $before[
+                                'sources'
+                            ] ?? []
+                        );
+
+                    /*
+                     * Remove source rows that the save
+                     * itself created.
+                     */
+                    $beforeSourceIds =
+                        collect(
+                            $before[
+                                'sources'
+                            ] ?? []
+                        )
+                            ->pluck('id')
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->all();
+
+                    $afterSourceIds =
+                        collect(
+                            $after[
+                                'sources'
+                            ] ?? []
+                        )
+                            ->pluck('id')
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->all();
+
+                    $createdSourceIds =
+                        array_values(
+                            array_diff(
+                                $afterSourceIds,
+                                $beforeSourceIds
+                            )
+                        );
+
+                    if (
+                        $createdSourceIds !== []
+                    ) {
+                        DB::table(
+                            'hymn_sources'
+                        )
+                            ->whereIn(
+                                'id',
+                                $createdSourceIds
+                            )
+                            ->delete();
+                    }
+
+                    /*
+                     * Then remove structural variants
+                     * that the save itself created.
+                     */
+                    $beforeVariantIds =
+                        collect(
+                            $before[
+                                'variants'
+                            ] ?? []
+                        )
+                            ->pluck('id')
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->all();
+
+                    $afterVariantIds =
+                        collect(
+                            $after[
+                                'variants'
+                            ] ?? []
+                        )
+                            ->pluck('id')
+                            ->map(
+                                fn ($id): int =>
+                                    (int) $id
+                            )
+                            ->all();
+
+                    $createdVariantIds =
+                        array_values(
+                            array_diff(
+                                $afterVariantIds,
+                                $beforeVariantIds
+                            )
+                        );
+
+                    if (
+                        $createdVariantIds !== []
+                    ) {
+                        DB::table(
+                            'hymn_variants'
+                        )
+                            ->whereIn(
+                                'id',
+                                $createdVariantIds
+                            )
+                            ->delete();
+                    }
+                }
+            );
+
+            session()->forget(
+                $this->variantReviewUndoSessionKey()
+            );
+
+            $this->cancelReview();
+
+            Notification::make()
+                ->title(
+                    'Last Variant Review save rolled back'
+                )
+                ->body(
+                    (string) (
+                        $undo['label']
+                        ?? 'The last Variant Review save'
+                    )
+                    . ' was restored to its exact '
+                    . 'pre-save state.'
+                )
+                ->success()
+                ->send();
+        } catch (Throwable $e) {
+            report($e);
+
+            Notification::make()
+                ->title(
+                    'Variant Review rollback stopped'
+                )
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+
     public function beginReview(
         int $entryId
     ): void {
@@ -1255,6 +1865,41 @@ class HymnsSetup extends Page
         $this->selectedVariantId =
             $entry->matched_hymn_variant_id;
 
+        $this->selectedClassicVariantId =
+            null;
+
+        if (
+            $entry->section_code
+                === 'new_tunes'
+            && $entry->matched_hymn_id
+        ) {
+            $this->selectedClassicVariantId =
+                HymnalNetEntry::query()
+                    ->where(
+                        'section_code',
+                        'classic'
+                    )
+                    ->where(
+                        'collection_code',
+                        'h'
+                    )
+                    ->where(
+                        'number',
+                        $entry->number
+                    )
+                    ->where(
+                        'matched_hymn_id',
+                        $entry->matched_hymn_id
+                    )
+                    ->where(
+                        'match_status',
+                        'linked'
+                    )
+                    ->value(
+                        'matched_hymn_variant_id'
+                    );
+        }
+
         $this->hymnalReviewSearch =
             $entry->matchedHymn?->title
             ?? $entry->title
@@ -1266,6 +1911,10 @@ class HymnsSetup extends Page
 
         $this->hymnalUrl =
             $entry->source_url;
+
+        $this->dispatch(
+            'scroll-to-hymnal-review'
+        );
 
         Notification::make()
             ->title(
@@ -1292,6 +1941,9 @@ class HymnsSetup extends Page
             null;
 
         $this->selectedVariantId =
+            null;
+
+        $this->selectedClassicVariantId =
             null;
 
         $this->hymnalReviewSearch = '';
@@ -1402,6 +2054,76 @@ class HymnsSetup extends Page
                 }
             }
 
+            $classicEntry =
+                null;
+
+            $classicVariant =
+                null;
+
+            if (
+                $entry->section_code
+                    === 'new_tunes'
+            ) {
+                $classicEntry =
+                    HymnalNetEntry::query()
+                        ->where(
+                            'section_code',
+                            'classic'
+                        )
+                        ->where(
+                            'collection_code',
+                            'h'
+                        )
+                        ->where(
+                            'number',
+                            $entry->number
+                        )
+                        ->where(
+                            'matched_hymn_id',
+                            $hymn->id
+                        )
+                        ->where(
+                            'match_status',
+                            'linked'
+                        )
+                        ->first();
+
+                if ($classicEntry) {
+                    if (
+                        ! $this
+                            ->selectedClassicVariantId
+                    ) {
+                        throw new \RuntimeException(
+                            'Select the correct Tune '
+                            . 'variant for the corresponding '
+                            . 'Classic Hymnal.net entry.'
+                        );
+                    }
+
+                    $classicVariant =
+                        $activeVariants
+                            ->firstWhere(
+                                'id',
+                                $this
+                                    ->selectedClassicVariantId
+                            );
+
+                    if (
+                        ! $classicVariant
+                        || $classicVariant
+                            ->variant_type
+                            !== 'tune'
+                    ) {
+                        throw new \RuntimeException(
+                            'The selected Classic Tune '
+                            . 'variant does not belong to '
+                            . 'this Hymn.'
+                        );
+                    }
+
+                }
+            }
+
             $externalId =
                 HymnalNetSource
                     ::externalIdForUrl(
@@ -1441,72 +2163,246 @@ class HymnsSetup extends Page
                 );
             }
 
-            HymnSource::query()
-                ->updateOrCreate(
-                    [
-                        'hymn_id' =>
-                            $hymn->id,
+            $classicExternalId =
+                null;
 
-                        'provider' =>
+            if ($classicEntry) {
+                if (
+                    blank(
+                        $classicEntry->source_url
+                    )
+                ) {
+                    throw new \RuntimeException(
+                        'The corresponding Classic '
+                        . 'Hymnal.net entry has no '
+                        . 'source URL.'
+                    );
+                }
+
+                $classicExternalId =
+                    HymnalNetSource
+                        ::externalIdForUrl(
+                            $classicEntry
+                                ->source_url
+                        );
+
+                $classicElsewhere =
+                    HymnSource::query()
+                        ->where(
+                            'provider',
                             HymnSource
-                                ::PROVIDER_HYMNAL_NET,
+                                ::PROVIDER_HYMNAL_NET
+                        )
+                        ->where(
+                            'external_id',
+                            $classicExternalId
+                        )
+                        ->where(
+                            'hymn_id',
+                            '!=',
+                            $hymn->id
+                        )
+                        ->with('hymn')
+                        ->first();
 
-                        'external_id' =>
-                            $externalId,
-                    ],
+                if ($classicElsewhere) {
+                    throw new \RuntimeException(
+                        'The corresponding Classic '
+                        . 'Hymnal.net page is already '
+                        . 'linked to another canonical '
+                        . 'Hymn.'
+                    );
+                }
+            }
+
+            $undoBefore =
+                $this->snapshotVariantReviewFamily(
+                    $hymn->id,
                     [
-                        'hymn_variant_id' =>
-                            $variant?->id,
-
-                        'source_type' =>
-                            HymnSource::TYPE_CATALOG,
-
-                        'source_url' =>
-                            $entry->source_url,
-
-                        'label' =>
-                            'Hymnal.net',
-
-                        'metadata' => [
-                            'collection' =>
-                                $entry
-                                    ->collection_code,
-
-                            'section' =>
-                                $entry
-                                    ->section_code,
-
-                            'number' =>
-                                $entry->number,
-
-                            'title' =>
-                                $entry->title,
-
-                            'sync' =>
-                                'hymnal_net_catalog',
-
-                            'match_method' =>
-                                'manual_review',
-                        ],
+                        $entry->id,
                     ]
                 );
 
-            $entry->update([
-                'matched_hymn_id' =>
-                    $hymn->id,
+            DB::transaction(
+                function () use (
+                    $entry,
+                    $hymn,
+                    $variant,
+                    $externalId,
+                    $classicEntry,
+                    $classicVariant,
+                    $classicExternalId
+                ): void {
+                    HymnSource::query()
+                        ->updateOrCreate(
+                            [
+                                'hymn_id' =>
+                                    $hymn->id,
 
-                'matched_hymn_variant_id' =>
-                    $variant?->id,
+                                'provider' =>
+                                    HymnSource
+                                        ::PROVIDER_HYMNAL_NET,
 
-                'match_status' =>
-                    'linked',
+                                'external_id' =>
+                                    $externalId,
+                            ],
+                            [
+                                'hymn_variant_id' =>
+                                    $variant?->id,
 
-                'match_method' =>
-                    'manual_review',
+                                'source_type' =>
+                                    HymnSource
+                                        ::TYPE_CATALOG,
 
-                'match_score' =>
-                    100,
-            ]);
+                                'source_url' =>
+                                    $entry->source_url,
+
+                                'label' =>
+                                    'Hymnal.net',
+
+                                'metadata' => [
+                                    'collection' =>
+                                        $entry
+                                            ->collection_code,
+
+                                    'section' =>
+                                        $entry
+                                            ->section_code,
+
+                                    'number' =>
+                                        $entry->number,
+
+                                    'title' =>
+                                        $entry->title,
+
+                                    'sync' =>
+                                        'hymnal_net_catalog',
+
+                                    'match_method' =>
+                                        'manual_review',
+
+                                    'review_action' =>
+                                        $classicEntry
+                                            ? 'cross_provider_tune_mapping'
+                                            : 'variant_assignment',
+                                ],
+                            ]
+                        );
+
+                    $entry->update([
+                        'matched_hymn_id' =>
+                            $hymn->id,
+
+                        'matched_hymn_variant_id' =>
+                            $variant?->id,
+
+                        'match_status' =>
+                            'linked',
+
+                        'match_method' =>
+                            'manual_review',
+
+                        'match_score' =>
+                            100,
+                    ]);
+
+                    if (
+                        $classicEntry
+                        && $classicVariant
+                        && $classicExternalId
+                    ) {
+                        $classicSource =
+                            HymnSource::query()
+                                ->firstOrNew([
+                                    'hymn_id' =>
+                                        $hymn->id,
+
+                                    'provider' =>
+                                        HymnSource
+                                            ::PROVIDER_HYMNAL_NET,
+
+                                    'external_id' =>
+                                        $classicExternalId,
+                                ]);
+
+                        $classicMetadata =
+                            is_array(
+                                $classicSource
+                                    ->metadata
+                            )
+                                ? $classicSource
+                                    ->metadata
+                                : [];
+
+                        $classicSource->fill([
+                            'hymn_variant_id' =>
+                                $classicVariant->id,
+
+                            'source_type' =>
+                                HymnSource
+                                    ::TYPE_CATALOG,
+
+                            'source_url' =>
+                                $classicEntry
+                                    ->source_url,
+
+                            'label' =>
+                                'Hymnal.net',
+
+                            'metadata' =>
+                                array_merge(
+                                    $classicMetadata,
+                                    [
+                                        'collection' =>
+                                            $classicEntry
+                                                ->collection_code,
+
+                                        'section' =>
+                                            $classicEntry
+                                                ->section_code,
+
+                                        'number' =>
+                                            $classicEntry
+                                                ->number,
+
+                                        'title' =>
+                                            $classicEntry
+                                                ->title,
+
+                                        'sync' =>
+                                            'hymnal_net_catalog',
+
+                                        'variant_match_method' =>
+                                            'manual_review_cross_provider',
+
+                                        'paired_new_tune_external_id' =>
+                                            $externalId,
+                                    ]
+                                ),
+                        ]);
+
+                        $classicSource->save();
+
+                        /*
+                         * Preserve the original canonical
+                         * match method (for example,
+                         * songbase_book_number). Only the
+                         * musician-reviewed variant
+                         * assignment changes here.
+                         */
+                        $classicEntry->update([
+                            'matched_hymn_variant_id' =>
+                                $classicVariant->id,
+                        ]);
+                    }
+                }
+            );
+
+            $this->storeVariantReviewUndo(
+                $hymn->id,
+                $entry,
+                $undoBefore
+            );
 
             $this->reviewEntryId =
                 null;
@@ -1517,11 +2413,18 @@ class HymnsSetup extends Page
             $this->selectedVariantId =
                 null;
 
+            $this->selectedClassicVariantId =
+                null;
+
             $this->hymnalReviewSearch = '';
 
             $this->newCanonicalTitle = '';
 
             $this->hymnalUrl = '';
+
+            $this->dispatch(
+                'scroll-to-variant-review'
+            );
 
             Notification::make()
                 ->title(
@@ -1624,6 +2527,14 @@ class HymnsSetup extends Page
                     ::externalIdForUrl(
                         $entry->source_url
                     );
+
+            $undoBefore =
+                $this->snapshotVariantReviewFamily(
+                    $hymn->id,
+                    [
+                        $entry->id,
+                    ]
+                );
 
             $result =
                 DB::transaction(
@@ -2093,6 +3004,12 @@ class HymnsSetup extends Page
             $hymnTitle =
                 $hymn->title;
 
+            $this->storeVariantReviewUndo(
+                $hymn->id,
+                $entry,
+                $undoBefore
+            );
+
             $this->cancelReview();
 
             Notification::make()
@@ -2414,6 +3331,10 @@ class HymnsSetup extends Page
                 . $entry->number;
 
             $this->cancelReview();
+
+            $this->dispatch(
+                'scroll-to-variant-review'
+            );
 
             Notification::make()
                 ->title(

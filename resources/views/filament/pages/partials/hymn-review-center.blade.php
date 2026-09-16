@@ -16,9 +16,46 @@
 
     $selectedHymn =
         $this->selectedHymnalReviewHymn();
+
+    $classicCounterpart =
+        $this->classicCounterpartForReviewedEntry();
+
+    $variantReviewUndo =
+        $this->variantReviewUndoSummary();
 @endphp
 
-<div class="space-y-6">
+<div
+    class="space-y-6"
+    x-on:scroll-to-hymnal-review.window="
+        $nextTick(() => {
+            setTimeout(() => {
+                document
+                    .getElementById(
+                        'hymnal-review-form'
+                    )
+                    ?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+            }, 50);
+        })
+    "
+    x-on:scroll-to-variant-review.window="
+        $nextTick(() => {
+            setTimeout(() => {
+                document
+                    .getElementById(
+                        'variant-review-table'
+                    )
+                    ?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+            }, 50);
+        })
+    "
+
+>
 <div
             class="rounded-2xl border
                    border-gray-200
@@ -27,24 +64,62 @@
                    dark:border-gray-700
                    dark:bg-gray-900"
         >
-            <div class="mb-5">
-                <h2
-                    class="text-lg font-bold
-                           text-gray-950
-                           dark:text-white"
-                >
-                    Variant Review
-                </h2>
+            <div
+                class="mb-5 flex flex-col gap-3
+                       lg:flex-row lg:items-start
+                       lg:justify-between"
+            >
+                <div>
+                    <h2
+                        id="variant-review-table"
+            class="text-lg font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        Variant Review
+                    </h2>
 
-                <p
-                    class="mt-1 text-sm
-                           text-gray-500
-                           dark:text-gray-400"
-                >
-                    The canonical Hymn family is known,
-                    but the correct tune or version still
-                    needs an explicit variant assignment.
-                </p>
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        The canonical Hymn family is known,
+                        but the correct tune or version still
+                        needs an explicit variant assignment.
+                    </p>
+                </div>
+
+                @if ($variantReviewUndo)
+                    <div
+                        class="flex flex-col items-start
+                               gap-1 lg:items-end"
+                    >
+                        <x-filament::button
+                            wire:click="rollbackLastVariantReviewSave"
+                            wire:confirm="Rollback ONLY the most recent Variant Review save and restore its exact previous variant, source, and Hymnal.net assignments?"
+                            icon="heroicon-m-arrow-uturn-left"
+                            color="gray"
+                            size="sm"
+                        >
+                            Rollback Last Save
+                        </x-filament::button>
+
+                        <div
+                            class="max-w-xs text-xs
+                                   text-gray-500
+                                   dark:text-gray-400
+                                   lg:text-right"
+                        >
+                            Last save:
+                            {{
+                                $variantReviewUndo[
+                                    'label'
+                                ]
+                            }}
+                        </div>
+                    </div>
+                @endif
             </div>
 
             <div class="overflow-x-auto">
@@ -1050,7 +1125,12 @@
                             class="text-xs font-bold
                                    uppercase tracking-wide"
                         >
-                            Choose Variant
+                            {{
+                                $reviewedEntry->section_code
+                                    === 'new_tunes'
+                                    ? 'New Tune Variant'
+                                    : 'Choose Variant'
+                            }}
                         </div>
 
                         <div
@@ -1094,6 +1174,63 @@
                                                 {{ $variant->title_override }}
                                             @endif
                                         </span>
+
+                                        @if (
+                                            $variant
+                                                ->sources
+                                                ->isNotEmpty()
+                                        )
+                                            <span
+                                                class="mt-1 block
+                                                       space-y-1"
+                                            >
+                                                @foreach (
+                                                    $variant->sources
+                                                    as $variantSource
+                                                )
+                                                    <span
+                                                        class="block text-xs"
+                                                    >
+                                                        @if (
+                                                            $variantSource
+                                                                ->source_url
+                                                        )
+                                                            <a
+                                                                href="{{
+                                                                    $variantSource
+                                                                        ->source_url
+                                                                }}"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                class="font-semibold
+                                                                       underline"
+                                                            >
+                                                                {{
+                                                                    ucfirst(
+                                                                        str_replace(
+                                                                            '_',
+                                                                            ' ',
+                                                                            $variantSource
+                                                                                ->provider
+                                                                        )
+                                                                    )
+                                                                }}
+                                                                ·
+                                                                {{
+                                                                    $variantSource
+                                                                        ->external_id
+                                                                }}
+                                                            </a>
+                                                        @else
+                                                            {{
+                                                                $variantSource
+                                                                    ->external_id
+                                                            }}
+                                                        @endif
+                                                    </span>
+                                                @endforeach
+                                            </span>
+                                        @endif
                                     </span>
                                 </label>
                             @endforeach
@@ -1123,64 +1260,255 @@
                 @if (
                     $reviewedEntry->section_code
                         === 'new_tunes'
+                    && $classicCounterpart
+                    && $reviewTuneVariants->isNotEmpty()
                 )
                     <div
                         class="mt-5 rounded-xl border
-                               border-emerald-300
-                               bg-white p-4
-                               text-emerald-950"
+                               border-sky-300
+                               bg-sky-50 p-4
+                               text-sky-950
+                               dark:border-sky-300
+                               dark:bg-sky-50
+                               dark:text-sky-950"
+                        style="
+                            color: #082f49 !important;
+                        "
                     >
-                        <div
-                            class="text-sm font-bold"
-                        >
-                            Create New Tune Variant
+                        <div class="text-sm font-bold">
+                            Classic Hymnal.net Tune
                         </div>
 
-                        @if ($reviewTuneVariants->isEmpty())
-                            <p class="mt-1 text-sm">
-                                This canonical Hymn has no
-                                Tune variants yet. CoQP will
-                                establish the existing/default
-                                tune as <strong>Tune 1</strong>
-                                and create
-                                <strong>Tune 2</strong> for
-                                this Hymnal.net New Tune.
-                            </p>
-                        @else
-                            <p class="mt-1 text-sm">
-                                Use this only when the
-                                Hymnal.net page represents a
-                                genuinely different tune.
-                                CoQP will create the next
-                                Tune variant and attach this
-                                NT source to it.
-                            </p>
-                        @endif
-
-                        <p
-                            class="mt-2 text-xs
-                                   text-emerald-800"
-                        >
-                            If Hymnal.net is actually using
-                            one of the Tune variants already
-                            shown above, select that variant
-                            instead and use
+                        <p class="mt-1 text-sm">
+                            Explicitly assign
                             <strong>
-                                Link Existing Canonical Hymn
-                            </strong>.
+                                h/{{ $classicCounterpart->number }}
+                            </strong>
+                            to the Tune variant verified
+                            musically. Songbase ordering
+                            is not assumed.
                         </p>
 
-                        <div class="mt-4">
-                            <x-filament::button
-                                wire:click="createNewTuneVariantFromReviewedEntry"
-                                wire:confirm="Create a new Tune variant for this Hymnal.net New Tune and link the source to it?"
-                                icon="heroicon-m-plus"
-                                color="success"
+                        @if (
+                            $classicCounterpart->source_url
+                        )
+                            <a
+                                href="{{
+                                    $classicCounterpart
+                                        ->source_url
+                                }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="mt-2 inline-block
+                                       text-xs font-bold
+                                       underline"
                             >
-                                Create New Tune Variant & Link
-                            </x-filament::button>
+                                Open Hymnal.net
+                                h/{{ $classicCounterpart->number }}
+                            </a>
+                        @endif
+
+                        <div
+                            class="mt-3 grid gap-2
+                                   md:grid-cols-2"
+                        >
+                            @foreach (
+                                $reviewTuneVariants
+                                as $variant
+                            )
+                                <label
+                                    class="flex cursor-pointer
+                                           items-start gap-3
+                                           rounded-lg border
+                                           border-sky-300
+                                           bg-white p-3"
+                                >
+                                    <input
+                                        type="radio"
+                                        wire:model.live="selectedClassicVariantId"
+                                        value="{{ $variant->id }}"
+                                        class="mt-1"
+                                    >
+
+                                    <span>
+                                        <span
+                                            class="block font-bold"
+                                        >
+                                            {{ $variant->label }}
+                                        </span>
+
+                                        @if (
+                                            $variant
+                                                ->sources
+                                                ->isNotEmpty()
+                                        )
+                                            <span
+                                                class="mt-1 block
+                                                       space-y-1"
+                                            >
+                                                @foreach (
+                                                    $variant->sources
+                                                    as $variantSource
+                                                )
+                                                    <span
+                                                        class="block text-xs"
+                                                    >
+                                                        @if (
+                                                            $variantSource
+                                                                ->source_url
+                                                        )
+                                                            <a
+                                                                href="{{
+                                                                    $variantSource
+                                                                        ->source_url
+                                                                }}"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                class="font-semibold
+                                                                       underline"
+                                                            >
+                                                                {{
+                                                                    ucfirst(
+                                                                        str_replace(
+                                                                            '_',
+                                                                            ' ',
+                                                                            $variantSource
+                                                                                ->provider
+                                                                        )
+                                                                    )
+                                                                }}
+                                                                ·
+                                                                {{
+                                                                    $variantSource
+                                                                        ->external_id
+                                                                }}
+                                                            </a>
+                                                        @else
+                                                            {{
+                                                                $variantSource
+                                                                    ->external_id
+                                                            }}
+                                                        @endif
+                                                    </span>
+                                                @endforeach
+                                            </span>
+                                        @endif
+                                    </span>
+                                </label>
+                            @endforeach
                         </div>
                     </div>
+                @endif
+
+                @if (
+                    $reviewedEntry->section_code
+                        === 'new_tunes'
+                )
+                    @if ($reviewTuneVariants->isEmpty())
+                        <div
+                            class="mt-5 rounded-xl border
+                                   border-emerald-300
+                                   bg-white p-4
+                                   text-emerald-950"
+                        >
+                            <div
+                                class="text-sm font-bold"
+                            >
+                                Establish Tune Variants
+                            </div>
+
+                            <p class="mt-1 text-sm">
+                                This canonical Hymn has no
+                                Tune variants yet.
+                            </p>
+
+                            <p class="mt-2 text-sm">
+                                CoQP will establish the
+                                existing/default tune as
+                                <strong>Tune 1</strong>
+                                and create
+                                <strong>Tune 2</strong>
+                                for this Hymnal.net New Tune.
+                            </p>
+
+                            <div class="mt-4">
+                                <x-filament::button
+                                    wire:click="createNewTuneVariantFromReviewedEntry"
+                                    wire:confirm="This Hymn has no Tune variants yet. Create Tune 1 for the existing/default tune and Tune 2 for this Hymnal.net New Tune?"
+                                    icon="heroicon-m-plus"
+                                    color="success"
+                                >
+                                    Establish Tune 1
+                                    &amp; Create Tune 2
+                                </x-filament::button>
+                            </div>
+                        </div>
+                    @else
+                        <details
+                            class="mt-5 rounded-xl border
+                                   border-amber-300
+                                   bg-amber-50 p-4
+                                   text-amber-950
+                                   dark:border-amber-300
+                                   dark:bg-amber-50
+                                   dark:text-amber-950"
+                            style="
+                                color: #78350f !important;
+                            "
+                        >
+                            <summary
+                                class="cursor-pointer
+                                       font-bold"
+                            >
+                                None of the existing Tunes
+                                match — create a brand-new
+                                Tune
+                            </summary>
+
+                            <div class="mt-3">
+                                <p class="text-sm">
+                                    Use this only after
+                                    comparing the Hymnal.net
+                                    New Tune with every
+                                    existing Tune shown above
+                                    and confirming that none
+                                    of them is the same tune.
+                                </p>
+
+                                <p
+                                    class="mt-2 text-sm
+                                           font-semibold"
+                                >
+                                    If an existing Tune
+                                    matches, close this section,
+                                    select that Tune, and use
+                                    <strong>
+                                        Link Existing
+                                        Canonical Hymn
+                                    </strong>.
+                                </p>
+
+                                <p class="mt-2 text-xs">
+                                    Creating a brand-new Tune
+                                    adds another structural
+                                    variant to this canonical
+                                    Hymn family.
+                                </p>
+
+                                <div class="mt-4">
+                                    <x-filament::button
+                                        wire:click="createNewTuneVariantFromReviewedEntry"
+                                        wire:confirm="Are you sure NONE of the existing Tune variants match this Hymnal.net New Tune? This will create a BRAND-NEW Tune variant."
+                                        icon="heroicon-m-plus"
+                                        color="danger"
+                                    >
+                                        Yes — Create a
+                                        Brand-New Tune
+                                    </x-filament::button>
+                                </div>
+                            </div>
+                        </details>
+                    @endif
                 @endif
             </div>
         @endif
@@ -1197,7 +1525,13 @@
                     || (
                         $reviewedEntry->section_code
                             === 'new_tunes'
-                        && ! $selectedVariantId
+                        && (
+                            ! $selectedVariantId
+                            || (
+                                $classicCounterpart
+                                && ! $selectedClassicVariantId
+                            )
+                        )
                     )
                 "
             >
