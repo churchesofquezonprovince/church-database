@@ -147,6 +147,15 @@ class HymnalNetCollectionCatalog
                     'english',
 
                 /*
+                 * Explicit provider-known pages that are
+                 * valid but are not exposed by the
+                 * current New Tunes index.
+                 */
+                'known_numbers' => [
+                    '284',
+                ],
+
+                /*
                  * A New Tune belongs to the existing
                  * canonical Hymn family.
                  *
