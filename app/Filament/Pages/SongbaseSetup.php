@@ -6,6 +6,7 @@ use App\Models\Hymn;
 use App\Models\HymnBook;
 use App\Models\HymnSource;
 use App\Services\SongbaseHymnSyncService;
+use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnSearchRanker;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -363,12 +364,12 @@ class SongbaseSetup extends Page
                                                         ->where(
                                                             'first_line_search',
                                                             'like',
-                                                            $like
+                                                            HymnLyricsNormalizer::containsPattern($like)
                                                         )
                                                         ->orWhere(
                                                             'lyrics_search',
                                                             'like',
-                                                            $like
+                                                            HymnLyricsNormalizer::containsPattern($like)
                                                         );
                                                 }
                                             );

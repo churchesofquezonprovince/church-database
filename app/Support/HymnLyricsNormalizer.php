@@ -104,9 +104,9 @@ class HymnLyricsNormalizer
 
         $text = trim($text);
 
-        return $text !== ''
-            ? $text
-            : null;
+        return self::searchText(
+            $text
+        );
     }
 
     public static function firstLineForSearch(
@@ -162,10 +162,112 @@ class HymnLyricsNormalizer
                 continue;
             }
 
-            return $line;
+            return self::searchText(
+                $line
+            );
         }
 
         return null;
+    }
+
+    /*
+     * Normalize arbitrary lyric-search text.
+     *
+     * Search is:
+     * - case-insensitive
+     * - apostrophe-insensitive
+     * - punctuation-insensitive
+     *
+     * Examples:
+     *
+     * don't   -> dont
+     * don’t   -> dont
+     * O Lord, I love You
+     *          -> o lord i love you
+     */
+    public static function searchText(
+        ?string $text
+    ): ?string {
+        if (blank($text)) {
+            return null;
+        }
+
+        $text =
+            mb_strtolower(
+                trim(
+                    (string) $text
+                )
+            );
+
+        /*
+         * Remove apostrophes entirely so words remain
+         * joined:
+         *
+         * Lord's -> lords
+         * don't  -> dont
+         * don’t  -> dont
+         */
+        $text =
+            preg_replace(
+                "/['’‘ʼ＇]+/u",
+                '',
+                $text
+            )
+            ?? $text;
+
+        /*
+         * All remaining punctuation and symbols become
+         * spaces. This makes commas, periods, quotes,
+         * dashes, parentheses, etc. optional in search.
+         */
+        $text =
+            preg_replace(
+                '/[^\p{L}\p{N}]+/u',
+                ' ',
+                $text
+            )
+            ?? $text;
+
+        $text =
+            preg_replace(
+                '/\s+/u',
+                ' ',
+                $text
+            )
+            ?? $text;
+
+        $text = trim($text);
+
+        return $text !== ''
+            ? $text
+            : null;
+    }
+
+    public static function containsPattern(
+        ?string $text
+    ): string {
+        $normalized =
+            self::searchText(
+                $text
+            );
+
+        if ($normalized !== null) {
+            return '%' . $normalized . '%';
+        }
+
+        /*
+         * Avoid turning punctuation-only searches into
+         * %% and therefore matching every lyric.
+         */
+        $fallback =
+            trim(
+                trim(
+                    (string) $text
+                ),
+                '%'
+            );
+
+        return '%' . $fallback . '%';
     }
 
     private static function isStructuralLine(

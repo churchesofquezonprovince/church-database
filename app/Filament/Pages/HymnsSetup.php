@@ -10,6 +10,7 @@ use App\Models\HymnalNetEntry;
 use App\Models\HymnSource;
 use App\Models\HymnVariant;
 use App\Services\HymnAdditionRequestReviewService;
+use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnSearchRanker;
 use App\Support\HymnSourceResolver;
 use Filament\Notifications\Notification;
@@ -681,12 +682,12 @@ class HymnsSetup extends Page
                                             ->where(
                                                 'first_line_search',
                                                 'like',
-                                                "%{$search}%"
+                                                HymnLyricsNormalizer::containsPattern($search)
                                             )
                                             ->orWhere(
                                                 'lyrics_search',
                                                 'like',
-                                                "%{$search}%"
+                                                HymnLyricsNormalizer::containsPattern($search)
                                             );
                                     }
                                 );
@@ -1474,12 +1475,12 @@ class HymnsSetup extends Page
                                             ->where(
                                                 'first_line_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             )
                                             ->orWhere(
                                                 'lyrics_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             );
                                     }
                                 );
@@ -4031,12 +4032,12 @@ class HymnsSetup extends Page
                                                     ->where(
                                                         'first_line_search',
                                                         'like',
-                                                        "%{$search}%"
+                                                        HymnLyricsNormalizer::containsPattern($search)
                                                     )
                                                     ->orWhere(
                                                         'lyrics_search',
                                                         'like',
-                                                        "%{$search}%"
+                                                        HymnLyricsNormalizer::containsPattern($search)
                                                     );
                                             }
                                         );

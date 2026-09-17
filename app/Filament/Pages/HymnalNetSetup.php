@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Hymn;
 use App\Models\HymnalNetEntry;
 use App\Models\HymnSource;
+use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnalNetCollectionCatalog;
 use App\Support\HymnalNetSource;
 use Filament\Notifications\Notification;
@@ -122,12 +123,12 @@ class HymnalNetSetup extends Page
                                             ->where(
                                                 'first_line_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             )
                                             ->orWhere(
                                                 'lyrics_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             );
                                     }
                                 );
@@ -463,12 +464,12 @@ class HymnalNetSetup extends Page
                                                                     ->where(
                                                                         'first_line_search',
                                                                         'like',
-                                                                        $like
+                                                                        HymnLyricsNormalizer::containsPattern($like)
                                                                     )
                                                                     ->orWhere(
                                                                         'lyrics_search',
                                                                         'like',
-                                                                        $like
+                                                                        HymnLyricsNormalizer::containsPattern($like)
                                                                     );
                                                             }
                                                         );

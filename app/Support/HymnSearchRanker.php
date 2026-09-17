@@ -33,6 +33,18 @@ class HymnSearchRanker
         $contains =
             '%' . $searchLower . '%';
 
+        $lyricsSearch =
+            HymnLyricsNormalizer::searchText(
+                $search
+            )
+            ?? $searchLower;
+
+        $lyricsStartsWith =
+            $lyricsSearch . '%';
+
+        $lyricsContains =
+            '%' . $lyricsSearch . '%';
+
         /*
          * Lyrics are provider-owned.
          *
@@ -86,16 +98,16 @@ class HymnSearchRanker
         array_push(
             $bindings,
             ...$sourceBindings(
-                $searchLower
+                $lyricsSearch
             ),
             ...$sourceBindings(
-                $startsWith
+                $lyricsStartsWith
             ),
             ...$sourceBindings(
-                $contains
+                $lyricsContains
             ),
             ...$sourceBindings(
-                $contains
+                $lyricsContains
             )
         );
 

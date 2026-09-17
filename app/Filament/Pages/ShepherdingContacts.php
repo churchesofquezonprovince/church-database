@@ -6,6 +6,7 @@ use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Hymn;
+use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnSearchRanker;
 use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
@@ -1468,12 +1469,12 @@ class ShepherdingContacts extends Page
                                             ->where(
                                                 'first_line_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             )
                                             ->orWhere(
                                                 'lyrics_search',
                                                 'like',
-                                                $like
+                                                HymnLyricsNormalizer::containsPattern($like)
                                             );
                                     }
                                 );
