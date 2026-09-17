@@ -568,24 +568,96 @@
                    dark:border-gray-700
                    dark:bg-gray-900"
         >
-            <div class="mb-5">
-                <h2
-                    class="text-lg font-bold
-                           text-gray-950
-                           dark:text-white"
-                >
-                    Needs Review
-                </h2>
+            <div
+                class="mb-5 flex flex-col gap-4
+                       lg:flex-row
+                       lg:items-end
+                       lg:justify-between"
+            >
+                <div>
+                    <h2
+                        class="text-lg font-bold
+                               text-gray-950
+                               dark:text-white"
+                    >
+                        Needs Review
+                    </h2>
 
-                <p
-                    class="mt-1 text-sm
-                           text-gray-500
-                           dark:text-gray-400"
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Unmatched, ambiguous, and conflicting
+                        Hymnal.net entries from synchronized
+                        collections appear here.
+                    </p>
+
+                    <p
+                        class="mt-1 text-xs
+                               text-gray-500
+                               dark:text-gray-400"
+                    >
+                        Showing
+                        <strong>
+                            {{ number_format($unresolved->count()) }}
+                        </strong>
+                        {{
+                            str('entry')->plural(
+                                $unresolved->count()
+                            )
+                        }}
+                        for the selected section.
+                    </p>
+                </div>
+
+                <div
+                    class="w-full lg:w-64"
                 >
-                    Unmatched, ambiguous, and conflicting
-                    Hymnal.net entries from all synchronized
-                    collections appear here.
-                </p>
+                    <label
+                        class="block text-xs font-bold
+                               uppercase tracking-wide
+                               text-gray-600
+                               dark:text-gray-300"
+                    >
+                        Section
+                    </label>
+
+                    <select
+                        wire:model.live="needsReviewSection"
+                        class="mt-1 block w-full
+                               rounded-xl border-gray-300
+                               bg-white text-sm
+                               text-gray-950 shadow-sm
+                               dark:border-gray-700
+                               dark:bg-gray-950
+                               dark:text-white"
+                    >
+                        <option value="all">
+                            All Sections
+                        </option>
+
+                        <option value="classic">
+                            Classic Hymns
+                        </option>
+
+                        <option value="new_tunes">
+                            New Tunes
+                        </option>
+
+                        <option value="alternate_tunes">
+                            Alternate Tunes
+                        </option>
+
+                        <option value="new_songs">
+                            New Songs
+                        </option>
+
+                        <option value="children">
+                            Children's Songs
+                        </option>
+                    </select>
+                </div>
             </div>
 
             <div

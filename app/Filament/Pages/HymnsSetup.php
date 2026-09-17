@@ -37,6 +37,12 @@ class HymnsSetup extends Page
     public string $reviewedSearch = '';
 
     /*
+     * Filter only the Needs Review table by Hymnal.net
+     * logical section. The summary count remains global.
+     */
+    public string $needsReviewSection = 'all';
+
+    /*
      * Centralized Hymnal.net review state.
      * Provider synchronization remains in
      * Hymnal.net Setup; review decisions live here.
@@ -179,7 +185,9 @@ class HymnsSetup extends Page
 
             'needs_review' =>
                 $this
-                    ->unresolvedEntries()
+                    ->unresolvedEntries(
+                        false
+                    )
                     ->count(),
 
             /*
@@ -1702,8 +1710,17 @@ class HymnsSetup extends Page
     }
 
 
-    public function unresolvedEntries(): Collection
-    {
+    public function unresolvedEntries(
+        bool $applySectionFilter = true
+    ): Collection {
+        $allowedSections = [
+            'classic',
+            'new_tunes',
+            'alternate_tunes',
+            'new_songs',
+            'children',
+        ];
+
         return HymnalNetEntry::query()
             ->whereIn(
                 'match_status',
@@ -1712,6 +1729,19 @@ class HymnsSetup extends Page
                     'ambiguous',
                     'conflict',
                 ]
+            )
+            ->when(
+                $applySectionFilter
+                && in_array(
+                    $this->needsReviewSection,
+                    $allowedSections,
+                    true
+                ),
+                fn ($query) =>
+                    $query->where(
+                        'section_code',
+                        $this->needsReviewSection
+                    )
             )
             ->orderBy(
                 'section_code'
