@@ -19,16 +19,18 @@
                 class="text-lg font-bold
                        text-gray-950 dark:text-white"
             >
-                Pending Hymn Requests
+                External Hymn Request Review
             </h3>
 
             <p
                 class="mt-1 text-sm text-gray-500
                        dark:text-gray-400"
             >
-                Review hymns requested from
-                Shepherding Records before adding
-                them to the Hymn Catalog.
+                Review external hymn requests,
+                including YouTube, SoundCloud, and
+                other submitted sources, before
+                linking or adding them to the
+                canonical Hymn Catalog.
             </p>
         </div>
 
@@ -60,7 +62,7 @@
                    dark:border-gray-700
                    dark:text-gray-400"
         >
-            No pending Hymn Addition Requests.
+            No pending External Hymn Requests.
         </div>
     @else
         <div class="mt-5 space-y-4">

@@ -74,11 +74,17 @@
                    dark:border-primary-900
                    dark:bg-primary-950"
         >
-            <div>
-                <p
-                    class="text-sm font-semibold
-                           uppercase tracking-wide
-                           text-primary-600
+            <div
+                class="flex flex-col gap-4
+                       lg:flex-row
+                       lg:items-start
+                       lg:justify-between"
+            >
+                <div>
+                    <p
+                        class="text-sm font-semibold
+                               uppercase tracking-wide
+                               text-primary-600
                            dark:text-primary-300"
                 >
                     Hymn Source Provider
@@ -117,6 +123,20 @@
                     official Hymnal.net song indexes and
                     synchronize only discovered links.
                 </p>
+                </div>
+
+                <a
+                    href="{{ \App\Filament\Pages\HymnsSetup::getUrl() }}"
+                    class="inline-flex shrink-0
+                           items-center justify-center
+                           rounded-lg bg-primary-600
+                           px-4 py-2.5
+                           text-sm font-bold text-white
+                           shadow-sm
+                           hover:bg-primary-500"
+                >
+                    Open Hymns Setup
+                </a>
             </div>
         </div>
 

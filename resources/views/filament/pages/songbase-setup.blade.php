@@ -88,13 +88,27 @@
                     </p>
                 </div>
 
-                <x-filament::button
-                    wire:click="syncSongbase"
-                    wire:confirm="Synchronize the complete Songbase source catalog now?"
-                    icon="heroicon-m-arrow-path"
-                >
-                    Sync Songbase
-                </x-filament::button>
+                <div class="flex flex-wrap gap-2">
+                    <a
+                        href="{{ \App\Filament\Pages\HymnsSetup::getUrl() }}"
+                        class="inline-flex items-center
+                               justify-center rounded-lg
+                               bg-primary-600 px-4 py-2.5
+                               text-sm font-bold text-white
+                               shadow-sm
+                               hover:bg-primary-500"
+                    >
+                        Open Hymns Setup
+                    </a>
+
+                    <x-filament::button
+                        wire:click="syncSongbase"
+                        wire:confirm="Synchronize the complete Songbase source catalog now?"
+                        icon="heroicon-m-arrow-path"
+                    >
+                        Sync Songbase
+                    </x-filament::button>
+                </div>
             </div>
         </div>
 
