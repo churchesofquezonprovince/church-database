@@ -904,6 +904,265 @@
             >
         </div>
 
+        @if ($hymnalReviewSuggestions !== [])
+            <div
+                class="hymn-review-light-sky
+                       mt-5 rounded-xl border
+                       border-sky-300 bg-sky-50
+                       p-4 text-sky-950
+                       dark:border-sky-300
+                       dark:bg-sky-50
+                       dark:text-sky-950"
+            >
+                <div
+                    class="flex flex-col gap-1
+                           sm:flex-row
+                           sm:items-start
+                           sm:justify-between"
+                >
+                    <div>
+                        <div class="font-bold">
+                            Suggested Matches
+                        </div>
+
+                        <p class="mt-1 text-xs">
+                            Title-based review aid only.
+                            A suggestion never links an
+                            entry automatically.
+                        </p>
+                    </div>
+
+                    <div
+                        class="text-xs font-semibold
+                               text-sky-800"
+                    >
+                        Top {{
+                            count(
+                                $hymnalReviewSuggestions
+                            )
+                        }}
+                    </div>
+                </div>
+
+                <div class="mt-4 grid gap-3">
+                    @foreach (
+                        $hymnalReviewSuggestions
+                        as $suggestion
+                    )
+                        <div
+                            class="block w-full rounded-xl
+                                   border p-4 text-left
+                                   transition
+                                   {{
+                                       $selectedHymnId
+                                           === $suggestion['hymn_id']
+                                               ? 'hymn-review-light-green border-emerald-400 bg-emerald-100'
+                                               : 'border-sky-200 bg-white'
+                                   }}"
+                        >
+                            <div
+                                class="flex flex-col gap-2
+                                       sm:flex-row
+                                       sm:items-start
+                                       sm:justify-between"
+                            >
+                                <div>
+                                    <div class="font-bold">
+                                        {{
+                                            $suggestion[
+                                                'title'
+                                            ]
+                                        }}
+                                    </div>
+
+                                    <div
+                                        class="mt-1 text-xs
+                                               font-semibold"
+                                    >
+                                        Canonical Hymn
+                                        #{{
+                                            $suggestion[
+                                                'hymn_id'
+                                            ]
+                                        }}
+
+                                        @if (
+                                            $suggestion[
+                                                'language'
+                                            ]
+                                        )
+                                            ·
+                                            {{
+                                                $suggestion[
+                                                    'language'
+                                                ]
+                                            }}
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="shrink-0 rounded-full
+                                           border border-sky-300
+                                           bg-sky-100
+                                           px-2.5 py-1
+                                           text-xs font-bold"
+                                >
+                                    Title score:
+                                    {{
+                                        number_format(
+                                            (float)
+                                                $suggestion[
+                                                    'score'
+                                                ],
+                                            1
+                                        )
+                                    }}%
+                                </div>
+                            </div>
+
+                            <div
+                                class="mt-2 text-xs
+                                       text-sky-900"
+                            >
+                                {{
+                                    $suggestion[
+                                        'reason'
+                                    ]
+                                }}
+                            </div>
+
+                            @if (
+                                $suggestion[
+                                    'songbase_ids'
+                                ] !== []
+                            )
+                                <div
+                                    class="mt-2 flex flex-wrap
+                                           items-center gap-x-2
+                                           gap-y-1 text-xs
+                                           text-sky-900"
+                                >
+                                    <strong>
+                                        Songbase:
+                                    </strong>
+
+                                    @foreach (
+                                        $suggestion[
+                                            'songbase_ids'
+                                        ]
+                                        as $songbaseId
+                                    )
+                                        <a
+                                            href="https://songbase.life/{{ $songbaseId }}"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="font-bold
+                                                   text-sky-700
+                                                   underline
+                                                   decoration-sky-300
+                                                   underline-offset-2
+                                                   hover:text-sky-950"
+                                            title="Open Songbase #{{ $songbaseId }}"
+                                        >
+                                            #{{ $songbaseId }}
+                                        </a>
+
+                                        @unless ($loop->last)
+                                            <span
+                                                class="text-sky-400"
+                                            >
+                                                ·
+                                            </span>
+                                        @endunless
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            @if (
+                                $suggestion[
+                                    'books'
+                                ] !== []
+                            )
+                                <div
+                                    class="mt-1 text-xs
+                                           text-sky-900"
+                                >
+                                    <strong>
+                                        Books:
+                                    </strong>
+
+                                    {{
+                                        implode(
+                                            ' · ',
+                                            $suggestion[
+                                                'books'
+                                            ]
+                                        )
+                                    }}
+                                </div>
+                            @endif
+
+                            @if (
+                                $suggestion[
+                                    'active_variant_count'
+                                ] > 0
+                            )
+                                <div
+                                    class="mt-1 text-xs
+                                           font-semibold
+                                           text-sky-900"
+                                >
+                                    {{
+                                        $suggestion[
+                                            'active_variant_count'
+                                        ]
+                                    }}
+                                    active
+                                    {{
+                                        str(
+                                            'variant'
+                                        )->plural(
+                                            $suggestion[
+                                                'active_variant_count'
+                                            ]
+                                        )
+                                    }}
+                                </div>
+                            @endif
+
+                            <div class="mt-3">
+                                <button
+                                    type="button"
+                                    wire:click="selectHymnalReviewHymn({{ $suggestion['hymn_id'] }})"
+                                    class="rounded-lg border
+                                           px-3 py-1.5
+                                           text-xs font-bold
+                                           transition
+                                           {{
+                                               $selectedHymnId
+                                                   === $suggestion['hymn_id']
+                                                       ? 'border-emerald-500 bg-emerald-200 text-emerald-950'
+                                                       : 'border-sky-300 bg-sky-100 text-sky-950 hover:bg-sky-200'
+                                           }}"
+                                >
+                                    {{
+                                        $selectedHymnId
+                                            ===
+                                            $suggestion[
+                                                'hymn_id'
+                                            ]
+                                                ? 'Selected'
+                                                : 'Use Candidate'
+                                    }}
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         @if ($matches->isNotEmpty())
             <div class="mt-4 space-y-2">
                 @foreach ($matches as $hymn)

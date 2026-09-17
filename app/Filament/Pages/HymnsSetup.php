@@ -43,6 +43,15 @@ class HymnsSetup extends Page
      */
     public string $hymnalReviewSearch = '';
 
+    /*
+     * Review-only candidate suggestions generated from
+     * the current unresolved Hymnal.net title.
+     *
+     * These never write matching decisions themselves.
+     * A reviewer must still select and resolve a Hymn.
+     */
+    public array $hymnalReviewSuggestions = [];
+
     public ?int $selectedHymnId = null;
 
     public string $hymnalUrl = '';
@@ -966,6 +975,452 @@ class HymnsSetup extends Page
                 ->send();
         }
     }
+
+    private function buildHymnalReviewSuggestions(
+        HymnalNetEntry $entry
+    ): array {
+        $entryTitle =
+            trim(
+                (string) $entry->title
+            );
+
+        if ($entryTitle === '') {
+            return [];
+        }
+
+        /*
+         * Rank only lightweight Hymn identity fields first.
+         *
+         * Full provider/book/variant relationships are
+         * loaded only for the small final candidate set.
+         */
+        $ranked =
+            Hymn::query()
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->get([
+                    'id',
+                    'title',
+                ])
+                ->map(
+                    function (
+                        Hymn $hymn
+                    ) use (
+                        $entryTitle
+                    ): array {
+                        $comparison =
+                            $this
+                                ->reviewTitleSuggestionScore(
+                                    $entryTitle,
+                                    $hymn->title
+                                );
+
+                        return [
+                            'hymn_id' =>
+                                $hymn->id,
+
+                            'score' =>
+                                $comparison[
+                                    'score'
+                                ],
+
+                            'reason' =>
+                                $comparison[
+                                    'reason'
+                                ],
+                        ];
+                    }
+                )
+                /*
+                 * This threshold only controls whether a
+                 * candidate is useful enough to display.
+                 *
+                 * It is never an automatic-link threshold.
+                 */
+                ->filter(
+                    fn (
+                        array $candidate
+                    ): bool =>
+                        $candidate[
+                            'score'
+                        ] >= 65
+                )
+                ->sortByDesc(
+                    'score'
+                )
+                ->take(5)
+                ->values();
+
+        if ($ranked->isEmpty()) {
+            return [];
+        }
+
+        $hymnIds =
+            $ranked
+                ->pluck(
+                    'hymn_id'
+                )
+                ->all();
+
+        $hymns =
+            Hymn::query()
+                ->with([
+                    'bookEntries.hymnBook',
+                    'sources',
+                    'variants' =>
+                        fn ($query) =>
+                            $query->where(
+                                'is_active',
+                                true
+                            ),
+                ])
+                ->whereIn(
+                    'id',
+                    $hymnIds
+                )
+                ->get()
+                ->keyBy(
+                    'id'
+                );
+
+        return $ranked
+            ->map(
+                function (
+                    array $candidate
+                ) use (
+                    $hymns
+                ): ?array {
+                    $hymn =
+                        $hymns->get(
+                            $candidate[
+                                'hymn_id'
+                            ]
+                        );
+
+                    if (! $hymn) {
+                        return null;
+                    }
+
+                    $songbaseIds =
+                        $hymn
+                            ->sources
+                            ->where(
+                                'provider',
+                                HymnSource
+                                    ::PROVIDER_SONGBASE
+                            )
+                            ->pluck(
+                                'external_id'
+                            )
+                            ->filter(
+                                fn ($externalId): bool =>
+                                    filled(
+                                        $externalId
+                                    )
+                                    && ! str_contains(
+                                        (string)
+                                            $externalId,
+                                        ':'
+                                    )
+                            )
+                            ->map(
+                                fn ($externalId): string =>
+                                    (string)
+                                        $externalId
+                            )
+                            ->unique()
+                            ->take(4)
+                            ->values()
+                            ->all();
+
+                    $books =
+                        $hymn
+                            ->bookEntries
+                            ->map(
+                                function (
+                                    $bookEntry
+                                ): string {
+                                    $bookName =
+                                        trim(
+                                            (string)
+                                                (
+                                                    $bookEntry
+                                                        ->hymnBook
+                                                        ?->name
+                                                    ?? 'Book'
+                                                )
+                                        );
+
+                                    return $bookName
+                                        . ' #'
+                                        . $bookEntry
+                                            ->number;
+                                }
+                            )
+                            ->unique()
+                            ->take(4)
+                            ->values()
+                            ->all();
+
+                    return [
+                        'hymn_id' =>
+                            $hymn->id,
+
+                        'title' =>
+                            $hymn->title,
+
+                        'language' =>
+                            $hymn->language,
+
+                        'score' =>
+                            $candidate[
+                                'score'
+                            ],
+
+                        'reason' =>
+                            $candidate[
+                                'reason'
+                            ],
+
+                        'songbase_ids' =>
+                            $songbaseIds,
+
+                        'books' =>
+                            $books,
+
+                        'active_variant_count' =>
+                            $hymn
+                                ->variants
+                                ->count(),
+                    ];
+                }
+            )
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+
+    private function reviewTitleSuggestionScore(
+        ?string $entryTitle,
+        ?string $candidateTitle
+    ): array {
+        $entryNormalized =
+            $this
+                ->normalizeReviewTitle(
+                    $entryTitle
+                );
+
+        $candidateNormalized =
+            $this
+                ->normalizeReviewTitle(
+                    $candidateTitle
+                );
+
+        if (
+            $entryNormalized === ''
+            || $candidateNormalized === ''
+        ) {
+            return [
+                'score' => 0.0,
+                'reason' =>
+                    'No comparable title',
+            ];
+        }
+
+        $stripParenthetical =
+            function (
+                ?string $title
+            ): string {
+                $title =
+                    preg_replace(
+                        '/\s*\([^)]*\)\s*/u',
+                        ' ',
+                        (string) $title
+                    )
+                    ?? (string) $title;
+
+                return $this
+                    ->normalizeReviewTitle(
+                        $title
+                    );
+            };
+
+        $entryStripped =
+            $stripParenthetical(
+                $entryTitle
+            );
+
+        $candidateStripped =
+            $stripParenthetical(
+                $candidateTitle
+            );
+
+        similar_text(
+            $entryNormalized,
+            $candidateNormalized,
+            $fullSimilarity
+        );
+
+        similar_text(
+            $entryStripped,
+            $candidateStripped,
+            $strippedSimilarity
+        );
+
+        $tokens =
+            function (
+                string $value
+            ): array {
+                return collect(
+                    preg_split(
+                        '/\s+/u',
+                        $value
+                    )
+                    ?: []
+                )
+                    ->map(
+                        fn (
+                            string $token
+                        ): string =>
+                            trim($token)
+                    )
+                    ->filter(
+                        fn (
+                            string $token
+                        ): bool =>
+                            mb_strlen(
+                                $token
+                            ) >= 2
+                    )
+                    ->unique()
+                    ->values()
+                    ->all();
+            };
+
+        $entryTokens =
+            $tokens(
+                $entryStripped
+            );
+
+        $candidateTokens =
+            $tokens(
+                $candidateStripped
+            );
+
+        $minimumTokenCount =
+            min(
+                count($entryTokens),
+                count($candidateTokens)
+            );
+
+        $tokenCoverage =
+            $minimumTokenCount > 0
+                ? (
+                    count(
+                        array_intersect(
+                            $entryTokens,
+                            $candidateTokens
+                        )
+                    )
+                    / $minimumTokenCount
+                ) * 100
+                : 0.0;
+
+        $score =
+            max(
+                (float) $fullSimilarity,
+                (float) $strippedSimilarity,
+                $tokenCoverage * 0.92
+            );
+
+        $reason =
+            'Similar normalized title';
+
+        if (
+            $entryNormalized
+                === $candidateNormalized
+        ) {
+            $score = 100.0;
+
+            $reason =
+                'Same normalized title';
+        } elseif (
+            $entryStripped !== ''
+            && $entryStripped
+                === $candidateStripped
+        ) {
+            $score = 100.0;
+
+            $reason =
+                'Same title after removing '
+                . 'parenthetical note';
+        } else {
+            $shorterLength =
+                min(
+                    mb_strlen(
+                        $entryStripped
+                    ),
+                    mb_strlen(
+                        $candidateStripped
+                    )
+                );
+
+            $containsOther =
+                $shorterLength >= 8
+                && (
+                    str_contains(
+                        $entryStripped,
+                        $candidateStripped
+                    )
+                    || str_contains(
+                        $candidateStripped,
+                        $entryStripped
+                    )
+                );
+
+            if ($containsOther) {
+                $score =
+                    max(
+                        $score,
+                        94.0
+                    );
+
+                $reason =
+                    'One normalized title '
+                    . 'contains the other';
+            } elseif (
+                $strippedSimilarity
+                    > $fullSimilarity + 3
+            ) {
+                $reason =
+                    'Strong match after ignoring '
+                    . 'parenthetical note';
+            } elseif (
+                $tokenCoverage >= 80
+            ) {
+                $reason =
+                    'Strong title-word overlap';
+            }
+        }
+
+        return [
+            'score' =>
+                round(
+                    min(
+                        100,
+                        $score
+                    ),
+                    1
+                ),
+
+            'reason' =>
+                $reason,
+        ];
+    }
+
 
     public function hymnalReviewMatches(): Collection
     {
@@ -1955,6 +2410,22 @@ class HymnsSetup extends Page
             $entry->title
             ?? '';
 
+        $this->hymnalReviewSuggestions =
+            in_array(
+                $entry->match_status,
+                [
+                    'unmatched',
+                    'ambiguous',
+                    'conflict',
+                ],
+                true
+            )
+                ? $this
+                    ->buildHymnalReviewSuggestions(
+                        $entry
+                    )
+                : [];
+
         $this->hymnalUrl =
             $entry->source_url;
 
@@ -1993,6 +2464,8 @@ class HymnsSetup extends Page
             null;
 
         $this->hymnalReviewSearch = '';
+
+        $this->hymnalReviewSuggestions = [];
 
         $this->newCanonicalTitle = '';
 
