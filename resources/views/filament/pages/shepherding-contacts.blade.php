@@ -226,6 +226,7 @@
                             >
                                 @forelse ($contactPeople as $person)
                                     <label
+                                        wire:key="shepherding-checkbox-contactedPersonIds-{{ $person->id }}"
                                         class="flex cursor-pointer
                                                items-center gap-3
                                                rounded-lg px-2 py-2
@@ -310,6 +311,7 @@
                             >
                                 @forelse ($households as $household)
                                     <label
+                                        wire:key="shepherding-checkbox-contactedHouseholdIds-{{ $household->id }}"
                                         class="flex cursor-pointer
                                                items-start gap-3
                                                rounded-lg px-2 py-2
@@ -410,6 +412,7 @@
                             >
                                 @forelse ($campusContacts as $campusContact)
                                     <label
+                                        wire:key="shepherding-checkbox-contactedCampusContactIds-{{ $campusContact->id }}"
                                         class="flex cursor-pointer
                                                items-start gap-3
                                                rounded-lg px-2 py-2
@@ -564,6 +567,7 @@
 
 @forelse ($gospelContacts as $gospelContact)
                                     <label
+                                        wire:key="shepherding-checkbox-contactedGospelContactIds-{{ $gospelContact->id }}"
                                         class="flex cursor-pointer
                                                items-start gap-3
                                                rounded-lg px-2 py-2
@@ -791,6 +795,7 @@
                                 @endphp
 
                                 <label
+                                    wire:key="shepherding-checkbox-householdMemberPresence-{{ $person->id }}"
                                     class="flex cursor-pointer
                                            items-center justify-between
                                            gap-3 rounded-lg px-2 py-2
@@ -1066,6 +1071,7 @@
                         >
                             @foreach ($activityTypes as $activity)
                                 <label
+                                    wire:key="shepherding-checkbox-activityTypeIds-{{ $activity->id }}"
                                     class="flex cursor-pointer
                                            items-start gap-3
                                            rounded-xl border
@@ -2689,6 +2695,7 @@
                                                 @endphp
 
                                                 <label
+                                                    wire:key="shepherding-checkbox-ministryLessonIds-{{ $lesson->id }}"
                                                     x-show="
                                                         ministrySearch.trim() === ''
                                                         || {{ \Illuminate\Support\Js::from(
@@ -2867,6 +2874,7 @@
                     >
                         @forelse ($participantPeople as $person)
                             <label
+                                wire:key="shepherding-checkbox-participantIds-{{ $person->id }}"
                                 class="flex cursor-pointer
                                        items-center gap-3
                                        rounded-lg px-2 py-2
