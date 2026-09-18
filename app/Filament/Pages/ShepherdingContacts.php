@@ -9,6 +9,7 @@ use App\Models\Hymn;
 use App\Models\HymnSource;
 use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnSearchRanker;
+use App\Support\RecoveryVersionBible;
 use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
 use App\Models\MinistryBook;
@@ -105,6 +106,16 @@ class ShepherdingContacts extends Page
     public bool $showMorningRevivalArchive = false;
 
     public string $morningRevivalArchiveSearch = '';
+
+    /*
+     * Ordered Bible portions read during this contact.
+     *
+     * Each row:
+     * [
+     *     'reference' => string,
+     * ]
+     */
+    public array $bibleReadingRows = [];
 
     public array $ministryLessonIds = [];
 
@@ -1078,6 +1089,17 @@ class ShepherdingContacts extends Page
         }
 
         if (
+            $this->isBibleReadingSelected()
+            && $this->bibleReadingRows === []
+        ) {
+            $this->addBibleReadingRow();
+        }
+
+        if (! $this->isBibleReadingSelected()) {
+            $this->bibleReadingRows = [];
+        }
+
+        if (
             $this->isMorningRevivalSelected()
         ) {
             /*
@@ -1491,6 +1513,66 @@ class ShepherdingContacts extends Page
 
         $this->morningRevivalArchiveSearch =
             '';
+    }
+
+    public function bibleReadingActivityId(): ?int
+    {
+        $id =
+            ShepherdingActivityType::query()
+                ->where('code', 'BR')
+                ->value('id');
+
+        return $id
+            ? (int) $id
+            : null;
+    }
+
+    public function isBibleReadingSelected(): bool
+    {
+        $activityId =
+            $this->bibleReadingActivityId();
+
+        if (! $activityId) {
+            return false;
+        }
+
+        return collect(
+            $this->activityTypeIds
+        )
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->contains($activityId);
+    }
+
+    public function addBibleReadingRow(): void
+    {
+        $this->bibleReadingRows[] = [
+            'reference' => '',
+        ];
+    }
+
+    public function removeBibleReadingRow(
+        int $index
+    ): void {
+        if (
+            ! array_key_exists(
+                $index,
+                $this->bibleReadingRows
+            )
+        ) {
+            return;
+        }
+
+        unset(
+            $this->bibleReadingRows[$index]
+        );
+
+        $this->bibleReadingRows =
+            array_values(
+                $this->bibleReadingRows
+            );
     }
 
     public function hymnSingingActivityId(): ?int
@@ -2359,6 +2441,14 @@ class ShepherdingContacts extends Page
                 'integer',
                 'between:1,6',
             ],
+            'bibleReadingRows' => [
+                'array',
+            ],
+            'bibleReadingRows.*.reference' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
             'hymnRows' => [
                 'array',
             ],
@@ -2654,6 +2744,104 @@ class ShepherdingContacts extends Page
             return;
         }
 
+        $bibleReadingRowsForSave =
+            array_values(
+                $data['bibleReadingRows']
+                    ?? []
+            );
+
+        $bibleReadingActivityId =
+            $this->bibleReadingActivityId();
+
+        $bibleReadingSelected =
+            $bibleReadingActivityId
+            && in_array(
+                $bibleReadingActivityId,
+                $activityIds,
+                true
+            );
+
+        $bibleReadingsForSave = [];
+
+        if (! $bibleReadingSelected) {
+            $bibleReadingRowsForSave = [];
+        } elseif (
+            $data['outcome']
+            !== ShepherdingContact::OUTCOME_UNAVAILABLE
+        ) {
+            foreach (
+                $bibleReadingRowsForSave
+                as $index => $row
+            ) {
+                $reference =
+                    trim(
+                        (string) (
+                            $row['reference']
+                            ?? ''
+                        )
+                    );
+
+                if ($reference === '') {
+                    continue;
+                }
+
+                try {
+                    $parsed =
+                        RecoveryVersionBible::parse(
+                            $reference
+                        );
+                } catch (
+                    \InvalidArgumentException $exception
+                ) {
+                    $this->addError(
+                        "bibleReadingRows.{$index}.reference",
+                        $exception->getMessage()
+                    );
+
+                    Notification::make()
+                        ->title(
+                            'Invalid Bible reference'
+                        )
+                        ->body(
+                            $exception->getMessage()
+                        )
+                        ->warning()
+                        ->send();
+
+                    return;
+                }
+
+                $parsed['sort_order'] =
+                    count(
+                        $bibleReadingsForSave
+                    ) + 1;
+
+                $bibleReadingsForSave[] =
+                    $parsed;
+            }
+
+            if ($bibleReadingsForSave === []) {
+                $this->addError(
+                    'bibleReadingRows',
+                    'Enter at least one Bible reference.'
+                );
+
+                Notification::make()
+                    ->title(
+                        'Bible Reading required'
+                    )
+                    ->body(
+                        'Enter at least one Bible '
+                        . 'portion for the Bible '
+                        . 'Reading activity.'
+                    )
+                    ->warning()
+                    ->send();
+
+                return;
+            }
+        }
+
         $ministryIds = collect(
             $data['ministryLessonIds'] ?? []
         )
@@ -2716,6 +2904,7 @@ class ShepherdingContacts extends Page
             $activityIds = [];
             $ministryIds = [];
             $hymnRowsForSave = [];
+            $bibleReadingsForSave = [];
 
             $morningRevivalWeekIdForSave =
                 null;
@@ -2770,6 +2959,7 @@ class ShepherdingContacts extends Page
                 $ministryIds,
                 $morningRevivalWeekIdForSave,
                 $morningRevivalDayForSave,
+                $bibleReadingsForSave,
                 $hymnSync,
                 $hymnRequestSync,
                 $participantIds
@@ -3081,6 +3271,18 @@ class ShepherdingContacts extends Page
                     ->sync($ministryIds);
 
                 $contact
+                    ->bibleReadings()
+                    ->delete();
+
+                if ($bibleReadingsForSave !== []) {
+                    $contact
+                        ->bibleReadings()
+                        ->createMany(
+                            $bibleReadingsForSave
+                        );
+                }
+
+                $contact
                     ->hymns()
                     ->sync($hymnSync);
 
@@ -3103,6 +3305,7 @@ class ShepherdingContacts extends Page
                     'locality',
                     'activityTypes',
                     'ministryLessons.book',
+                    'bibleReadings',
                     'hymns.bookEntries.hymnBook',
                     'participants',
                 ]);
@@ -3236,6 +3439,7 @@ class ShepherdingContacts extends Page
                 'householdMembers',
                 'activityTypes',
                 'ministryLessons',
+                'bibleReadings',
                 'hymns.bookEntries.hymnBook',
                 'hymnAdditionRequests',
                 'participants',
@@ -3362,6 +3566,26 @@ class ShepherdingContacts extends Page
 
         $this->morningRevivalArchiveSearch =
             '';
+
+        $this->bibleReadingRows =
+            $contact
+                ->bibleReadings
+                ->map(
+                    fn ($reading): array => [
+                        'reference' =>
+                            $reading
+                                ->referenceLabel(),
+                    ]
+                )
+                ->values()
+                ->all();
+
+        if (
+            $this->isBibleReadingSelected()
+            && $this->bibleReadingRows === []
+        ) {
+            $this->addBibleReadingRow();
+        }
 
         $this->ministryLessonIds =
             $contact
@@ -4168,6 +4392,7 @@ class ShepherdingContacts extends Page
             ShepherdingContact::OUTCOME_COMPLETED;
 
         $this->activityTypeIds = [];
+        $this->bibleReadingRows = [];
         $this->ministryLessonIds = [];
         $this->hymnRows = [];
         $this->hymnRequestForms = [];

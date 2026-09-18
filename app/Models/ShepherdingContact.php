@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShepherdingContact extends Model
 {
@@ -144,6 +145,16 @@ class ShepherdingContact extends Model
             MinistryLesson::class,
             'shepherding_contact_ministry_lessons'
         )->withTimestamps();
+    }
+
+    public function bibleReadings(): HasMany
+    {
+        return $this->hasMany(
+            ShepherdingContactBibleReading::class,
+            'shepherding_contact_id'
+        )
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function hymns(): BelongsToMany

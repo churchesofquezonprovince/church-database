@@ -1643,6 +1643,192 @@
 
 
                     {{-- ============================= --}}
+                    {{-- Bible Reading --}}
+                    {{-- ============================= --}}
+                    @if ($this->isBibleReadingSelected())
+                        <section
+                            class="rounded-xl border
+                                   border-emerald-200
+                                   bg-emerald-50/40 p-4
+                                   dark:border-emerald-900
+                                   dark:bg-emerald-950/20"
+                        >
+                            <div
+                                class="flex flex-col gap-3
+                                       sm:flex-row
+                                       sm:items-start
+                                       sm:justify-between"
+                            >
+                                <div>
+                                    <h4
+                                        class="text-sm font-bold
+                                               text-gray-900
+                                               dark:text-white"
+                                    >
+                                        Bible Reading
+                                    </h4>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-600
+                                               dark:text-gray-300"
+                                    >
+                                        Enter the Bible portion read
+                                        during this Shepherding
+                                        Contact.
+                                        Examples:
+                                        John 3:16-21,
+                                        Romans 8:1-6,
+                                        or John 3:36-4:3.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    wire:click="addBibleReadingRow"
+                                    class="inline-flex
+                                           items-center
+                                           justify-center
+                                           rounded-lg
+                                           border
+                                           border-emerald-300
+                                           bg-white
+                                           px-3 py-2
+                                           text-xs
+                                           font-semibold
+                                           text-emerald-700
+                                           shadow-sm
+                                           hover:bg-emerald-50
+                                           dark:border-emerald-700
+                                           dark:bg-gray-900
+                                           dark:text-emerald-300
+                                           dark:hover:bg-gray-800"
+                                >
+                                    + Passage
+                                </button>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                                @forelse (
+                                    $bibleReadingRows
+                                    as $bibleReadingIndex =>
+                                        $bibleReadingRow
+                                )
+                                    <div
+                                        wire:key="bible-reading-row-{{ $bibleReadingIndex }}"
+                                        class="rounded-lg border
+                                               border-emerald-200
+                                               bg-white p-3
+                                               dark:border-emerald-900
+                                               dark:bg-gray-950"
+                                    >
+                                        <div
+                                            class="flex items-start
+                                                   gap-2"
+                                        >
+                                            <div class="min-w-0 flex-1">
+                                                <label
+                                                    class="mb-1 block
+                                                           text-xs
+                                                           font-semibold
+                                                           text-gray-700
+                                                           dark:text-gray-300"
+                                                >
+                                                    Passage
+                                                    {{ $bibleReadingIndex + 1 }}
+                                                </label>
+
+                                                <input
+                                                    type="text"
+                                                    wire:model.blur="bibleReadingRows.{{ $bibleReadingIndex }}.reference"
+                                                    placeholder="Example: John 3:16-21"
+                                                    autocomplete="off"
+                                                    class="block w-full
+                                                           rounded-lg
+                                                           border
+                                                           border-gray-300
+                                                           bg-white
+                                                           px-3 py-2
+                                                           text-sm
+                                                           text-gray-900
+                                                           shadow-sm
+                                                           focus:border-emerald-500
+                                                           focus:ring-emerald-500
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900
+                                                           dark:text-gray-100"
+                                                >
+
+                                                @error(
+                                                    "bibleReadingRows.{$bibleReadingIndex}.reference"
+                                                )
+                                                    <p
+                                                        class="mt-1
+                                                               text-xs
+                                                               text-danger-600
+                                                               dark:text-danger-400"
+                                                    >
+                                                        {{ $message }}
+                                                    </p>
+                                                @enderror
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                wire:click="removeBibleReadingRow({{ $bibleReadingIndex }})"
+                                                class="mt-6
+                                                       inline-flex
+                                                       items-center
+                                                       justify-center
+                                                       rounded-lg
+                                                       border
+                                                       border-gray-300
+                                                       px-3 py-2
+                                                       text-xs
+                                                       font-semibold
+                                                       text-gray-600
+                                                       hover:bg-gray-50
+                                                       dark:border-gray-700
+                                                       dark:text-gray-300
+                                                       dark:hover:bg-gray-800"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div
+                                        class="rounded-lg border
+                                               border-dashed
+                                               border-emerald-300
+                                               px-4 py-4
+                                               text-center
+                                               text-xs
+                                               text-gray-600
+                                               dark:border-emerald-800
+                                               dark:text-gray-300"
+                                    >
+                                        No Bible passages added yet.
+                                        Use + Passage to record one
+                                        or more Bible portions.
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            @error('bibleReadingRows')
+                                <p
+                                    class="mt-2 text-xs
+                                           text-danger-600
+                                           dark:text-danger-400"
+                                >
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </section>
+                    @endif
+
+
+                    {{-- ============================= --}}
                     {{-- Hymns Sung --}}
                     {{-- ============================= --}}
                     @if ($this->isHymnSingingSelected())

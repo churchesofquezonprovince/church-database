@@ -289,6 +289,7 @@ class ShepherdingHistory extends Page
                 ->query()
                 ->with([
                     'morningRevivalWeek.publication',
+                    'bibleReadings',
                     'hymns.bookEntries.hymnBook',
                     'hymns.sources',
                     'hymnAdditionRequests',
