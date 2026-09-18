@@ -56,7 +56,8 @@ class AttendanceDashboard extends Page
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
             ->where('is_active', true)
-            ->withCount(['sessions', 'participants'])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount()
             ->latest()
             ->get();
     }
@@ -106,9 +107,16 @@ class AttendanceDashboard extends Page
                 ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
                 ->count(),
 
-            'total_participants' => AttendanceParticipant::query()
-                ->where('is_active', true)
-                ->count(),
+            'total_participants' =>
+                (int) AttendanceParticipant::query()
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->selectRaw(
+                        'COUNT(DISTINCT attendance_sheet_id, person_id) AS aggregate'
+                    )
+                    ->value('aggregate'),
         ];
     }
 

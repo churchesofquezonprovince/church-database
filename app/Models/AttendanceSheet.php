@@ -200,6 +200,39 @@ public function immichAlbum(): HasOne
         return $this->hasMany(AttendanceParticipant::class);
     }
 
+    /**
+     * Count distinct People rather than participant-period rows.
+     *
+     * One Person may legitimately have multiple dated
+     * AttendanceParticipant periods on the same Sheet.
+     */
+    public function scopeWithDistinctParticipantCount(
+        \Illuminate\Database\Eloquent\Builder $query,
+        bool $activeOnly = false
+    ): \Illuminate\Database\Eloquent\Builder {
+        $participantCount =
+            AttendanceParticipant::query()
+                ->selectRaw(
+                    'COUNT(DISTINCT person_id)'
+                )
+                ->whereColumn(
+                    'attendance_sheet_id',
+                    'attendance_sheets.id'
+                );
+
+        if ($activeOnly) {
+            $participantCount->where(
+                'is_active',
+                true
+            );
+        }
+
+        return $query->addSelect([
+            'participants_count' =>
+                $participantCount,
+        ]);
+    }
+
     public function records(): HasMany
     {
         return $this->hasManyThrough(AttendanceRecord::class, AttendanceSession::class);

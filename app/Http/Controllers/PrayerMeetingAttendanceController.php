@@ -134,17 +134,46 @@ class PrayerMeetingAttendanceController extends Controller
             $absentCount = 0;
 
             foreach ($people as $person) {
-                AttendanceParticipant::query()->firstOrCreate(
-                    [
-                        'attendance_sheet_id' => $sheet->id,
-                        'person_id' => $person->id,
-                    ],
-                    [
-                        'starts_on' => $meetingDate->toDateString(),
-                        'ends_on' => null,
-                        'is_active' => true,
-                    ]
-                );
+                $meetingDateString =
+                    $meetingDate->toDateString();
+
+                $hasActiveOpenEndedPeriod =
+                    AttendanceParticipant::query()
+                        ->where(
+                            'attendance_sheet_id',
+                            $sheet->id
+                        )
+                        ->where(
+                            'person_id',
+                            $person->id
+                        )
+                        ->where(
+                            'is_active',
+                            true
+                        )
+                        ->whereNull(
+                            'ends_on'
+                        )
+                        ->exists();
+
+                if (! $hasActiveOpenEndedPeriod) {
+                    AttendanceParticipant::create([
+                        'attendance_sheet_id' =>
+                            $sheet->id,
+
+                        'person_id' =>
+                            $person->id,
+
+                        'starts_on' =>
+                            $meetingDateString,
+
+                        'ends_on' =>
+                            null,
+
+                        'is_active' =>
+                            true,
+                    ]);
+                }
 
                 $isPresent = $presentPersonIds->contains((int) $person->id);
 
@@ -177,17 +206,29 @@ class PrayerMeetingAttendanceController extends Controller
             $otherPresentPersonIds
                 ->reject(fn (int $personId): bool => $visiblePersonIds->contains($personId))
                 ->each(function (int $personId) use ($sheet, $session, $meetingDate, &$presentCount): void {
-                    AttendanceParticipant::query()->updateOrCreate(
-                        [
-                            'attendance_sheet_id' => $sheet->id,
-                            'person_id' => $personId,
-                        ],
-                        [
-                            'starts_on' => $meetingDate->toDateString(),
-                            'ends_on' => $meetingDate->toDateString(),
-                            'is_active' => true,
-                        ]
-                    );
+                    $meetingDateString =
+                        $meetingDate->toDateString();
+
+                    AttendanceParticipant::query()
+                        ->updateOrCreate(
+                            [
+                                'attendance_sheet_id' =>
+                                    $sheet->id,
+
+                                'person_id' =>
+                                    $personId,
+
+                                'starts_on' =>
+                                    $meetingDateString,
+
+                                'ends_on' =>
+                                    $meetingDateString,
+                            ],
+                            [
+                                'is_active' =>
+                                    true,
+                            ]
+                        );
 
                     AttendanceRecord::query()->updateOrCreate(
                         [

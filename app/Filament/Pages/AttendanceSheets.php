@@ -232,15 +232,10 @@ class AttendanceSheets extends Page
                 $this->selectedMode() === 'one_time',
                 fn ($query) => $query->where('is_one_time', true)
             )
-            ->withCount([
-            'sessions',
-            'participants as participants_count' =>
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        true
-                    ),
-        ])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount(
+                activeOnly: true
+            )
             ->orderByRaw(
                 'CASE
                     WHEN schedule_type = ? THEN 1
@@ -275,16 +270,10 @@ public function selectedSheet(): ?AttendanceSheet
             'is_active',
             true
         )
-        ->withCount([
-            'sessions',
-
-            'participants as participants_count' =>
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        true
-                    ),
-        ])
+        ->withCount('sessions')
+        ->withDistinctParticipantCount(
+            activeOnly: true
+        )
         ->with([
             'immichAlbum',
 
@@ -894,16 +883,38 @@ public function sessionAttendanceSummary(AttendanceSession $session): array
             return collect();
         }
 
-        $existingPersonIds = AttendanceParticipant::query()
-            ->where(
-                'attendance_sheet_id',
-                $sheet->id
-            )
-            ->where(
-                'is_active',
-                true
-            )
-            ->pluck('person_id');
+        $selectedSession =
+            $this->selectedSession();
+
+        $sessionDate =
+            $selectedSession
+                ?->session_date
+                ?->format('Y-m-d');
+
+        $existingPersonIds =
+            AttendanceParticipant::query()
+                ->where(
+                    'attendance_sheet_id',
+                    $sheet->id
+                )
+                ->when(
+                    filled($sessionDate),
+                    fn ($query) =>
+                        $query->activeOn(
+                            $sessionDate
+                        ),
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                            ->whereNull(
+                                'ends_on'
+                            )
+                )
+                ->distinct()
+                ->pluck('person_id');
 
         return Person::query()
             ->with(['churchProfile'])
@@ -2098,17 +2109,23 @@ public function meetingResponseWorkflowStatuses(
         ->unique()
         ->values();
 
-    $participants = AttendanceParticipant::query()
-        ->where(
-            'attendance_sheet_id',
-            $session->attendance_sheet_id,
-        )
-        ->whereIn('person_id', $personIds)
-        ->get()
-        ->keyBy(
-            fn (AttendanceParticipant $participant): int =>
-                (int) $participant->person_id
-        );
+    $participants =
+        AttendanceParticipant::query()
+            ->where(
+                'attendance_sheet_id',
+                $session->attendance_sheet_id,
+            )
+            ->whereIn(
+                'person_id',
+                $personIds
+            )
+            ->get()
+            ->groupBy(
+                fn (
+                    AttendanceParticipant $participant
+                ): int =>
+                    (int) $participant->person_id
+            );
 
     return $responses->mapWithKeys(
         function (
@@ -2157,44 +2174,56 @@ public function meetingResponseWorkflowStatuses(
                 ];
             }
 
-            $participant = $participants->get(
-                (int) $response->person_id
-            );
+            $personParticipants =
+                $participants->get(
+                    (int) $response->person_id,
+                    collect()
+                );
 
-            if (! $participant) {
-                return [
-                    $response->id => [
-                        'key' => 'ready_for_participant',
-                        'label' => 'Ready for Participant',
-                        'needs_action' => true,
-                        'detail' => null,
-                    ],
-                ];
-            }
+            $coversDate =
+                function (
+                    AttendanceParticipant $participant
+                ) use (
+                    $sessionDate
+                ): bool {
+                    $startsOn =
+                        $participant
+                            ->starts_on
+                            ?->format('Y-m-d');
 
-            if (! $participant->is_active) {
-                return [
-                    $response->id => [
-                        'key' => 'participant_review',
-                        'label' => 'Participant Review',
-                        'needs_action' => true,
-                        'detail' => 'Existing participant record is inactive.',
-                    ],
-                ];
-            }
+                    $endsOn =
+                        $participant
+                            ->ends_on
+                            ?->format('Y-m-d');
 
-            $startsOn =
-                $participant->starts_on?->format('Y-m-d');
+                    return
+                        (
+                            blank($startsOn)
+                            ||
+                            $startsOn <= $sessionDate
+                        )
+                        &&
+                        (
+                            blank($endsOn)
+                            ||
+                            $endsOn >= $sessionDate
+                        );
+                };
 
-            $endsOn =
-                $participant->ends_on?->format('Y-m-d');
+            $activeParticipant =
+                $personParticipants
+                    ->first(
+                        fn (
+                            AttendanceParticipant $participant
+                        ): bool =>
+                            $participant->is_active
+                            &&
+                            $coversDate(
+                                $participant
+                            )
+                    );
 
-            $coversSession =
-                (blank($startsOn) || $startsOn <= $sessionDate)
-                &&
-                (blank($endsOn) || $endsOn >= $sessionDate);
-
-            if ($coversSession) {
+            if ($activeParticipant) {
                 return [
                     $response->id => [
                         'key' => 'participant_covered',
@@ -2205,13 +2234,49 @@ public function meetingResponseWorkflowStatuses(
                 ];
             }
 
+            $inactiveParticipant =
+                $personParticipants
+                    ->first(
+                        fn (
+                            AttendanceParticipant $participant
+                        ): bool =>
+                            ! $participant->is_active
+                            &&
+                            $coversDate(
+                                $participant
+                            )
+                    );
+
+            if ($inactiveParticipant) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_review',
+                        'label' => 'Participant Review',
+                        'needs_action' => true,
+                        'detail' =>
+                            'The participant period for this meeting is inactive.',
+                    ],
+                ];
+            }
+
+            if ($personParticipants->isNotEmpty()) {
+                return [
+                    $response->id => [
+                        'key' => 'participant_review',
+                        'label' => 'Participant Review',
+                        'needs_action' => true,
+                        'detail' =>
+                            'Existing participant periods do not cover this meeting.',
+                    ],
+                ];
+            }
+
             return [
                 $response->id => [
-                    'key' => 'participant_review',
-                    'label' => 'Participant Review',
+                    'key' => 'ready_for_participant',
+                    'label' => 'Ready for Participant',
                     'needs_action' => true,
-                    'detail' =>
-                        'Existing participant range does not cover this meeting.',
+                    'detail' => null,
                 ],
             ];
         }

@@ -29,37 +29,140 @@ class AttendanceSheetParticipantController extends Controller
             ->unique()
             ->values();
 
-        foreach ($personIds as $personId) {
-            AttendanceParticipant::query()->updateOrCreate(
-                [
-                    'attendance_sheet_id' => $sheet->id,
-                    'person_id' => $personId,
-                ],
-                [
-                    'starts_on' => blank($data['starts_on'] ?? null) ? null : $data['starts_on'],
-                    'ends_on' => blank($data['ends_on'] ?? null) ? null : $data['ends_on'],
-                    'is_active' => true,
-                ],
-            );
-        }
+        $startsOn =
+            blank($data['starts_on'] ?? null)
+                ? null
+                : $data['starts_on'];
+
+        $endsOn =
+            blank($data['ends_on'] ?? null)
+                ? null
+                : $data['ends_on'];
+
+        $added = 0;
+        $reactivated = 0;
+        $unchanged = 0;
+
+        DB::transaction(
+            function () use (
+                $sheet,
+                $personIds,
+                $startsOn,
+                $endsOn,
+                &$added,
+                &$reactivated,
+                &$unchanged,
+            ): void {
+                foreach ($personIds as $personId) {
+                    /*
+                     * AttendanceParticipant is a dated membership
+                     * period. Do not update an unrelated historical
+                     * period merely because Sheet + Person match.
+                     *
+                     * Reuse only the exact requested period.
+                     */
+                    $matchingPeriod =
+                        AttendanceParticipant::query()
+                            ->where(
+                                'attendance_sheet_id',
+                                $sheet->id
+                            )
+                            ->where(
+                                'person_id',
+                                $personId
+                            )
+                            ->when(
+                                $startsOn === null,
+                                fn ($query) =>
+                                    $query->whereNull(
+                                        'starts_on'
+                                    ),
+                                fn ($query) =>
+                                    $query->whereDate(
+                                        'starts_on',
+                                        $startsOn
+                                    )
+                            )
+                            ->when(
+                                $endsOn === null,
+                                fn ($query) =>
+                                    $query->whereNull(
+                                        'ends_on'
+                                    ),
+                                fn ($query) =>
+                                    $query->whereDate(
+                                        'ends_on',
+                                        $endsOn
+                                    )
+                            )
+                            ->orderByDesc('is_active')
+                            ->first();
+
+                    if ($matchingPeriod) {
+                        if (! $matchingPeriod->is_active) {
+                            $matchingPeriod->update([
+                                'is_active' => true,
+                            ]);
+
+                            $reactivated++;
+                        } else {
+                            $unchanged++;
+                        }
+
+                        continue;
+                    }
+
+                    AttendanceParticipant::create([
+                        'attendance_sheet_id' =>
+                            $sheet->id,
+
+                        'person_id' =>
+                            $personId,
+
+                        'starts_on' =>
+                            $startsOn,
+
+                        'ends_on' =>
+                            $endsOn,
+
+                        'is_active' =>
+                            true,
+                    ]);
+
+                    $added++;
+                }
+            }
+        );
 
         ActivityLogger::log(
             action: 'attendance_sheet.participants.added',
             subject: $sheet,
-            description: 'Added participant(s) to attendance sheet.',
+            description: 'Added participant membership period(s) to attendance sheet.',
             newValues: [
                 'sheet_id' => $sheet->id,
                 'sheet_title' => $sheet->title,
                 'person_ids' => $personIds->all(),
-                'starts_on' => $data['starts_on'] ?? null,
-                'ends_on' => $data['ends_on'] ?? null,
+                'starts_on' => $startsOn,
+                'ends_on' => $endsOn,
+                'added' => $added,
+                'reactivated' => $reactivated,
+                'unchanged' => $unchanged,
             ],
         );
 
         return back()
-            ->with('attendance_participants_saved', true)
-            ->with('attendance_participants_added', $personIds->count())
-            ->with('attendance_participants_updated', 0);
+            ->with(
+                'attendance_participants_saved',
+                true
+            )
+            ->with(
+                'attendance_participants_added',
+                $added
+            )
+            ->with(
+                'attendance_participants_updated',
+                $reactivated
+            );
     }
 
 public function destroy(

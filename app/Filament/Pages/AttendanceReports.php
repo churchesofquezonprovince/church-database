@@ -164,7 +164,8 @@ class AttendanceReports extends Page
     {
         return AttendanceSheet::query()
             ->where('sheet_type', $this->selectedReportType())
-            ->withCount(['sessions', 'participants'])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount()
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
             ->orderBy('locality')
             ->latest()
@@ -175,7 +176,8 @@ class AttendanceReports extends Page
     {
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
-            ->withCount(['sessions', 'participants'])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount()
             ->latest()
             ->get();
     }
@@ -184,7 +186,8 @@ class AttendanceReports extends Page
     {
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_LORDS_TABLE)
-            ->withCount(['sessions', 'participants'])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount()
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
             ->orderBy('locality')
             ->get();
@@ -194,7 +197,8 @@ class AttendanceReports extends Page
     {
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_PRAYER_MEETING)
-            ->withCount(['sessions', 'participants'])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount()
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
             ->orderBy('locality')
             ->get();
@@ -206,7 +210,8 @@ class AttendanceReports extends Page
 
         $query = AttendanceSheet::query()
             ->where('sheet_type', $this->selectedReportType())
-            ->withCount(['sessions', 'participants']);
+            ->withCount('sessions')
+            ->withDistinctParticipantCount();
 
         if ($sheetId) {
             return $query->find($sheetId);
@@ -510,7 +515,12 @@ class AttendanceReports extends Page
             ->where('attendance_sheet_id', $sheet->id)
             ->whereIn('person_id', $personIds)
             ->get()
-            ->keyBy('person_id');
+            ->groupBy(
+                fn (
+                    AttendanceParticipant $participant
+                ): int =>
+                    (int) $participant->person_id
+            );
 
         $people = Person::query()
             ->with(['churchProfile'])
@@ -519,35 +529,163 @@ class AttendanceReports extends Page
             ->keyBy('id');
 
         return $personIds
-            ->map(function (int $personId) use ($sheet, $allSessionIds, $participants, $people): ?array {
+            ->map(function (int $personId) use (
+                $sheet,
+                $sessions,
+                $allSessionIds,
+                $participants,
+                $people
+            ): ?array {
                 $person = $people->get($personId);
 
                 if (! $person) {
                     return null;
                 }
 
-                $participant = $participants->get($personId);
+                $participantPeriods =
+                    $participants->get(
+                        $personId,
+                        collect()
+                    );
+
+                $activeParticipantPeriods =
+                    $participantPeriods
+                        ->filter(
+                            fn (
+                                AttendanceParticipant $participant
+                            ): bool =>
+                                (bool) $participant->is_active
+                        )
+                        ->values();
+
+                /*
+                 * Keep one representative participant only for
+                 * existing view compatibility. Attendance math
+                 * below always uses every relevant period.
+                 */
+                $participant =
+                    $activeParticipantPeriods
+                        ->sortByDesc(
+                            fn (
+                                AttendanceParticipant $participant
+                            ): string =>
+                                $participant
+                                    ->starts_on
+                                    ?->format('Y-m-d')
+                                ?? ''
+                        )
+                        ->first()
+                    ??
+                    $participantPeriods
+                        ->sortByDesc(
+                            fn (
+                                AttendanceParticipant $participant
+                            ): string =>
+                                $participant
+                                    ->starts_on
+                                    ?->format('Y-m-d')
+                                ?? ''
+                        )
+                        ->first();
 
                 if ($this->separatesUnmarkedStatuses()) {
-                    // For Lord's Table and Prayer Meeting, every visible meeting in the filter
-                    // should count as one data point per person.
-                    $sessionIds = $allSessionIds;
-                } elseif ($participant) {
-                    $sessionIds = AttendanceSession::query()
-                        ->where('attendance_sheet_id', $sheet->id)
-                        ->when($participant->starts_on, fn ($query) => $query->whereDate('session_date', '>=', $participant->starts_on))
-                        ->when($participant->ends_on, fn ($query) => $query->whereDate('session_date', '<=', $participant->ends_on))
-                        ->when($this->selectedDateFrom(), fn ($query, $date) => $query->whereDate('session_date', '>=', $date))
-                        ->when($this->selectedDateTo(), fn ($query, $date) => $query->whereDate('session_date', '<=', $date))
-                        ->when(! is_null($this->selectedMeetingDayFilter()), fn ($query) => $query->whereRaw('DAYOFWEEK(session_date) = ?', [$this->selectedMeetingDayFilter() + 1]))
-                        ->pluck('id');
+                    /*
+                     * Lord's Table and Prayer Meeting intentionally
+                     * use every visible meeting as a data point.
+                     */
+                    $sessionIds =
+                        $allSessionIds;
+                } elseif (
+                    $activeParticipantPeriods
+                        ->isNotEmpty()
+                ) {
+                    /*
+                     * A Person may have multiple non-contiguous
+                     * membership periods. Count a Session once if
+                     * any active period covers its date.
+                     */
+                    $sessionIds =
+                        $sessions
+                            ->filter(
+                                function (
+                                    AttendanceSession $session
+                                ) use (
+                                    $activeParticipantPeriods
+                                ): bool {
+                                    $date =
+                                        $session
+                                            ->session_date
+                                            ->format(
+                                                'Y-m-d'
+                                            );
+
+                                    return
+                                        $activeParticipantPeriods
+                                            ->contains(
+                                                function (
+                                                    AttendanceParticipant $participant
+                                                ) use (
+                                                    $date
+                                                ): bool {
+                                                    $startsOn =
+                                                        $participant
+                                                            ->starts_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            );
+
+                                                    $endsOn =
+                                                        $participant
+                                                            ->ends_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            );
+
+                                                    return
+                                                        (
+                                                            blank(
+                                                                $startsOn
+                                                            )
+                                                            ||
+                                                            $startsOn
+                                                                <= $date
+                                                        )
+                                                        &&
+                                                        (
+                                                            blank(
+                                                                $endsOn
+                                                            )
+                                                            ||
+                                                            $endsOn
+                                                                >= $date
+                                                        );
+                                                }
+                                            );
+                                }
+                            )
+                            ->pluck('id')
+                            ->unique()
+                            ->values();
                 } else {
-                    $sessionIds = AttendanceRecord::query()
-                        ->whereIn('attendance_session_id', $allSessionIds)
-                        ->where('person_id', $personId)
-                        ->pluck('attendance_session_id')
-                        ->unique()
-                        ->values();
+                    /*
+                     * Historical AttendanceRecord remains visible
+                     * even when no active participant period exists.
+                     */
+                    $sessionIds =
+                        AttendanceRecord::query()
+                            ->whereIn(
+                                'attendance_session_id',
+                                $allSessionIds
+                            )
+                            ->where(
+                                'person_id',
+                                $personId
+                            )
+                            ->pluck(
+                                'attendance_session_id'
+                            )
+                            ->unique()
+                            ->values();
                 }
 
                 $expected = $sessionIds->count();
@@ -630,7 +768,10 @@ class AttendanceReports extends Page
                     $participantQuery->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
                 }
 
-                $participants = $participantQuery->count();
+                $participants =
+                    $participantQuery
+                        ->distinct()
+                        ->count('person_id');
 
                 $sessions = AttendanceSession::query()
                     ->where('attendance_sheet_id', $sheet->id)
@@ -665,7 +806,9 @@ class AttendanceReports extends Page
                         $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category));
                     }
 
-                    return $query->count();
+                    return $query
+                        ->distinct()
+                        ->count('person_id');
                 });
 
                 $recordQuery = AttendanceRecord::query()
@@ -730,7 +873,7 @@ class AttendanceReports extends Page
 
         return AttendanceSheet::query()
             ->where('sheet_type', $this->selectedReportType())
-            ->withCount(['participants'])
+            ->withDistinctParticipantCount()
             ->orderByRaw('CASE WHEN locality IS NULL OR locality = "" THEN 1 ELSE 0 END')
             ->orderBy('locality')
             ->get()
@@ -759,10 +902,28 @@ class AttendanceReports extends Page
                     ->get();
 
                 $participants = AttendanceParticipant::query()
-                    ->where('attendance_sheet_id', $sheet->id)
-                    ->where('is_active', true)
-                    ->when($this->selectedCategory(), fn ($query, $category) => $query->whereHas('person.churchProfile', fn ($query) => $query->where('category', $category)))
-                    ->count();
+                    ->where(
+                        'attendance_sheet_id',
+                        $sheet->id
+                    )
+                    ->where(
+                        'is_active',
+                        true
+                    )
+                    ->when(
+                        $this->selectedCategory(),
+                        fn ($query, $category) =>
+                            $query->whereHas(
+                                'person.churchProfile',
+                                fn ($query) =>
+                                    $query->where(
+                                        'category',
+                                        $category
+                                    )
+                            )
+                    )
+                    ->distinct()
+                    ->count('person_id');
 
                 $expectedTotal = $sessions->sum(function (AttendanceSession $session) use ($sheet): int {
                     return $this->activeParticipantCountForDate(

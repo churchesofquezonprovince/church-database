@@ -67,15 +67,10 @@ public function mount(): void
         $sheets = AttendanceSheet::query()
             ->where('sheet_type', $sheetType)
             ->where('is_active', true)
-            ->withCount([
-            'sessions',
-            'participants as participants_count' =>
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        true
-                    ),
-        ])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount(
+                activeOnly: true
+            )
             ->get()
             ->filter(fn (AttendanceSheet $sheet): bool => filled($sheet->locality))
             ->keyBy(
@@ -220,15 +215,10 @@ public function mount(): void
         return AttendanceSheet::query()
             ->where('sheet_type', AttendanceSheet::TYPE_CUSTOM)
             ->where('is_active', true)
-            ->withCount([
-            'sessions',
-            'participants as participants_count' =>
-                fn ($query) =>
-                    $query->where(
-                        'is_active',
-                        true
-                    ),
-        ])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount(
+                activeOnly: true
+            )
             ->orderByRaw(
                 'CASE
                     WHEN schedule_type = ? THEN 1
@@ -269,16 +259,10 @@ public function mount(): void
                     'is_active',
                     true
                 )
-                ->withCount([
-                    'sessions',
-
-                    'participants as participants_count' =>
-                        fn ($query) =>
-                            $query->where(
-                                'is_active',
-                                true
-                            ),
-                ]);
+                ->withCount('sessions')
+                ->withDistinctParticipantCount(
+                    activeOnly: true
+                );
 
         /*
          * Do not read request('sheetId') here.

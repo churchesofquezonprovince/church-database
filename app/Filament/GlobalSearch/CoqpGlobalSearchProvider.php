@@ -85,16 +85,10 @@ class CoqpGlobalSearchProvider implements GlobalSearchProvider
                         );
                 }
             )
-            ->withCount([
-                'sessions',
-
-                'participants as participants_count' =>
-                    fn ($participantQuery) =>
-                        $participantQuery->where(
-                            'is_active',
-                            true
-                        ),
-            ])
+            ->withCount('sessions')
+            ->withDistinctParticipantCount(
+                activeOnly: true
+            )
             ->orderBy('title')
             ->limit(15)
             ->get()
