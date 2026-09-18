@@ -315,9 +315,11 @@
                            dark:border-amber-900"
                 >
                     <p
-                        class="text-xs
-                               text-amber-700
-                               dark:text-amber-300"
+                        style="
+                            color:#111827 !important;
+                            font-weight:600 !important;
+                        "
+                        class="text-xs"
                     >
                         Paste the General Subject followed
                         by Week 1:, Week 2:, and so on.
