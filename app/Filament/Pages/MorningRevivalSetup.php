@@ -36,6 +36,15 @@ class MorningRevivalSetup extends Page
      */
     public array $weekTitles = [];
 
+    /*
+     * Bulk outline paste helper.
+     *
+     * Parsing fills General Subject + Week titles only.
+     * Source / Conference and start date remain explicit
+     * administrative fields.
+     */
+    public string $outlinePaste = '';
+
     public function mount(): void
     {
         abort_unless(
@@ -190,6 +199,8 @@ class MorningRevivalSetup extends Page
 
         $this->isActive = true;
 
+        $this->outlinePaste = '';
+
         /*
          * Six weeks is the common current workflow,
          * but rows can be added or removed.
@@ -244,6 +255,8 @@ class MorningRevivalSetup extends Page
 
         $this->resetValidation();
 
+        $this->outlinePaste = '';
+
         $this->editingPublicationId =
             (int) $publication->id;
 
@@ -288,6 +301,233 @@ class MorningRevivalSetup extends Page
         $this->dispatch(
             'scroll-to-morning-revival-weeks'
         );
+    }
+
+    public function parseOutlinePaste(): void
+    {
+        $text =
+            trim(
+                $this->outlinePaste
+            );
+
+        if ($text === '') {
+            Notification::make()
+                ->title(
+                    'Paste a Morning Revival outline first'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        /*
+         * Collapse copied PDF / document whitespace so
+         * "Week 2:" can be detected even when everything
+         * arrives as one giant pasted paragraph.
+         */
+        $normalized =
+            preg_replace(
+                '/\s+/u',
+                ' ',
+                $text
+            );
+
+        $normalized =
+            trim(
+                (string) $normalized
+            );
+
+        $matched =
+            preg_match_all(
+                '/\bWeek\s+(\d+)\s*:\s*'
+                . '(.*?)'
+                . '(?=\s+\bWeek\s+\d+\s*:|$)/iu',
+                $normalized,
+                $matches,
+                PREG_SET_ORDER
+            );
+
+        if (
+            ! $matched
+            || $matches === []
+        ) {
+            Notification::make()
+                ->title(
+                    'No Week headings found'
+                )
+                ->body(
+                    'Use headings such as '
+                    . 'Week 1:, Week 2:, and so on.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        if (
+            count(
+                $matches
+            ) > 24
+        ) {
+            Notification::make()
+                ->title(
+                    'Too many weeks detected'
+                )
+                ->body(
+                    'A Morning Revival publication '
+                    . 'may contain up to 24 weeks.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $firstWeekPosition = null;
+
+        if (
+            preg_match(
+                '/\bWeek\s+\d+\s*:/iu',
+                $normalized,
+                $firstWeekMatch,
+                PREG_OFFSET_CAPTURE
+            )
+        ) {
+            $firstWeekPosition =
+                $firstWeekMatch[
+                    0
+                ][1];
+        }
+
+        $subject =
+            $firstWeekPosition !== null
+                ? trim(
+                    substr(
+                        $normalized,
+                        0,
+                        $firstWeekPosition
+                    )
+                )
+                : '';
+
+        $parsedWeeks = [];
+
+        foreach (
+            $matches
+            as $match
+        ) {
+            $weekNumber =
+                (int) $match[1];
+
+            $title =
+                trim(
+                    (string) $match[2]
+                );
+
+            if (
+                $weekNumber < 1
+                || $weekNumber > 24
+                || $title === ''
+            ) {
+                continue;
+            }
+
+            $parsedWeeks[
+                $weekNumber
+            ] =
+                $title;
+        }
+
+        if ($parsedWeeks === []) {
+            Notification::make()
+                ->title(
+                    'No usable Week titles found'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        ksort(
+            $parsedWeeks
+        );
+
+        $weekNumbers =
+            array_keys(
+                $parsedWeeks
+            );
+
+        $expectedWeekNumbers =
+            range(
+                1,
+                count(
+                    $parsedWeeks
+                )
+            );
+
+        if (
+            $weekNumbers
+            !== $expectedWeekNumbers
+        ) {
+            Notification::make()
+                ->title(
+                    'Week numbers are incomplete'
+                )
+                ->body(
+                    'The pasted outline must contain '
+                    . 'continuous Week numbers starting '
+                    . 'with Week 1.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        if ($subject !== '') {
+            $this->generalSubject =
+                $subject;
+        }
+
+        $this->weekTitles =
+            array_values(
+                $parsedWeeks
+            );
+
+        $this->resetValidation();
+
+        Notification::make()
+            ->title(
+                'Morning Revival outline parsed'
+            )
+            ->body(
+                count(
+                    $parsedWeeks
+                )
+                . ' week'
+                . (
+                    count(
+                        $parsedWeeks
+                    ) === 1
+                        ? ''
+                        : 's'
+                )
+                . ' loaded for review.'
+            )
+            ->success()
+            ->send();
+
+        $this->dispatch(
+            'scroll-to-morning-revival-weeks'
+        );
+    }
+
+    public function clearOutlinePaste(): void
+    {
+        $this->outlinePaste = '';
     }
 
     public function addWeek(): void

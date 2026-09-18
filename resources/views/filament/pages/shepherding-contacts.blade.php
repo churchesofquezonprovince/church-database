@@ -3373,6 +3373,361 @@
                                     </div>
                                 @endif
 
+                                {{-- Morning Revival used --}}
+                                @if (
+                                    $contact->morningRevivalWeek
+                                    && $contact->morning_revival_day
+                                )
+                                    @php
+                                        $historyMrWeek =
+                                            $contact
+                                                ->morningRevivalWeek;
+
+                                        $historyMrPublication =
+                                            $historyMrWeek
+                                                ->publication;
+
+                                        $historyMrDate =
+                                            $historyMrWeek
+                                                ->dateForDay(
+                                                    (int)
+                                                    $contact
+                                                        ->morning_revival_day
+                                                );
+                                    @endphp
+
+                                    <div
+                                        class="mt-3 rounded-lg
+                                               border
+                                               border-amber-200
+                                               bg-amber-50/50
+                                               px-3 py-2
+                                               dark:border-amber-900
+                                               dark:bg-amber-950/20"
+                                    >
+                                        <p
+                                            class="text-xs font-bold
+                                                   uppercase
+                                                   tracking-wide
+                                                   text-amber-700
+                                                   dark:text-amber-300"
+                                        >
+                                            Morning Revival
+                                        </p>
+
+                                        <p
+                                            class="mt-1 text-sm
+                                                   font-semibold
+                                                   text-gray-900
+                                                   dark:text-gray-100"
+                                        >
+                                            Week
+                                            {{
+                                                $historyMrWeek
+                                                    ->week_number
+                                            }}
+                                            —
+                                            {{
+                                                $historyMrWeek
+                                                    ->title
+                                            }}
+                                            · Day
+                                            {{
+                                                $contact
+                                                    ->morning_revival_day
+                                            }}
+                                        </p>
+
+                                        @if ($historyMrDate)
+                                            <p
+                                                class="mt-1 text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                {{
+                                                    $historyMrDate
+                                                        ->format(
+                                                            'D, M j, Y'
+                                                        )
+                                                }}
+                                            </p>
+                                        @endif
+
+                                        @if (
+                                            $historyMrPublication
+                                                ?->general_subject
+                                        )
+                                            <p
+                                                class="mt-1 text-xs
+                                                       text-gray-700
+                                                       dark:text-gray-300"
+                                            >
+                                                <strong>
+                                                    Subject:
+                                                </strong>
+
+                                                {{
+                                                    $historyMrPublication
+                                                        ->general_subject
+                                                }}
+                                            </p>
+                                        @endif
+
+                                        @if (
+                                            $historyMrPublication
+                                                ?->source_title
+                                        )
+                                            <p
+                                                class="mt-1 text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                {{
+                                                    $historyMrPublication
+                                                        ->source_title
+                                                }}
+                                            </p>
+                                        @endif
+                                    </div>
+                                @endif
+
+
+                                {{-- Hymns actually sung --}}
+                                @if (
+                                    $contact->hymns->isNotEmpty()
+                                    || $contact
+                                        ->hymnAdditionRequests
+                                        ->isNotEmpty()
+                                )
+                                    @php
+                                        $historyHymnRows =
+                                            $contact
+                                                ->hymns
+                                                ->map(
+                                                    fn ($hymn) => [
+                                                        'sort_order' =>
+                                                            (int)
+                                                            $hymn
+                                                                ->pivot
+                                                                ->sort_order,
+
+                                                        'type' =>
+                                                            'hymn',
+
+                                                        'record' =>
+                                                            $hymn,
+                                                    ]
+                                                )
+                                                ->concat(
+                                                    $contact
+                                                        ->hymnAdditionRequests
+                                                        ->map(
+                                                            fn ($request) => [
+                                                                'sort_order' =>
+                                                                    (int)
+                                                                    $request
+                                                                        ->pivot
+                                                                        ->sort_order,
+
+                                                                'type' =>
+                                                                    'request',
+
+                                                                'record' =>
+                                                                    $request,
+                                                            ]
+                                                        )
+                                                )
+                                                ->sortBy(
+                                                    'sort_order'
+                                                )
+                                                ->values();
+                                    @endphp
+
+                                    <div
+                                        class="mt-3 rounded-lg
+                                               border
+                                               border-sky-200
+                                               bg-sky-50/40
+                                               px-3 py-2
+                                               dark:border-sky-900
+                                               dark:bg-sky-950/20"
+                                    >
+                                        <p
+                                            class="text-xs font-bold
+                                                   uppercase
+                                                   tracking-wide
+                                                   text-sky-700
+                                                   dark:text-sky-300"
+                                        >
+                                            Hymns Sung
+                                        </p>
+
+                                        <div
+                                            class="mt-1.5
+                                                   space-y-2"
+                                        >
+                                            @foreach (
+                                                $historyHymnRows
+                                                as $historyHymnRow
+                                            )
+                                                @if (
+                                                    $historyHymnRow[
+                                                        'type'
+                                                    ] === 'hymn'
+                                                )
+                                                    @php
+                                                        $historyHymn =
+                                                            $historyHymnRow[
+                                                                'record'
+                                                            ];
+
+                                                        $historyExternalSource =
+                                                            $historyHymn
+                                                                ->sources
+                                                                ->first(
+                                                                    function (
+                                                                        $source
+                                                                    ): bool {
+                                                                        $metadata =
+                                                                            is_array(
+                                                                                $source
+                                                                                    ->metadata
+                                                                            )
+                                                                                ? $source
+                                                                                    ->metadata
+                                                                                : [];
+
+                                                                        return filled(
+                                                                            $metadata[
+                                                                                'collection_name'
+                                                                            ]
+                                                                            ?? null
+                                                                        );
+                                                                    }
+                                                                );
+
+                                                        $historyExternalMetadata =
+                                                            $historyExternalSource
+                                                                && is_array(
+                                                                    $historyExternalSource
+                                                                        ->metadata
+                                                                )
+                                                                    ? $historyExternalSource
+                                                                        ->metadata
+                                                                    : [];
+                                                    @endphp
+
+                                                    <div
+                                                        class="text-xs
+                                                               text-gray-700
+                                                               dark:text-gray-300"
+                                                    >
+                                                        <strong
+                                                            class="text-gray-900
+                                                                   dark:text-gray-100"
+                                                        >
+                                                            {{
+                                                                $historyHymn
+                                                                    ->title
+                                                            }}
+                                                        </strong>
+
+                                                        @if (
+                                                            $historyHymn
+                                                                ->bookEntries
+                                                                ->isNotEmpty()
+                                                        )
+                                                            <span
+                                                                class="text-gray-500
+                                                                       dark:text-gray-400"
+                                                            >
+                                                                —
+                                                                {{
+                                                                    $historyHymn
+                                                                        ->bookEntries
+                                                                        ->map(
+                                                                            fn ($entry) =>
+                                                                                (
+                                                                                    $entry
+                                                                                        ->hymnBook
+                                                                                        ?->name
+                                                                                    ?? 'Hymn'
+                                                                                )
+                                                                                . ' #'
+                                                                                . $entry
+                                                                                    ->number
+                                                                        )
+                                                                        ->join(
+                                                                            ', '
+                                                                        )
+                                                                }}
+                                                            </span>
+                                                        @elseif (
+                                                            filled(
+                                                                $historyExternalMetadata[
+                                                                    'collection_name'
+                                                                ]
+                                                                ?? null
+                                                            )
+                                                        )
+                                                            <span
+                                                                class="text-gray-500
+                                                                       dark:text-gray-400"
+                                                            >
+                                                                —
+                                                                {{
+                                                                    $historyExternalMetadata[
+                                                                        'collection_name'
+                                                                    ]
+                                                                }}
+
+                                                                @if (
+                                                                    filled(
+                                                                        $historyExternalMetadata[
+                                                                            'track_number'
+                                                                        ]
+                                                                        ?? null
+                                                                    )
+                                                                )
+                                                                    · Track
+                                                                    {{
+                                                                        $historyExternalMetadata[
+                                                                            'track_number'
+                                                                        ]
+                                                                    }}
+                                                                @endif
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                @else
+                                                    @php
+                                                        $historyRequest =
+                                                            $historyHymnRow[
+                                                                'record'
+                                                            ];
+                                                    @endphp
+
+                                                    <div
+                                                        class="text-xs
+                                                               text-amber-700
+                                                               dark:text-amber-300"
+                                                    >
+                                                        <strong>
+                                                            {{
+                                                                $historyRequest
+                                                                    ->title
+                                                            }}
+                                                        </strong>
+                                                        · Pending Hymn
+                                                        approval
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+
+
 @if ($contact->participants->isNotEmpty())
                                     <p
                                         class="mt-3 text-xs

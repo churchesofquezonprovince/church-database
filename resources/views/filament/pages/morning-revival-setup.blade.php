@@ -289,6 +289,100 @@
                 </div>
             </div>
 
+            <details
+                class="mt-5 overflow-hidden
+                       rounded-xl border
+                       border-amber-200
+                       bg-amber-50
+                       dark:!border-amber-900
+                       dark:!bg-gray-950"
+            >
+                <summary
+                    class="cursor-pointer
+                           px-4 py-3
+                           text-sm font-bold
+                           text-amber-900
+                           hover:bg-amber-100
+                           dark:!text-amber-200
+                           dark:hover:!bg-gray-900"
+                >
+                    Paste Morning Revival Outline
+                </summary>
+
+                <div
+                    class="border-t
+                           border-amber-200 p-4
+                           dark:border-amber-900"
+                >
+                    <p
+                        class="text-xs
+                               text-amber-700
+                               dark:text-amber-300"
+                    >
+                        Paste the General Subject followed
+                        by Week 1:, Week 2:, and so on.
+                        The parser fills the Subject and
+                        Week / Message fields for review.
+                        It does not save automatically.
+                    </p>
+
+                    <textarea
+                        rows="8"
+                        wire:model="outlinePaste"
+                        placeholder="The Great Need for a New Revival
+
+Week 1: Cooperating with the Lord...
+Week 2: Arriving at the Highest Peak...
+Week 3: The God-man Living..."
+                        class="mt-3 block w-full
+                               rounded-xl border
+                               border-amber-200
+                               bg-white px-4 py-3
+                               text-sm text-gray-900
+                               shadow-sm
+                               dark:border-amber-900
+                               dark:bg-gray-900
+                               dark:text-gray-100"
+                    ></textarea>
+
+                    <div
+                        class="mt-3 flex
+                               flex-wrap gap-2"
+                    >
+                        <button
+                            type="button"
+                            wire:click="parseOutlinePaste"
+                            wire:loading.attr="disabled"
+                            class="rounded-lg
+                                   bg-amber-600
+                                   px-3 py-2
+                                   text-xs font-bold
+                                   text-white
+                                   hover:bg-amber-500"
+                        >
+                            Parse Outline
+                        </button>
+
+                        <button
+                            type="button"
+                            wire:click="clearOutlinePaste"
+                            class="rounded-lg border
+                                   border-amber-300
+                                   bg-white
+                                   px-3 py-2
+                                   text-xs font-bold
+                                   text-amber-800
+                                   hover:bg-amber-100
+                                   dark:border-amber-800
+                                   dark:bg-gray-900
+                                   dark:text-amber-200"
+                        >
+                            Clear Paste
+                        </button>
+                    </div>
+                </div>
+            </details>
+
             <div class="mt-4">
                 <label
                     class="text-xs font-bold

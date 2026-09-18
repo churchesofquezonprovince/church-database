@@ -2255,7 +2255,10 @@ class ShepherdingContacts extends Page
                 'locality',
                 'activityTypes',
                 'ministryLessons.book',
+                'morningRevivalWeek.publication',
                 'hymns.bookEntries.hymnBook',
+                'hymns.sources',
+                'hymnAdditionRequests',
                 'participants',
             ])
             ->orderByDesc(
