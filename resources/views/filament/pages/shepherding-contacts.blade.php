@@ -3300,12 +3300,20 @@
                                                 );
                                     @endphp
 
-                                    <div class="mt-3">
+                                    <div
+                                        class="mt-3 rounded-lg
+                                               border
+                                               border-violet-200
+                                               bg-violet-50/40
+                                               px-3 py-2
+                                               dark:border-violet-900
+                                               dark:bg-violet-950/20"
+                                    >
                                         <p
-                                            class="text-xs font-semibold
+                                            class="text-xs font-bold
                                                    uppercase tracking-wide
-                                                   text-gray-500
-                                                   dark:text-gray-400"
+                                                   text-violet-700
+                                                   dark:text-violet-300"
                                         >
                                             Ministry Used
                                         </p>

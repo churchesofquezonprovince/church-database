@@ -285,7 +285,14 @@ class ShepherdingHistory extends Page
         }
 
         $query =
-            $history->query();
+            $history
+                ->query()
+                ->with([
+                    'morningRevivalWeek.publication',
+                    'hymns.bookEntries.hymnBook',
+                    'hymns.sources',
+                    'hymnAdditionRequests',
+                ]);
 
         if (
             $this->mode
