@@ -1107,6 +1107,536 @@
 
 
                     {{-- ============================= --}}
+                    {{-- Morning Revival Reading --}}
+                    {{-- ============================= --}}
+                    @if ($this->isMorningRevivalSelected())
+                        @php
+                            $recentMorningRevivalWeeks =
+                                $this
+                                    ->recentMorningRevivalWeeks();
+
+                            $selectedMorningRevivalWeek =
+                                $this
+                                    ->selectedMorningRevivalWeek();
+
+                            $selectedIsRecent =
+                                $selectedMorningRevivalWeek
+                                && $recentMorningRevivalWeeks
+                                    ->contains(
+                                        'id',
+                                        $selectedMorningRevivalWeek
+                                            ->id
+                                    );
+                        @endphp
+
+                        <section
+                            class="rounded-xl border
+                                   border-amber-200
+                                   bg-amber-50/40 p-4
+                                   dark:!border-amber-900
+                                   dark:!bg-gray-900"
+                        >
+                            <div
+                                class="flex flex-col gap-3
+                                       lg:flex-row
+                                       lg:items-start
+                                       lg:justify-between"
+                            >
+                                <div>
+                                    <h4
+                                        style="color:#f59e0b !important;"
+                                        class="text-base font-bold"
+                                    >
+                                        Morning Revival
+                                    </h4>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:!text-gray-400"
+                                    >
+                                        Defaults to today's
+                                        scheduled reading.
+                                        Week and Day remain
+                                        editable.
+                                    </p>
+                                </div>
+
+                                <div
+                                    class="flex flex-wrap
+                                           gap-2"
+                                >
+                                    <button
+                                        type="button"
+                                        wire:click="useTodaysMorningRevival"
+                                        class="rounded-lg
+                                               border
+                                               border-amber-300
+                                               bg-white
+                                               px-3 py-2
+                                               text-xs
+                                               font-bold
+                                               text-amber-800
+                                               hover:bg-amber-50
+                                               dark:border-amber-800
+                                               dark:bg-gray-800
+                                               dark:text-amber-200
+                                               dark:hover:bg-gray-700"
+                                    >
+                                        Use Today's Reading
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        wire:click="openMorningRevivalArchive"
+                                        class="rounded-lg
+                                               border
+                                               border-gray-300
+                                               bg-white
+                                               px-3 py-2
+                                               text-xs
+                                               font-bold
+                                               text-gray-700
+                                               hover:bg-gray-50
+                                               dark:border-gray-600
+                                               dark:bg-gray-800
+                                               dark:text-gray-100
+                                               dark:hover:bg-gray-700"
+                                    >
+                                        Find Older Reading…
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="mt-4 grid gap-4
+                                       lg:grid-cols-[1fr_10rem]"
+                            >
+                                <div>
+                                    <label
+                                        class="block text-xs
+                                               font-bold uppercase
+                                               tracking-wide
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Week / Message
+                                    </label>
+
+                                    <select
+                                        wire:model.live.number="morningRevivalWeekId"
+                                        class="mt-1 block w-full
+                                               rounded-xl border
+                                               border-gray-300
+                                               bg-white px-4 py-3
+                                               text-sm text-gray-900
+                                               dark:border-gray-700
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
+                                    >
+                                        <option value="">
+                                            Select Morning Revival week...
+                                        </option>
+
+                                        @if (
+                                            $selectedMorningRevivalWeek
+                                            && ! $selectedIsRecent
+                                        )
+                                            <option
+                                                value="{{
+                                                    $selectedMorningRevivalWeek
+                                                        ->id
+                                                }}"
+                                            >
+                                                Saved · Week
+                                                {{
+                                                    $selectedMorningRevivalWeek
+                                                        ->week_number
+                                                }}
+                                                —
+                                                {{
+                                                    $selectedMorningRevivalWeek
+                                                        ->title
+                                                }}
+                                            </option>
+                                        @endif
+
+                                        @foreach (
+                                            $recentMorningRevivalWeeks
+                                            as $mrWeek
+                                        )
+                                            <option
+                                                value="{{ $mrWeek->id }}"
+                                            >
+                                                Week
+                                                {{ $mrWeek->week_number }}
+                                                —
+                                                {{ $mrWeek->title }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+
+                                    <p
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Showing the eight most
+                                        recent active weeks.
+                                        Use Find Older Reading
+                                        for the full archive.
+                                    </p>
+
+                                    @error(
+                                        'morningRevivalWeekId'
+                                    )
+                                        <p
+                                            class="mt-1 text-xs
+                                                   text-red-600"
+                                        >
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label
+                                        class="block text-xs
+                                               font-bold uppercase
+                                               tracking-wide
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Day
+                                    </label>
+
+                                    <select
+                                        wire:model.live.number="morningRevivalDay"
+                                        class="mt-1 block w-full
+                                               rounded-xl border
+                                               border-gray-300
+                                               bg-white px-4 py-3
+                                               text-sm text-gray-900
+                                               dark:border-gray-700
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
+                                    >
+                                        <option value="">
+                                            Day...
+                                        </option>
+
+                                        @for (
+                                            $day = 1;
+                                            $day <= 6;
+                                            $day++
+                                        )
+                                            <option value="{{ $day }}">
+                                                Day {{ $day }}
+                                            </option>
+                                        @endfor
+                                    </select>
+
+                                    @error(
+                                        'morningRevivalDay'
+                                    )
+                                        <p
+                                            class="mt-1 text-xs
+                                                   text-red-600"
+                                        >
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            @if (
+                                $selectedMorningRevivalWeek
+                                && $morningRevivalDay
+                            )
+                                @php
+                                    $selectedMrPublication =
+                                        $selectedMorningRevivalWeek
+                                            ->publication;
+
+                                    $selectedMrDate =
+                                        $selectedMorningRevivalWeek
+                                            ->dateForDay(
+                                                (int)
+                                                $morningRevivalDay
+                                            );
+                                @endphp
+
+                                <div
+                                    class="mt-4 rounded-xl
+                                           border
+                                           border-amber-200
+                                           bg-white p-4
+                                           dark:border-amber-900
+                                           dark:bg-gray-950"
+                                >
+                                    <div
+                                        class="text-sm font-bold
+                                               text-gray-950
+                                               dark:text-white"
+                                    >
+                                        Week
+                                        {{
+                                            $selectedMorningRevivalWeek
+                                                ->week_number
+                                        }}:
+                                        {{
+                                            $selectedMorningRevivalWeek
+                                                ->title
+                                        }}
+                                        · Day
+                                        {{ $morningRevivalDay }}
+                                    </div>
+
+                                    @if ($selectedMrDate)
+                                        <div
+                                            class="mt-1 text-xs
+                                                   font-semibold
+                                                   text-amber-700
+                                                   dark:text-amber-300"
+                                        >
+                                            {{
+                                                $selectedMrDate
+                                                    ->format(
+                                                        'l, M j, Y'
+                                                    )
+                                            }}
+                                        </div>
+                                    @endif
+
+                                    <div
+                                        class="mt-2 text-sm
+                                               text-gray-700
+                                               dark:text-gray-200"
+                                    >
+                                        {{
+                                            $selectedMrPublication
+                                                ?->general_subject
+                                        }}
+                                    </div>
+
+                                    <div
+                                        class="mt-1 text-xs
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        {{
+                                            $selectedMrPublication
+                                                ?->source_title
+                                        }}
+                                    </div>
+                                </div>
+                            @else
+                                <div
+                                    class="mt-4 rounded-xl
+                                           border border-dashed
+                                           border-amber-300
+                                           px-4 py-4
+                                           text-sm
+                                           text-amber-800
+                                           dark:border-amber-800
+                                           dark:text-amber-200"
+                                >
+                                    Choose the Morning Revival
+                                    Week and Day 1–6.
+                                </div>
+                            @endif
+
+
+                            {{-- Historical archive search --}}
+                            @if ($showMorningRevivalArchive)
+                                @php
+                                    $morningRevivalArchiveResults =
+                                        $this
+                                            ->morningRevivalArchiveResults();
+                                @endphp
+
+                                <div
+                                    class="mt-4 rounded-xl
+                                           border
+                                           border-gray-200
+                                           bg-gray-50 p-4
+                                           dark:border-gray-700
+                                           dark:bg-gray-950"
+                                >
+                                    <div
+                                        class="flex flex-col
+                                               gap-3
+                                               sm:flex-row
+                                               sm:items-center
+                                               sm:justify-between"
+                                    >
+                                        <div>
+                                            <div
+                                                class="font-bold
+                                                       text-gray-950
+                                                       dark:text-white"
+                                            >
+                                                Find Older
+                                                Morning Revival
+                                            </div>
+
+                                            <div
+                                                class="mt-1
+                                                       text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                Search by year,
+                                                conference,
+                                                general subject,
+                                                or message title.
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            wire:click="closeMorningRevivalArchive"
+                                            class="text-xs
+                                                   font-bold
+                                                   text-gray-500
+                                                   hover:text-gray-900
+                                                   dark:text-gray-400
+                                                   dark:hover:text-white"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+
+                                    <input
+                                        type="search"
+                                        wire:model.live.debounce.400ms="morningRevivalArchiveSearch"
+                                        placeholder="e.g. 2025, Thanksgiving, revival..."
+                                        class="mt-3 block w-full
+                                               rounded-xl border
+                                               border-gray-300
+                                               bg-white px-4 py-3
+                                               text-sm text-gray-900
+                                               dark:border-gray-700
+                                               dark:bg-gray-900
+                                               dark:text-gray-100"
+                                    >
+
+                                    @if (
+                                        trim(
+                                            $morningRevivalArchiveSearch
+                                        ) === ''
+                                    )
+                                        <div
+                                            class="mt-3 text-sm
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            Enter a search to
+                                            browse historical
+                                            Morning Revival
+                                            weeks.
+                                        </div>
+                                    @elseif (
+                                        $morningRevivalArchiveResults
+                                            ->isEmpty()
+                                    )
+                                        <div
+                                            class="mt-3 text-sm
+                                                   text-gray-500
+                                                   dark:text-gray-400"
+                                        >
+                                            No matching Morning
+                                            Revival weeks found.
+                                        </div>
+                                    @else
+                                        <div
+                                            class="mt-3
+                                                   max-h-80
+                                                   space-y-2
+                                                   overflow-y-auto"
+                                        >
+                                            @foreach (
+                                                $morningRevivalArchiveResults
+                                                as $archiveWeek
+                                            )
+                                                <button
+                                                    type="button"
+                                                    wire:click="selectMorningRevivalArchiveWeek({{ $archiveWeek->id }})"
+                                                    class="block w-full
+                                                           rounded-lg
+                                                           border
+                                                           border-gray-200
+                                                           bg-white
+                                                           p-3
+                                                           text-left
+                                                           hover:border-amber-300
+                                                           hover:bg-amber-50
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900
+                                                           dark:hover:border-amber-800
+                                                           dark:hover:bg-gray-800"
+                                                >
+                                                    <div
+                                                        class="text-sm
+                                                               font-bold
+                                                               text-gray-950
+                                                               dark:text-white"
+                                                    >
+                                                        Week
+                                                        {{
+                                                            $archiveWeek
+                                                                ->week_number
+                                                        }}:
+                                                        {{
+                                                            $archiveWeek
+                                                                ->title
+                                                        }}
+                                                    </div>
+
+                                                    <div
+                                                        class="mt-1
+                                                               text-xs
+                                                               text-gray-600
+                                                               dark:text-gray-300"
+                                                    >
+                                                        {{
+                                                            $archiveWeek
+                                                                ->publication
+                                                                ?->general_subject
+                                                        }}
+                                                    </div>
+
+                                                    <div
+                                                        class="mt-1
+                                                               text-xs
+                                                               text-gray-500
+                                                               dark:text-gray-400"
+                                                    >
+                                                        {{
+                                                            $archiveWeek
+                                                                ->start_date
+                                                                ->format(
+                                                                    'M j, Y'
+                                                                )
+                                                        }}
+                                                        ·
+                                                        {{
+                                                            $archiveWeek
+                                                                ->publication
+                                                                ?->source_title
+                                                        }}
+                                                    </div>
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+                        </section>
+                    @endif
+
+
+                    {{-- ============================= --}}
                     {{-- Hymns Sung --}}
                     {{-- ============================= --}}
                     @if ($this->isHymnSingingSelected())

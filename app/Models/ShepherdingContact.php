@@ -26,11 +26,20 @@ class ShepherdingContact extends Model
         'contact_date',
         'contact_time',
         'outcome',
+        'morning_revival_week_id',
+        'morning_revival_day',
         'notes',
     ];
 
     protected $casts = [
-        'contact_date' => 'date',
+        'contact_date' =>
+            'date',
+
+        'morning_revival_week_id' =>
+            'integer',
+
+        'morning_revival_day' =>
+            'integer',
     ];
 
     public static function outcomeOptions(): array
@@ -119,6 +128,14 @@ class ShepherdingContact extends Model
             ShepherdingActivityType::class,
             'shepherding_contact_activities'
         )->withTimestamps();
+    }
+
+    public function morningRevivalWeek(): BelongsTo
+    {
+        return $this->belongsTo(
+            MorningRevivalWeek::class,
+            'morning_revival_week_id'
+        );
     }
 
     public function ministryLessons(): BelongsToMany

@@ -12,6 +12,7 @@ use App\Support\HymnSearchRanker;
 use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
 use App\Models\MinistryBook;
+use App\Models\MorningRevivalWeek;
 use App\Models\ProvinceSetting;
 use App\Models\Person;
 use App\Models\ShepherdingActivityType;
@@ -88,6 +89,22 @@ class ShepherdingContacts extends Page
         ShepherdingContact::OUTCOME_COMPLETED;
 
     public array $activityTypeIds = [];
+
+    /*
+     * Exact Morning Revival reading selected for
+     * this Shepherding Contact.
+     */
+    public ?int $morningRevivalWeekId = null;
+
+    public ?int $morningRevivalDay = null;
+
+    /*
+     * Full historical search is intentionally separate
+     * from the compact recent-week selector.
+     */
+    public bool $showMorningRevivalArchive = false;
+
+    public string $morningRevivalArchiveSearch = '';
 
     public array $ministryLessonIds = [];
 
@@ -1059,6 +1076,27 @@ class ShepherdingContacts extends Page
         ) {
             $this->addHymnRow();
         }
+
+        if (
+            $this->isMorningRevivalSelected()
+        ) {
+            /*
+             * Only default when no reading has already
+             * been chosen. Manual choices remain intact.
+             */
+            if (
+                ! $this->morningRevivalWeekId
+                || ! $this->morningRevivalDay
+            ) {
+                $this->useTodaysMorningRevival(
+                    false
+                );
+            }
+
+            return;
+        }
+
+        $this->clearMorningRevivalSelection();
     }
 
     public function activityTypes(): Collection
@@ -1069,6 +1107,390 @@ class ShepherdingContacts extends Page
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+    }
+
+    public function morningRevivalActivityId(): ?int
+    {
+        $id =
+            ShepherdingActivityType::query()
+                ->where(
+                    'code',
+                    'MR'
+                )
+                ->value('id');
+
+        return $id
+            ? (int) $id
+            : null;
+    }
+
+    public function isMorningRevivalSelected(): bool
+    {
+        $activityId =
+            $this->morningRevivalActivityId();
+
+        if (! $activityId) {
+            return false;
+        }
+
+        return collect(
+            $this->activityTypeIds
+        )
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->contains(
+                $activityId
+            );
+    }
+
+    public function recentMorningRevivalWeeks(): Collection
+    {
+        /*
+         * Normal UX shows only a small current window.
+         * Historical records use the dedicated archive
+         * search instead.
+         */
+        return MorningRevivalWeek::query()
+            ->with('publication')
+            ->where(
+                'is_active',
+                true
+            )
+            ->whereHas(
+                'publication',
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    )
+            )
+            ->whereDate(
+                'start_date',
+                '<=',
+                now()->toDateString()
+            )
+            ->orderByDesc(
+                'start_date'
+            )
+            ->limit(8)
+            ->get();
+    }
+
+    public function selectedMorningRevivalWeek(): ?MorningRevivalWeek
+    {
+        if (
+            ! $this->morningRevivalWeekId
+        ) {
+            return null;
+        }
+
+        return MorningRevivalWeek::query()
+            ->with('publication')
+            ->find(
+                $this->morningRevivalWeekId
+            );
+    }
+
+    public function morningRevivalArchiveResults(): Collection
+    {
+        if (
+            ! $this->showMorningRevivalArchive
+        ) {
+            return collect();
+        }
+
+        $search =
+            trim(
+                $this->morningRevivalArchiveSearch
+            );
+
+        if ($search === '') {
+            return collect();
+        }
+
+        $like =
+            '%' . $search . '%';
+
+        return MorningRevivalWeek::query()
+            ->with('publication')
+            ->where(
+                function ($query) use (
+                    $search,
+                    $like
+                ): void {
+                    $query
+                        ->where(
+                            'title',
+                            'like',
+                            $like
+                        )
+                        ->orWhereRaw(
+                            'CAST(week_number AS CHAR) LIKE ?',
+                            [
+                                $like,
+                            ]
+                        )
+                        ->orWhereHas(
+                            'publication',
+                            function ($publicationQuery) use (
+                                $like
+                            ): void {
+                                $publicationQuery
+                                    ->where(
+                                        'source_title',
+                                        'like',
+                                        $like
+                                    )
+                                    ->orWhere(
+                                        'general_subject',
+                                        'like',
+                                        $like
+                                    );
+                            }
+                        );
+
+                    if (
+                        preg_match(
+                            '/^\d{4}$/',
+                            $search
+                        )
+                    ) {
+                        $query->orWhereYear(
+                            'start_date',
+                            (int) $search
+                        );
+                    }
+                }
+            )
+            ->orderByDesc(
+                'start_date'
+            )
+            ->limit(30)
+            ->get();
+    }
+
+    public function useTodaysMorningRevival(
+        bool $notify = true
+    ): void {
+        $today =
+            now()->startOfDay();
+
+        /*
+         * A valid Day 1-6 week must have started
+         * between today and five days earlier.
+         * This naturally excludes Lord's Day.
+         */
+        $week =
+            MorningRevivalWeek::query()
+                ->with('publication')
+                ->where(
+                    'is_active',
+                    true
+                )
+                ->whereHas(
+                    'publication',
+                    fn ($query) =>
+                        $query->where(
+                            'is_active',
+                            true
+                        )
+                )
+                ->whereDate(
+                    'start_date',
+                    '>=',
+                    $today
+                        ->copy()
+                        ->subDays(5)
+                        ->toDateString()
+                )
+                ->whereDate(
+                    'start_date',
+                    '<=',
+                    $today->toDateString()
+                )
+                ->orderByDesc(
+                    'start_date'
+                )
+                ->get()
+                ->first(
+                    fn (
+                        MorningRevivalWeek $week
+                    ): bool =>
+                        $week->dayNumberForDate(
+                            $today
+                        ) !== null
+                );
+
+        if (! $week) {
+            $this->morningRevivalWeekId =
+                null;
+
+            $this->morningRevivalDay =
+                null;
+
+            if ($notify) {
+                Notification::make()
+                    ->title(
+                        'No Morning Revival reading today'
+                    )
+                    ->body(
+                        'Today has no scheduled Day 1–6 '
+                        . 'reading. Choose a week and day '
+                        . 'manually if needed.'
+                    )
+                    ->warning()
+                    ->send();
+            }
+
+            return;
+        }
+
+        $this->morningRevivalWeekId =
+            (int) $week->id;
+
+        $this->morningRevivalDay =
+            $week->dayNumberForDate(
+                $today
+            );
+
+        $this->showMorningRevivalArchive =
+            false;
+
+        $this->morningRevivalArchiveSearch =
+            '';
+
+        if ($notify) {
+            Notification::make()
+                ->title(
+                    'Using today’s Morning Revival'
+                )
+                ->body(
+                    'Week '
+                    . $week->week_number
+                    . ' · Day '
+                    . $this->morningRevivalDay
+                )
+                ->success()
+                ->send();
+        }
+    }
+
+    public function updatedMorningRevivalWeekId(
+        mixed $value
+    ): void {
+        $weekId =
+            filled($value)
+                ? (int) $value
+                : null;
+
+        $exists =
+            $weekId
+                ? MorningRevivalWeek::query()
+                    ->whereKey(
+                        $weekId
+                    )
+                    ->exists()
+                : false;
+
+        $this->morningRevivalWeekId =
+            $exists
+                ? $weekId
+                : null;
+
+        if (
+            ! $this->morningRevivalWeekId
+        ) {
+            $this->morningRevivalDay =
+                null;
+
+            return;
+        }
+
+        if (
+            ! $this->morningRevivalDay
+            || $this->morningRevivalDay < 1
+            || $this->morningRevivalDay > 6
+        ) {
+            $this->morningRevivalDay = 1;
+        }
+    }
+
+    public function updatedMorningRevivalDay(
+        mixed $value
+    ): void {
+        $day =
+            filled($value)
+                ? (int) $value
+                : null;
+
+        $this->morningRevivalDay =
+            (
+                $day !== null
+                && $day >= 1
+                && $day <= 6
+            )
+                ? $day
+                : null;
+    }
+
+    public function openMorningRevivalArchive(): void
+    {
+        $this->showMorningRevivalArchive =
+            true;
+
+        $this->morningRevivalArchiveSearch =
+            '';
+    }
+
+    public function closeMorningRevivalArchive(): void
+    {
+        $this->showMorningRevivalArchive =
+            false;
+
+        $this->morningRevivalArchiveSearch =
+            '';
+    }
+
+    public function selectMorningRevivalArchiveWeek(
+        int $weekId
+    ): void {
+        $week =
+            MorningRevivalWeek::query()
+                ->find($weekId);
+
+        if (! $week) {
+            return;
+        }
+
+        $this->morningRevivalWeekId =
+            (int) $week->id;
+
+        if (
+            ! $this->morningRevivalDay
+            || $this->morningRevivalDay < 1
+            || $this->morningRevivalDay > 6
+        ) {
+            $this->morningRevivalDay = 1;
+        }
+
+        $this->closeMorningRevivalArchive();
+    }
+
+    private function clearMorningRevivalSelection(): void
+    {
+        $this->morningRevivalWeekId =
+            null;
+
+        $this->morningRevivalDay =
+            null;
+
+        $this->showMorningRevivalArchive =
+            false;
+
+        $this->morningRevivalArchiveSearch =
+            '';
     }
 
     public function hymnSingingActivityId(): ?int
@@ -1924,6 +2346,16 @@ class ShepherdingContacts extends Page
                 'integer',
                 'exists:ministry_lessons,id',
             ],
+            'morningRevivalWeekId' => [
+                'nullable',
+                'integer',
+                'exists:morning_revival_weeks,id',
+            ],
+            'morningRevivalDay' => [
+                'nullable',
+                'integer',
+                'between:1,6',
+            ],
             'hymnRows' => [
                 'array',
             ],
@@ -2151,6 +2583,74 @@ class ShepherdingContacts extends Page
             ->values()
             ->all();
 
+        $morningRevivalWeekIdForSave =
+            filled(
+                $data[
+                    'morningRevivalWeekId'
+                ]
+                ?? null
+            )
+                ? (int) $data[
+                    'morningRevivalWeekId'
+                ]
+                : null;
+
+        $morningRevivalDayForSave =
+            filled(
+                $data[
+                    'morningRevivalDay'
+                ]
+                ?? null
+            )
+                ? (int) $data[
+                    'morningRevivalDay'
+                ]
+                : null;
+
+        $morningRevivalActivityId =
+            $this->morningRevivalActivityId();
+
+        $morningRevivalSelected =
+            $morningRevivalActivityId
+            && in_array(
+                $morningRevivalActivityId,
+                $activityIds,
+                true
+            );
+
+        if (! $morningRevivalSelected) {
+            $morningRevivalWeekIdForSave =
+                null;
+
+            $morningRevivalDayForSave =
+                null;
+        } elseif (
+            $data['outcome']
+            !== ShepherdingContact::OUTCOME_UNAVAILABLE
+            && (
+                ! $morningRevivalWeekIdForSave
+                || ! $morningRevivalDayForSave
+            )
+        ) {
+            $this->addError(
+                'morningRevivalWeekId',
+                'Choose the Morning Revival week and day.'
+            );
+
+            Notification::make()
+                ->title(
+                    'Morning Revival reading required'
+                )
+                ->body(
+                    'Choose a Week and Day 1–6 '
+                    . 'for the Morning Revival activity.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $ministryIds = collect(
             $data['ministryLessonIds'] ?? []
         )
@@ -2213,6 +2713,12 @@ class ShepherdingContacts extends Page
             $activityIds = [];
             $ministryIds = [];
             $hymnRowsForSave = [];
+
+            $morningRevivalWeekIdForSave =
+                null;
+
+            $morningRevivalDayForSave =
+                null;
         }
 
         [
@@ -2259,6 +2765,8 @@ class ShepherdingContacts extends Page
                 $householdMemberSync,
                 $activityIds,
                 $ministryIds,
+                $morningRevivalWeekIdForSave,
+                $morningRevivalDayForSave,
                 $hymnSync,
                 $hymnRequestSync,
                 $participantIds
@@ -2513,6 +3021,12 @@ class ShepherdingContacts extends Page
 
                     'outcome' =>
                         $data['outcome'],
+
+                    'morning_revival_week_id' =>
+                        $morningRevivalWeekIdForSave,
+
+                    'morning_revival_day' =>
+                        $morningRevivalDayForSave,
 
                     'notes' =>
                         filled(
@@ -2819,6 +3333,32 @@ class ShepherdingContacts extends Page
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
+
+        $this->morningRevivalWeekId =
+            filled(
+                $contact
+                    ->morning_revival_week_id
+            )
+                ? (int)
+                    $contact
+                        ->morning_revival_week_id
+                : null;
+
+        $this->morningRevivalDay =
+            filled(
+                $contact
+                    ->morning_revival_day
+            )
+                ? (int)
+                    $contact
+                        ->morning_revival_day
+                : null;
+
+        $this->showMorningRevivalArchive =
+            false;
+
+        $this->morningRevivalArchiveSearch =
+            '';
 
         $this->ministryLessonIds =
             $contact
@@ -3591,6 +4131,12 @@ class ShepherdingContacts extends Page
 
     private function resetContactForm(): void
     {
+
+        $this->morningRevivalWeekId = null;
+        $this->morningRevivalDay = null;
+        $this->showMorningRevivalArchive = false;
+        $this->morningRevivalArchiveSearch = '';
+
         $this->editingContactId = null;
 
         $this->targetSearch = '';
