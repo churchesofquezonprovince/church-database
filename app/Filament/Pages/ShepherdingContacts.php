@@ -6,6 +6,7 @@ use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Hymn;
+use App\Models\HymnSource;
 use App\Support\HymnLyricsNormalizer;
 use App\Support\HymnSearchRanker;
 use App\Models\HymnAdditionRequest;
@@ -1162,6 +1163,10 @@ class ShepherdingContacts extends Page
         if (
             ! array_key_exists(
                 $index,
+                $this->hymnRows
+            )
+            || ! array_key_exists(
+                $index,
                 $this->hymnRequestForms
             )
         ) {
@@ -1213,7 +1218,7 @@ class ShepherdingContacts extends Page
             return;
         }
 
-        $existing =
+        $request =
             HymnAdditionRequest::query()
                 ->where(
                     'status',
@@ -1229,80 +1234,96 @@ class ShepherdingContacts extends Page
                 )
                 ->first();
 
-        if ($existing) {
-            Notification::make()
-                ->title(
-                    'Hymn request already pending'
-                )
-                ->body(
-                    'An Admin is already reviewing a request for this hymn.'
-                )
-                ->warning()
-                ->send();
+        $reusedExisting =
+            (bool) $request;
 
-            return;
+        if (! $request) {
+            $request =
+                HymnAdditionRequest::query()
+                    ->create([
+                        'requested_by_id' =>
+                            auth()->id(),
+
+                        'title' =>
+                            $title,
+
+                        'language' =>
+                            filled(
+                                $form['language']
+                                    ?? null
+                            )
+                                ? trim(
+                                    (string)
+                                    $form['language']
+                                )
+                                : null,
+
+                        'lyrics' =>
+                            filled(
+                                $form['lyrics']
+                                    ?? null
+                            )
+                                ? trim(
+                                    (string)
+                                    $form['lyrics']
+                                )
+                                : null,
+
+                        'source_url' =>
+                            $sourceUrl !== ''
+                                ? $sourceUrl
+                                : null,
+
+                        'book_name' =>
+                            filled(
+                                $form['book_name']
+                                    ?? null
+                            )
+                                ? trim(
+                                    (string)
+                                    $form['book_name']
+                                )
+                                : null,
+
+                        'hymn_number' =>
+                            filled(
+                                $form['hymn_number']
+                                    ?? null
+                            )
+                                ? trim(
+                                    (string)
+                                    $form['hymn_number']
+                                )
+                                : null,
+
+                        'status' =>
+                            HymnAdditionRequest::STATUS_PENDING,
+                    ]);
         }
 
-        HymnAdditionRequest::query()
-            ->create([
-                'requested_by_id' =>
-                    auth()->id(),
+        /*
+         * Keep the pending request inside the Hymn row.
+         *
+         * The actual Shepherding-record association is
+         * created when saveContact() persists the record.
+         * This also works while creating a brand-new
+         * Shepherding record that has no ID yet.
+         */
+        $this->hymnRows[
+            $index
+        ] = [
+            'hymn_id' =>
+                null,
 
-                'title' =>
-                    $title,
+            'request_id' =>
+                (int) $request->id,
 
-                'language' =>
-                    filled(
-                        $form['language']
-                            ?? null
-                    )
-                        ? trim(
-                            (string)
-                            $form['language']
-                        )
-                        : null,
+            'request_title' =>
+                (string) $request->title,
 
-                'lyrics' =>
-                    filled(
-                        $form['lyrics']
-                            ?? null
-                    )
-                        ? trim(
-                            (string)
-                            $form['lyrics']
-                        )
-                        : null,
-
-                'source_url' =>
-                    $sourceUrl !== ''
-                        ? $sourceUrl
-                        : null,
-
-                'book_name' =>
-                    filled(
-                        $form['book_name']
-                            ?? null
-                    )
-                        ? trim(
-                            (string)
-                            $form['book_name']
-                        )
-                        : null,
-
-                'hymn_number' =>
-                    filled(
-                        $form['hymn_number']
-                            ?? null
-                    )
-                        ? trim(
-                            (string)
-                            $form['hymn_number']
-                        )
-                        : null,
-
-                'status' =>
-                    HymnAdditionRequest::STATUS_PENDING,
-            ]);
+            'search' =>
+                '',
+        ];
 
         unset(
             $this->hymnRequestForms[
@@ -1312,10 +1333,14 @@ class ShepherdingContacts extends Page
 
         Notification::make()
             ->title(
-                'Hymn addition requested'
+                $reusedExisting
+                    ? 'Pending hymn request selected'
+                    : 'Hymn addition requested'
             )
             ->body(
-                'The request was sent for Admin approval.'
+                $reusedExisting
+                    ? 'An Admin is already reviewing this hymn. Save the Shepherding Record to keep this request attached.'
+                    : 'The request was sent for Admin approval. Save the Shepherding Record to keep this pending hymn attached.'
             )
             ->success()
             ->send();
@@ -1325,6 +1350,8 @@ class ShepherdingContacts extends Page
     {
         $this->hymnRows[] = [
             'hymn_id' => null,
+            'request_id' => null,
+            'request_title' => null,
             'search' => '',
         ];
     }
@@ -1352,6 +1379,159 @@ class ShepherdingContacts extends Page
             );
     }
 
+    private function buildHymnSyncs(
+        array $rows
+    ): array {
+        $requestIds =
+            collect($rows)
+                ->pluck('request_id')
+                ->filter()
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values();
+
+        $requests =
+            $requestIds->isEmpty()
+                ? collect()
+                : HymnAdditionRequest::query()
+                    ->whereIn(
+                        'id',
+                        $requestIds->all()
+                    )
+                    ->get([
+                        'id',
+                        'status',
+                        'created_hymn_id',
+                    ])
+                    ->keyBy('id');
+
+        $hymnSync = [];
+        $requestSync = [];
+
+        foreach (
+            array_values($rows)
+            as $index => $row
+        ) {
+            $sortOrder =
+                $index + 1;
+
+            $hymnId =
+                filled(
+                    $row['hymn_id']
+                        ?? null
+                )
+                    ? (int) $row[
+                        'hymn_id'
+                    ]
+                    : null;
+
+            if ($hymnId) {
+                if (
+                    ! array_key_exists(
+                        $hymnId,
+                        $hymnSync
+                    )
+                ) {
+                    $hymnSync[
+                        $hymnId
+                    ] = [
+                        'sort_order' =>
+                            $sortOrder,
+                    ];
+                }
+
+                continue;
+            }
+
+            $requestId =
+                filled(
+                    $row['request_id']
+                        ?? null
+                )
+                    ? (int) $row[
+                        'request_id'
+                    ]
+                    : null;
+
+            if (! $requestId) {
+                continue;
+            }
+
+            $request =
+                $requests->get(
+                    $requestId
+                );
+
+            if (! $request) {
+                continue;
+            }
+
+            if (
+                $request->status
+                === HymnAdditionRequest::STATUS_PENDING
+            ) {
+                if (
+                    ! array_key_exists(
+                        $requestId,
+                        $requestSync
+                    )
+                ) {
+                    $requestSync[
+                        $requestId
+                    ] = [
+                        'sort_order' =>
+                            $sortOrder,
+                    ];
+                }
+
+                continue;
+            }
+
+            /*
+             * An Admin may approve the request while
+             * this Shepherding form is still open.
+             *
+             * In that case, save the resolved canonical
+             * Hymn directly instead of reviving a stale
+             * pending association.
+             */
+            if (
+                $request->status
+                    === HymnAdditionRequest::STATUS_APPROVED
+                && filled(
+                    $request->created_hymn_id
+                )
+            ) {
+                $resolvedHymnId =
+                    (int)
+                    $request
+                        ->created_hymn_id;
+
+                if (
+                    ! array_key_exists(
+                        $resolvedHymnId,
+                        $hymnSync
+                    )
+                ) {
+                    $hymnSync[
+                        $resolvedHymnId
+                    ] = [
+                        'sort_order' =>
+                            $sortOrder,
+                    ];
+                }
+            }
+        }
+
+        return [
+            $hymnSync,
+            $requestSync,
+        ];
+    }
+
     public function selectedHymns(): Collection
     {
         $ids = collect(
@@ -1373,6 +1553,17 @@ class ShepherdingContacts extends Page
         return Hymn::query()
             ->with([
                 'bookEntries.hymnBook',
+
+                'sources' =>
+                    fn ($query) =>
+                        $query->whereIn(
+                            'provider',
+                            [
+                                HymnSource::PROVIDER_YOUTUBE,
+                                HymnSource::PROVIDER_SOUNDCLOUD,
+                                HymnSource::PROVIDER_OTHER,
+                            ]
+                        ),
             ])
             ->whereIn(
                 'id',
@@ -1567,6 +1758,12 @@ class ShepherdingContacts extends Page
             'hymn_id' =>
                 $hymnId,
 
+            'request_id' =>
+                null,
+
+            'request_title' =>
+                null,
+
             'search' =>
                 '',
         ];
@@ -1736,6 +1933,16 @@ class ShepherdingContacts extends Page
                 'exists:hymns,id',
             ],
             'hymnRows.*.search' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'hymnRows.*.request_id' => [
+                'nullable',
+                'integer',
+                'exists:hymn_addition_requests,id',
+            ],
+            'hymnRows.*.request_title' => [
                 'nullable',
                 'string',
                 'max:255',
@@ -1952,18 +2159,11 @@ class ShepherdingContacts extends Page
             ->values()
             ->all();
 
-        $hymnIds = collect(
-            $data['hymnRows'] ?? []
-        )
-            ->pluck('hymn_id')
-            ->filter()
-            ->map(
-                fn ($id): int =>
-                    (int) $id
-            )
-            ->unique()
-            ->values()
-            ->all();
+        $hymnRowsForSave =
+            array_values(
+                $data['hymnRows']
+                    ?? []
+            );
 
         $participantIds = collect(
             $data['participantIds'] ?? []
@@ -2003,7 +2203,7 @@ class ShepherdingContacts extends Page
                 true
             )
         ) {
-            $hymnIds = [];
+            $hymnRowsForSave = [];
         }
 
         if (
@@ -2012,22 +2212,16 @@ class ShepherdingContacts extends Page
         ) {
             $activityIds = [];
             $ministryIds = [];
-            $hymnIds = [];
+            $hymnRowsForSave = [];
         }
 
-        $hymnSync = [];
-
-        foreach (
-            $hymnIds
-            as $index => $hymnId
-        ) {
-            $hymnSync[
-                $hymnId
-            ] = [
-                'sort_order' =>
-                    $index + 1,
-            ];
-        }
+        [
+            $hymnSync,
+            $hymnRequestSync,
+        ] =
+            $this->buildHymnSyncs(
+                $hymnRowsForSave
+            );
 
         $isEditing = filled(
             $this->editingContactId
@@ -2066,6 +2260,7 @@ class ShepherdingContacts extends Page
                 $activityIds,
                 $ministryIds,
                 $hymnSync,
+                $hymnRequestSync,
                 $participantIds
             ): void {
                 $oldValues = $contact->exists
@@ -2373,6 +2568,12 @@ class ShepherdingContacts extends Page
                     ->sync($hymnSync);
 
                 $contact
+                    ->hymnAdditionRequests()
+                    ->sync(
+                        $hymnRequestSync
+                    );
+
+                $contact
                     ->participants()
                     ->sync($participantIds);
 
@@ -2519,6 +2720,7 @@ class ShepherdingContacts extends Page
                 'activityTypes',
                 'ministryLessons',
                 'hymns.bookEntries.hymnBook',
+                'hymnAdditionRequests',
                 'participants',
             ])
             ->findOrFail($contactId);
@@ -2625,16 +2827,84 @@ class ShepherdingContacts extends Page
                 ->map(fn ($id) => (int) $id)
                 ->all();
 
-        $this->hymnRows =
+        $canonicalHymnRows =
             $contact
                 ->hymns
                 ->map(
                     fn ($hymn): array => [
+                        'sort_order' =>
+                            (int)
+                            $hymn
+                                ->pivot
+                                ->sort_order,
+
                         'hymn_id' =>
                             (int) $hymn->id,
 
+                        'request_id' =>
+                            null,
+
+                        'request_title' =>
+                            null,
+
                         'search' =>
                             '',
+                    ]
+                );
+
+        $pendingHymnRows =
+            $contact
+                ->hymnAdditionRequests
+                ->filter(
+                    fn ($request): bool =>
+                        $request->status
+                            === HymnAdditionRequest::STATUS_PENDING
+                )
+                ->map(
+                    fn ($request): array => [
+                        'sort_order' =>
+                            (int)
+                            $request
+                                ->pivot
+                                ->sort_order,
+
+                        'hymn_id' =>
+                            null,
+
+                        'request_id' =>
+                            (int)
+                            $request->id,
+
+                        'request_title' =>
+                            (string)
+                            $request->title,
+
+                        'search' =>
+                            '',
+                    ]
+                );
+
+        $this->hymnRows =
+            $canonicalHymnRows
+                ->concat(
+                    $pendingHymnRows
+                )
+                ->sortBy(
+                    'sort_order'
+                )
+                ->map(
+                    fn (array $row): array => [
+                        'hymn_id' =>
+                            $row['hymn_id'],
+
+                        'request_id' =>
+                            $row['request_id'],
+
+                        'request_title' =>
+                            $row['request_title'],
+
+                        'search' =>
+                            $row['search'],
                     ]
                 )
                 ->values()

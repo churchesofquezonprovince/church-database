@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class HymnAdditionRequest extends Model
 {
@@ -49,6 +50,17 @@ class HymnAdditionRequest extends Model
             User::class,
             'reviewed_by_id'
         );
+    }
+
+    public function shepherdingContacts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ShepherdingContact::class,
+            'shepherding_contact_hymn_requests'
+        )
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
     }
 
     public function createdHymn(): BelongsTo

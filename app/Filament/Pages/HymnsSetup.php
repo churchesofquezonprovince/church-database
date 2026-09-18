@@ -96,12 +96,27 @@ class HymnsSetup extends Page
 
     public array $hymnRequestTargetIds = [];
 
+    /*
+     * Editable metadata for pending external Hymn
+     * requests.
+     *
+     * book_name may represent a Hymn Book, Album,
+     * collection, or other source grouping.
+     */
+    public array $hymnRequestLanguages = [];
+
+    public array $hymnRequestBookNames = [];
+
+    public array $hymnRequestNumbers = [];
+
     public function mount(): void
     {
         abort_unless(
             auth()->user()?->isAdmin(),
             403
         );
+
+        $this->loadPendingHymnRequestDetails();
     }
 
     public function getTitle(): string
@@ -604,6 +619,188 @@ class HymnsSetup extends Page
             ->send();
     }
 
+    private function loadPendingHymnRequestDetails(): void
+    {
+        HymnAdditionRequest::query()
+            ->where(
+                'status',
+                HymnAdditionRequest::STATUS_PENDING
+            )
+            ->get([
+                'id',
+                'language',
+                'book_name',
+                'hymn_number',
+            ])
+            ->each(
+                function (
+                    HymnAdditionRequest $request
+                ): void {
+                    $requestId =
+                        (int) $request->id;
+
+                    $this->hymnRequestLanguages[
+                        $requestId
+                    ] =
+                        (string) (
+                            $request->language
+                            ?? ''
+                        );
+
+                    $this->hymnRequestBookNames[
+                        $requestId
+                    ] =
+                        (string) (
+                            $request->book_name
+                            ?? ''
+                        );
+
+                    $this->hymnRequestNumbers[
+                        $requestId
+                    ] =
+                        (string) (
+                            $request->hymn_number
+                            ?? ''
+                        );
+                }
+            );
+    }
+
+    public function saveHymnRequestDetails(
+        int $requestId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $request =
+            HymnAdditionRequest::query()
+                ->where(
+                    'status',
+                    HymnAdditionRequest::STATUS_PENDING
+                )
+                ->find($requestId);
+
+        if (! $request) {
+            Notification::make()
+                ->title(
+                    'Hymn request not found'
+                )
+                ->body(
+                    'The request may already '
+                    . 'have been reviewed.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $this->persistHymnRequestDetails(
+            $request
+        );
+
+        Notification::make()
+            ->title(
+                'Hymn request details saved'
+            )
+            ->success()
+            ->send();
+    }
+
+    private function persistHymnRequestDetails(
+        HymnAdditionRequest $request
+    ): void {
+        $requestId =
+            (int) $request->id;
+
+        $this->hymnRequestLanguages[
+            $requestId
+        ] ??=
+            (string) (
+                $request->language
+                ?? ''
+            );
+
+        $this->hymnRequestBookNames[
+            $requestId
+        ] ??=
+            (string) (
+                $request->book_name
+                ?? ''
+            );
+
+        $this->hymnRequestNumbers[
+            $requestId
+        ] ??=
+            (string) (
+                $request->hymn_number
+                ?? ''
+            );
+
+        $this->validate([
+            "hymnRequestLanguages.{$requestId}" => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            "hymnRequestBookNames.{$requestId}" => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            "hymnRequestNumbers.{$requestId}" => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+        ]);
+
+        $language =
+            trim(
+                (string)
+                $this->hymnRequestLanguages[
+                    $requestId
+                ]
+            );
+
+        $bookName =
+            trim(
+                (string)
+                $this->hymnRequestBookNames[
+                    $requestId
+                ]
+            );
+
+        $hymnNumber =
+            trim(
+                (string)
+                $this->hymnRequestNumbers[
+                    $requestId
+                ]
+            );
+
+        $request->forceFill([
+            'language' =>
+                $language !== ''
+                    ? $language
+                    : null,
+
+            'book_name' =>
+                $bookName !== ''
+                    ? $bookName
+                    : null,
+
+            'hymn_number' =>
+                $hymnNumber !== ''
+                    ? $hymnNumber
+                    : null,
+        ])->save();
+    }
+
     public function pendingHymnRequests(): Collection
     {
         return HymnAdditionRequest::query()
@@ -822,6 +1019,15 @@ class HymnsSetup extends Page
             ?? 'link';
 
         try {
+            /*
+             * Save reviewer edits before resolving the
+             * request. Save Details is therefore useful
+             * but not required before Approve.
+             */
+            $this->persistHymnRequestDetails(
+                $request
+            );
+
             $service =
                 app(
                     HymnAdditionRequestReviewService::class
@@ -891,6 +1097,15 @@ class HymnsSetup extends Page
                     $requestId
                 ],
                 $this->hymnRequestTargetIds[
+                    $requestId
+                ],
+                $this->hymnRequestLanguages[
+                    $requestId
+                ],
+                $this->hymnRequestBookNames[
+                    $requestId
+                ],
+                $this->hymnRequestNumbers[
                     $requestId
                 ]
             );

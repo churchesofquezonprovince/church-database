@@ -140,6 +140,17 @@ class ShepherdingContact extends Model
             ->orderByPivot('sort_order');
     }
 
+    public function hymnAdditionRequests(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            HymnAdditionRequest::class,
+            'shepherding_contact_hymn_requests'
+        )
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(

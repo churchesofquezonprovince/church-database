@@ -158,6 +158,15 @@ class HymnAdditionRequestReviewService
                         $request
                     );
 
+                DB::table(
+                    'shepherding_contact_hymn_requests'
+                )
+                    ->where(
+                        'hymn_addition_request_id',
+                        $request->id
+                    )
+                    ->delete();
+
                 $request->forceFill([
                     'status' =>
                         HymnAdditionRequest::STATUS_REJECTED,
@@ -221,6 +230,86 @@ class HymnAdditionRequestReviewService
             'created_hymn_id' =>
                 $hymn->id,
         ])->save();
+
+        $this->resolveShepherdingRequests(
+            $request,
+            $hymn
+        );
+    }
+
+    private function resolveShepherdingRequests(
+        HymnAdditionRequest $request,
+        Hymn $hymn
+    ): void {
+        $waitingRows =
+            DB::table(
+                'shepherding_contact_hymn_requests'
+            )
+                ->where(
+                    'hymn_addition_request_id',
+                    $request->id
+                )
+                ->lockForUpdate()
+                ->get();
+
+        $now = now();
+
+        foreach (
+            $waitingRows
+            as $waitingRow
+        ) {
+            $contactId =
+                (int)
+                $waitingRow
+                    ->shepherding_contact_id;
+
+            $alreadyAttached =
+                DB::table(
+                    'shepherding_contact_hymns'
+                )
+                    ->where(
+                        'shepherding_contact_id',
+                        $contactId
+                    )
+                    ->where(
+                        'hymn_id',
+                        $hymn->id
+                    )
+                    ->exists();
+
+            if (! $alreadyAttached) {
+                DB::table(
+                    'shepherding_contact_hymns'
+                )
+                    ->insert([
+                        'shepherding_contact_id' =>
+                            $contactId,
+
+                        'hymn_id' =>
+                            $hymn->id,
+
+                        'sort_order' =>
+                            (int)
+                            $waitingRow
+                                ->sort_order,
+
+                        'created_at' =>
+                            $now,
+
+                        'updated_at' =>
+                            $now,
+                    ]);
+            }
+        }
+
+        DB::table(
+            'shepherding_contact_hymn_requests'
+        )
+            ->where(
+                'hymn_addition_request_id',
+                $request->id
+            )
+            ->delete();
     }
 
     private function attachRequestSource(
@@ -241,39 +330,78 @@ class HymnAdditionRequestReviewService
                 $url
             );
 
-        HymnSource::query()
-            ->firstOrCreate(
-                [
-                    'hymn_id' =>
-                        $hymn->id,
+        $source =
+            HymnSource::query()
+                ->firstOrCreate(
+                    [
+                        'hymn_id' =>
+                            $hymn->id,
 
-                    'source_url' =>
-                        $url,
-                ],
-                [
-                    'provider' =>
-                        $provider,
-
-                    'source_type' =>
-                        HymnSourceResolver
-                            ::sourceTypeForProvider(
-                                $provider
-                            ),
-
-                    'external_id' =>
-                        null,
-
-                    'label' =>
-                        HymnSourceResolver
-                            ::labelForProvider(
-                                $provider
-                            ),
-
-                    'metadata' => [
-                        'hymn_addition_request_id' =>
-                            $request->id,
+                        'source_url' =>
+                            $url,
                     ],
-                ]
-            );
+                    [
+                        'provider' =>
+                            $provider,
+
+                        'source_type' =>
+                            HymnSourceResolver
+                                ::sourceTypeForProvider(
+                                    $provider
+                                ),
+
+                        'external_id' =>
+                            null,
+
+                        'label' =>
+                            HymnSourceResolver
+                                ::labelForProvider(
+                                    $provider
+                                ),
+                    ]
+                );
+
+        $metadata =
+            is_array($source->metadata)
+                ? $source->metadata
+                : [];
+
+        $metadata[
+            'hymn_addition_request_id'
+        ] =
+            $request->id;
+
+        if (
+            filled(
+                $request->book_name
+            )
+        ) {
+            $metadata[
+                'collection_name'
+            ] =
+                trim(
+                    (string)
+                    $request->book_name
+                );
+        }
+
+        if (
+            filled(
+                $request->hymn_number
+            )
+        ) {
+            $metadata[
+                'track_number'
+            ] =
+                trim(
+                    (string)
+                    $request->hymn_number
+                );
+        }
+
+        $source->forceFill([
+            'metadata' =>
+                $metadata,
+        ])->save();
     }
 }

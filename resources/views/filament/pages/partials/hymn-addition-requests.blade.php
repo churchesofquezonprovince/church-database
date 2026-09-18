@@ -137,70 +137,143 @@
 
                             <div
                                 class="mt-4 grid gap-4
-                                       md:grid-cols-2"
+                                       md:grid-cols-3"
                             >
                                 <div>
-                                    <div
+                                    <label
                                         class="text-xs
                                                font-bold uppercase
                                                text-gray-500
                                                dark:text-gray-400"
                                     >
                                         Language
-                                    </div>
+                                    </label>
 
-                                    <div
-                                        class="mt-1 text-sm
+                                    <input
+                                        type="text"
+                                        maxlength="100"
+                                        wire:model="hymnRequestLanguages.{{ $request->id }}"
+                                        placeholder="English"
+                                        class="mt-1 block w-full
+                                               rounded-lg border
+                                               border-gray-300
+                                               bg-white px-3 py-2
+                                               text-sm
                                                text-gray-900
-                                               dark:text-gray-200"
+                                               dark:border-gray-700
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
                                     >
-                                        {{
-                                            $request->language
-                                            ?: 'Not provided'
-                                        }}
-                                    </div>
+
+                                    @error(
+                                        'hymnRequestLanguages.'
+                                        . $request->id
+                                    )
+                                        <p class="mt-1 text-xs text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
                                 </div>
 
                                 <div>
-                                    <div
+                                    <label
                                         class="text-xs
                                                font-bold uppercase
                                                text-gray-500
                                                dark:text-gray-400"
                                     >
-                                        Book / Number
-                                    </div>
+                                        Collection / Album / Book
+                                    </label>
 
-                                    <div
-                                        class="mt-1 text-sm
+                                    <input
+                                        type="text"
+                                        maxlength="255"
+                                        wire:model="hymnRequestBookNames.{{ $request->id }}"
+                                        placeholder="Tour of a Lifetime 2025"
+                                        class="mt-1 block w-full
+                                               rounded-lg border
+                                               border-gray-300
+                                               bg-white px-3 py-2
+                                               text-sm
                                                text-gray-900
-                                               dark:text-gray-200"
+                                               dark:border-gray-700
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
                                     >
-                                        @if (
-                                            filled(
-                                                $request->book_name
-                                            )
-                                            || filled(
-                                                $request->hymn_number
-                                            )
-                                        )
-                                            {{
-                                                $request->book_name
-                                                ?: 'Book not provided'
-                                            }}
 
-                                            @if (
-                                                filled(
-                                                    $request->hymn_number
-                                                )
-                                            )
-                                                #{{ $request->hymn_number }}
-                                            @endif
-                                        @else
-                                            Not provided
-                                        @endif
-                                    </div>
+                                    <p
+                                        class="mt-1 text-[11px]
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Album, collection, or hymn book.
+                                    </p>
+
+                                    @error(
+                                        'hymnRequestBookNames.'
+                                        . $request->id
+                                    )
+                                        <p class="mt-1 text-xs text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
                                 </div>
+
+                                <div>
+                                    <label
+                                        class="text-xs
+                                               font-bold uppercase
+                                               text-gray-500
+                                               dark:text-gray-400"
+                                    >
+                                        Track / Hymn No.
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        maxlength="100"
+                                        wire:model="hymnRequestNumbers.{{ $request->id }}"
+                                        placeholder="Optional"
+                                        class="mt-1 block w-full
+                                               rounded-lg border
+                                               border-gray-300
+                                               bg-white px-3 py-2
+                                               text-sm
+                                               text-gray-900
+                                               dark:border-gray-700
+                                               dark:bg-gray-950
+                                               dark:text-gray-100"
+                                    >
+
+                                    @error(
+                                        'hymnRequestNumbers.'
+                                        . $request->id
+                                    )
+                                        <p class="mt-1 text-xs text-red-600">
+                                            {{ $message }}
+                                        </p>
+                                    @enderror
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <button
+                                    type="button"
+                                    wire:click="saveHymnRequestDetails({{ $request->id }})"
+                                    wire:loading.attr="disabled"
+                                    class="rounded-lg border
+                                           border-gray-300
+                                           bg-white px-3 py-2
+                                           text-xs font-bold
+                                           text-gray-700
+                                           hover:bg-gray-50
+                                           dark:border-gray-700
+                                           dark:bg-gray-900
+                                           dark:text-gray-200
+                                           dark:hover:bg-gray-800"
+                                >
+                                    Save Details
+                                </button>
                             </div>
 
                             @if (
