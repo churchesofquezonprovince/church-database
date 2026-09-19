@@ -12,6 +12,7 @@ use App\Support\LocalityOptions;
 use Carbon\CarbonImmutable;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Url;
 
 class CheckAttendance extends Page
 {
@@ -19,9 +20,24 @@ class CheckAttendance extends Page
 
     protected ?Collection $activeSchoolsCache = null;
 
+#[Url(
+    as: 'sheetId',
+    history: true
+)]
 public ?int $selectedSheetId = null;
 
+#[Url(
+    as: 'sessionId',
+    history: true
+)]
 public ?int $selectedSessionId = null;
+
+#[Url(
+    as: 'view',
+    except: 'checklist',
+    history: true
+)]
+public string $attendanceView = 'checklist';
 
 public function mount(): void
 {
@@ -340,6 +356,330 @@ public function selectedSession(): ?AttendanceSession
         ->first();
 }
 
+
+public function setAttendanceView(
+    string $view
+): void {
+    $this->attendanceView =
+        $view === 'grid'
+            ? 'grid'
+            : 'checklist';
+}
+
+public function selectGridSession(
+    int $sessionId
+): void {
+    $sheet =
+        $this->selectedSheet();
+
+    if (! $sheet) {
+        return;
+    }
+
+    $session =
+        AttendanceSession::query()
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->find(
+                $sessionId
+            );
+
+    if (! $session) {
+        return;
+    }
+
+    $this->selectedSessionId =
+        (int) $session->id;
+
+    /*
+     * Explicitly remain in Grid View.
+     */
+    $this->attendanceView =
+        'grid';
+}
+
+public function attendanceGrid(
+    AttendanceSheet $sheet,
+    Collection $sessions
+): array {
+    /*
+     * The Grid is a whole-Sheet historical view.
+     *
+     * Do not use participantRows() here because that method is
+     * intentionally scoped to only the selected Session date.
+     *
+     * A grid row may therefore come from:
+     *
+     * 1. a participant period on this Sheet, or
+     * 2. an historical AttendanceRecord that still exists even if
+     *    its participant-period row was later removed.
+     */
+    if (
+        $sheet->is_one_time
+        || $sessions->count() <= 1
+    ) {
+        return [
+            'sessions' => collect(),
+            'rows' => collect(),
+        ];
+    }
+
+    $sessionIds =
+        $sessions
+            ->pluck('id')
+            ->map(
+                fn ($id): int =>
+                    (int) $id
+            )
+            ->values();
+
+    if ($sessionIds->isEmpty()) {
+        return [
+            'sessions' => collect(),
+            'rows' => collect(),
+        ];
+    }
+
+    $participantPeriods =
+        AttendanceParticipant::query()
+            ->with([
+                'person.churchProfile',
+            ])
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->get()
+            ->groupBy(
+                fn (
+                    AttendanceParticipant $participant
+                ): int =>
+                    (int) $participant->person_id
+            );
+
+    $records =
+        AttendanceRecord::query()
+            ->with([
+                'person.churchProfile',
+            ])
+            ->whereIn(
+                'attendance_session_id',
+                $sessionIds
+            )
+            ->get();
+
+    /*
+     * One AttendanceRecord exists at most once for a
+     * Session + Person pair.
+     */
+    $recordsByCell =
+        $records->keyBy(
+            fn (
+                AttendanceRecord $record
+            ): string =>
+                $record->attendance_session_id
+                . ':'
+                . $record->person_id
+        );
+
+    /*
+     * Build the union of everybody who has ever belonged to
+     * the Sheet and everybody who has historical attendance.
+     */
+    $people =
+        collect();
+
+    $participantPeriods
+        ->flatten(1)
+        ->each(
+            function (
+                AttendanceParticipant $participant
+            ) use ($people): void {
+                if ($participant->person) {
+                    $people->put(
+                        (int) $participant->person_id,
+                        $participant->person
+                    );
+                }
+            }
+        );
+
+    $records->each(
+        function (
+            AttendanceRecord $record
+        ) use ($people): void {
+            if ($record->person) {
+                $people->put(
+                    (int) $record->person_id,
+                    $record->person
+                );
+            }
+        }
+    );
+
+    $rows =
+        $people
+            ->sortBy(
+                fn (Person $person): string =>
+                    mb_strtolower(
+                        $person->display_name
+                        ?? ''
+                    )
+            )
+            ->map(
+                function (
+                    Person $person
+                ) use (
+                    $sessions,
+                    $participantPeriods,
+                    $recordsByCell
+                ): array {
+                    $personPeriods =
+                        $participantPeriods->get(
+                            (int) $person->id,
+                            collect()
+                        );
+
+                    $cells =
+                        $sessions
+                            ->mapWithKeys(
+                                function (
+                                    AttendanceSession $session
+                                ) use (
+                                    $person,
+                                    $personPeriods,
+                                    $recordsByCell
+                                ): array {
+                                    $sessionDate =
+                                        $session
+                                            ->session_date
+                                            ->format('Y-m-d');
+
+                                    $record =
+                                        $recordsByCell->get(
+                                            $session->id
+                                            . ':'
+                                            . $person->id
+                                        );
+
+                                    /*
+                                     * Historical attendance wins.
+                                     *
+                                     * Even if the participant-period row
+                                     * was later removed, the AttendanceRecord
+                                     * remains the historical fact.
+                                     */
+                                    if ($record) {
+                                        $status =
+                                            $record->is_present
+                                                ? 'present'
+                                                : 'absent';
+                                    } else {
+                                        $active =
+                                            $personPeriods
+                                                ->contains(
+                                                    function (
+                                                        AttendanceParticipant $participant
+                                                    ) use (
+                                                        $sessionDate
+                                                    ): bool {
+                                                        if (
+                                                            ! $participant
+                                                                ->is_active
+                                                        ) {
+                                                            return false;
+                                                        }
+
+                                                        $startsOn =
+                                                            $participant
+                                                                ->starts_on
+                                                                ?->format(
+                                                                    'Y-m-d'
+                                                                );
+
+                                                        $endsOn =
+                                                            $participant
+                                                                ->ends_on
+                                                                ?->format(
+                                                                    'Y-m-d'
+                                                                );
+
+                                                        return (
+                                                            blank(
+                                                                $startsOn
+                                                            )
+                                                            ||
+                                                            $startsOn
+                                                                <=
+                                                            $sessionDate
+                                                        )
+                                                        &&
+                                                        (
+                                                            blank(
+                                                                $endsOn
+                                                            )
+                                                            ||
+                                                            $endsOn
+                                                                >=
+                                                            $sessionDate
+                                                        );
+                                                    }
+                                                );
+
+                                        $status =
+                                            $active
+                                                ? 'not_recorded'
+                                                : 'not_roster';
+                                    }
+
+                                    return [
+                                        (int) $session->id => [
+                                            'status' =>
+                                                $status,
+
+                                            'source' =>
+                                                $record
+                                                    ?->attendance_source,
+
+                                            'immich_pending' =>
+                                                $record
+                                                    &&
+                                                $record
+                                                    ->attendance_source
+                                                ===
+                                                AttendanceRecord
+                                                    ::SOURCE_IMMICH
+                                                &&
+                                                $record
+                                                    ->is_present
+                                                &&
+                                                ! $record
+                                                    ->immich_confirmed,
+                                        ],
+                                    ];
+                                }
+                            )
+                            ->all();
+
+                    return [
+                        'person' => $person,
+                        'cells' => $cells,
+                    ];
+                }
+            )
+            ->values();
+
+    return [
+        'sessions' => $sessions,
+        'rows' => $rows,
+    ];
+}
 
 public function participantRows(): Collection
 {

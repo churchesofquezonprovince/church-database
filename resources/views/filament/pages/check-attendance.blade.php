@@ -10,6 +10,27 @@
         $attendanceRecords = $this->attendanceRecords();
         $immichConfirmationCounts = $this->immichConfirmationCounts();
 
+        /*
+         * Spreadsheet / Grid view only makes sense when the
+         * Attendance Sheet represents multiple meeting dates.
+         */
+        $gridAvailable =
+            $selectedSheet
+            && ! $selectedSheet->is_one_time
+            && $sessions->count() > 1;
+
+        $attendanceGrid =
+            $gridAvailable
+            && $this->attendanceView === 'grid'
+                ? $this->attendanceGrid(
+                    $selectedSheet,
+                    $sessions
+                )
+                : [
+                    'sessions' => collect(),
+                    'rows' => collect(),
+                ];
+
         $lordsTableLocalities =
             $this->permanentMeetingLocalities(
                 \App\Models\AttendanceSheet::TYPE_LORDS_TABLE
@@ -167,11 +188,59 @@
 
                                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                     {{ $selectedSheet->locality ?: 'No locality' }}
-                                    · {{ $selectedSession->dateTimeLabel('l, F d, Y') }}
+
+                                    @if (
+                                        $gridAvailable
+                                        && $this->attendanceView === 'grid'
+                                    )
+                                        · Attendance Grid
+                                        · {{ $sessions->count() }} meeting date(s)
+                                    @else
+                                        · {{ $selectedSession->dateTimeLabel('l, F d, Y') }}
+                                    @endif
                                 </p>
                             </div>
 
                             <div class="flex flex-wrap gap-2">
+                                @if ($gridAvailable)
+                                    <div
+                                        class="inline-flex overflow-hidden
+                                               rounded-lg border
+                                               border-gray-300
+                                               dark:border-gray-700"
+                                    >
+                                        <button
+                                            type="button"
+                                            wire:click="setAttendanceView('checklist')"
+                                            wire:loading.attr="disabled"
+                                            @class([
+                                                'px-3 py-1 text-xs font-bold transition',
+                                                'bg-emerald-600 text-white'
+                                                    => $this->attendanceView === 'checklist',
+                                                'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
+                                                    => $this->attendanceView !== 'checklist',
+                                            ])
+                                        >
+                                            Checklist
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            wire:click="setAttendanceView('grid')"
+                                            wire:loading.attr="disabled"
+                                            @class([
+                                                'border-l border-gray-300 px-3 py-1 text-xs font-bold transition dark:border-gray-700',
+                                                'bg-primary-600 text-white'
+                                                    => $this->attendanceView === 'grid',
+                                                'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
+                                                    => $this->attendanceView !== 'grid',
+                                            ])
+                                        >
+                                            Grid
+                                        </button>
+                                    </div>
+                                @endif
+
                                 <a
                                     href="{{ \App\Filament\Pages\AttendanceReports::getUrl() . '?sheetId=' . $selectedSheet->id }}"
                                     class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white hover:bg-primary-500"
@@ -179,17 +248,32 @@
                                     View Report
                                 </a>
 
-                                <span class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">
-                                    Present: {{ $recordCounts['present'] }}
-                                </span>
+                                @if (
+                                    ! $gridAvailable
+                                    || $this->attendanceView === 'checklist'
+                                )
+                                    <span class="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white">
+                                        Present: {{ $recordCounts['present'] }}
+                                    </span>
 
-                                <span class="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
-                                    Absent: {{ $recordCounts['absent'] }}
-                                </span>
+                                    <span class="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                                        Absent: {{ $recordCounts['absent'] }}
+                                    </span>
 
-                                <span class="rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
-                                    Participants: {{ $participantRows->count() }}
-                                </span>
+                                    <span class="rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
+                                        Participants: {{ $participantRows->count() }}
+                                    </span>
+                                @else
+                                    <span class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white">
+                                        Dates:
+                                        {{ $attendanceGrid['sessions']->count() }}
+                                    </span>
+
+                                    <span class="rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
+                                        People:
+                                        {{ $attendanceGrid['rows']->count() }}
+                                    </span>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -199,6 +283,10 @@
 
 
 
+@if (
+    ! $gridAvailable
+    || $this->attendanceView === 'checklist'
+)
 @if ($immichConfirmationCounts['detected'] > 0)
     <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -647,6 +735,367 @@
                             </form>
                         @endif
                     </div>
+@else
+    {{-- ============================================= --}}
+    {{-- Whole-Sheet Attendance Grid                  --}}
+    {{-- ============================================= --}}
+
+    <div
+        class="overflow-hidden rounded-2xl border
+               border-gray-200 bg-white shadow-sm
+               dark:border-gray-700 dark:bg-gray-900"
+    >
+        <div
+            class="flex flex-col gap-3 border-b
+                   border-gray-200 px-5 py-4
+                   dark:border-gray-700
+                   sm:flex-row sm:items-center
+                   sm:justify-between"
+        >
+            <div>
+                <h3
+                    class="text-lg font-bold
+                           text-gray-900 dark:text-white"
+                >
+                    Attendance Grid
+                </h3>
+
+                <p
+                    class="mt-1 text-xs
+                           text-gray-500 dark:text-gray-400"
+                >
+                    Whole-sheet attendance history.
+                    Click a meeting date to open it
+                    in Checklist View.
+                </p>
+            </div>
+
+            <div
+                class="flex flex-wrap gap-x-4 gap-y-1
+                       text-xs text-gray-500
+                       dark:text-gray-400"
+            >
+                <span>
+                    <strong
+                        class="text-emerald-600
+                               dark:text-emerald-400"
+                    >
+                        ✓
+                    </strong>
+                    Present
+                </span>
+
+                <span>
+                    <strong
+                        class="text-red-600
+                               dark:text-red-400"
+                    >
+                        A
+                    </strong>
+                    Absent
+                </span>
+
+                <span>
+                    <strong
+                        class="text-amber-600
+                               dark:text-amber-400"
+                    >
+                        ·
+                    </strong>
+                    Not recorded
+                </span>
+
+                <span>
+                    <strong
+                        class="text-gray-400
+                               dark:text-gray-500"
+                    >
+                        —
+                    </strong>
+                    Not on roster
+                </span>
+            </div>
+        </div>
+
+        @if ($attendanceGrid['rows']->isEmpty())
+            <div
+                class="p-8 text-center text-sm
+                       text-gray-500 dark:text-gray-400"
+            >
+                No participant or attendance history
+                is available for this Sheet yet.
+            </div>
+        @else
+            <div
+                wire:key="attendance-grid-{{ $selectedSheet->id }}"
+                class="max-h-[70vh] overflow-auto"
+            >
+                <table
+                    class="min-w-max border-collapse
+                           text-xs"
+                >
+                    <thead>
+                        <tr>
+                            <th
+                                class="sticky left-0 top-0 z-30
+                                       min-w-56 border
+                                       border-gray-200
+                                       bg-gray-100 px-3 py-3
+                                       text-left font-bold
+                                       text-gray-700
+                                       dark:border-gray-700
+                                       dark:bg-gray-800
+                                       dark:text-gray-100"
+                            >
+                                Participant
+                            </th>
+
+                            @foreach (
+                                $attendanceGrid['sessions']
+                                as $gridSession
+                            )
+                                <th
+                                    @class([
+                                        'sticky top-0 z-20 min-w-24 border border-gray-200 px-2 py-2 text-center font-semibold dark:border-gray-700',
+
+                                        'bg-primary-100 text-primary-900 dark:bg-primary-950 dark:text-primary-100'
+                                            =>
+                                                $selectedSession?->id
+                                                ===
+                                                $gridSession->id,
+
+                                        'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-100'
+                                            =>
+                                                $selectedSession?->id
+                                                !==
+                                                $gridSession->id,
+                                    ])
+                                >
+                                    <button
+                                        type="button"
+                                        wire:click="selectGridSession({{ $gridSession->id }})"
+                                        wire:loading.attr="disabled"
+                                        wire:target="selectGridSession({{ $gridSession->id }})"
+                                        class="block w-full rounded
+                                               hover:underline
+                                               focus:outline-none
+                                               focus:ring-2
+                                               focus:ring-primary-500"
+                                        title="Select {{
+                                            $gridSession
+                                                ->session_date
+                                                ->format(
+                                                    'F d, Y'
+                                                )
+                                        }}"
+                                    >
+                                        <span class="block">
+                                            {{
+                                                $gridSession
+                                                    ->session_date
+                                                    ->format('M d')
+                                            }}
+                                        </span>
+
+                                        <span
+                                            class="mt-0.5 block
+                                                   text-[10px]
+                                                   font-normal opacity-70"
+                                        >
+                                            {{
+                                                $gridSession
+                                                    ->session_date
+                                                    ->format('D')
+                                            }}
+                                        </span>
+                                    </button>
+                                </th>
+                            @endforeach
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (
+                            $attendanceGrid['rows']
+                            as $gridRow
+                        )
+                            @php
+                                $gridPerson =
+                                    $gridRow['person'];
+                            @endphp
+
+                            <tr>
+                                <th
+                                    class="sticky left-0 z-10
+                                           min-w-56 border
+                                           border-gray-200
+                                           bg-white px-3 py-2
+                                           text-left
+                                           dark:border-gray-700
+                                           dark:bg-gray-900"
+                                >
+                                    <p
+                                        class="font-semibold
+                                               text-gray-900
+                                               dark:text-white"
+                                    >
+                                        {{
+                                            $gridPerson
+                                                ?->display_name
+                                            ?? 'Unknown person'
+                                        }}
+                                    </p>
+
+                                    <p
+                                        class="mt-0.5 text-[10px]
+                                               font-normal
+                                               text-gray-400
+                                               dark:text-gray-500"
+                                    >
+                                        {{
+                                            $gridPerson
+                                                ?->locality
+                                            ?: 'No locality'
+                                        }}
+                                    </p>
+                                </th>
+
+                                @foreach (
+                                    $attendanceGrid['sessions']
+                                    as $gridSession
+                                )
+                                    @php
+                                        $gridCell =
+                                            $gridRow['cells'][
+                                                (int)
+                                                $gridSession->id
+                                            ]
+                                            ?? [
+                                                'status' =>
+                                                    'not_roster',
+
+                                                'source' =>
+                                                    null,
+
+                                                'immich_pending' =>
+                                                    false,
+                                            ];
+
+                                        $gridStatus =
+                                            $gridCell[
+                                                'status'
+                                            ];
+
+                                        $gridStatusLabel =
+                                            match (
+                                                $gridStatus
+                                            ) {
+                                                'present' =>
+                                                    'Present',
+
+                                                'absent' =>
+                                                    'Absent',
+
+                                                'not_recorded' =>
+                                                    'Active participant; attendance not recorded',
+
+                                                default =>
+                                                    'Not on roster for this meeting',
+                                            };
+                                    @endphp
+
+                                    <td
+                                        @class([
+                                            'relative border border-gray-200 px-3 py-3 text-center font-bold dark:border-gray-700',
+
+                                            'ring-inset ring-1 ring-primary-300 dark:ring-primary-800'
+                                                =>
+                                                    $selectedSession?->id
+                                                    ===
+                                                    $gridSession->id,
+
+                                            'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                                =>
+                                                    $gridStatus
+                                                    ===
+                                                    'present',
+
+                                            'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
+                                                =>
+                                                    $gridStatus
+                                                    ===
+                                                    'absent',
+
+                                            'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300'
+                                                =>
+                                                    $gridStatus
+                                                    ===
+                                                    'not_recorded',
+
+                                            'bg-gray-50 text-gray-300 dark:bg-gray-950 dark:text-gray-600'
+                                                =>
+                                                    $gridStatus
+                                                    ===
+                                                    'not_roster',
+                                        ])
+                                        title="{{ $gridStatusLabel }}"
+                                    >
+                                        @if (
+                                            $gridStatus
+                                            === 'present'
+                                        )
+                                            <span
+                                                class="text-base"
+                                            >
+                                                ✓
+                                            </span>
+
+                                            @if (
+                                                $gridCell[
+                                                    'immich_pending'
+                                                ]
+                                            )
+                                                <span
+                                                    class="absolute
+                                                           right-1 top-1
+                                                           h-2 w-2
+                                                           rounded-full
+                                                           bg-amber-500"
+                                                    title="Immich attendance pending review"
+                                                ></span>
+                                            @endif
+                                        @elseif (
+                                            $gridStatus
+                                            === 'absent'
+                                        )
+                                            <span>
+                                                A
+                                            </span>
+                                        @elseif (
+                                            $gridStatus
+                                            === 'not_recorded'
+                                        )
+                                            <span
+                                                class="text-lg
+                                                       leading-none"
+                                            >
+                                                ·
+                                            </span>
+                                        @else
+                                            <span>
+                                                —
+                                            </span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+@endif
                 @endif
             </div>
         </div>
@@ -657,6 +1106,105 @@
 
 
 <script>
+/*
+ * Check Attendance can change sheetId/sessionId through Livewire
+ * without re-rendering Filament's sidebar navigation.
+ *
+ * Therefore the sidebar's Attendance Sheets href may still contain
+ * the Session that existed when this page was initially rendered.
+ *
+ * Just before that navigation is followed, synchronize it with the
+ * CURRENT browser URL.
+ */
+const attendanceSheetsNavigationUrl =
+    @json(
+        \App\Filament\Pages\AttendanceSheets::getUrl()
+    );
+
+const attendanceSheetsNavigationPath =
+    new URL(
+        attendanceSheetsNavigationUrl,
+        window.location.origin
+    ).pathname;
+
+document.addEventListener(
+    'click',
+    (event) => {
+        const link =
+            event.target.closest('a[href]');
+
+        if (! link) {
+            return;
+        }
+
+        let destination;
+
+        try {
+            destination =
+                new URL(
+                    link.href,
+                    window.location.origin
+                );
+        } catch {
+            return;
+        }
+
+        if (
+            destination.pathname
+            !== attendanceSheetsNavigationPath
+        ) {
+            return;
+        }
+
+        const current =
+            new URL(window.location.href);
+
+        const sheetId =
+            current.searchParams.get(
+                'sheetId'
+            );
+
+        const sessionId =
+            current.searchParams.get(
+                'sessionId'
+            );
+
+        if (sheetId) {
+            destination.searchParams.set(
+                'sheetId',
+                sheetId
+            );
+        } else {
+            destination.searchParams.delete(
+                'sheetId'
+            );
+        }
+
+        if (sessionId) {
+            destination.searchParams.set(
+                'sessionId',
+                sessionId
+            );
+        } else {
+            destination.searchParams.delete(
+                'sessionId'
+            );
+        }
+
+        /*
+         * "view=grid" belongs only to Check Attendance.
+         * Attendance Sheets receives only Sheet + Session context.
+         */
+        destination.searchParams.delete(
+            'view'
+        );
+
+        link.href =
+            destination.toString();
+    },
+    true
+);
+
 document.addEventListener('DOMContentLoaded', () => {
     const searchUrl = @json(
         route(
