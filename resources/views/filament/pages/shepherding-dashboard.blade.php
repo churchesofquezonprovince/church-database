@@ -326,6 +326,68 @@
                             Contact Nickname
                         </span>
                     </label>
+
+                      <label
+                          class="inline-flex min-h-10 cursor-pointer
+                                 items-center gap-3.5 rounded-lg
+                                 border border-gray-300 bg-white
+                                 px-3 py-2 text-sm font-medium
+                                 text-gray-700 shadow-sm
+                                 transition hover:bg-gray-50
+                                 dark:border-gray-700
+                                 dark:bg-gray-900
+                                 dark:text-gray-200
+                                 dark:hover:bg-gray-800"
+                      >
+                          <input
+                              type="checkbox"
+                              wire:model.live="copyActivityContents"
+                              class="h-4 w-4 shrink-0 rounded
+                                     border-gray-300
+                                     text-primary-600
+                                     focus:ring-primary-500
+                                     dark:border-gray-600
+                                     dark:bg-gray-900"
+                          >
+
+                          <span
+                              class="whitespace-nowrap"
+                              style="margin-left: 0.5rem;"
+                          >
+                              Activity Contents
+                          </span>
+                      </label>
+
+                      <label
+                          @class([
+                              'inline-flex min-h-10 items-center gap-3.5 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm transition',
+                              'cursor-pointer border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'
+                                  => $copyActivityContents,
+                              'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-600'
+                                  => ! $copyActivityContents,
+                          ])
+                      >
+                          <input
+                              type="checkbox"
+                              wire:model.live="copyContentDetails"
+                              @disabled(! $copyActivityContents)
+                              class="h-4 w-4 shrink-0 rounded
+                                     border-gray-300
+                                     text-primary-600
+                                     focus:ring-primary-500
+                                     disabled:cursor-not-allowed
+                                     disabled:opacity-50
+                                     dark:border-gray-600
+                                     dark:bg-gray-900"
+                          >
+
+                          <span
+                              class="whitespace-nowrap"
+                              style="margin-left: 0.5rem;"
+                          >
+                              Content Details
+                          </span>
+                      </label>
                 </div>
 
                 @if (blank($shepherdingWeekCopyText))

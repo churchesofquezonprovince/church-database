@@ -33,6 +33,10 @@ class ShepherdingDashboard extends Page
 
     public bool $copyContactNickname = false;
 
+    public bool $copyActivityContents = false;
+
+    public bool $copyContentDetails = false;
+
     public bool $copyNotes = true;
 
     public array $weeklyGow = [];
@@ -1280,6 +1284,14 @@ class ShepherdingDashboard extends Page
 
                     'activityTypes',
 
+                    'morningRevivalWeek.publication',
+
+                    'bibleReadings',
+
+                    'hymns.bookEntries.hymnBook',
+
+                    'hymnAdditionRequests',
+
                     'ministryLessons.book',
 
                     'participants',
@@ -1401,6 +1413,13 @@ class ShepherdingDashboard extends Page
 
             $groupNumber++;
 
+              /*
+               * Blank line between numbered Shepherding groups.
+               */
+              if ($groupNumber > 1) {
+                  $lines[] = '';
+              }
+
             $locality =
                 trim(
                     (string) (
@@ -1438,7 +1457,6 @@ class ShepherdingDashboard extends Page
             }
 
             $lines[] = $heading;
-            $lines[] = '';
 
             foreach (
                 $groupRecords->values()
@@ -1677,6 +1695,19 @@ class ShepherdingDashboard extends Page
 
                 $lines[] = $mainLine;
 
+                  if ($this->copyActivityContents) {
+                      foreach (
+                          $this
+                              ->shepherdingCopyActivityContentLines(
+                                  $record
+                              )
+                          as $activityContentLine
+                      ) {
+                          $lines[] =
+                              $activityContentLine;
+                      }
+                  }
+
                 /*
                  * Preserve the exact line structure of Notes.
                  *
@@ -1748,17 +1779,8 @@ class ShepherdingDashboard extends Page
                     }
                 }
 
-                /*
-                 * Separate Shepherding records visually,
-                 * especially when Notes span multiple lines.
-                 */
-                $lines[] = '';
             }
 
-            /*
-             * Leave one blank line between numbered groups.
-             */
-            $lines[] = '';
         }
 
         return rtrim(
@@ -1768,6 +1790,467 @@ class ShepherdingDashboard extends Page
             )
         );
     }
+
+      private function shepherdingCopyActivityContentLines(
+          ShepherdingContact $record
+      ): array {
+          $lines = [];
+
+
+          /*
+           * Bible Reading
+           */
+          $bibleReadings =
+              $record
+                  ->bibleReadings
+                  ->map(
+                      fn ($reading): string =>
+                          trim(
+                              $reading
+                                  ->referenceLabel()
+                          )
+                  )
+                  ->filter()
+                  ->unique()
+                  ->values();
+
+          if ($bibleReadings->isNotEmpty()) {
+              $lines[] =
+                  '- Bible Reading: '
+                  . $bibleReadings
+                      ->implode('; ');
+          }
+
+
+          /*
+           * Morning Revival
+           */
+          $week =
+              $record->morningRevivalWeek;
+
+          if ($week) {
+              $day =
+                  (int) (
+                      $record
+                          ->morning_revival_day
+                      ?? 0
+                  );
+
+              if ($this->copyContentDetails) {
+                  $parts = [];
+
+                  $publication =
+                      $week->publication;
+
+                  $publicationLabel =
+                      trim(
+                          (string) (
+                              $publication?->source_title
+                              ?: $publication?->general_subject
+                              ?: ''
+                          )
+                      );
+
+                  if ($publicationLabel !== '') {
+                      $parts[] =
+                          $publicationLabel;
+                  }
+
+                  $weekNumber =
+                      (int) (
+                          $week->week_number
+                          ?? 0
+                      );
+
+                  $weekTitle =
+                      trim(
+                          (string) (
+                              $week->title
+                              ?? ''
+                          )
+                      );
+
+                  $weekLabel = '';
+
+                  if ($weekNumber > 0) {
+                      $weekLabel =
+                          'Week '
+                          . $weekNumber;
+                  }
+
+                  if ($weekTitle !== '') {
+                      $weekLabel .=
+                          (
+                              $weekLabel !== ''
+                                  ? ': '
+                                  : ''
+                          )
+                          . $weekTitle;
+                  }
+
+                  if ($weekLabel !== '') {
+                      $parts[] =
+                          $weekLabel;
+                  }
+
+                  if (
+                      $day >= 1
+                      && $day <= 6
+                  ) {
+                      $parts[] =
+                          'Day '
+                          . $day;
+                  }
+
+                  if ($parts !== []) {
+                      $lines[] =
+                          '- MR: '
+                          . implode(
+                              ' · ',
+                              $parts
+                          );
+                  }
+              } elseif (
+                  $day >= 1
+                  && $day <= 6
+              ) {
+                  $lines[] =
+                      '- MR: Day '
+                      . $day;
+              }
+          }
+
+
+          /*
+           * Hymn Singing
+           */
+          $hymnLabels =
+              $record
+                  ->hymns
+                  ->map(
+                      function ($hymn): string {
+                          $title =
+                              trim(
+                                  (string) (
+                                      $hymn->title
+                                      ?? ''
+                                  )
+                              );
+
+                          /*
+                           * Compact Activity Contents:
+                           * title only.
+                           */
+                          if (
+                              ! $this->copyContentDetails
+                          ) {
+                              return $title;
+                          }
+
+                          /*
+                           * First use a verified Hymn Book
+                           * membership and number.
+                           */
+                          $numbers =
+                              $hymn
+                                  ->bookEntries
+                                  ->map(
+                                      function ($entry): string {
+                                          $number =
+                                              trim(
+                                                  (string) (
+                                                      $entry->number
+                                                      ?? ''
+                                                  )
+                                              );
+
+                                          if ($number === '') {
+                                              return '';
+                                          }
+
+                                          $book =
+                                              $entry->hymnBook;
+
+                                          $bookName =
+                                              trim(
+                                                  (string) (
+                                                      $book?->name
+                                                      ?? ''
+                                                  )
+                                              );
+
+                                          $bookSlug =
+                                              trim(
+                                                  (string) (
+                                                      $book?->slug
+                                                      ?? ''
+                                                  )
+                                              );
+
+                                          if (
+                                              $bookSlug
+                                                  === 'english_hymnal'
+                                              || strcasecmp(
+                                                  $bookName,
+                                                  'Hymnal'
+                                              ) === 0
+                                          ) {
+                                              return 'Hymn '
+                                                  . $number;
+                                          }
+
+                                          if ($bookName !== '') {
+                                              return $bookName
+                                                  . ' '
+                                                  . $number;
+                                          }
+
+                                          return 'Hymn '
+                                              . $number;
+                                      }
+                                  )
+                                  ->filter()
+                                  ->unique()
+                                  ->values();
+
+                          /*
+                           * If the Songbase Hymn has no verified
+                           * book number, try a matched classic
+                           * Hymnal.net record.
+                           */
+                          if ($numbers->isEmpty()) {
+                              $number =
+                                  \App\Models\HymnalNetEntry::query()
+                                      ->where(
+                                          'matched_hymn_id',
+                                          $hymn->id
+                                      )
+                                      ->where(
+                                          'collection_code',
+                                          'h'
+                                      )
+                                      ->whereNotNull(
+                                          'number'
+                                      )
+                                      ->orderBy('id')
+                                      ->value('number');
+
+                              $number =
+                                  trim(
+                                      (string) (
+                                          $number
+                                          ?? ''
+                                      )
+                                  );
+
+                              if ($number !== '') {
+                                  $numbers->push(
+                                      'Hymn '
+                                      . $number
+                                  );
+                              }
+                          }
+
+                          $numberText =
+                              $numbers
+                                  ->unique()
+                                  ->values()
+                                  ->implode(' / ');
+
+                          if (
+                              $numberText !== ''
+                              && $title !== ''
+                          ) {
+                              return $numberText
+                                  . ' — '
+                                  . $title;
+                          }
+
+                          return $title !== ''
+                              ? $title
+                              : $numberText;
+                      }
+                  );
+
+
+          /*
+           * Pending / manually entered Hymns.
+           */
+          $requestedHymns =
+              $record
+                  ->hymnAdditionRequests
+                  ->map(
+                      function ($request): string {
+                          $title =
+                              trim(
+                                  (string) (
+                                      $request->title
+                                      ?? ''
+                                  )
+                              );
+
+                          if (
+                              ! $this->copyContentDetails
+                          ) {
+                              return $title;
+                          }
+
+                          $book =
+                              trim(
+                                  (string) (
+                                      $request
+                                          ->book_name
+                                      ?? ''
+                                  )
+                              );
+
+                          $number =
+                              trim(
+                                  (string) (
+                                      $request
+                                          ->hymn_number
+                                      ?? ''
+                                  )
+                              );
+
+                          $reference = '';
+
+                          if (
+                              $book !== ''
+                              && $number !== ''
+                          ) {
+                              $reference =
+                                  $book
+                                  . ' '
+                                  . $number;
+                          } elseif ($number !== '') {
+                              $reference =
+                                  'Hymn '
+                                  . $number;
+                          } elseif ($book !== '') {
+                              $reference =
+                                  $book;
+                          }
+
+                          if (
+                              $reference !== ''
+                              && $title !== ''
+                          ) {
+                              return $reference
+                                  . ' — '
+                                  . $title;
+                          }
+
+                          return $title !== ''
+                              ? $title
+                              : $reference;
+                      }
+                  );
+
+          $hymnLabels =
+              $hymnLabels
+                  ->concat(
+                      $requestedHymns
+                  )
+                  ->filter()
+                  ->unique()
+                  ->values();
+
+          if ($hymnLabels->isNotEmpty()) {
+              $lines[] =
+                  '- HS: '
+                  . $hymnLabels
+                      ->implode('; ');
+          }
+
+
+          /*
+           * Ministry
+           */
+          $ministryLabels =
+              $record
+                  ->ministryLessons
+                  ->map(
+                      function ($lesson): string {
+                          $book =
+                              trim(
+                                  (string) (
+                                      $lesson
+                                          ->book
+                                          ?->code
+                                      ?: $lesson
+                                          ->book
+                                          ?->short_title
+                                      ?: $lesson
+                                          ->book
+                                          ?->title
+                                      ?: ''
+                                  )
+                              );
+
+                          $lessonCode =
+                              trim(
+                                  (string) (
+                                      $lesson->code
+                                      ?? ''
+                                  )
+                              );
+
+                          $lessonTitle =
+                              trim(
+                                  (string) (
+                                      $lesson->title
+                                      ?? ''
+                                  )
+                              );
+
+                          $lesson = '';
+
+                          if (
+                              $lessonCode !== ''
+                              && $lessonTitle !== ''
+                          ) {
+                              $lesson =
+                                  $lessonCode
+                                  . ' — '
+                                  . $lessonTitle;
+                          } elseif ($lessonTitle !== '') {
+                              $lesson =
+                                  $lessonTitle;
+                          } else {
+                              $lesson =
+                                  $lessonCode;
+                          }
+
+                          if (
+                              $book !== ''
+                              && $lesson !== ''
+                          ) {
+                              return $book
+                                  . ' · '
+                                  . $lesson;
+                          }
+
+                          return $lesson !== ''
+                              ? $lesson
+                              : $book;
+                      }
+                  )
+                  ->filter()
+                  ->unique()
+                  ->values();
+
+          if ($ministryLabels->isNotEmpty()) {
+              $lines[] =
+                  '- Ministry: '
+                  . $ministryLabels
+                      ->implode('; ');
+          }
+
+
+          return $lines;
+      }
+
 
     private function shepherdingCopyPersonName(
         $person,
