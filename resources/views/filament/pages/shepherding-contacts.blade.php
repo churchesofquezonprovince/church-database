@@ -1647,6 +1647,10 @@
                     {{-- ============================= --}}
                     @if ($this->isBibleReadingSelected())
                         <section
+                            data-rvbible-section
+                            style="position: relative;
+                                   z-index: 100;
+                                   overflow: visible;"
                             class="rounded-xl border
                                    border-emerald-200
                                    bg-emerald-50/40 p-4
@@ -1726,7 +1730,7 @@
                                             class="flex items-start
                                                    gap-2"
                                         >
-                                            <div class="min-w-0 flex-1">
+                                            <div class="relative min-w-0 flex-1" data-rvbible-autocomplete style="z-index: 110;">
                                                 <label
                                                     class="mb-1 block
                                                            text-xs
@@ -1740,8 +1744,9 @@
 
                                                 <input
                                                     type="text"
+                                                    data-rvbible-search-input
                                                     wire:model.blur="bibleReadingRows.{{ $bibleReadingIndex }}.reference"
-                                                    placeholder="Example: John 3:16-21"
+                                                    placeholder="Reference or words: John 3:16 or high priest who cannot"
                                                     autocomplete="off"
                                                     class="block w-full
                                                            rounded-lg
@@ -1758,6 +1763,95 @@
                                                            dark:bg-gray-900
                                                            dark:text-gray-100"
                                                 >
+
+                                                <div
+                                                    class="mt-2 flex
+                                                           flex-wrap
+                                                           items-center
+                                                           gap-x-4 gap-y-2
+                                                           text-xs
+                                                           text-gray-600
+                                                           dark:text-gray-300"
+                                                >
+                                                    <label
+                                                        class="inline-flex
+                                                               cursor-pointer
+                                                               items-center
+                                                               gap-1.5"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            data-rvbible-match-case
+                                                            class="rounded
+                                                                   border-gray-300
+                                                                   text-emerald-600
+                                                                   focus:ring-emerald-500
+                                                                   dark:border-gray-700
+                                                                   dark:bg-gray-900"
+                                                        >
+
+                                                        <span>
+                                                            Match case
+                                                        </span>
+                                                    </label>
+
+                                                    <label
+                                                        class="inline-flex
+                                                               cursor-pointer
+                                                               items-center
+                                                               gap-1.5"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            data-rvbible-whole-words
+                                                            checked
+                                                            class="rounded
+                                                                   border-gray-300
+                                                                   text-emerald-600
+                                                                   focus:ring-emerald-500
+                                                                   dark:border-gray-700
+                                                                   dark:bg-gray-900"
+                                                        >
+
+                                                        <span>
+                                                            Whole words
+                                                        </span>
+                                                    </label>
+
+                                                    <span
+                                                        class="text-gray-400
+                                                               dark:text-gray-500"
+                                                    >
+                                                        Verses only
+                                                    </span>
+                                                </div>
+
+                                                <div
+                                                    data-rvbible-search-panel
+                                                    style="z-index: 120;"
+                                                    class="absolute left-0
+                                                           right-0 mt-1
+                                                           hidden overflow-hidden
+                                                           rounded-lg border
+                                                           border-gray-200
+                                                           bg-white shadow-xl
+                                                           dark:border-gray-700
+                                                           dark:bg-gray-900"
+                                                >
+                                                    <div
+                                                        data-rvbible-search-status
+                                                        class="hidden px-3 py-2
+                                                               text-xs
+                                                               text-gray-500
+                                                               dark:text-gray-400"
+                                                    ></div>
+
+                                                    <div
+                                                        data-rvbible-search-results
+                                                        class="max-h-80
+                                                               overflow-y-auto"
+                                                    ></div>
+                                                </div>
 
                                                 @error(
                                                     "bibleReadingRows.{$bibleReadingIndex}.reference"
@@ -4012,4 +4106,842 @@
             </div>
         </div>
     </div>
+
+    <style>
+        /*
+         * RVBible autocomplete results are generated dynamically.
+         * Explicit CSS here avoids depending on Tailwind scanning
+         * JavaScript-built hover/focus class names.
+         */
+        [data-rvbible-result] {
+            background: #ffffff;
+            color: #374151;
+        }
+
+        [data-rvbible-result]:hover,
+        [data-rvbible-result]:focus {
+            background: #ecfdf5 !important;
+        }
+
+        html.dark [data-rvbible-result],
+        .dark [data-rvbible-result] {
+            background: #111827;
+            color: #d1d5db;
+        }
+
+        html.dark [data-rvbible-result]:hover,
+        html.dark [data-rvbible-result]:focus,
+        .dark [data-rvbible-result]:hover,
+        .dark [data-rvbible-result]:focus {
+            background: #1f2937 !important;
+            color: #f9fafb !important;
+        }
+
+        html.dark [data-rvbible-result]:hover div,
+        html.dark [data-rvbible-result]:focus div,
+        .dark [data-rvbible-result]:hover div,
+        .dark [data-rvbible-result]:focus div {
+            color: inherit;
+        }
+    </style>
+
+    {{-- ============================================= --}}
+    {{-- Recovery Version Bible search bridge         --}}
+    {{-- ============================================= --}}
+    @php
+        $recoveryVersionBibleUrl =
+            rtrim(
+                (string) config(
+                    'bible.recovery_version_url'
+                ),
+                '/'
+            );
+    @endphp
+
+    @if ($recoveryVersionBibleUrl !== '')
+        <div
+            wire:ignore
+            class="hidden"
+            aria-hidden="true"
+        >
+            <iframe
+                data-rvbible-search-bridge
+                src="{{ $recoveryVersionBibleUrl }}/search-bridge.htm"
+                title="Recovery Version Bible Search"
+                tabindex="-1"
+                onload="this.dataset.rvbibleLoaded = '1'"
+            ></iframe>
+        </div>
+    @endif
+
+    @script
+    <script>
+        (() => {
+            function createRecoveryVersionAutocomplete() {
+                const state = {
+                    iframe: null,
+                    origin: null,
+                    ready: false,
+                    requestCounter: 0,
+                    timers: new WeakMap(),
+                    latestRequest: new WeakMap(),
+                    requests: new Map(),
+                    pending: new Map(),
+                };
+
+                function parts(wrapper) {
+                    return {
+                        panel:
+                            wrapper?.querySelector(
+                                '[data-rvbible-search-panel]'
+                            ),
+                        status:
+                            wrapper?.querySelector(
+                                '[data-rvbible-search-status]'
+                            ),
+                        results:
+                            wrapper?.querySelector(
+                                '[data-rvbible-search-results]'
+                            ),
+                    };
+                }
+
+                function close(wrapper) {
+                    const ui = parts(wrapper);
+
+                    if (!ui.panel) {
+                        return;
+                    }
+
+                    ui.panel.classList.add('hidden');
+                }
+
+                function closeAll(except = null) {
+                    document
+                        .querySelectorAll(
+                            '[data-rvbible-autocomplete]'
+                        )
+                        .forEach((wrapper) => {
+                            if (wrapper !== except) {
+                                close(wrapper);
+                            }
+                        });
+                }
+
+                function clear(wrapper) {
+                    const ui = parts(wrapper);
+
+                    if (ui.results) {
+                        ui.results.replaceChildren();
+                    }
+
+                    if (ui.status) {
+                        ui.status.textContent = '';
+                        ui.status.classList.add('hidden');
+                    }
+
+                    close(wrapper);
+                }
+
+                function showStatus(
+                    wrapper,
+                    message
+                ) {
+                    const ui = parts(wrapper);
+
+                    if (!ui.panel || !ui.status) {
+                        return;
+                    }
+
+                    if (ui.results) {
+                        ui.results.replaceChildren();
+                    }
+
+                    ui.status.textContent = message;
+                    ui.status.classList.remove('hidden');
+                    ui.panel.classList.remove('hidden');
+                }
+
+                function connect() {
+                    const iframe =
+                        document.querySelector(
+                            '[data-rvbible-search-bridge]'
+                        );
+
+                    if (!iframe) {
+                        state.iframe = null;
+                        state.origin = null;
+                        state.ready = false;
+
+                        return false;
+                    }
+
+                    if (state.iframe !== iframe) {
+                        state.iframe = iframe;
+
+                        try {
+                            state.origin =
+                                new URL(
+                                    iframe.src,
+                                    window.location.href
+                                ).origin;
+                        } catch (error) {
+                            state.origin = null;
+                        }
+
+                        state.ready =
+                            iframe.dataset.rvbibleLoaded
+                            === '1';
+
+                        iframe.addEventListener(
+                            'load',
+                            () => {
+                                if (
+                                    state.iframe
+                                    !== iframe
+                                ) {
+                                    return;
+                                }
+
+                                state.ready = true;
+                                flushPending();
+                            }
+                        );
+                    }
+
+                    return Boolean(
+                        state.iframe
+                        && state.origin
+                    );
+                }
+
+                function flushPending() {
+                    const pending =
+                        Array.from(
+                            state.pending.entries()
+                        );
+
+                    state.pending.clear();
+
+                    pending.forEach(
+                        ([input, query]) => {
+                            if (
+                                !document.contains(input)
+                                || input.value.trim()
+                                    !== query
+                            ) {
+                                return;
+                            }
+
+                            search(input, query);
+                        }
+                    );
+                }
+
+                function search(
+                    input,
+                    query
+                ) {
+                    const wrapper =
+                        input.closest(
+                            '[data-rvbible-autocomplete]'
+                        );
+
+                    if (!wrapper) {
+                        return;
+                    }
+
+                    if (!connect()) {
+                        showStatus(
+                            wrapper,
+                            'Recovery Version search '
+                            + 'is unavailable.'
+                        );
+
+                        return;
+                    }
+
+                    if (!state.ready) {
+                        state.pending.set(
+                            input,
+                            query
+                        );
+
+                        showStatus(
+                            wrapper,
+                            'Loading Recovery Version '
+                            + 'search...'
+                        );
+
+                        return;
+                    }
+
+                    const id =
+                        String(
+                            ++state.requestCounter
+                        );
+
+                    state.latestRequest.set(
+                        input,
+                        id
+                    );
+
+                    state.requests.set(
+                        id,
+                        {
+                            input,
+                            query,
+                        }
+                    );
+
+                    showStatus(
+                        wrapper,
+                        'Searching Recovery Version...'
+                    );
+
+                    const matchCase =
+                        Boolean(
+                            wrapper.querySelector(
+                                '[data-rvbible-match-case]'
+                            )?.checked
+                        );
+
+                    const wholeWordsControl =
+                        wrapper.querySelector(
+                            '[data-rvbible-whole-words]'
+                        );
+
+                    const wholeWords =
+                        wholeWordsControl
+                            ? wholeWordsControl.checked
+                            : true;
+
+                    state.iframe.contentWindow
+                        .postMessage(
+                            {
+                                type:
+                                    'rvbible:search',
+                                id,
+                                query,
+                                limit: 10,
+                                matchCase,
+                                wholeWords,
+                            },
+                            state.origin
+                        );
+                }
+
+                function queueSearch(input) {
+                    const wrapper =
+                        input.closest(
+                            '[data-rvbible-autocomplete]'
+                        );
+
+                    if (!wrapper) {
+                        return;
+                    }
+
+                    const oldTimer =
+                        state.timers.get(input);
+
+                    if (oldTimer) {
+                        clearTimeout(oldTimer);
+                    }
+
+                    const query =
+                        input.value.trim();
+
+                    /*
+                     * A reference such as John 3:16 is handled by
+                     * the existing Phase 29M reference parser.
+                     *
+                     * Full-text autocomplete is for remembered
+                     * Bible words/phrases.
+                     */
+                    if (
+                        /\d/.test(query)
+                        || query
+                            .replace(
+                                /[^a-zA-Z]/g,
+                                ''
+                            )
+                            .length < 3
+                    ) {
+                        state.pending.delete(input);
+                        clear(wrapper);
+
+                        return;
+                    }
+
+                    closeAll(wrapper);
+
+                    const timer =
+                        setTimeout(
+                            () => {
+                                if (
+                                    document.contains(
+                                        input
+                                    )
+                                    && input.value.trim()
+                                        === query
+                                ) {
+                                    search(
+                                        input,
+                                        query
+                                    );
+                                }
+                            },
+                            350
+                        );
+
+                    state.timers.set(
+                        input,
+                        timer
+                    );
+                }
+
+                function renderResults(
+                    input,
+                    query,
+                    results
+                ) {
+                    const wrapper =
+                        input.closest(
+                            '[data-rvbible-autocomplete]'
+                        );
+
+                    if (
+                        !wrapper
+                        || input.value.trim()
+                            !== query
+                    ) {
+                        return;
+                    }
+
+                    const ui = parts(wrapper);
+
+                    if (
+                        !ui.panel
+                        || !ui.status
+                        || !ui.results
+                    ) {
+                        return;
+                    }
+
+                    ui.results.replaceChildren();
+
+                    if (
+                        !Array.isArray(results)
+                        || results.length === 0
+                    ) {
+                        ui.status.textContent =
+                            'No matching Bible verses found.';
+
+                        ui.status.classList
+                            .remove('hidden');
+
+                        ui.panel.classList
+                            .remove('hidden');
+
+                        return;
+                    }
+
+                    ui.status.classList.add(
+                        'hidden'
+                    );
+
+                    results.forEach(
+                        (result) => {
+                            const button =
+                                document.createElement(
+                                    'button'
+                                );
+
+                            button.type = 'button';
+
+                            button.setAttribute(
+                                'data-rvbible-result',
+                                ''
+                            );
+
+                            button.dataset
+                                .rvbibleReference =
+                                String(
+                                    result.reference
+                                    || ''
+                                );
+
+                            button.className =
+                                'block w-full '
+                                + 'border-b '
+                                + 'border-gray-100 '
+                                + 'px-3 py-2 '
+                                + 'text-left '
+                                + 'last:border-b-0 '
+                                + 'focus:outline-none '
+                                + 'dark:border-gray-800';
+
+                            const reference =
+                                document.createElement(
+                                    'div'
+                                );
+
+                            reference.className =
+                                'text-xs font-bold '
+                                + 'text-emerald-700 '
+                                + 'dark:text-emerald-300';
+
+                            reference.textContent =
+                                String(
+                                    result.reference
+                                    || ''
+                                );
+
+                            const verse =
+                                document.createElement(
+                                    'div'
+                                );
+
+                            verse.className =
+                                'mt-1 text-xs '
+                                + 'leading-5 '
+                                + 'text-gray-600 '
+                                + 'dark:text-gray-300';
+
+                            let verseText =
+                                String(
+                                    result.text
+                                    || ''
+                                );
+
+                            if (
+                                verseText.length
+                                > 240
+                            ) {
+                                verseText =
+                                    verseText
+                                        .slice(
+                                            0,
+                                            237
+                                        )
+                                    + '...';
+                            }
+
+                            verse.textContent =
+                                verseText;
+
+                            button.append(
+                                reference,
+                                verse
+                            );
+
+                            ui.results.appendChild(
+                                button
+                            );
+                        }
+                    );
+
+                    ui.panel.classList
+                        .remove('hidden');
+                }
+
+                function chooseResult(button) {
+                    const wrapper =
+                        button.closest(
+                            '[data-rvbible-autocomplete]'
+                        );
+
+                    const input =
+                        wrapper?.querySelector(
+                            '[data-rvbible-search-input]'
+                        );
+
+                    const reference =
+                        button.dataset
+                            .rvbibleReference
+                        || '';
+
+                    if (
+                        !wrapper
+                        || !input
+                        || !reference
+                    ) {
+                        return;
+                    }
+
+                    input.value = reference;
+
+                    /*
+                     * Inform Livewire that the DOM value changed.
+                     * The existing wire:model.blur remains the
+                     * source of truth.
+                     */
+                    input.dispatchEvent(
+                        new Event(
+                            'input',
+                            {
+                                bubbles: true,
+                            }
+                        )
+                    );
+
+                    input.dispatchEvent(
+                        new Event(
+                            'change',
+                            {
+                                bubbles: true,
+                            }
+                        )
+                    );
+
+                    clear(wrapper);
+
+                    /*
+                     * Trigger the existing wire:model.blur update.
+                     */
+                    input.blur();
+                }
+
+                window.addEventListener(
+                    'message',
+                    (event) => {
+                        if (!connect()) {
+                            return;
+                        }
+
+                        if (
+                            event.origin
+                                !== state.origin
+                            || event.source
+                                !== state.iframe
+                                    .contentWindow
+                        ) {
+                            return;
+                        }
+
+                        const message =
+                            event.data;
+
+                        if (!message) {
+                            return;
+                        }
+
+                        if (
+                            message.type
+                            === 'rvbible:ready'
+                        ) {
+                            state.ready = true;
+                            flushPending();
+
+                            return;
+                        }
+
+                        if (
+                            message.type
+                                !== 'rvbible:results'
+                            && message.type
+                                !== 'rvbible:error'
+                        ) {
+                            return;
+                        }
+
+                        const id =
+                            String(
+                                message.id
+                                || ''
+                            );
+
+                        const request =
+                            state.requests.get(
+                                id
+                            );
+
+                        state.requests.delete(
+                            id
+                        );
+
+                        if (
+                            !request
+                            || !document.contains(
+                                request.input
+                            )
+                            || state.latestRequest
+                                .get(
+                                    request.input
+                                ) !== id
+                        ) {
+                            return;
+                        }
+
+                        const wrapper =
+                            request.input.closest(
+                                '[data-rvbible-autocomplete]'
+                            );
+
+                        if (!wrapper) {
+                            return;
+                        }
+
+                        if (
+                            message.type
+                            === 'rvbible:error'
+                        ) {
+                            showStatus(
+                                wrapper,
+                                message.message
+                                || (
+                                    'Recovery Version '
+                                    + 'search failed.'
+                                )
+                            );
+
+                            return;
+                        }
+
+                        renderResults(
+                            request.input,
+                            request.query,
+                            message.results
+                        );
+                    }
+                );
+
+                document.addEventListener(
+                    'input',
+                    (event) => {
+                        const input =
+                            event.target.closest?.(
+                                '[data-rvbible-search-input]'
+                            );
+
+                        if (!input) {
+                            return;
+                        }
+
+                        queueSearch(input);
+                    }
+                );
+
+                /*
+                 * Keep focus on the Passage input while a result
+                 * is being clicked. That avoids losing the
+                 * selection during the browser's focus change.
+                 */
+                /*
+                 * Re-run the current search immediately when one
+                 * of the original RVBible-style search options
+                 * changes.
+                 */
+                document.addEventListener(
+                    'change',
+                    (event) => {
+                        const option =
+                            event.target.closest?.(
+                                '[data-rvbible-match-case], '
+                                + '[data-rvbible-whole-words]'
+                            );
+
+                        if (!option) {
+                            return;
+                        }
+
+                        const wrapper =
+                            option.closest(
+                                '[data-rvbible-autocomplete]'
+                            );
+
+                        const input =
+                            wrapper?.querySelector(
+                                '[data-rvbible-search-input]'
+                            );
+
+                        if (
+                            input
+                            && input.value.trim()
+                        ) {
+                            queueSearch(input);
+                        }
+                    }
+                );
+
+                document.addEventListener(
+                    'mousedown',
+                    (event) => {
+                        if (
+                            event.target.closest?.(
+                                '[data-rvbible-result]'
+                            )
+                        ) {
+                            event.preventDefault();
+                        }
+                    }
+                );
+
+                document.addEventListener(
+                    'click',
+                    (event) => {
+                        const result =
+                            event.target.closest?.(
+                                '[data-rvbible-result]'
+                            );
+
+                        if (result) {
+                            chooseResult(result);
+
+                            return;
+                        }
+
+                        if (
+                            !event.target.closest?.(
+                                '[data-rvbible-autocomplete]'
+                            )
+                        ) {
+                            closeAll();
+                        }
+                    }
+                );
+
+                document.addEventListener(
+                    'keydown',
+                    (event) => {
+                        const input =
+                            event.target.closest?.(
+                                '[data-rvbible-search-input]'
+                            );
+
+                        if (
+                            input
+                            && event.key
+                                === 'Escape'
+                        ) {
+                            close(
+                                input.closest(
+                                    '[data-rvbible-autocomplete]'
+                                )
+                            );
+                        }
+                    }
+                );
+
+                return {
+                    connect,
+                };
+            }
+
+            if (
+                !window
+                    .__recoveryVersionAutocomplete
+            ) {
+                window
+                    .__recoveryVersionAutocomplete =
+                    createRecoveryVersionAutocomplete();
+            }
+
+            window
+                .__recoveryVersionAutocomplete
+                .connect();
+        })();
+    </script>
+    @endscript
+
 </x-filament-panels::page>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Recovery Version Search Bridge</title>
+
+<script src="vdata.js"></script>
+<script src="idata.js"></script>
+
+<script>
+(function () {
+    "use strict";
+
+    /*
+     * Recovery Version Bible Search Bridge
+     *
+     * This page intentionally has no visible UI.
+     *
+     * Parent pages communicate with it through postMessage().
+     * The search itself reuses the original RVBible indexes:
+     *
+     *   ww.js
+     *   idx-kw/*.js
+     *   idx-bd/*.js
+     *
+     * Only actual Bible verses are returned.
+     */
+
+    var loadedScripts = {};
+    var searchCache = new Map();
+
+    /*
+     * The original generated index files end by calling:
+     *
+     *     resume_js()
+     *
+     * The old RVBible loader needed that callback because it loaded
+     * one script at a time. This bridge uses the browser's native
+     * script.onload event instead, which lets independent index files
+     * download in parallel.
+     */
+    window.resume_js = function () {
+        // Intentionally empty.
+    };
+
+    /*
+     * Load one generated RVBible index file.
+     *
+     * The Promise is cached immediately, so simultaneous searches
+     * requesting the same file share one network request.
+     */
+    function loadLegacyScript(src) {
+        if (loadedScripts[src]) {
+            return loadedScripts[src];
+        }
+
+        loadedScripts[src] =
+            new Promise(function (resolve, reject) {
+                var script =
+                    document.createElement("script");
+
+                script.src = src;
+                script.async = true;
+
+                script.onload = function () {
+                    resolve();
+                };
+
+                script.onerror = function () {
+                    delete loadedScripts[src];
+
+                    reject(
+                        new Error(
+                            "Unable to load RVBible index: "
+                            + src
+                        )
+                    );
+                };
+
+                document.head.appendChild(script);
+            });
+
+        return loadedScripts[src];
+    }
+
+    /*
+     * ww.js is the original RVBible master keyword table.
+     */
+    var wordIndexReady = loadLegacyScript("ww.js");
+
+    function normalizeSearchString(value) {
+        return String(value || "")
+            .replace(/^\s+/, "")
+            .replace(/\s+$/, "")
+            .replace(/[^a-zA-Z]/g, " ")
+            .replace(/[\s\xA0]{2,}/g, " ");
+    }
+
+    function uniqueWords(value, matchCase) {
+        var normalized = normalizeSearchString(value);
+
+        if (!normalized) {
+            return [];
+        }
+
+        var words = normalized.split(" ");
+        var seen = {};
+        var result = [];
+
+        for (var i = 0; i < words.length; i++) {
+            var word = matchCase
+                ? words[i]
+                : words[i].toLowerCase();
+
+            if (!word || seen[word]) {
+                continue;
+            }
+
+            seen[word] = true;
+            result.push(word);
+        }
+
+        return result;
+    }
+
+    function plainText(html) {
+        var element = document.createElement("div");
+
+        /*
+         * Preserve a little spacing where RVBible uses BR elements.
+         */
+        element.innerHTML = String(html || "")
+            .replace(/<br\s*\/?>/gi, " ");
+
+        return String(
+            element.textContent || element.innerText || ""
+        )
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function plainReference(value) {
+        return plainText(value);
+    }
+
+    function intersection(left, right) {
+        var result = new Set();
+
+        left.forEach(function (value) {
+            if (right.has(value)) {
+                result.add(value);
+            }
+        });
+
+        return result;
+    }
+
+    async function searchVerses(
+        query,
+        limit,
+        options
+    ) {
+        await wordIndexReady;
+
+        options = options || {};
+
+        var matchCase =
+            Boolean(options.matchCase);
+
+        var wholeWords =
+            options.wholeWords !== false;
+
+        var words = uniqueWords(
+            query,
+            matchCase
+        );
+
+        if (!words.length) {
+            return [];
+        }
+
+        var cacheKey = [
+            query,
+            matchCase ? "1" : "0",
+            wholeWords ? "1" : "0",
+            String(limit || 10)
+        ].join("|");
+
+        if (searchCache.has(cacheKey)) {
+            return searchCache.get(cacheKey);
+        }
+
+        /*
+         * First resolve each entered word to the capitalization variants
+         * known by the original RVBible master word table.
+         *
+         * Equivalent to original search options:
+         *
+         *   Match case  = OFF
+         *   Whole words = ON
+         *   Verses      = ON
+         */
+        var keywordGroups = [];
+        var groupsToLoad = {};
+
+        for (var i = 0; i < words.length; i++) {
+            var variants = ww_get_words(
+                words[i],
+                matchCase,
+                wholeWords
+            );
+
+            if (!variants || !variants.length) {
+                return [];
+            }
+
+            keywordGroups.push(variants);
+
+            for (var j = 0; j < variants.length; j++) {
+                var lower = variants[j].toLowerCase();
+                var wordInfo = WW[lower];
+
+                if (
+                    !wordInfo
+                    || typeof wordInfo[0] === "undefined"
+                ) {
+                    continue;
+                }
+
+                groupsToLoad[wordInfo[0]] = true;
+            }
+        }
+
+        /*
+         * Load only the keyword-index groups required by this query.
+         */
+        var groupNumbers = Object.keys(groupsToLoad);
+
+        await Promise.all(
+            groupNumbers.map(function (groupNumber) {
+                return loadLegacyScript(
+                    "idx-kw/" + groupNumber + ".js"
+                );
+            })
+        );
+
+        /*
+         * For each entered word:
+         *
+         * 1. Union capitalization variants.
+         * 2. Keep only K_VERSE entries.
+         *
+         * Then intersect every entered word.
+         */
+        var wordSets = [];
+
+        for (var w = 0; w < keywordGroups.length; w++) {
+            var verseKeys = new Set();
+            var groupVariants = keywordGroups[w];
+
+            for (var v = 0; v < groupVariants.length; v++) {
+                var keyword = groupVariants[v];
+                var entries = KW[keyword];
+
+                if (!entries) {
+                    continue;
+                }
+
+                for (var key in entries) {
+                    if (
+                        Object.prototype.hasOwnProperty.call(
+                            entries,
+                            key
+                        )
+                        && key_is_verse(key)
+                    ) {
+                        verseKeys.add(key);
+                    }
+                }
+            }
+
+            if (!verseKeys.size) {
+                return [];
+            }
+
+            wordSets.push(verseKeys);
+        }
+
+        /*
+         * Start with the smallest set to reduce intersection work for
+         * common words such as "a", "the", "of", etc.
+         */
+        wordSets.sort(function (a, b) {
+            return a.size - b.size;
+        });
+
+        var matches = new Set(wordSets[0]);
+
+        for (var s = 1; s < wordSets.length; s++) {
+            matches = intersection(
+                matches,
+                wordSets[s]
+            );
+
+            if (!matches.size) {
+                return [];
+            }
+        }
+
+        /*
+         * The original RVBible search sorts the encoded verse keys.
+         * Their encoding preserves canonical Bible order.
+         */
+        /*
+         * Shepherding autocomplete priority:
+         *
+         *   1. New Testament (Matthew - Revelation)
+         *   2. Old Testament (Genesis - Malachi)
+         *
+         * Within each Testament, preserve canonical Bible order.
+         *
+         * RVBible book indexes are zero-based:
+         *   Matthew = 39
+         *   Revelation = 65
+         */
+        var keys = Array.from(matches).sort(
+            function (left, right) {
+                var leftBook =
+                    codenum(
+                        left.charCodeAt(0)
+                    );
+
+                var rightBook =
+                    codenum(
+                        right.charCodeAt(0)
+                    );
+
+                var leftIsNewTestament =
+                    leftBook >= 39;
+
+                var rightIsNewTestament =
+                    rightBook >= 39;
+
+                if (
+                    leftIsNewTestament
+                    !== rightIsNewTestament
+                ) {
+                    return leftIsNewTestament
+                        ? -1
+                        : 1;
+                }
+
+                if (left < right) {
+                    return -1;
+                }
+
+                if (left > right) {
+                    return 1;
+                }
+
+                return 0;
+            }
+        );
+
+        limit = Number(limit || 10);
+
+        if (!Number.isFinite(limit)) {
+            limit = 10;
+        }
+
+        limit = Math.max(
+            1,
+            Math.min(20, Math.floor(limit))
+        );
+
+        keys = keys.slice(0, limit);
+
+        /*
+         * Load only the Bible-data hash files needed for the first
+         * result set.
+         */
+        var bodyFiles = {};
+
+        for (var k = 0; k < keys.length; k++) {
+            bodyFiles[
+                keyhash(keys[k])
+            ] = true;
+        }
+
+        var bodyHashes = Object.keys(bodyFiles);
+
+        await Promise.all(
+            bodyHashes.map(function (bodyHash) {
+                return loadLegacyScript(
+                    "idx-bd/" + bodyHash + ".js"
+                );
+            })
+        );
+
+        var results = [];
+
+        for (var r = 0; r < keys.length; r++) {
+            var resultKey = keys[r];
+            var verseReference = keyvref(resultKey);
+
+            results.push({
+                reference: plainReference(
+                    verseReference[0]
+                ),
+                href: verseReference[1],
+                text: plainText(
+                    BD[resultKey] || ""
+                )
+            });
+        }
+
+        /*
+         * Keep a small in-page result cache. This is especially useful
+         * when the user edits a phrase and then returns to a previous
+         * search.
+         */
+        searchCache.set(
+            cacheKey,
+            results
+        );
+
+        if (searchCache.size > 100) {
+            var oldestKey =
+                searchCache.keys().next().value;
+
+            searchCache.delete(oldestKey);
+        }
+
+        return results;
+    }
+
+    window.addEventListener(
+        "message",
+        async function (event) {
+            var message = event.data;
+
+            if (
+                !message
+                || message.type !== "rvbible:search"
+                || !message.id
+            ) {
+                return;
+            }
+
+            try {
+                var query = String(
+                    message.query || ""
+                ).trim();
+
+                /*
+                 * Autocomplete deliberately refuses extremely short
+                 * searches. Normal RVBible vsearch.htm is unaffected.
+                 */
+                if (query.length < 3) {
+                    event.source.postMessage(
+                        {
+                            type: "rvbible:results",
+                            id: message.id,
+                            query: query,
+                            results: []
+                        },
+                        event.origin
+                    );
+
+                    return;
+                }
+
+                var results = await searchVerses(
+                    query,
+                    message.limit || 10,
+                    {
+                        matchCase:
+                            Boolean(
+                                message.matchCase
+                            ),
+                        wholeWords:
+                            message.wholeWords
+                            !== false
+                    }
+                );
+
+                event.source.postMessage(
+                    {
+                        type: "rvbible:results",
+                        id: message.id,
+                        query: query,
+                        results: results
+                    },
+                    event.origin
+                );
+            } catch (error) {
+                event.source.postMessage(
+                    {
+                        type: "rvbible:error",
+                        id: message.id,
+                        message:
+                            error
+                            && error.message
+                                ? error.message
+                                : "Recovery Version search failed."
+                    },
+                    event.origin
+                );
+            }
+        }
+    );
+
+    wordIndexReady
+        .then(function () {
+            if (window.parent !== window) {
+                window.parent.postMessage(
+                    {
+                        type: "rvbible:ready"
+                    },
+                    "*"
+                );
+            }
+        })
+        .catch(function () {
+            /*
+             * Search requests will receive the actual error through
+             * rvbible:error if the keyword table cannot be loaded.
+             */
+        });
+})();
+</script>
+</head>
+
+<body>
+</body>
+</html>
