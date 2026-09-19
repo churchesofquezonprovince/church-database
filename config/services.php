@@ -16,6 +16,10 @@ return [
 
 'immich' => [
     'url' => env('IMMICH_URL'),
+    'public_url' => env(
+        'IMMICH_PUBLIC_URL',
+        env('IMMICH_URL')
+    ),
     'api_key' => env('IMMICH_API_KEY'),
 ],
 

@@ -233,22 +233,91 @@
         @if (count($albumRows) > 0)
             <div class="grid gap-4 xl:grid-cols-2">
                 @foreach ($albumRows as $album)
-                    <article class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                    <article
+                        x-data="{
+                            albumUrl: @js($album['clickUrl'] ?? null),
+                            flipped: false
+                        }"
+                        x-on:mouseenter="flipped = true"
+                        x-on:mouseleave="flipped = false"
+                        x-on:click="
+                            if (albumUrl) {
+                                window.open(
+                                    albumUrl,
+                                    '_blank',
+                                    'noopener,noreferrer'
+                                )
+                            }
+                        "
+                        role="link"
+                        tabindex="0"
+                        class="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-sky-700"
+                    >
                         <div class="flex min-w-0 gap-4 p-5">
                             <div
-                                class="flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800"
-                                style="width: 200px; height: 200px; min-width: 200px;"
+                                data-immich-album-qr
+                                data-qr-url="{{ $album['sharedUrl'] ?? '' }}"
+                                class="relative shrink-0"
+                                style="
+                                    width: 200px;
+                                    height: 200px;
+                                    min-width: 200px;
+                                    perspective: 1000px;
+                                "
                             >
-                                @if (filled($album['localThumbnailUrl'] ?? null))
-                                    <img
-                                        src="{{ $album['localThumbnailUrl'] }}"
-                                        alt="{{ $album['albumName'] }}"
-                                        loading="lazy"
-                                        class="h-full w-full object-cover"
+                                <div
+                                    class="relative h-full w-full"
+                                    x-bind:style="
+                                        'transform: rotateY('
+                                        + (flipped ? '180deg' : '0deg')
+                                        + '); transition: transform 0.5s ease; transform-style: preserve-3d;'
+                                    "
+                                >
+                                    {{-- FRONT: ALBUM PHOTO --}}
+                                    <div
+                                        class="absolute inset-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800"
+                                        style="
+                                            backface-visibility: hidden;
+                                            -webkit-backface-visibility: hidden;
+                                        "
                                     >
-                                @else
-                                    <x-heroicon-o-photo class="h-12 w-12 text-gray-400" />
-                                @endif
+                                        @if (filled($album['localThumbnailUrl'] ?? null))
+                                            <img
+                                                src="{{ $album['localThumbnailUrl'] }}"
+                                                alt="{{ $album['albumName'] }}"
+                                                loading="lazy"
+                                                class="h-full w-full object-cover"
+                                            >
+                                        @else
+                                            <div class="flex h-full w-full items-center justify-center">
+                                                <x-heroicon-o-photo class="h-12 w-12 text-gray-400" />
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- BACK: QR CODE --}}
+                                    <div
+                                        class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl bg-white p-2"
+                                        style="
+                                            transform: rotateY(180deg);
+                                            backface-visibility: hidden;
+                                            -webkit-backface-visibility: hidden;
+                                        "
+                                    >
+                                        @if (filled($album['sharedUrl'] ?? null))
+                                            <div
+                                                data-qr-target
+                                                class="flex h-full w-full items-center justify-center"
+                                            ></div>
+                                        @else
+                                            <div class="flex h-full w-full items-center justify-center bg-gray-950 p-4 text-center">
+                                                <span class="text-sm font-bold text-white">
+                                                    Create a Shared Link to show QR
+                                                </span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="min-w-0 flex-1">
@@ -273,10 +342,21 @@
                                             </span>
                                         @endif
 
-                                        @if ($album['hasSharedLink'])
+                                        @if (filled($album['sharedUrl'] ?? null))
                                             <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700 dark:bg-sky-900 dark:text-sky-200">
                                                 Shared Link
                                             </span>
+                                        @else
+                                            <button
+                                                type="button"
+                                                wire:click.stop="createSharedLink('{{ $album['id'] }}')"
+                                                wire:loading.attr="disabled"
+                                                wire:target="createSharedLink('{{ $album['id'] }}')"
+                                                x-on:click.stop
+                                                class="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-700 disabled:opacity-60"
+                                            >
+                                                Create Link
+                                            </button>
                                         @endif
                                     </div>
                                 </div>
@@ -389,4 +469,64 @@
             </div>
         </div>
     </div>
+
+    <script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
+
+    <script>
+        (() => {
+            const initializeAlbumQrCodes = () => {
+                document
+                    .querySelectorAll('[data-immich-album-qr]')
+                    .forEach((wrapper) => {
+                        if (wrapper.dataset.qrReady === '1') {
+                            return;
+                        }
+
+                        const url =
+                            wrapper.dataset.qrUrl;
+
+                        const target =
+                            wrapper.querySelector(
+                                '[data-qr-target]'
+                            );
+
+                        if (
+                            ! url
+                            || ! target
+                            || typeof QRCode === 'undefined'
+                        ) {
+                            return;
+                        }
+
+                        new QRCode(target, {
+                            text: url,
+                            width: 180,
+                            height: 180,
+                            correctLevel:
+                                QRCode.CorrectLevel.M,
+                        });
+
+                        wrapper.dataset.qrReady = '1';
+                    });
+            };
+
+            document.addEventListener(
+                'DOMContentLoaded',
+                initializeAlbumQrCodes
+            );
+
+            document.addEventListener(
+                'livewire:navigated',
+                initializeAlbumQrCodes
+            );
+
+            document.addEventListener(
+                'livewire:updated',
+                initializeAlbumQrCodes
+            );
+
+            initializeAlbumQrCodes();
+        })();
+    </script>
+
 </x-filament-panels::page>

@@ -46,6 +46,48 @@ class ImmichApiService
             ->json();
     }
 
+    public function sharedLinks(): array
+    {
+        $response = $this->client()
+            ->get('/api/shared-links')
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
+    public function createAlbumSharedLink(
+        string $albumId
+    ): array {
+        /*
+         * Match the existing Quezon Province Churches links:
+         *
+         * Upload       = allowed
+         * Download     = allowed
+         * Metadata     = shown
+         * Expiry       = none
+         * Password     = none
+         *
+         * Do not send unused optional fields as empty strings.
+         */
+        $response = $this->client()
+            ->post('/api/shared-links', [
+                'type' => 'ALBUM',
+                'albumId' => $albumId,
+                'allowUpload' => true,
+                'allowDownload' => true,
+                'showMetadata' => true,
+            ])
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
     public function album(string $albumId): array
     {
         return $this->client()

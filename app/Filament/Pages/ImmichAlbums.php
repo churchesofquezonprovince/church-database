@@ -314,6 +314,168 @@ class ImmichAlbums extends Page
                     )
                     ->all();
 
+            /*
+             * Read the real Shared Links from Immich.
+             *
+             * A single album may have more than one historical link.
+             * Prefer a non-expired custom-slug link, then the newest
+             * non-expired normal link.
+             */
+            $activeSharedLinks =
+                collect(
+                    $immich->sharedLinks()
+                )
+                    ->filter(
+                        function ($link): bool {
+                            if (! is_array($link)) {
+                                return false;
+                            }
+
+                            if (
+                                strtoupper(
+                                    (string) (
+                                        $link['type']
+                                        ?? ''
+                                    )
+                                )
+                                !== 'ALBUM'
+                            ) {
+                                return false;
+                            }
+
+                            if (
+                                blank(
+                                    data_get(
+                                        $link,
+                                        'album.id'
+                                    )
+                                )
+                            ) {
+                                return false;
+                            }
+
+                            $expiresAt =
+                                $link['expiresAt']
+                                ?? null;
+
+                            if (blank($expiresAt)) {
+                                return true;
+                            }
+
+                            try {
+                                return CarbonImmutable::parse(
+                                    $expiresAt
+                                )->isFuture();
+                            } catch (Throwable) {
+                                return false;
+                            }
+                        }
+                    )
+                    ->groupBy(
+                        fn (array $link): string =>
+                            (string)
+                            data_get(
+                                $link,
+                                'album.id'
+                            )
+                    )
+                    ->map(
+                        function ($links): array {
+                            return $links
+                                ->sort(
+                                    function (
+                                        array $a,
+                                        array $b
+                                    ): int {
+                                        $aSlug =
+                                            filled(
+                                                $a['slug']
+                                                ?? null
+                                            )
+                                                ? 1
+                                                : 0;
+
+                                        $bSlug =
+                                            filled(
+                                                $b['slug']
+                                                ?? null
+                                            )
+                                                ? 1
+                                                : 0;
+
+                                        if (
+                                            $aSlug
+                                            !== $bSlug
+                                        ) {
+                                            return $bSlug
+                                                <=>
+                                                $aSlug;
+                                        }
+
+                                        return strcmp(
+                                            (string) (
+                                                $b['createdAt']
+                                                ?? ''
+                                            ),
+                                            (string) (
+                                                $a['createdAt']
+                                                ?? ''
+                                            )
+                                        );
+                                    }
+                                )
+                                ->first();
+                        }
+                    );
+
+            $this->albums =
+                collect($this->albums)
+                    ->map(
+                        function (
+                            array $album
+                        ) use (
+                            $activeSharedLinks
+                        ): array {
+                            $albumId =
+                                (string)
+                                $album['id'];
+
+                            $sharedLink =
+                                $activeSharedLinks
+                                    ->get(
+                                        $albumId
+                                    );
+
+                            $sharedUrl =
+                                is_array($sharedLink)
+                                    ? $this
+                                        ->sharedLinkWebUrl(
+                                            $sharedLink
+                                        )
+                                    : null;
+
+                            $album['sharedUrl'] =
+                                $sharedUrl;
+
+                            /*
+                             * Whole card:
+                             *
+                             * public Shared Link when available,
+                             * otherwise authenticated Immich album.
+                             */
+                            $album['clickUrl'] =
+                                $sharedUrl
+                                ?: $this
+                                    ->albumWebUrl(
+                                        $albumId
+                                    );
+
+                            return $album;
+                        }
+                    )
+                    ->values()
+                    ->all();
+
         } catch (Throwable $e) {
             $this->albums = [];
 
@@ -662,6 +824,145 @@ class ImmichAlbums extends Page
                 . '-'
                 . $prerelease
             : $version;
+    }
+
+    public function immichPublicUrl(): string
+    {
+        return rtrim(
+            (string) (
+                config('services.immich.public_url')
+                ?: config('services.immich.url')
+            ),
+            '/'
+        );
+    }
+
+    public function albumWebUrl(
+        string $albumId
+    ): string {
+        return $this->immichPublicUrl()
+            . '/albums/'
+            . rawurlencode($albumId);
+    }
+
+    public function sharedLinkWebUrl(
+        array $link
+    ): ?string {
+        /*
+         * Preserve an Immich custom URL when one exists.
+         */
+        $slug = trim(
+            (string) ($link['slug'] ?? '')
+        );
+
+        if ($slug !== '') {
+            return $this->immichPublicUrl()
+                . '/s/'
+                . rawurlencode($slug);
+        }
+
+        /*
+         * Otherwise use Immich's normal secret share key.
+         */
+        $key = trim(
+            (string) ($link['key'] ?? '')
+        );
+
+        if ($key === '') {
+            return null;
+        }
+
+        return $this->immichPublicUrl()
+            . '/share/'
+            . rawurlencode($key);
+    }
+
+    public function createSharedLink(
+        string $albumId
+    ): void {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $album = collect($this->albums)
+            ->first(
+                fn (array $album): bool =>
+                    (string) ($album['id'] ?? '')
+                    === $albumId
+            );
+
+        if (! $album) {
+            Notification::make()
+                ->title('Immich album not found')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        /*
+         * Never create a second link when this page already knows
+         * that an active Shared Link exists.
+         */
+        if (
+            filled(
+                $album['sharedUrl']
+                ?? null
+            )
+        ) {
+            Notification::make()
+                ->title('Shared Link already exists')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(ImmichApiService::class)
+                ->createAlbumSharedLink(
+                    $albumId
+                );
+
+            /*
+             * Reload from Immich so the real server response remains
+             * the source of truth.
+             */
+            $this->refreshImmich(
+                showNotification: false
+            );
+
+            Notification::make()
+                ->title('Immich Shared Link created')
+                ->body(
+                    ($album['albumName'] ?? 'Album')
+                    . ' can now be opened and shared publicly.'
+                )
+                ->success()
+                ->send();
+
+        } catch (Throwable $e) {
+            Log::error(
+                'Unable to create Immich album Shared Link.',
+                [
+                    'immich_album_id' =>
+                        $albumId,
+
+                    /*
+                     * Never log a Shared Link key.
+                     */
+                    'message' =>
+                        $e->getMessage(),
+                ]
+            );
+
+            Notification::make()
+                ->title('Could not create Shared Link')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function formatBytes(
