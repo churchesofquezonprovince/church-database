@@ -54,8 +54,8 @@
         @endphp
 
     <div class="space-y-6">
-        <div class="grid gap-6 xl:grid-cols-4">
-            <div class="space-y-4 xl:col-span-1">
+        <div class="grid min-w-0 gap-6 xl:grid-cols-4">
+            <div class="min-w-0 space-y-4 xl:col-span-1">
                 <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                     <h3 class="font-bold text-gray-900 dark:text-white">
                         Sheets
@@ -173,14 +173,14 @@
                 </div>
             </div>
 
-            <div class="space-y-6 xl:col-span-3">
+            <div class="min-w-0 space-y-6 xl:col-span-3">
                 @if (! $selectedSheet || ! $selectedSession)
                     <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
                         Select an attendance sheet and meeting date.
                     </div>
                 @else
                     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div
                 style="
                     flex-shrink: 0;
@@ -206,7 +206,7 @@
                                 </p>
                             </div>
 
-                            <div class="flex flex-wrap gap-2">
+                            <div class="min-w-0 flex flex-wrap gap-2">
                                 @if ($gridAvailable)
                                     <div
                                         class="inline-flex overflow-hidden
@@ -746,7 +746,7 @@
     {{-- ============================================= --}}
 
     <div
-        class="overflow-hidden rounded-2xl border
+        class="min-w-0 overflow-hidden rounded-2xl border
                border-gray-200 bg-white shadow-sm
                dark:border-gray-700 dark:bg-gray-900"
     >
@@ -955,342 +955,405 @@
         @else
             <div
                 wire:key="attendance-grid-{{ $selectedSheet->id }}"
-                class="overflow-x-auto"
+                class="flex min-w-0 w-full items-start"
             >
-                <table
-                    class="min-w-max border-collapse
-                           text-xs"
+                {{-- =========================================
+                     FIXED PARTICIPANT PANE
+                     ========================================= --}}
+                <div
+                    class="relative z-10 shrink-0"
+                    style="
+                        width: 14rem;
+                        min-width: 14rem;
+                        max-width: 14rem;
+                        flex: 0 0 14rem;
+                        box-shadow:
+                            5px 0 8px -6px
+                            rgba(0, 0, 0, 0.45);
+                    "
                 >
-                    <thead>
-                        <tr>
-                            <th
-                                class="sticky left-0 top-0 z-30
-                                       min-w-56 border
-                                       border-gray-200
-                                       bg-gray-100 px-3 py-3
-                                       text-left font-bold
-                                       text-gray-700
-                                       dark:border-gray-700
-                                       dark:bg-gray-800
-                                       dark:text-gray-100"
-                            >
-                                Participant
-                            </th>
-
-                            @foreach (
-                                $attendanceGrid['sessions']
-                                as $gridSession
-                            )
-                                <th
-                                    @class([
-                                        'sticky top-0 z-20 min-w-24 border border-gray-200 px-2 py-2 text-center font-semibold dark:border-gray-700',
-
-                                        'ring-2 ring-inset ring-amber-500'
-                                            =>
-                                                $this->gridEditMode
-                                                &&
-                                                ! $gridSession->is_no_meeting
-                                                &&
-                                                $this->gridEditSessionId
-                                                ===
-                                                (int) $gridSession->id,
-
-                                        'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
-                                            =>
-                                                $gridSession->is_no_meeting,
-
-                                        'bg-primary-100 text-primary-900 dark:bg-primary-950 dark:text-primary-100'
-                                            =>
-                                                ! $gridSession->is_no_meeting
-                                                &&
-                                                $selectedSession?->id
-                                                ===
-                                                $gridSession->id,
-
-                                        'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-100'
-                                            =>
-                                                ! $gridSession->is_no_meeting
-                                                &&
-                                                $selectedSession?->id
-                                                !==
-                                                $gridSession->id,
-                                    ])
-                                >
-                                    <button
-                                        type="button"
-                                        wire:click="selectGridSession({{ $gridSession->id }})"
-                                        wire:loading.attr="disabled"
-                                        wire:target="selectGridSession({{ $gridSession->id }})"
-                                        class="block w-full rounded
-                                               hover:underline
-                                               focus:outline-none
-                                               focus:ring-2
-                                               focus:ring-primary-500"
-                                        title="Select {{
-                                            $gridSession
-                                                ->session_date
-                                                ->format(
-                                                    'F d, Y'
-                                                )
-                                        }}"
-                                    >
-                                        <span class="block">
-                                            {{
-                                                $gridSession
-                                                    ->session_date
-                                                    ->format('M d')
-                                            }}
-                                        </span>
-
-                                        <span
-                                            class="mt-0.5 block
-                                                   text-[10px]
-                                                   font-normal opacity-70"
-                                        >
-                                            {{
-                                                $gridSession
-                                                    ->session_date
-                                                    ->format('D')
-                                            }}
-                                        </span>
-                                    </button>
-                                </th>
-                            @endforeach
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @foreach (
-                            $attendanceGrid['rows']
-                            as $gridRow
-                        )
-                            @php
-                                $gridPerson =
-                                    $gridRow['person'];
-                            @endphp
-
+                    <table
+                        class="w-full table-fixed
+                               border-separate border-spacing-0
+                               text-xs"
+                    >
+                        <thead>
                             <tr>
                                 <th
-                                    class="sticky left-0 z-10
-                                           min-w-56 border
+                                    class="h-14 border
                                            border-gray-200
-                                           bg-white px-3 py-2
-                                           text-left
+                                           bg-gray-100 px-3
+                                           text-left font-bold
+                                           text-gray-700
                                            dark:border-gray-700
-                                           dark:bg-gray-900"
+                                           dark:bg-gray-800
+                                           dark:text-gray-100"
                                 >
-                                    <p
-                                        class="font-semibold
-                                               text-gray-900
-                                               dark:text-white"
-                                    >
-                                        {{
-                                            $gridPerson
-                                                ?->display_name
-                                            ?? 'Unknown person'
-                                        }}
-                                    </p>
-
-                                    <p
-                                        class="mt-0.5 text-[10px]
-                                               font-normal
-                                               text-gray-400
-                                               dark:text-gray-500"
-                                    >
-                                        {{
-                                            $gridPerson
-                                                ?->locality
-                                            ?: 'No locality'
-                                        }}
-                                    </p>
+                                    Participant
                                 </th>
+                            </tr>
+                        </thead>
 
+                        <tbody>
+                            @foreach (
+                                $attendanceGrid['rows']
+                                as $gridRow
+                            )
+                                @php
+                                    $gridPerson =
+                                        $gridRow['person'];
+                                @endphp
+
+                                <tr>
+                                    <th
+                                        class="h-14 border
+                                               border-gray-200
+                                               bg-white px-3
+                                               text-left
+                                               dark:border-gray-700
+                                               dark:bg-gray-900"
+                                    >
+                                        <p
+                                            class="truncate font-semibold
+                                                   text-gray-900
+                                                   dark:text-white"
+                                            title="{{
+                                                $gridPerson
+                                                    ?->display_name
+                                                ?? 'Unknown person'
+                                            }}"
+                                        >
+                                            {{
+                                                $gridPerson
+                                                    ?->display_name
+                                                ?? 'Unknown person'
+                                            }}
+                                        </p>
+
+                                        <p
+                                            class="mt-0.5 truncate
+                                                   text-[10px]
+                                                   font-normal
+                                                   text-gray-400
+                                                   dark:text-gray-500"
+                                            title="{{
+                                                $gridPerson
+                                                    ?->locality
+                                                ?: 'No locality'
+                                            }}"
+                                        >
+                                            {{
+                                                $gridPerson
+                                                    ?->locality
+                                                ?: 'No locality'
+                                            }}
+                                        </p>
+                                    </th>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- =========================================
+                     NATIVE HORIZONTAL ATTENDANCE PANE
+                     ========================================= --}}
+                <div
+                    class="min-w-0 overflow-x-auto"
+                    style="
+                        width: 0;
+                        min-width: 0;
+                        flex: 1 1 auto;
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                        overscroll-behavior-x: contain;
+                    "
+                >
+                    <table
+                        class="min-w-max border-separate
+                               border-spacing-0 text-xs"
+                    >
+                        <thead>
+                            <tr>
                                 @foreach (
                                     $attendanceGrid['sessions']
                                     as $gridSession
                                 )
-                                    @php
-                                        $gridCell =
-                                            $gridRow['cells'][
-                                                (int)
-                                                $gridSession->id
-                                            ]
-                                            ?? [
-                                                'status' =>
-                                                    'not_roster',
-
-                                                'source' =>
-                                                    null,
-
-                                                'immich_pending' =>
-                                                    false,
-                                            ];
-
-                                        $gridStatus =
-                                            $gridCell[
-                                                'status'
-                                            ];
-
-                                        $gridNoMeeting =
-                                            (bool)
-                                            $gridSession
-                                                ->is_no_meeting;
-
-                                        $gridCellEditable =
-                                            ! $gridNoMeeting
-                                            &&
-                                            $this->gridEditMode
-                                            &&
-                                            $this->gridEditSessionId
-                                                ===
-                                                (int)
-                                                $gridSession->id
-                                            &&
-                                            (
-                                                $gridCell[
-                                                    'on_roster'
-                                                ]
-                                                ?? false
-                                            );
-
-                                        $gridStatusLabel =
-                                            match (
-                                                $gridStatus
-                                            ) {
-                                                'present' =>
-                                                    'Present',
-
-                                                'absent' =>
-                                                    'Absent',
-
-                                                'not_recorded' =>
-                                                    'Active participant; attendance not recorded',
-
-                                                default =>
-                                                    'Not on roster for this meeting',
-                                            };
-                                    @endphp
-
-                                    <td
-                                        @if ($gridCellEditable)
-                                            wire:click="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
-                                            wire:loading.attr="disabled"
-                                            wire:target="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
-                                        @endif
+                                    <th
                                         @class([
-                                            'relative border border-gray-200 px-3 py-3 text-center font-bold dark:border-gray-700',
+                                            'h-14 min-w-24 border border-gray-200 px-2 text-center font-semibold dark:border-gray-700',
 
-                                            'cursor-pointer transition hover:ring-2 hover:ring-inset hover:ring-amber-400'
+                                            'ring-2 ring-inset ring-amber-500'
                                                 =>
-                                                    $gridCellEditable,
+                                                    $this->gridEditMode
+                                                    &&
+                                                    ! $gridSession->is_no_meeting
+                                                    &&
+                                                    $this->gridEditSessionId
+                                                    ===
+                                                    (int) $gridSession->id,
 
-                                            'ring-inset ring-1 ring-primary-300 dark:ring-primary-800'
+                                            'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
                                                 =>
+                                                    $gridSession->is_no_meeting,
+
+                                            'bg-primary-100 text-primary-900 dark:bg-primary-950 dark:text-primary-100'
+                                                =>
+                                                    ! $gridSession->is_no_meeting
+                                                    &&
                                                     $selectedSession?->id
                                                     ===
                                                     $gridSession->id,
 
-                                            'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
+                                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-100'
                                                 =>
-                                                    $gridNoMeeting,
-
-                                            'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
-                                                =>
-                                                    ! $gridNoMeeting
+                                                    ! $gridSession->is_no_meeting
                                                     &&
-                                                    $gridStatus
-                                                    ===
-                                                    'present',
-
-                                            'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
-                                                =>
-                                                    ! $gridNoMeeting
-                                                    &&
-                                                    $gridStatus
-                                                    ===
-                                                    'absent',
-
-                                            'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300'
-                                                =>
-                                                    ! $gridNoMeeting
-                                                    &&
-                                                    $gridStatus
-                                                    ===
-                                                    'not_recorded',
-
-                                            'bg-gray-50 text-gray-300 dark:bg-gray-950 dark:text-gray-600'
-                                                =>
-                                                    ! $gridNoMeeting
-                                                    &&
-                                                    $gridStatus
-                                                    ===
-                                                    'not_roster',
+                                                    $selectedSession?->id
+                                                    !==
+                                                    $gridSession->id,
                                         ])
-                                        title="{{
-                                            $gridNoMeeting
-                                                ? 'No meeting on this date'
-                                                : $gridStatusLabel
-                                        }}"
                                     >
-                                        @if ($gridNoMeeting)
-                                            <span
-                                                class="select-none"
-                                                aria-label="No meeting"
-                                            >
-                                                &nbsp;
-                                            </span>
-                                        @elseif (
-                                            $gridStatus
-                                            === 'present'
-                                        )
-                                            <span
-                                                class="text-base"
-                                            >
-                                                ✓
+                                        <button
+                                            type="button"
+                                            wire:click="selectGridSession({{ $gridSession->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="selectGridSession({{ $gridSession->id }})"
+                                            class="block w-full rounded
+                                                   hover:underline
+                                                   focus:outline-none
+                                                   focus:ring-2
+                                                   focus:ring-primary-500"
+                                            title="Select {{
+                                                $gridSession
+                                                    ->session_date
+                                                    ->format(
+                                                        'F d, Y'
+                                                    )
+                                            }}"
+                                        >
+                                            <span class="block">
+                                                {{
+                                                    $gridSession
+                                                        ->session_date
+                                                        ->format('M d')
+                                                }}
                                             </span>
 
-                                            @if (
-                                                $gridCell[
-                                                    'immich_pending'
-                                                ]
-                                            )
-                                                <span
-                                                    class="absolute
-                                                           right-1 top-1
-                                                           h-2 w-2
-                                                           rounded-full
-                                                           bg-amber-500"
-                                                    title="Immich attendance pending review"
-                                                ></span>
-                                            @endif
-                                        @elseif (
-                                            $gridStatus
-                                            === 'absent'
-                                        )
-                                            <span>
-                                                A
-                                            </span>
-                                        @elseif (
-                                            $gridStatus
-                                            === 'not_recorded'
-                                        )
                                             <span
-                                                class="text-lg
-                                                       leading-none"
+                                                class="mt-0.5 block
+                                                       text-[10px]
+                                                       font-normal
+                                                       opacity-70"
                                             >
-                                                ·
+                                                {{
+                                                    $gridSession
+                                                        ->session_date
+                                                        ->format('D')
+                                                }}
                                             </span>
-                                        @else
-                                            <span>
-                                                —
-                                            </span>
-                                        @endif
-                                    </td>
+                                        </button>
+                                    </th>
                                 @endforeach
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+
+                        <tbody>
+                            @foreach (
+                                $attendanceGrid['rows']
+                                as $gridRow
+                            )
+                                @php
+                                    $gridPerson =
+                                        $gridRow['person'];
+                                @endphp
+
+                                <tr>
+                                    @foreach (
+                                        $attendanceGrid['sessions']
+                                        as $gridSession
+                                    )
+                                        @php
+                                            $gridCell =
+                                                $gridRow['cells'][
+                                                    (int)
+                                                    $gridSession->id
+                                                ]
+                                                ?? [
+                                                    'status' =>
+                                                        'not_roster',
+
+                                                    'source' =>
+                                                        null,
+
+                                                    'immich_pending' =>
+                                                        false,
+                                                ];
+
+                                            $gridStatus =
+                                                $gridCell[
+                                                    'status'
+                                                ];
+
+                                            $gridNoMeeting =
+                                                (bool)
+                                                $gridSession
+                                                    ->is_no_meeting;
+
+                                            $gridCellEditable =
+                                                ! $gridNoMeeting
+                                                &&
+                                                $this->gridEditMode
+                                                &&
+                                                $this->gridEditSessionId
+                                                    ===
+                                                    (int)
+                                                    $gridSession->id
+                                                &&
+                                                (
+                                                    $gridCell[
+                                                        'on_roster'
+                                                    ]
+                                                    ?? false
+                                                );
+
+                                            $gridStatusLabel =
+                                                match (
+                                                    $gridStatus
+                                                ) {
+                                                    'present' =>
+                                                        'Present',
+
+                                                    'absent' =>
+                                                        'Absent',
+
+                                                    'not_recorded' =>
+                                                        'Active participant; attendance not recorded',
+
+                                                    default =>
+                                                        'Not on roster for this meeting',
+                                                };
+                                        @endphp
+
+                                        <td
+                                            @if ($gridCellEditable)
+                                                wire:click="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
+                                            @endif
+                                            @class([
+                                                'relative h-14 min-w-24 border border-gray-200 px-3 text-center font-bold dark:border-gray-700',
+
+                                                'cursor-pointer transition hover:ring-2 hover:ring-inset hover:ring-amber-400'
+                                                    =>
+                                                        $gridCellEditable,
+
+                                                'ring-inset ring-1 ring-primary-300 dark:ring-primary-800'
+                                                    =>
+                                                        $selectedSession?->id
+                                                        ===
+                                                        $gridSession->id,
+
+                                                'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
+                                                    =>
+                                                        $gridNoMeeting,
+
+                                                'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                                    =>
+                                                        ! $gridNoMeeting
+                                                        &&
+                                                        $gridStatus
+                                                        ===
+                                                        'present',
+
+                                                'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
+                                                    =>
+                                                        ! $gridNoMeeting
+                                                        &&
+                                                        $gridStatus
+                                                        ===
+                                                        'absent',
+
+                                                'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300'
+                                                    =>
+                                                        ! $gridNoMeeting
+                                                        &&
+                                                        $gridStatus
+                                                        ===
+                                                        'not_recorded',
+
+                                                'bg-gray-50 text-gray-300 dark:bg-gray-950 dark:text-gray-600'
+                                                    =>
+                                                        ! $gridNoMeeting
+                                                        &&
+                                                        $gridStatus
+                                                        ===
+                                                        'not_roster',
+                                            ])
+                                            title="{{
+                                                $gridNoMeeting
+                                                    ? 'No meeting on this date'
+                                                    : $gridStatusLabel
+                                            }}"
+                                        >
+                                            @if ($gridNoMeeting)
+                                                <span
+                                                    class="select-none"
+                                                    aria-label="No meeting"
+                                                >
+                                                    &nbsp;
+                                                </span>
+                                            @elseif (
+                                                $gridStatus
+                                                === 'present'
+                                            )
+                                                <span class="text-base">
+                                                    ✓
+                                                </span>
+
+                                                @if (
+                                                    $gridCell[
+                                                        'immich_pending'
+                                                    ]
+                                                )
+                                                    <span
+                                                        class="absolute
+                                                               right-1 top-1
+                                                               h-2 w-2
+                                                               rounded-full
+                                                               bg-amber-500"
+                                                        title="Immich attendance pending review"
+                                                    ></span>
+                                                @endif
+                                            @elseif (
+                                                $gridStatus
+                                                === 'absent'
+                                            )
+                                                <span>
+                                                    A
+                                                </span>
+                                            @elseif (
+                                                $gridStatus
+                                                === 'not_recorded'
+                                            )
+                                                <span
+                                                    class="text-lg
+                                                           leading-none"
+                                                >
+                                                    ·
+                                                </span>
+                                            @else
+                                                <span>
+                                                    —
+                                                </span>
+                                            @endif
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endif
     </div>
