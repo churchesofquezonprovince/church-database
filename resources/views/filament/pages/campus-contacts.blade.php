@@ -1,5 +1,11 @@
 <x-filament-panels::page>
     @php
+        $selectedTerm = $this->selectedTerm();
+        $terms = $this->terms();
+        $archivedTerms = $this->archivedTerms();
+        $copySourceTerms = $this->copySourceTerms();
+        $unallocatedContacts = $this->unallocatedContacts();
+
         $groupedContacts = $this->groupedContacts();
         $summary = $this->summary();
         $schoolOptions = $this->schoolOptions();
@@ -35,19 +41,65 @@
 
     <div class="min-w-0 space-y-6">
 
-        {{-- Header --}}
-        <div class="min-w-0 overflow-hidden rounded-2xl border border-primary-200 bg-primary-50 p-5 shadow-sm dark:border-primary-900 dark:bg-primary-950 sm:p-6">
-            <p class="text-sm font-bold uppercase tracking-wide text-primary-600 dark:text-primary-300">
-                Campus Work
-            </p>
+        {{-- Academic Term --}}
+        <div class="min-w-0 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-900 dark:bg-amber-950 sm:p-6">
+            <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Academic Term
+                    </p>
 
-            <h2 class="mt-2 break-words text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                Campus Contacts
-            </h2>
+                    @if ($selectedTerm)
+                        <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
 
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Manage campus contacts grouped by school. A contact may later be added to the People Database as a Gospel Friend.
-            </p>
+                        @if ($selectedTerm->is_active)
+                            <p class="mt-1 text-xs font-semibold text-green-700 dark:text-green-300">
+                                Active Academic Term
+                            </p>
+                        @elseif ($selectedTerm->is_archived)
+                            <p class="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                Archived · Read-only
+                            </p>
+                        @endif
+                    @else
+                        <h3 class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                            No Academic Term Available
+                        </h3>
+                    @endif
+                </div>
+
+                @if ($terms->isNotEmpty())
+                    <div class="w-full lg:w-80">
+                        <label class="block text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            View Academic Term
+                        </label>
+
+                        <select
+                            onchange="if (this.value) window.location.href = this.value"
+                            class="mt-2 block w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm font-semibold text-gray-900 dark:border-amber-800 dark:bg-gray-950 dark:text-white"
+                        >
+                            @foreach ($terms as $term)
+                                <option
+                                    value="{{ $this->termUrl($term) }}"
+                                    @selected(
+                                        $selectedTerm
+                                        && $selectedTerm->id === $term->id
+                                    )
+                                >
+                                    AY {{ $term->academic_year }}
+                                    · {{ $term->semester }}
+                                    @if ($term->is_active)
+                                        · Active
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+            </div>
         </div>
 
         {{-- Success Messages --}}
@@ -66,6 +118,14 @@
         @if (session('campus_contact_deleted'))
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Campus Contact deleted.</p>
+            </div>
+        @endif
+
+        @if (session('campus_contact_removed_from_term'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">
+                    Campus Contact removed from this Academic Term.
+                </p>
             </div>
         @endif
 
@@ -98,6 +158,76 @@
                 <p class="mt-1 text-sm">
                     {{ session('campus_contact_existing_people_added_count', 0) }}
                     person(s) added and linked successfully.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_created'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Academic term created successfully.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_activated'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Active academic term updated.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_archived'))
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">
+                    Academic term archived.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_restored'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Academic term restored.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_work_term_contacts_copied'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Campus Contacts copied successfully.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    {{ session(
+                        'campus_work_term_contacts_added',
+                        0
+                    ) }}
+                    new contact allocation(s) added.
+                    Existing allocations were not duplicated.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_contact_unlinked_person'))
+            <div class="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-100">
+                <p class="font-bold">
+                    Campus Contact unlinked from the People Database.
+                </p>
+
+                <p class="mt-1 text-sm">
+                    Neither record was deleted.
+                    The Person record was not modified.
+                </p>
+            </div>
+        @endif
+
+        @if (session('campus_contact_added_to_term'))
+            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+                <p class="font-bold">
+                    Campus Contact added to the selected Academic Term.
                 </p>
             </div>
         @endif
@@ -139,6 +269,14 @@
                 class="grid gap-4 border-t border-emerald-200 p-5 dark:border-emerald-900 md:grid-cols-2"
             >
                 @csrf
+
+                @if ($selectedTerm)
+                    <input
+                        type="hidden"
+                        name="campus_work_term_id"
+                        value="{{ $selectedTerm->id }}"
+                    >
+                @endif
 
                 <div>
                     <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
@@ -389,6 +527,14 @@
                 >
                     @csrf
 
+                    @if ($selectedTerm)
+                        <input
+                            type="hidden"
+                            name="campus_work_term_id"
+                            value="{{ $selectedTerm->id }}"
+                        >
+                    @endif
+
                     <div
                         class="space-y-2 rounded-xl border border-gray-300 bg-white p-3 pr-2 dark:border-gray-700 dark:bg-gray-950"
                         style="height: 360px; max-height: 360px; overflow-y: scroll; overflow-x: hidden; overscroll-behavior: contain;"
@@ -547,6 +693,14 @@
             >
                 @csrf
 
+                @if ($selectedTerm)
+                    <input
+                        type="hidden"
+                        name="campus_work_term_id"
+                        value="{{ $selectedTerm->id }}"
+                    >
+                @endif
+
                 <p class="text-sm text-blue-800 dark:text-blue-200">
                     Upload a CSV file containing Campus Contacts.
                     Incomplete contacts are allowed. The four People
@@ -597,6 +751,446 @@
 
             </div>
         </details>
+
+        {{-- Campus Contact Academic Term Management --}}
+        <details class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <summary class="cursor-pointer px-5 py-4 text-base font-bold text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800">
+                Manage Academic Terms
+            </summary>
+
+            <div class="space-y-6 border-t border-gray-200 p-5 dark:border-gray-700">
+
+                {{-- Create Academic Term --}}
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950">
+                    <h3 class="font-bold text-emerald-900 dark:text-emerald-100">
+                        Create New Academic Term
+                    </h3>
+
+                    <p class="mt-1 text-sm text-emerald-700 dark:text-emerald-200">
+                        Academic Terms are shared across Campus Work,
+                        including Campus Contacts and Student Nucleus.
+                    </p>
+
+                    <form
+                        method="POST"
+                        action="{{ route('quezonprovinceactivities.campus-work.terms.store') }}"
+                        class="mt-4 grid gap-4 md:grid-cols-2"
+                    >
+                        @csrf
+
+                        <input
+                            type="hidden"
+                            name="return_to"
+                            value="campus-contacts"
+                        >
+
+                        <div>
+                            <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                                Academic Year
+                            </label>
+
+                            <input
+                                type="text"
+                                name="academic_year"
+                                placeholder="2026-2027"
+                                pattern="\d{4}-\d{4}"
+                                required
+                                class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                                Semester
+                            </label>
+
+                            <select
+                                name="semester"
+                                required
+                                class="mt-2 block w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-emerald-900 dark:bg-gray-950 dark:text-white"
+                            >
+                                <option value="1st Semester">
+                                    1st Semester
+                                </option>
+
+                                <option value="2nd Semester">
+                                    2nd Semester
+                                </option>
+
+                                <option value="Summer Term">
+                                    Summer Term
+                                </option>
+                            </select>
+                        </div>
+
+                        <label class="flex items-center gap-3 md:col-span-2">
+                            <input
+                                type="checkbox"
+                                name="set_active"
+                                value="1"
+                                class="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            >
+
+                            <span class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                Set this as the active academic term immediately
+                            </span>
+                        </label>
+
+                        <div class="md:col-span-2">
+                            <button
+                                type="submit"
+                                class="w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-500 sm:w-auto"
+                            >
+                                Create Academic Term
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                @if ($selectedTerm)
+                    {{-- Selected Academic Term --}}
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p class="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            Selected Academic Term
+                        </p>
+
+                        <h3 class="mt-1 break-words text-lg font-bold text-gray-900 dark:text-white">
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </h3>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @if (
+                                ! $selectedTerm->is_active
+                                && ! $selectedTerm->is_archived
+                            )
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'quezonprovinceactivities.campus-work.terms.activate',
+                                        $selectedTerm
+                                    ) }}"
+                                    onsubmit="return confirm('Set this as the active academic term?');"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="return_to"
+                                        value="campus-contacts"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-500"
+                                    >
+                                        Set as Active Term
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if (
+                                ! $selectedTerm->is_active
+                                && ! $selectedTerm->is_archived
+                            )
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'quezonprovinceactivities.campus-work.terms.archive',
+                                        $selectedTerm
+                                    ) }}"
+                                    onsubmit="return confirm('Archive this academic term? Historical Campus Contact and Student Nucleus data will be preserved.');"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="return_to"
+                                        value="campus-contacts"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500"
+                                    >
+                                        Archive Term
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if ($selectedTerm->is_archived)
+                                <form
+                                    method="POST"
+                                    action="{{ route(
+                                        'quezonprovinceactivities.campus-work.terms.restore',
+                                        $selectedTerm
+                                    ) }}"
+                                >
+                                    @csrf
+
+                                    <input
+                                        type="hidden"
+                                        name="return_to"
+                                        value="campus-contacts"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500"
+                                    >
+                                        Restore Term
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Copy Campus Contact allocations --}}
+                    @if (
+                        ! $selectedTerm->is_archived
+                        && $copySourceTerms->isNotEmpty()
+                    )
+                        <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950">
+                            <h3 class="font-bold text-sky-900 dark:text-sky-100">
+                                Copy Campus Contacts from Another Term
+                            </h3>
+
+                            <p class="mt-1 text-sm text-sky-700 dark:text-sky-200">
+                                Copies only Academic Term allocation.
+                                The permanent Campus Contact records
+                                are reused and are not duplicated.
+                            </p>
+
+                            <form
+                                method="POST"
+                                action="{{ route(
+                                    'quezonprovinceactivities.campus-work.terms.copy-contacts',
+                                    $selectedTerm
+                                ) }}"
+                                class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+                                onsubmit="return confirm('Copy Campus Contacts into the selected academic term? Existing allocations will not be duplicated.');"
+                            >
+                                @csrf
+
+                                <div class="min-w-0 flex-1">
+                                    <label class="block text-sm font-bold text-sky-900 dark:text-sky-100">
+                                        Copy from
+                                    </label>
+
+                                    <select
+                                        name="source_term_id"
+                                        required
+                                        class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-4 py-3 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-white"
+                                    >
+                                        <option value="">
+                                            Choose academic term...
+                                        </option>
+
+                                        @foreach (
+                                            $copySourceTerms
+                                            as $sourceTerm
+                                        )
+                                            <option
+                                                value="{{ $sourceTerm->id }}"
+                                            >
+                                                AY {{ $sourceTerm->academic_year }}
+                                                · {{ $sourceTerm->semester }}
+                                                · {{ $sourceTerm->campus_contact_memberships_count }}
+                                                contact(s)
+
+                                                @if ($sourceTerm->is_archived)
+                                                    · Archived
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="rounded-xl bg-sky-600 px-5 py-3 text-sm font-bold text-white hover:bg-sky-500"
+                                >
+                                    Copy Contacts
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                @endif
+
+                {{-- Archived Academic Terms --}}
+                @if ($archivedTerms->isNotEmpty())
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-950">
+                        <h3 class="font-bold text-gray-900 dark:text-white">
+                            Archived Academic Terms
+                        </h3>
+
+                        <div class="mt-4 space-y-2">
+                            @foreach ($archivedTerms as $term)
+                                <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="break-words font-bold text-gray-900 dark:text-white">
+                                            AY {{ $term->academic_year }}
+                                            · {{ $term->semester }}
+                                        </p>
+
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $term->campus_contact_memberships_count }}
+                                            Campus Contact(s)
+                                        </p>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <a
+                                            href="{{ $this->termUrl($term) }}"
+                                            class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                        >
+                                            View
+                                        </a>
+
+                                        <form
+                                            method="POST"
+                                            action="{{ route(
+                                                'quezonprovinceactivities.campus-work.terms.restore',
+                                                $term
+                                            ) }}"
+                                        >
+                                            @csrf
+
+                                            <input
+                                                type="hidden"
+                                                name="return_to"
+                                                value="campus-contacts"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-500"
+                                            >
+                                                Restore
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </details>
+
+        {{-- Unallocated Campus Contacts --}}
+        @if ($unallocatedContacts->isNotEmpty())
+            <details class="min-w-0 overflow-hidden rounded-2xl border border-orange-200 bg-orange-50 shadow-sm dark:border-orange-900 dark:bg-orange-950">
+                <summary class="cursor-pointer px-5 py-4 text-base font-bold text-orange-900 hover:bg-orange-100 dark:text-orange-100 dark:hover:bg-orange-900">
+                    Unallocated Campus Contacts
+                    ({{ $unallocatedContacts->count() }})
+                </summary>
+
+                <div class="border-t border-orange-200 p-5 dark:border-orange-900">
+                    <p class="text-sm text-orange-800 dark:text-orange-200">
+                        These are permanent Campus Contact records
+                        that currently do not belong to any
+                        Academic Term. They have not been deleted.
+                    </p>
+
+                    @if (
+                        $selectedTerm
+                        && ! $selectedTerm->is_archived
+                    )
+                        <p class="mt-2 text-sm font-semibold text-orange-900 dark:text-orange-100">
+                            Add a contact to:
+                            AY {{ $selectedTerm->academic_year }}
+                            · {{ $selectedTerm->semester }}
+                        </p>
+                    @elseif (
+                        $selectedTerm
+                        && $selectedTerm->is_archived
+                    )
+                        <p class="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                            Archived Academic Terms are read-only.
+                            Select a non-archived term to allocate contacts.
+                        </p>
+                    @endif
+
+                    <div class="mt-4 space-y-3">
+                        @foreach (
+                            $unallocatedContacts
+                            as $contact
+                        )
+                            <div class="flex flex-col gap-4 rounded-xl border border-orange-200 bg-white p-4 dark:border-orange-900 dark:bg-gray-950 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="break-words font-bold text-gray-900 dark:text-white">
+                                        {{ $contact->display_name }}
+                                    </p>
+
+                                    <p class="mt-1 break-words text-xs text-gray-600 dark:text-gray-400">
+                                        {{
+                                            collect([
+                                                $contact->effective_school_campus
+                                                    ?: 'School not recorded',
+
+                                                $contact->effective_locality
+                                                    ?: 'Locality not recorded',
+
+                                                $contact->effective_course_strand,
+
+                                                $contact->effective_grade_level,
+                                            ])
+                                                ->filter()
+                                                ->implode(' · ')
+                                        }}
+                                    </p>
+
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        @if ($contact->person)
+                                            <a
+                                                href="{{ $this->personUrl($contact->person) }}"
+                                                class="inline-flex rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-green-500"
+                                            >
+                                                View Person
+                                            </a>
+                                        @else
+                                            <span class="inline-flex rounded-full bg-gray-200 px-2.5 py-1 text-xs font-bold text-gray-700 dark:bg-gray-700 dark:text-gray-100">
+                                                Not linked to People
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                @if (
+                                    $selectedTerm
+                                    && ! $selectedTerm->is_archived
+                                )
+                                    <form
+                                        method="POST"
+                                        action="{{ route(
+                                            'quezonprovinceactivities.campus-work.contacts.term-membership.store',
+                                            $contact
+                                        ) }}"
+                                        class="shrink-0"
+                                    >
+                                        @csrf
+
+                                        <input
+                                            type="hidden"
+                                            name="campus_work_term_id"
+                                            value="{{ $selectedTerm->id }}"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="w-full rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 sm:w-auto"
+                                        >
+                                            Add to Selected Term
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </details>
+        @endif
 
         {{-- Summary --}}
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -795,6 +1389,105 @@
                                                 {{ $facebookAccount }}
                                             </a>
                                         @endif
+
+                                        @php
+                                            $contactTermMemberships =
+                                                $contact
+                                                    ->termMemberships
+                                                    ->filter(
+                                                        fn ($membership) =>
+                                                            $membership->term
+                                                    )
+                                                    ->sortByDesc(
+                                                        fn ($membership) =>
+                                                            sprintf(
+                                                                '%s-%010d',
+                                                                $membership
+                                                                    ->term
+                                                                    ->academic_year,
+                                                                $membership
+                                                                    ->term
+                                                                    ->id
+                                                            )
+                                                    )
+                                                    ->values();
+                                        @endphp
+
+                                        <details class="mt-2">
+                                            <summary
+                                                class="cursor-pointer text-xs font-semibold text-violet-700 hover:text-violet-600 dark:text-violet-300 dark:hover:text-violet-200"
+                                            >
+                                                Academic Terms
+                                                ({{ $contactTermMemberships->count() }})
+                                            </summary>
+
+                                            <div class="mt-2 space-y-1.5">
+                                                @forelse (
+                                                    $contactTermMemberships
+                                                    as $membership
+                                                )
+                                                    @php
+                                                        $membershipTerm =
+                                                            $membership->term;
+
+                                                        $isViewingTerm =
+                                                            $selectedTerm
+                                                            && $selectedTerm->id
+                                                                ===
+                                                                $membershipTerm->id;
+                                                    @endphp
+
+                                                    <div
+                                                        class="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs font-normal text-gray-700 dark:border-violet-900 dark:bg-violet-950 dark:text-gray-200"
+                                                    >
+                                                        <div class="font-semibold">
+                                                            AY
+                                                            {{ $membershipTerm->academic_year }}
+                                                            ·
+                                                            {{ $membershipTerm->semester }}
+                                                        </div>
+
+                                                        @if (
+                                                            $isViewingTerm
+                                                            || $membershipTerm->is_active
+                                                            || $membershipTerm->is_archived
+                                                        )
+                                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                                @if ($isViewingTerm)
+                                                                    <span
+                                                                        class="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white"
+                                                                    >
+                                                                        Viewing
+                                                                    </span>
+                                                                @endif
+
+                                                                @if ($membershipTerm->is_active)
+                                                                    <span
+                                                                        class="rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white"
+                                                                    >
+                                                                        Active
+                                                                    </span>
+                                                                @endif
+
+                                                                @if ($membershipTerm->is_archived)
+                                                                    <span
+                                                                        class="rounded-full bg-gray-600 px-2 py-0.5 text-[10px] font-bold text-white"
+                                                                    >
+                                                                        Archived
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @empty
+                                                    <p
+                                                        class="text-xs font-normal text-gray-500 dark:text-gray-400"
+                                                    >
+                                                        No Academic Term allocation.
+                                                    </p>
+                                                @endforelse
+                                            </div>
+                                        </details>
                                     </td>
 
                                     <td class="px-4 py-3">
@@ -813,12 +1506,33 @@
 
                                     <td class="px-4 py-3">
                                         @if ($contact->person)
-                                            <a
-                                                href="{{ $this->personUrl($contact->person) }}"
-                                                class="inline-flex rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white hover:bg-green-500"
-                                            >
-                                                View Person
-                                            </a>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <a
+                                                    href="{{ $this->personUrl($contact->person) }}"
+                                                    class="inline-flex rounded-full bg-green-600 px-3 py-1 text-xs font-bold text-white hover:bg-green-500"
+                                                >
+                                                    View Person
+                                                </a>
+
+                                                <form
+                                                    method="POST"
+                                                    action="{{ route(
+                                                        'quezonprovinceactivities.campus-work.contacts.unlink-person',
+                                                        $contact
+                                                    ) }}"
+                                                    onsubmit="return confirm('Unlink this Campus Contact from {{ addslashes($contact->person->display_name) }}? Neither record will be deleted and the Person record will not be changed.');"
+                                                >
+                                                    @csrf
+                                                    @method('DELETE')
+
+                                                    <button
+                                                        type="submit"
+                                                        class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200"
+                                                    >
+                                                        Unlink
+                                                    </button>
+                                                </form>
+                                            </div>
                                         @else
                                             <div class="flex flex-wrap items-center gap-2">
                                                 <form
@@ -869,20 +1583,30 @@
                                                 Edit
                                             </button>
 
-                                            @if (auth()->user()?->canDeleteRecords())
+                                            @if (
+                                                auth()->user()?->canDeleteRecords()
+                                                && $selectedTerm
+                                                && ! $selectedTerm->is_archived
+                                            )
                                                 <form
                                                     method="POST"
-                                                    action="{{ route('quezonprovinceactivities.campus-work.contacts.destroy', $contact) }}"
-                                                    onsubmit="return confirm('Delete this Campus Contact? Linked People records will not be deleted.');"
+                                                    action="{{ route('quezonprovinceactivities.campus-work.contacts.term-membership.destroy', $contact) }}"
+                                                    onsubmit="return confirm('Remove this Campus Contact from the selected Academic Term? The permanent Campus Contact and linked Person will remain.');"
                                                 >
                                                     @csrf
                                                     @method('DELETE')
 
+                                                    <input
+                                                        type="hidden"
+                                                        name="campus_work_term_id"
+                                                        value="{{ $selectedTerm->id }}"
+                                                    >
+
                                                     <button
                                                         type="submit"
-                                                        class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500"
+                                                        class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-500"
                                                     >
-                                                        Delete
+                                                        Remove from Term
                                                     </button>
                                                 </form>
                                             @endif

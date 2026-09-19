@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CampusContact;
+use App\Models\CampusWorkTerm;
 use App\Models\Locality;
 use App\Models\School;
 use App\Support\ActivityLogger;
@@ -42,7 +43,27 @@ class CampusContactImportController extends Controller
                 'required',
                 'in:validate,import',
             ],
+
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
         ]);
+
+        $term = CampusWorkTerm::query()
+            ->findOrFail(
+                (int) $request->input(
+                    'campus_work_term_id'
+                )
+            );
+
+        if ($term->is_archived) {
+            return back()->withErrors([
+                'campus_work_term_id' =>
+                    'Archived academic terms are read-only.',
+            ]);
+        }
 
         $parsed = $this->parseCsv(
             $request->file('csv_file')
@@ -135,7 +156,7 @@ class CampusContactImportController extends Controller
                 $school = $schoolMatches->first();
             }
 
-            CampusContact::query()->create([
+            $contact = CampusContact::query()->create([
                 'firstname' => $this->nullable(
                     $row['firstname'] ?? null
                 ),
@@ -178,6 +199,13 @@ class CampusContactImportController extends Controller
                     $row['notes'] ?? null
                 ),
             ]);
+
+            $contact
+                ->termMemberships()
+                ->firstOrCreate([
+                    'campus_work_term_id' =>
+                        $term->id,
+                ]);
 
             $imported++;
         }

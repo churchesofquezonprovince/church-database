@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Filament\Pages\CampusContacts;
 use App\Models\CampusContact;
+use App\Models\CampusWorkTerm;
 use App\Models\Person;
 use App\Models\School;
 use App\Support\ActivityLogger;
@@ -90,7 +91,24 @@ class CampusContactController extends Controller
             }
         }
 
-        CampusContact::query()->create($normalized);
+        $term = $this->writableTerm(
+            (int) $data['campus_work_term_id']
+        );
+
+        DB::transaction(function () use (
+            $normalized,
+            $term
+        ): void {
+            $contact = CampusContact::query()
+                ->create($normalized);
+
+            $contact
+                ->termMemberships()
+                ->firstOrCreate([
+                    'campus_work_term_id' =>
+                        $term->id,
+                ]);
+        });
 
         return back()->with('campus_contact_created', true);
     }
@@ -431,13 +449,17 @@ class CampusContactController extends Controller
                 'distinct',
                 'exists:persons,id',
             ],
+
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
         ]);
 
-        $alreadyLinkedPersonIds = CampusContact::query()
-            ->whereIn('person_id', $data['person_ids'])
-            ->pluck('person_id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
+        $term = $this->writableTerm(
+            (int) $data['campus_work_term_id']
+        );
 
         $people = Person::query()
             ->with([
@@ -445,55 +467,75 @@ class CampusContactController extends Controller
                 'educationProfile',
             ])
             ->whereIn('id', $data['person_ids'])
-            ->whereNotIn('id', $alreadyLinkedPersonIds)
             ->get();
 
         $added = 0;
 
         DB::transaction(function () use (
             $people,
+            $term,
             &$added
         ): void {
             foreach ($people as $person) {
-                CampusContact::query()->create([
-                    'person_id' => $person->id,
+                $contact = CampusContact::query()
+                    ->where('person_id', $person->id)
+                    ->first();
 
-                    'firstname' =>
-                        $person->firstname,
+                if (! $contact) {
+                    $contact = CampusContact::query()->create([
+                        'person_id' => $person->id,
 
-                    'lastname' =>
-                        $person->lastname,
+                        'firstname' =>
+                            $person->firstname,
 
-                    'sex' =>
-                        $person->sex,
+                        'lastname' =>
+                            $person->lastname,
 
-                    'locality_id' =>
-                        $person->locality_id,
+                        'sex' =>
+                            $person->sex,
 
-                    'locality' =>
-                        $person->locality,
+                        'locality_id' =>
+                            $person->locality_id,
 
-                    'course_strand' =>
-                        $person
-                            ->educationProfile
-                            ?->course_strand,
+                        'locality' =>
+                            $person->locality,
 
-                    'grade_level' =>
-                        $person
-                            ->educationProfile
-                            ?->grade_level,
+                        'school_id' =>
+                            $person
+                                ->educationProfile
+                                ?->school_id,
 
-                    'contact_number' =>
-                        $person->contact_number,
+                        'course_strand' =>
+                            $person
+                                ->educationProfile
+                                ?->course_strand,
 
-                    'email' =>
-                        $person->email,
+                        'grade_level' =>
+                            $person
+                                ->educationProfile
+                                ?->grade_level,
 
-                    'facebook_account' =>
-                        $person->facebook_account,
-                ]);
+                        'contact_number' =>
+                            $person->contact_number,
 
-                $added++;
+                        'email' =>
+                            $person->email,
+
+                        'facebook_account' =>
+                            $person->facebook_account,
+                    ]);
+                }
+
+                $membership = $contact
+                    ->termMemberships()
+                    ->firstOrCreate([
+                        'campus_work_term_id' =>
+                            $term->id,
+                    ]);
+
+                if ($membership->wasRecentlyCreated) {
+                    $added++;
+                }
             }
         });
 
@@ -762,10 +804,143 @@ class CampusContactController extends Controller
         ]);
     }
 
+    public function unlinkPerson(
+        CampusContact $contact
+    ): RedirectResponse {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        if (! $contact->person_id) {
+            return back()->withErrors([
+                'contact' =>
+                    'This Campus Contact is not linked '
+                    . 'to a Person.',
+            ]);
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * Only break the relationship.
+         *
+         * Do NOT modify or delete the Person.
+         * Do NOT remove Academic Term memberships.
+         *
+         * The current Campus Contact mirror values remain
+         * as its standalone snapshot after unlinking.
+         */
+        $contact->update([
+            'person_id' => null,
+        ]);
+
+        return back()->with(
+            'campus_contact_unlinked_person',
+            true
+        );
+    }
+
+    public function addToTerm(
+        Request $request,
+        CampusContact $contact
+    ): RedirectResponse {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $data = $request->validate([
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
+        ]);
+
+        $term = $this->writableTerm(
+            (int) $data['campus_work_term_id']
+        );
+
+        $membership = $contact
+            ->termMemberships()
+            ->firstOrCreate([
+                'campus_work_term_id' =>
+                    $term->id,
+            ]);
+
+        return back()
+            ->with(
+                'campus_contact_added_to_term',
+                true
+            )
+            ->with(
+                'campus_contact_added_to_term_created',
+                $membership->wasRecentlyCreated
+            );
+    }
+
+    public function removeFromTerm(
+        Request $request,
+        CampusContact $contact
+    ): RedirectResponse {
+        abort_unless(
+            auth()->user()?->canDeleteRecords(),
+            403
+        );
+
+        $data = $request->validate([
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
+        ]);
+
+        $term = $this->writableTerm(
+            (int) $data['campus_work_term_id']
+        );
+
+        $contact
+            ->termMemberships()
+            ->where(
+                'campus_work_term_id',
+                $term->id
+            )
+            ->delete();
+
+        return back()->with(
+            'campus_contact_removed_from_term',
+            true
+        );
+    }
+
+    private function writableTerm(
+        int $termId
+    ): CampusWorkTerm {
+        $term = CampusWorkTerm::query()
+            ->findOrFail($termId);
+
+        if ($term->is_archived) {
+            throw ValidationException::withMessages([
+                'campus_work_term_id' =>
+                    'Archived academic terms are read-only.',
+            ]);
+        }
+
+        return $term;
+    }
+
     private function validatedData(
         Request $request
     ): array {
         return $request->validate([
+            'campus_work_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
+
             'firstname' => [
                 'nullable',
                 'string',

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Pages\CampusContacts;
 use App\Filament\Pages\StudentNucleus;
 use App\Models\CampusWorkTerm;
+use App\Models\CampusContactTermMembership;
 use App\Models\StudentNucleusMembership;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,16 +66,18 @@ class CampusWorkTermController extends Controller
 
         return redirect()
             ->to(
-                StudentNucleus::getUrl()
-                . '?'
-                . http_build_query([
-                    'termId' => $term->id,
-                ])
+                $this->returnUrl(
+                    $request,
+                    $term
+                )
             )
             ->with('campus_work_term_created', true);
     }
 
-    public function activate(CampusWorkTerm $term): RedirectResponse
+    public function activate(
+        Request $request,
+        CampusWorkTerm $term
+    ): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
@@ -96,11 +100,10 @@ class CampusWorkTermController extends Controller
 
         return redirect()
             ->to(
-                StudentNucleus::getUrl()
-                . '?'
-                . http_build_query([
-                    'termId' => $term->id,
-                ])
+                $this->returnUrl(
+                    $request,
+                    $term
+                )
             )
             ->with('campus_work_term_activated', true);
     }
@@ -171,7 +174,108 @@ class CampusWorkTermController extends Controller
             ->with('campus_work_term_members_added', $added);
     }
 
-    public function archive(CampusWorkTerm $term): RedirectResponse
+    public function copyContacts(
+        Request $request,
+        CampusWorkTerm $term
+    ): RedirectResponse {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        if ($term->is_archived) {
+            return back()->withErrors([
+                'term' =>
+                    'Campus Contacts cannot be copied into '
+                    . 'an archived academic term.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'source_term_id' => [
+                'required',
+                'integer',
+                'exists:campus_work_terms,id',
+            ],
+        ]);
+
+        $sourceTermId =
+            (int) $data['source_term_id'];
+
+        if ($sourceTermId === (int) $term->id) {
+            return back()->withErrors([
+                'source_term_id' =>
+                    'Choose a different academic term '
+                    . 'to copy from.',
+            ]);
+        }
+
+        $sourceContactIds =
+            CampusContactTermMembership::query()
+                ->where(
+                    'campus_work_term_id',
+                    $sourceTermId
+                )
+                ->pluck('campus_contact_id')
+                ->map(
+                    fn ($id): int => (int) $id
+                )
+                ->unique()
+                ->values();
+
+        if ($sourceContactIds->isEmpty()) {
+            return back()->withErrors([
+                'source_term_id' =>
+                    'The selected source term has no '
+                    . 'Campus Contacts.',
+            ]);
+        }
+
+        $added = 0;
+
+        DB::transaction(
+            function () use (
+                $term,
+                $sourceContactIds,
+                &$added
+            ): void {
+                foreach (
+                    $sourceContactIds as $contactId
+                ) {
+                    $membership =
+                        CampusContactTermMembership::query()
+                            ->firstOrCreate([
+                                'campus_work_term_id' =>
+                                    $term->id,
+
+                                'campus_contact_id' =>
+                                    $contactId,
+                            ]);
+
+                    if (
+                        $membership->wasRecentlyCreated
+                    ) {
+                        $added++;
+                    }
+                }
+            }
+        );
+
+        return back()
+            ->with(
+                'campus_work_term_contacts_copied',
+                true
+            )
+            ->with(
+                'campus_work_term_contacts_added',
+                $added
+            );
+    }
+
+    public function archive(
+        Request $request,
+        CampusWorkTerm $term
+    ): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
@@ -187,11 +291,16 @@ class CampusWorkTermController extends Controller
         ]);
 
         return redirect()
-            ->to(StudentNucleus::getUrl())
+            ->to(
+                $this->returnUrl($request)
+            )
             ->with('campus_work_term_archived', true);
     }
 
-    public function restore(CampusWorkTerm $term): RedirectResponse
+    public function restore(
+        Request $request,
+        CampusWorkTerm $term
+    ): RedirectResponse
     {
         abort_unless(auth()->user()?->canManageRecords(), 403);
 
@@ -201,12 +310,36 @@ class CampusWorkTermController extends Controller
 
         return redirect()
             ->to(
-                StudentNucleus::getUrl()
-                . '?'
-                . http_build_query([
-                    'termId' => $term->id,
-                ])
+                $this->returnUrl(
+                    $request,
+                    $term
+                )
             )
             ->with('campus_work_term_restored', true);
     }
+    private function returnUrl(
+        Request $request,
+        ?CampusWorkTerm $term = null
+    ): string {
+        $returnTo = (string) $request->input(
+            'return_to',
+            'student-nucleus'
+        );
+
+        $baseUrl =
+            $returnTo === 'campus-contacts'
+                ? CampusContacts::getUrl()
+                : StudentNucleus::getUrl();
+
+        if (! $term) {
+            return $baseUrl;
+        }
+
+        return $baseUrl
+            . '?'
+            . http_build_query([
+                'termId' => $term->id,
+            ]);
+    }
+
 }

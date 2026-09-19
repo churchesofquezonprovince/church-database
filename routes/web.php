@@ -404,6 +404,11 @@ Route::middleware(['web', 'auth'])
         Route::post('/{term}/copy-members', [CampusWorkTermController::class, 'copyMembers'])
             ->name('copy-members');
 
+        Route::post(
+            '/{term}/copy-contacts',
+            [CampusWorkTermController::class, 'copyContacts']
+        )->name('copy-contacts');
+
         Route::post('/{term}/archive', [CampusWorkTermController::class, 'archive'])
             ->name('archive');
 
@@ -510,11 +515,26 @@ Route::middleware(['web', 'auth'])
         Route::delete('/{contact}', [CampusContactController::class, 'destroy'])
             ->name('destroy');
 
+        Route::post(
+            '/{contact}/term-membership',
+            [CampusContactController::class, 'addToTerm']
+        )->name('term-membership.store');
+
+        Route::delete(
+            '/{contact}/term-membership',
+            [CampusContactController::class, 'removeFromTerm']
+        )->name('term-membership.destroy');
+
         Route::post('/{contact}/add-to-people', [CampusContactController::class, 'addToPeople'])
             ->name('add-to-people');
 
         Route::post('/{contact}/link-existing-person', [CampusContactController::class, 'linkExistingPerson'])
             ->name('link-existing-person');
+
+        Route::delete(
+            '/{contact}/unlink-person',
+            [CampusContactController::class, 'unlinkPerson']
+        )->name('unlink-person');
 
         Route::post('/{contact}/create-new-person-anyway', [CampusContactController::class, 'createNewPersonAnyway'])
             ->name('create-new-person-anyway');

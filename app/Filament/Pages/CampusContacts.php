@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Support\LocalityOptions;
 use App\Filament\Resources\People\PersonResource;
 use App\Models\CampusContact;
+use App\Models\CampusWorkTerm;
 use App\Models\Person;
 use App\Models\School;
 use Filament\Pages\Page;
@@ -76,37 +77,119 @@ class CampusContacts extends Page
         return auth()->user()?->canManageRecords() ?? false;
     }
 
+    public function terms(): Collection
+    {
+        return CampusWorkTerm::query()
+            ->where('is_archived', false)
+            ->orderByDesc('is_active')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function archivedTerms(): Collection
+    {
+        return CampusWorkTerm::query()
+            ->where('is_archived', true)
+            ->withCount('campusContactMemberships')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function copySourceTerms(): Collection
+    {
+        $selectedTerm = $this->selectedTerm();
+
+        if (! $selectedTerm) {
+            return collect();
+        }
+
+        return CampusWorkTerm::query()
+            ->whereKeyNot($selectedTerm->id)
+            ->withCount('campusContactMemberships')
+            ->orderByDesc('academic_year')
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function selectedTerm(): ?CampusWorkTerm
+    {
+        $termId = request()->integer('termId');
+
+        if ($termId) {
+            $selectedTerm = CampusWorkTerm::query()
+                ->find($termId);
+
+            if ($selectedTerm) {
+                return $selectedTerm;
+            }
+        }
+
+        return CampusWorkTerm::query()
+            ->where('is_active', true)
+            ->where('is_archived', false)
+            ->latest('id')
+            ->first()
+            ?? CampusWorkTerm::query()
+                ->where('is_archived', false)
+                ->latest('id')
+                ->first()
+            ?? CampusWorkTerm::query()
+                ->latest('id')
+                ->first();
+    }
+
+    public function termUrl(CampusWorkTerm $term): string
+    {
+        return static::getUrl() . '?' . http_build_query([
+            'termId' => $term->id,
+        ]);
+    }
+
     public function contacts(): Collection
     {
+        $term = $this->selectedTerm();
+
+        if (! $term) {
+            return collect();
+        }
+
         /*
-         * Campus Contacts is intentionally loaded normally.
          * Search, school filter, and People Database status filter
-         * are handled client-side in the Blade for faster UI response.
+         * remain client-side in the Blade.
+         *
+         * The Academic Term itself is server-side so historical
+         * Campus Contact allocations remain isolated by term.
          */
         return CampusContact::query()
+            ->whereHas(
+                'termMemberships',
+                fn ($query) =>
+                    $query->where(
+                        'campus_work_term_id',
+                        $term->id
+                    )
+            )
             ->with([
                 'person.churchProfile',
                 'person.educationProfile',
+                'termMemberships.term',
             ])
             ->when(
                 $this->statusFilter === 'linked',
                 fn ($query) =>
-                    $query->whereNotNull(
-                        'person_id'
-                    )
+                    $query->whereNotNull('person_id')
             )
             ->when(
                 $this->statusFilter === 'unlinked',
                 fn ($query) =>
-                    $query->whereNull(
-                        'person_id'
-                    )
+                    $query->whereNull('person_id')
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->get();
     }
-
 
     public function groupedContacts(): Collection
     {
@@ -143,9 +226,29 @@ class CampusContacts extends Page
 
     public function summary(): array
     {
+        $term = $this->selectedTerm();
+
+        if (! $term) {
+            return [
+                'total' => 0,
+                'not_in_people' => 0,
+                'added_to_people' => 0,
+                'schools' => 0,
+            ];
+        }
+
         $contacts = CampusContact::query()
+            ->whereHas(
+                'termMemberships',
+                fn ($query) =>
+                    $query->where(
+                        'campus_work_term_id',
+                        $term->id
+                    )
+            )
             ->with([
                 'person.educationProfile',
+                'school',
             ])
             ->get();
 
@@ -166,9 +269,7 @@ class CampusContacts extends Page
             'schools' =>
                 $contacts
                     ->map(
-                        fn (
-                            CampusContact $contact
-                        ): ?string =>
+                        fn (CampusContact $contact): ?string =>
                             $contact
                                 ->effective_school_campus
                     )
@@ -185,8 +286,6 @@ class CampusContacts extends Page
 
 
 
-
-
     public function availableExistingPeople(): Collection
     {
         $search = trim($this->existingPeopleSearch);
@@ -198,6 +297,12 @@ class CampusContacts extends Page
          * - Limit results so Livewire remains fast even with 5,000+ People.
          */
         if (mb_strlen($search) < 2) {
+            return collect();
+        }
+
+        $term = $this->selectedTerm();
+
+        if (! $term) {
             return collect();
         }
 
@@ -220,7 +325,14 @@ class CampusContacts extends Page
                 'educationProfile:id,person_id,school_id,course_strand,grade_level',
                 'educationProfile.school:id,name,short_name',
             ])
-            ->whereDoesntHave('campusContact')
+            ->whereDoesntHave(
+                'campusContact.termMemberships',
+                fn ($membershipQuery) =>
+                    $membershipQuery->where(
+                        'campus_work_term_id',
+                        $term->id
+                    )
+            )
             ->where(function ($query) use ($like): void {
                 $query
                     ->where('firstname', 'like', $like)
@@ -286,6 +398,20 @@ class CampusContacts extends Page
     public function localityOptions(): array
     {
         return LocalityOptions::groupedActiveConfigured();
+    }
+
+    public function unallocatedContacts(): Collection
+    {
+        return CampusContact::query()
+            ->doesntHave('termMemberships')
+            ->with([
+                'person.churchProfile',
+                'person.educationProfile.school',
+                'school',
+            ])
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
     }
 
     public function personUrl(Person $person): string
