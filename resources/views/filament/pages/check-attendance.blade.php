@@ -954,6 +954,174 @@
             </div>
         @else
             <div
+                x-data="{
+                    participantWidth: 200,
+                    resizingParticipant: false,
+                    resizeStartX: 0,
+                    resizeStartWidth: 200,
+
+                    maxParticipantWidth() {
+                        return Math.max(
+                            96,
+                            Math.min(
+                                420,
+                                Math.floor(
+                                    window.innerWidth * 0.75
+                                )
+                            )
+                        );
+                    },
+
+                    defaultParticipantWidth() {
+                        if (window.innerWidth < 640) {
+                            return Math.max(
+                                96,
+                                Math.floor(
+                                    window.innerWidth * 0.30
+                                )
+                            );
+                        }
+
+                        return 200;
+                    },
+
+                    loadParticipantWidth() {
+                        const saved =
+                            Number(
+                                localStorage.getItem(
+                                    'attendanceGridParticipantWidth'
+                                )
+                            );
+
+                        if (
+                            Number.isFinite(saved)
+                            && saved > 0
+                        ) {
+                            this.participantWidth =
+                                Math.max(
+                                    96,
+                                    Math.min(
+                                        this.maxParticipantWidth(),
+                                        saved
+                                    )
+                                );
+
+                            return;
+                        }
+
+                        this.participantWidth =
+                            this.defaultParticipantWidth();
+                    },
+
+                    saveParticipantWidth() {
+                        localStorage.setItem(
+                            'attendanceGridParticipantWidth',
+                            Math.round(
+                                this.participantWidth
+                            )
+                        );
+                    },
+
+                    startParticipantResize(event) {
+                        this.resizingParticipant = true;
+                        this.resizeStartX =
+                            event.clientX;
+                        this.resizeStartWidth =
+                            this.participantWidth;
+
+                        document.documentElement
+                            .style.userSelect =
+                            'none';
+
+                        document.documentElement
+                            .style.cursor =
+                            'col-resize';
+                    },
+
+                    resizeParticipant(event) {
+                        if (
+                            ! this.resizingParticipant
+                        ) {
+                            return;
+                        }
+
+                        const nextWidth =
+                            this.resizeStartWidth
+                            +
+                            (
+                                event.clientX
+                                - this.resizeStartX
+                            );
+
+                        this.participantWidth =
+                            Math.max(
+                                96,
+                                Math.min(
+                                    this.maxParticipantWidth(),
+                                    nextWidth
+                                )
+                            );
+                    },
+
+                    stopParticipantResize() {
+                        if (
+                            ! this.resizingParticipant
+                        ) {
+                            return;
+                        }
+
+                        this.resizingParticipant =
+                            false;
+
+                        document.documentElement
+                            .style.userSelect =
+                            '';
+
+                        document.documentElement
+                            .style.cursor =
+                            '';
+
+                        this.saveParticipantWidth();
+                    },
+
+                    resetParticipantWidth() {
+                        this.participantWidth =
+                            this.defaultParticipantWidth();
+
+                        this.saveParticipantWidth();
+                    },
+
+                    nudgeParticipantWidth(amount) {
+                        this.participantWidth =
+                            Math.max(
+                                96,
+                                Math.min(
+                                    this.maxParticipantWidth(),
+                                    this.participantWidth
+                                    + amount
+                                )
+                            );
+
+                        this.saveParticipantWidth();
+                    },
+                }"
+                x-init="loadParticipantWidth()"
+                x-on:pointermove.window="
+                    resizeParticipant($event)
+                "
+                x-on:pointerup.window="
+                    stopParticipantResize()
+                "
+                x-on:pointercancel.window="
+                    stopParticipantResize()
+                "
+                x-on:resize.window="
+                    participantWidth =
+                        Math.min(
+                            participantWidth,
+                            maxParticipantWidth()
+                        )
+                "
                 wire:key="attendance-grid-{{ $selectedSheet->id }}"
                 class="flex min-w-0 w-full items-start"
             >
@@ -962,15 +1130,25 @@
                      ========================================= --}}
                 <div
                     class="relative z-10 shrink-0"
-                    style="
-                        width: 14rem;
-                        min-width: 14rem;
-                        max-width: 14rem;
-                        flex: 0 0 14rem;
-                        box-shadow:
-                            5px 0 8px -6px
-                            rgba(0, 0, 0, 0.45);
-                    "
+                    x-bind:style="{
+                        width:
+                            participantWidth + 'px',
+
+                        minWidth:
+                            participantWidth + 'px',
+
+                        maxWidth:
+                            participantWidth + 'px',
+
+                        flex:
+                            '0 0 '
+                            + participantWidth
+                            + 'px',
+
+                        boxShadow:
+                            '5px 0 8px -6px '
+                            + 'rgba(0, 0, 0, 0.45)',
+                    }"
                 >
                     <table
                         class="w-full table-fixed
@@ -1053,6 +1231,37 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div
+                        role="separator"
+                        aria-label="Resize Participant column"
+                        aria-orientation="vertical"
+                        tabindex="0"
+                        title="Drag to resize Participant column. Double-click to reset."
+                        class="absolute right-0 top-0 z-30
+                               h-full w-3
+                               translate-x-1/2
+                               cursor-col-resize
+                               select-none touch-none"
+                        x-on:pointerdown.prevent="
+                            startParticipantResize(
+                                $event
+                            )
+                        "
+                        x-on:dblclick.prevent="
+                            resetParticipantWidth()
+                        "
+                        x-on:keydown.left.prevent="
+                            nudgeParticipantWidth(
+                                -16
+                            )
+                        "
+                        x-on:keydown.right.prevent="
+                            nudgeParticipantWidth(
+                                16
+                            )
+                        "
+                    ></div>
+
                 </div>
 
                 {{-- =========================================
