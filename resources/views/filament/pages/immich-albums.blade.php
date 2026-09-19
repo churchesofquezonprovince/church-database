@@ -236,10 +236,19 @@
                     <article
                         x-data="{
                             albumUrl: @js($album['clickUrl'] ?? null),
-                            flipped: false
+                            flipped: false,
+                            touchPointer: false
                         }"
-                        x-on:mouseenter="flipped = true"
-                        x-on:mouseleave="flipped = false"
+                        x-on:pointerenter="
+                            if ($event.pointerType === 'mouse') {
+                                flipped = true
+                            }
+                        "
+                        x-on:pointerleave="
+                            if ($event.pointerType === 'mouse') {
+                                flipped = false
+                            }
+                        "
                         x-on:click="
                             if (albumUrl) {
                                 window.open(
@@ -252,11 +261,46 @@
                         role="link"
                         tabindex="0"
                         class="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-900 dark:hover:border-sky-700"
+                        style="display: flex; flex-direction: column; height: 100%;"
                     >
-                        <div class="flex min-w-0 gap-4 p-5">
+                        <div class="immich-album-main flex min-w-0 gap-4 p-5">
                             <div
                                 data-immich-album-qr
                                 data-qr-url="{{ $album['sharedUrl'] ?? '' }}"
+                                x-on:pointerdown.stop="
+                                    touchPointer =
+                                        $event.pointerType === 'touch'
+                                        || $event.pointerType === 'pen'
+                                "
+                                x-on:pointerup.stop.prevent="
+                                    if (touchPointer) {
+                                        flipped = ! flipped
+
+                                        /*
+                                         * Keep this true long enough to
+                                         * swallow the synthetic click that
+                                         * follows a mobile tap.
+                                         */
+                                        window.setTimeout(
+                                            () => {
+                                                touchPointer = false
+                                            },
+                                            400
+                                        )
+                                    }
+                                "
+                                x-on:pointercancel.stop="
+                                    touchPointer = false
+                                "
+                                x-on:click.stop.prevent="
+                                    if (! touchPointer && albumUrl) {
+                                        window.open(
+                                            albumUrl,
+                                            '_blank',
+                                            'noopener,noreferrer'
+                                        )
+                                    }
+                                "
                                 class="relative shrink-0"
                                 style="
                                     width: 200px;
@@ -321,7 +365,7 @@
                             </div>
 
                             <div class="min-w-0 flex-1">
-                                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="flex flex-col gap-2">
                                     <div class="min-w-0">
                                         <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
                                             {{ $album['albumName'] }}
@@ -335,7 +379,7 @@
                                         </p>
                                     </div>
 
-                                    <div class="flex shrink-0 flex-wrap gap-2">
+                                    <div class="flex flex-wrap gap-2">
                                         @if ($album['linked'])
                                             <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
                                                 Linked
@@ -362,14 +406,23 @@
                                 </div>
 
                                 @if (filled($album['description']))
-                                    <p class="mt-3 break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                    <p class="immich-description-desktop mt-3 break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                                         {{ $album['description'] }}
                                     </p>
                                 @endif
                             </div>
+
+                            @if (filled($album['description']))
+                                <p class="immich-description-mobile w-full break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                    {{ $album['description'] }}
+                                </p>
+                            @endif
                         </div>
 
-                        <div class="grid border-t border-gray-200 bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-950 sm:grid-cols-2">
+                        <div
+                            class="grid border-t border-gray-200 bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-950 {{ $album['linked'] ? 'sm:grid-cols-2' : '' }}"
+                            style="margin-top: auto;"
+                        >
                             <div class="p-4">
                                 <p class="text-xs font-bold uppercase tracking-wide text-gray-400">
                                     Album Dates
@@ -388,12 +441,12 @@
                                 </p>
                             </div>
 
-                            <div class="border-t border-gray-200 p-4 dark:border-gray-700 sm:border-l sm:border-t-0">
-                                <p class="text-xs font-bold uppercase tracking-wide text-gray-400">
-                                    Attendance Sheet
-                                </p>
+                            @if ($album['linked'])
+                                <div class="border-t border-gray-200 p-4 dark:border-gray-700 sm:border-l sm:border-t-0">
+                                    <p class="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                        Attendance Sheet
+                                    </p>
 
-                                @if ($album['linked'])
                                     <p class="mt-1 font-semibold text-gray-700 dark:text-gray-200">
                                         {{ data_get($album, 'link.sheet_title') ?: 'Linked sheet' }}
                                     </p>
@@ -405,12 +458,8 @@
 
                                         {{ data_get($album, 'link.enabled') ? 'Sync enabled' : 'Sync disabled' }}
                                     </p>
-                                @else
-                                    <p class="mt-1 text-gray-500 dark:text-gray-400">
-                                        Not linked
-                                    </p>
-                                @endif
-                            </div>
+                                </div>
+                            @endif
                         </div>
 
 
@@ -469,6 +518,45 @@
             </div>
         </div>
     </div>
+
+    <style>
+        /*
+         * Immich album responsive layout.
+         *
+         * Mobile:
+         *   thumbnail + title on first row
+         *   description spans full width underneath
+         *
+         * Desktop:
+         *   thumbnail stays beside title + description
+         */
+        .immich-album-main {
+            flex-wrap: wrap;
+        }
+
+        .immich-description-desktop {
+            display: none;
+        }
+
+        .immich-description-mobile {
+            display: block;
+            flex-basis: 100%;
+        }
+
+        @media (min-width: 640px) {
+            .immich-album-main {
+                flex-wrap: nowrap;
+            }
+
+            .immich-description-desktop {
+                display: block;
+            }
+
+            .immich-description-mobile {
+                display: none;
+            }
+        }
+    </style>
 
     <script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
 
