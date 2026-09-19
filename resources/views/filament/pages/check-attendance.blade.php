@@ -989,18 +989,28 @@
                                             =>
                                                 $this->gridEditMode
                                                 &&
+                                                ! $gridSession->is_no_meeting
+                                                &&
                                                 $this->gridEditSessionId
                                                 ===
                                                 (int) $gridSession->id,
 
+                                        'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
+                                            =>
+                                                $gridSession->is_no_meeting,
+
                                         'bg-primary-100 text-primary-900 dark:bg-primary-950 dark:text-primary-100'
                                             =>
+                                                ! $gridSession->is_no_meeting
+                                                &&
                                                 $selectedSession?->id
                                                 ===
                                                 $gridSession->id,
 
                                         'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-100'
                                             =>
+                                                ! $gridSession->is_no_meeting
+                                                &&
                                                 $selectedSession?->id
                                                 !==
                                                 $gridSession->id,
@@ -1121,7 +1131,14 @@
                                                 'status'
                                             ];
 
+                                        $gridNoMeeting =
+                                            (bool)
+                                            $gridSession
+                                                ->is_no_meeting;
+
                                         $gridCellEditable =
+                                            ! $gridNoMeeting
+                                            &&
                                             $this->gridEditMode
                                             &&
                                             $this->gridEditSessionId
@@ -1173,33 +1190,56 @@
                                                     ===
                                                     $gridSession->id,
 
+                                            'bg-red-100 text-red-900 dark:bg-red-200 dark:text-red-900'
+                                                =>
+                                                    $gridNoMeeting,
+
                                             'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
                                                 =>
+                                                    ! $gridNoMeeting
+                                                    &&
                                                     $gridStatus
                                                     ===
                                                     'present',
 
                                             'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
                                                 =>
+                                                    ! $gridNoMeeting
+                                                    &&
                                                     $gridStatus
                                                     ===
                                                     'absent',
 
                                             'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300'
                                                 =>
+                                                    ! $gridNoMeeting
+                                                    &&
                                                     $gridStatus
                                                     ===
                                                     'not_recorded',
 
                                             'bg-gray-50 text-gray-300 dark:bg-gray-950 dark:text-gray-600'
                                                 =>
+                                                    ! $gridNoMeeting
+                                                    &&
                                                     $gridStatus
                                                     ===
                                                     'not_roster',
                                         ])
-                                        title="{{ $gridStatusLabel }}"
+                                        title="{{
+                                            $gridNoMeeting
+                                                ? 'No meeting on this date'
+                                                : $gridStatusLabel
+                                        }}"
                                     >
-                                        @if (
+                                        @if ($gridNoMeeting)
+                                            <span
+                                                class="select-none"
+                                                aria-label="No meeting"
+                                            >
+                                                &nbsp;
+                                            </span>
+                                        @elseif (
                                             $gridStatus
                                             === 'present'
                                         )

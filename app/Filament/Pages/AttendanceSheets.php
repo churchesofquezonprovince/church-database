@@ -375,6 +375,100 @@ public function selectedSheet(): ?AttendanceSheet
         ]);
     }
 
+    public function toggleNoMeeting(
+        int $sessionId
+    ): void {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $session =
+            AttendanceSession::query()
+                ->with([
+                    'sheet',
+                ])
+                ->withCount(
+                    'records'
+                )
+                ->whereHas(
+                    'sheet',
+                    fn ($query) =>
+                        $query
+                            ->where(
+                                'sheet_type',
+                                AttendanceSheet::TYPE_CUSTOM
+                            )
+                            ->where(
+                                'is_active',
+                                true
+                            )
+                )
+                ->find(
+                    $sessionId
+                );
+
+        if (! $session) {
+            Notification::make()
+                ->title(
+                    'Invalid attendance session'
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $markingNoMeeting =
+            ! (bool) $session->is_no_meeting;
+
+        /*
+         * Do not hide or contradict existing attendance history.
+         *
+         * If attendance was already recorded, the administrator
+         * must resolve that first before declaring NO MEETING.
+         */
+        if (
+            $markingNoMeeting
+            && $session->records_count > 0
+        ) {
+            Notification::make()
+                ->title(
+                    'Cannot mark NO MEETING'
+                )
+                ->body(
+                    'This session already has '
+                    . $session->records_count
+                    . ' attendance record(s).'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $session->update([
+            'is_no_meeting' =>
+                $markingNoMeeting,
+        ]);
+
+        Notification::make()
+            ->title(
+                $markingNoMeeting
+                    ? 'Marked as NO MEETING'
+                    : 'Meeting restored'
+            )
+            ->body(
+                $session
+                    ->session_date
+                    ->format(
+                        'F d, Y'
+                    )
+            )
+            ->success()
+            ->send();
+    }
+
 public function syncImmich(int $sessionId): void
 {
     /*
@@ -413,6 +507,19 @@ public function syncImmich(int $sessionId): void
     }
 
     $sheet = $session->sheet;
+
+    if ($session->is_no_meeting) {
+        Notification::make()
+            ->title('NO MEETING')
+            ->body(
+                'Immich attendance synchronization is disabled '
+                . 'for this session.'
+            )
+            ->warning()
+            ->send();
+
+        return;
+    }
 
     try {
         $result = app(ImmichAttendanceSyncService::class)

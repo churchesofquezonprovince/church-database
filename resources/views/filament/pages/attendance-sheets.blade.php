@@ -476,7 +476,15 @@
                     {{ $session->session_date->format('M d, Y') }}
                 </span>
 
-                @if ($session->immichAssets->isNotEmpty())
+                @if ($session->is_no_meeting)
+                    <span
+                        class="rounded-full bg-red-600
+                               px-2 py-1 text-[10px]
+                               font-bold text-white"
+                    >
+                        NO MEETING
+                    </span>
+                @elseif ($session->immichAssets->isNotEmpty())
                     <span
                         class="rounded-full bg-violet-600
                                px-2 py-1 text-[10px]
@@ -495,7 +503,14 @@
                 @endif
             </div>
 
-            @if ($sessionAttendance['marked'] > 0)
+            @if ($session->is_no_meeting)
+                <p
+                    class="mt-3 text-xs font-bold
+                           text-red-600 dark:text-red-400"
+                >
+                    Attendance not applicable
+                </p>
+            @elseif ($sessionAttendance['marked'] > 0)
                 <div class="mt-3 space-y-1 text-xs">
                     <p class="font-semibold text-emerald-700 dark:text-emerald-300">
                         {{ $sessionAttendance['present'] }} Present
@@ -530,6 +545,75 @@
     @endforeach
 </div>
 
+@if ($selectedSession)
+    <div
+        class="mt-4 flex flex-wrap items-center
+               justify-between gap-3 rounded-xl border
+               border-gray-200 bg-gray-50 px-4 py-3
+               dark:border-gray-700 dark:bg-gray-950"
+    >
+        <div>
+            <p
+                class="text-xs font-semibold
+                       text-gray-500 dark:text-gray-400"
+            >
+                Selected meeting
+            </p>
+
+            <p
+                class="mt-1 text-sm font-bold
+                       text-gray-900 dark:text-white"
+            >
+                {{
+                    $selectedSession
+                        ->session_date
+                        ->format(
+                            'F d, Y'
+                        )
+                }}
+
+                @if ($selectedSession->is_no_meeting)
+                    <span
+                        class="ml-2 rounded-full
+                               bg-red-600 px-2 py-1
+                               text-[10px] font-bold
+                               text-white"
+                    >
+                        NO MEETING
+                    </span>
+                @endif
+            </p>
+        </div>
+
+        <button
+            type="button"
+            wire:click="toggleNoMeeting({{ $selectedSession->id }})"
+            wire:loading.attr="disabled"
+            wire:target="toggleNoMeeting({{ $selectedSession->id }})"
+            wire:confirm="{{
+                $selectedSession->is_no_meeting
+                    ? 'Restore this date as a normal meeting?'
+                    : 'Mark this date as NO MEETING? Attendance will not be expected for this session.'
+            }}"
+            @class([
+                'rounded-xl border px-4 py-2 text-xs font-bold transition',
+
+                'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200'
+                    => ! $selectedSession->is_no_meeting,
+
+                'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                    => $selectedSession->is_no_meeting,
+            ])
+        >
+            {{
+                $selectedSession->is_no_meeting
+                    ? 'Restore Meeting'
+                    : 'Mark NO MEETING'
+            }}
+        </button>
+    </div>
+@endif
+
 @php
     $immichAlbums =
         $selectedSheet->immichAlbum
@@ -544,7 +628,10 @@
             : null;
 @endphp
 
-@if ($selectedSession)
+@if (
+    $selectedSession
+    && ! $selectedSession->is_no_meeting
+)
 
 <div class="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
     <div class="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -1046,6 +1133,8 @@
                     @include('filament.pages.partials.attendance-sheets-profile-corrections')
 
 @include('filament.pages.partials.attendance-sheets-reference-proposals')
+
+@if (! $selectedSession?->is_no_meeting)
 
                     <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
                         <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
@@ -2177,6 +2266,8 @@
                             </table>
                         </div>
                     </div>
+
+@endif
 
 
                 </div>

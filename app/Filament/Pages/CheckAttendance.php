@@ -441,7 +441,9 @@ public function selectGridSession(
      */
     if ($this->gridEditMode) {
         $this->gridEditSessionId =
-            (int) $session->id;
+            $session->is_no_meeting
+                ? null
+                : (int) $session->id;
     }
 }
 
@@ -488,6 +490,16 @@ public function toggleGridAttendance(
             ->findOrFail(
                 $sessionId
             );
+
+    /*
+     * A NO MEETING Session must never accept attendance,
+     * even if a client attempts to call this Livewire action
+     * directly.
+     */
+    abort_if(
+        (bool) $session->is_no_meeting,
+        403
+    );
 
     $sessionDate =
         $session

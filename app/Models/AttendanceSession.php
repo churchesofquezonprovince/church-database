@@ -18,10 +18,12 @@ class AttendanceSession extends Model
         'title',
         'public_slug',
         'remarks',
+        'is_no_meeting',
     ];
 
     protected $casts = [
         'session_date' => 'date',
+        'is_no_meeting' => 'boolean',
     ];
 
     public function meetingResponses(): HasMany
