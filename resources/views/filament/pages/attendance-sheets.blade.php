@@ -89,6 +89,39 @@
 
     <div class="space-y-6">
 
+@if (session('attendance_participants_removed_all'))
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+        <p class="font-bold">
+            Remove All completed.
+        </p>
+
+        <p class="mt-1 text-sm">
+            @if (session('attendance_participants_removed_all_count') > 0)
+                Removed
+                {{ session('attendance_participants_removed_all_count') }}
+                participant(s) shown for
+                {{ session('attendance_participants_removed_all_date') }}.
+            @else
+                No active participants remained to remove.
+            @endif
+
+            @if (session('attendance_participants_removed_all_records') > 0)
+                Cleared
+                {{ session('attendance_participants_removed_all_records') }}
+                selected-Session non-present attendance record(s).
+            @endif
+
+            @if (session('attendance_participants_removed_all_immich') > 0)
+                Cleared
+                {{ session('attendance_participants_removed_all_immich') }}
+                selected-Session Immich Present record(s).
+            @endif
+
+            Attendance from other Sessions and Immich detection history were preserved.
+        </p>
+    </div>
+@endif
+
 @if (session('attendance_participant_removed'))
     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
         <p class="font-bold">
@@ -2138,9 +2171,37 @@
 
 
                     <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
-                        <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
-                            Participants
-                        </h3>
+                        <div class="flex items-center gap-4">
+                            <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
+                                Participants
+                            </h3>
+
+                            @if ($selectedSession && $participantRows->isNotEmpty())
+                                <form
+                                    method="POST"
+                                    action="{{ route('quezonprovinceactivities.attendance-sheets.participants.destroy-all', ['sheet' => $selectedSheet]) }}"
+                                    onsubmit="return confirm('Remove all {{ $participantRows->count() }} participants shown for {{ $selectedSession->session_date->format('M d, Y') }}? This operation is all-or-nothing. Manual Present or Late attendance will block the removal.');"
+                                    class="flex shrink-0 items-center justify-end"
+                                    style="margin-left: auto;"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <input
+                                        type="hidden"
+                                        name="attendance_session_id"
+                                        value="{{ $selectedSession->id }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center justify-center whitespace-nowrap rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900"
+                                    >
+                                        Remove All
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
 
                         <div class="mt-5 space-y-3 md:hidden">
                             @forelse ($participantRows as $participant)
@@ -2203,10 +2264,10 @@
                                 <thead class="bg-gray-50 dark:bg-gray-950">
                                     <tr>
                                         <th class="w-[34%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Name</th>
-                                        <th class="w-[22%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
-                                        <th class="w-[16%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Starts counting</th>
-                                        <th class="w-[16%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Stops after</th>
-                                        <th class="w-[12%] px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Action</th>
+                                        <th class="w-[23%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Locality</th>
+                                        <th class="w-[17%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Starts counting</th>
+                                        <th class="w-[18%] px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">Stops after</th>
+                                        <th class="w-[8%] whitespace-nowrap px-2 py-3 text-center align-middle font-semibold text-gray-700 dark:text-gray-200">Action</th>
                                     </tr>
                                 </thead>
 
@@ -2229,11 +2290,12 @@
                                                 {{ optional($participant->ends_on)->format('M d, Y') ?: 'No end' }}
                                             </td>
 
-                                            <td class="px-4 py-3 text-right">
+                                            <td class="whitespace-nowrap px-2 py-3 text-center align-middle">
                                                 <form
                                                     method="POST"
                                                     action="{{ route('quezonprovinceactivities.attendance-sheets.participants.destroy', ['sheet' => $selectedSheet, 'participant' => $participant]) }}"
                                                     onsubmit="return confirm('Remove this person from the attendance sheet?');"
+                                                    class="flex items-center justify-center"
                                                 >
                                                     @csrf
                                                     @method('DELETE')
@@ -2248,7 +2310,7 @@
 
                                                     <button
                                                         type="submit"
-                                                        class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+                                                        class="inline-flex min-w-[60px] items-center justify-center whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
                                                     >
                                                         Remove
                                                     </button>

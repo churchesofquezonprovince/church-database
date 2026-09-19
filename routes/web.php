@@ -335,6 +335,14 @@ Route::middleware(['web', 'auth'])
         Route::post('/{sheet}/participants', [AttendanceSheetParticipantController::class, 'store'])
             ->name('participants.store');
 
+        Route::delete(
+            '/{sheet}/participants',
+            [
+                AttendanceSheetParticipantController::class,
+                'destroyAll',
+            ]
+        )->name('participants.destroy-all');
+
         Route::delete('/{sheet}/participants/{participant}', [AttendanceSheetParticipantController::class, 'destroy'])
             ->name('participants.destroy');
     });
