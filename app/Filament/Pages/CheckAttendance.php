@@ -39,6 +39,10 @@ public ?int $selectedSessionId = null;
 )]
 public string $attendanceView = 'checklist';
 
+public bool $gridEditMode = false;
+
+public ?int $gridEditSessionId = null;
+
 public function mount(): void
 {
     $this->selectedSheetId =
@@ -364,6 +368,38 @@ public function setAttendanceView(
         $view === 'grid'
             ? 'grid'
             : 'checklist';
+
+    if ($this->attendanceView !== 'grid') {
+        $this->gridEditMode = false;
+        $this->gridEditSessionId = null;
+    }
+}
+
+public function toggleGridEditMode(): void
+{
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
+
+    if (
+        $this->attendanceView !== 'grid'
+        || ! $this->selectedSheet()
+    ) {
+        $this->gridEditMode = false;
+        $this->gridEditSessionId = null;
+
+        return;
+    }
+
+    $this->gridEditMode =
+        ! $this->gridEditMode;
+
+    /*
+     * Force an intentional date selection whenever
+     * edit mode is entered.
+     */
+    $this->gridEditSessionId = null;
 }
 
 public function selectGridSession(
@@ -398,6 +434,164 @@ public function selectGridSession(
      */
     $this->attendanceView =
         'grid';
+
+    /*
+     * Edit mode requires an intentional date-column
+     * selection. Only that Session may then be changed.
+     */
+    if ($this->gridEditMode) {
+        $this->gridEditSessionId =
+            (int) $session->id;
+    }
+}
+
+public function toggleGridAttendance(
+    int $sessionId,
+    int $personId
+): void {
+    abort_unless(
+        auth()->user()?->canManageRecords(),
+        403
+    );
+
+    /*
+     * Grid cells can only be changed while:
+     *
+     * 1. Grid View is active,
+     * 2. Edit Mode is active, and
+     * 3. this exact Session column was intentionally selected.
+     */
+    abort_unless(
+        $this->attendanceView === 'grid'
+        && $this->gridEditMode
+        && $this->gridEditSessionId === $sessionId,
+        403
+    );
+
+    $sheet =
+        $this->selectedSheet();
+
+    abort_unless(
+        $sheet
+        && $sheet->sheet_type
+            === AttendanceSheet::TYPE_CUSTOM
+        && $sheet->is_active,
+        404
+    );
+
+    $session =
+        AttendanceSession::query()
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->findOrFail(
+                $sessionId
+            );
+
+    $sessionDate =
+        $session
+            ->session_date
+            ->toDateString();
+
+    /*
+     * IMPORTANT:
+     *
+     * Check Attendance is NOT allowed to add Participants.
+     *
+     * Attendance Sheets remains responsible for participant
+     * membership. If the Person is not rostered for this date,
+     * the Grid cell remains locked.
+     */
+    $isParticipant =
+        AttendanceParticipant::query()
+            ->where(
+                'attendance_sheet_id',
+                $sheet->id
+            )
+            ->where(
+                'person_id',
+                $personId
+            )
+            ->activeOn(
+                $sessionDate
+            )
+            ->exists();
+
+    abort_unless(
+        $isParticipant,
+        403
+    );
+
+    $record =
+        AttendanceRecord::query()
+            ->where(
+                'attendance_session_id',
+                $session->id
+            )
+            ->where(
+                'person_id',
+                $personId
+            )
+            ->first();
+
+    /*
+     * Spreadsheet-style toggle:
+     *
+     * No record  -> Present
+     * Present    -> Absent
+     * Absent     -> Present
+     *
+     * We deliberately do not delete an AttendanceRecord to
+     * recreate "Not recorded". Once an administrator edits the
+     * cell, it becomes an explicit attendance decision.
+     */
+    $isPresent =
+        $record
+            ? ! (bool) $record->is_present
+            : true;
+
+    AttendanceRecord::query()
+        ->updateOrCreate(
+            [
+                'attendance_session_id' =>
+                    $session->id,
+
+                'person_id' =>
+                    $personId,
+            ],
+            [
+                'status' =>
+                    $isPresent
+                        ? AttendanceRecord::STATUS_PRESENT
+                        : AttendanceRecord::STATUS_ABSENT,
+
+                'is_present' =>
+                    $isPresent,
+
+                /*
+                 * Match the existing Attendance Checklist:
+                 * an administrator edit becomes MANUAL.
+                 */
+                'attendance_source' =>
+                    AttendanceRecord::SOURCE_MANUAL,
+
+                'immich_confirmed' =>
+                    false,
+
+                'immich_confirmed_at' =>
+                    null,
+
+                'immich_confirmed_by_id' =>
+                    null,
+
+                'marked_by_id' =>
+                    auth()->id(),
+
+                'marked_at' =>
+                    now(),
+            ]
+        );
 }
 
 public function attendanceGrid(
@@ -569,11 +763,68 @@ public function attendanceGrid(
                                         );
 
                                     /*
-                                     * Historical attendance wins.
+                                     * Participant membership and attendance
+                                     * history are deliberately separate.
                                      *
-                                     * Even if the participant-period row
-                                     * was later removed, the AttendanceRecord
-                                     * remains the historical fact.
+                                     * A historical record may still exist
+                                     * even when the Person is no longer
+                                     * rostered for this Session date.
+                                     */
+                                    $active =
+                                        $personPeriods
+                                            ->contains(
+                                                function (
+                                                    AttendanceParticipant $participant
+                                                ) use (
+                                                    $sessionDate
+                                                ): bool {
+                                                    if (
+                                                        ! $participant
+                                                            ->is_active
+                                                    ) {
+                                                        return false;
+                                                    }
+
+                                                    $startsOn =
+                                                        $participant
+                                                            ->starts_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            );
+
+                                                    $endsOn =
+                                                        $participant
+                                                            ->ends_on
+                                                            ?->format(
+                                                                'Y-m-d'
+                                                            );
+
+                                                    return (
+                                                        blank(
+                                                            $startsOn
+                                                        )
+                                                        ||
+                                                        $startsOn
+                                                            <=
+                                                        $sessionDate
+                                                    )
+                                                    &&
+                                                    (
+                                                        blank(
+                                                            $endsOn
+                                                        )
+                                                        ||
+                                                        $endsOn
+                                                            >=
+                                                        $sessionDate
+                                                    );
+                                                }
+                                            );
+
+                                    /*
+                                     * Historical attendance still wins for
+                                     * display, but only active roster cells
+                                     * may be edited.
                                      */
                                     if ($record) {
                                         $status =
@@ -581,57 +832,6 @@ public function attendanceGrid(
                                                 ? 'present'
                                                 : 'absent';
                                     } else {
-                                        $active =
-                                            $personPeriods
-                                                ->contains(
-                                                    function (
-                                                        AttendanceParticipant $participant
-                                                    ) use (
-                                                        $sessionDate
-                                                    ): bool {
-                                                        if (
-                                                            ! $participant
-                                                                ->is_active
-                                                        ) {
-                                                            return false;
-                                                        }
-
-                                                        $startsOn =
-                                                            $participant
-                                                                ->starts_on
-                                                                ?->format(
-                                                                    'Y-m-d'
-                                                                );
-
-                                                        $endsOn =
-                                                            $participant
-                                                                ->ends_on
-                                                                ?->format(
-                                                                    'Y-m-d'
-                                                                );
-
-                                                        return (
-                                                            blank(
-                                                                $startsOn
-                                                            )
-                                                            ||
-                                                            $startsOn
-                                                                <=
-                                                            $sessionDate
-                                                        )
-                                                        &&
-                                                        (
-                                                            blank(
-                                                                $endsOn
-                                                            )
-                                                            ||
-                                                            $endsOn
-                                                                >=
-                                                            $sessionDate
-                                                        );
-                                                    }
-                                                );
-
                                         $status =
                                             $active
                                                 ? 'not_recorded'
@@ -642,6 +842,9 @@ public function attendanceGrid(
                                         (int) $session->id => [
                                             'status' =>
                                                 $status,
+
+                                            'on_roster' =>
+                                                $active,
 
                                             'source' =>
                                                 $record

@@ -181,7 +181,12 @@
                 @else
                     <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
+                            <div
+                style="
+                    flex-shrink: 0;
+                    white-space: nowrap;
+                "
+            >
                                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white">
                                     {{ $selectedSheet->title }}
                                 </h3>
@@ -746,12 +751,21 @@
                dark:border-gray-700 dark:bg-gray-900"
     >
         <div
-            class="flex flex-col gap-3 border-b
-                   border-gray-200 px-5 py-4
-                   dark:border-gray-700
-                   sm:flex-row sm:items-center
-                   sm:justify-between"
+            class="border-b border-gray-200 px-5 py-4
+                   dark:border-gray-700"
+            style="
+                position: relative;
+                padding-right: 7.5rem;
+            "
         >
+            <div
+                style="
+                    display: flex;
+                    align-items: center;
+                    width: 100%;
+                    gap: 1.5rem;
+                "
+            >
             <div>
                 <h3
                     class="text-lg font-bold
@@ -760,22 +774,27 @@
                     Attendance Grid
                 </h3>
 
-                <p
-                    class="mt-1 text-xs
-                           text-gray-500 dark:text-gray-400"
-                >
-                    Whole-sheet attendance history.
-                    Click a meeting date to open it
-                    in Checklist View.
-                </p>
             </div>
 
             <div
-                class="flex flex-wrap gap-x-4 gap-y-1
-                       text-xs text-gray-500
-                       dark:text-gray-400"
+                class="text-xs text-gray-500 dark:text-gray-400"
+                style="
+                    display: flex;
+                    flex: 1 1 auto;
+                    flex-wrap: nowrap;
+                    align-items: center;
+                    column-gap: 1rem;
+                    min-width: 0;
+                "
             >
-                <span>
+                <span
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.25rem;
+                        white-space: nowrap;
+                    "
+                >
                     <strong
                         class="text-emerald-600
                                dark:text-emerald-400"
@@ -785,7 +804,14 @@
                     Present
                 </span>
 
-                <span>
+                <span
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.25rem;
+                        white-space: nowrap;
+                    "
+                >
                     <strong
                         class="text-red-600
                                dark:text-red-400"
@@ -795,7 +821,14 @@
                     Absent
                 </span>
 
-                <span>
+                <span
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.25rem;
+                        white-space: nowrap;
+                    "
+                >
                     <strong
                         class="text-amber-600
                                dark:text-amber-400"
@@ -805,7 +838,14 @@
                     Not recorded
                 </span>
 
-                <span>
+                <span
+                    style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 0.25rem;
+                        white-space: nowrap;
+                    "
+                >
                     <strong
                         class="text-gray-400
                                dark:text-gray-500"
@@ -814,8 +854,95 @@
                     </strong>
                     Not on roster
                 </span>
+
+                <button
+                    type="button"
+                    style="
+                        position: absolute;
+                        right: 1.25rem;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        white-space: nowrap;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                    "
+                    wire:click="toggleGridEditMode"
+                    wire:loading.attr="disabled"
+                    wire:target="toggleGridEditMode"
+                    @class([
+                        'rounded-lg border px-3 py-1.5 text-xs font-bold transition',
+
+                        'border-primary-600 bg-primary-600 text-white hover:bg-primary-500'
+                            => ! $this->gridEditMode,
+
+                        'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500'
+                            => $this->gridEditMode,
+                    ])
+                >
+                    {{
+                        $this->gridEditMode
+                            ? 'Done Editing'
+                            : 'Make Edits'
+                    }}
+                </button>
             </div>
+
+            </div>
+
+            <p
+                class="mt-2 text-xs
+                       text-gray-500 dark:text-gray-400"
+            >
+                Whole-sheet attendance history.
+                Click a meeting date to select that session.
+            </p>
         </div>
+
+        @if ($this->gridEditMode)
+            <div
+                class="border-b border-amber-200
+                       bg-amber-50 px-5 py-3
+                       text-xs font-semibold
+                       text-amber-800
+                       dark:border-amber-900
+                       dark:bg-amber-950/40
+                       dark:text-amber-200"
+            >
+                @if ($this->gridEditSessionId)
+                    @php
+                        $editingSession =
+                            $attendanceGrid['sessions']
+                                ->firstWhere(
+                                    'id',
+                                    $this->gridEditSessionId
+                                );
+                    @endphp
+
+                    @if ($editingSession)
+                        Editing attendance for
+                        <strong>
+                            {{
+                                $editingSession
+                                    ->session_date
+                                    ->format(
+                                        'l, F d, Y'
+                                    )
+                            }}
+                        </strong>.
+
+                        Click an existing participant's cell
+                        in this column to toggle Present / Absent.
+                    @endif
+                @else
+                    Editing is enabled.
+                    <strong>
+                        Click a meeting date heading above the Grid
+                        before changing attendance.
+                    </strong>
+                @endif
+            </div>
+        @endif
 
         @if ($attendanceGrid['rows']->isEmpty())
             <div
@@ -828,7 +955,7 @@
         @else
             <div
                 wire:key="attendance-grid-{{ $selectedSheet->id }}"
-                class="max-h-[70vh] overflow-auto"
+                class="overflow-x-auto"
             >
                 <table
                     class="min-w-max border-collapse
@@ -857,6 +984,14 @@
                                 <th
                                     @class([
                                         'sticky top-0 z-20 min-w-24 border border-gray-200 px-2 py-2 text-center font-semibold dark:border-gray-700',
+
+                                        'ring-2 ring-inset ring-amber-500'
+                                            =>
+                                                $this->gridEditMode
+                                                &&
+                                                $this->gridEditSessionId
+                                                ===
+                                                (int) $gridSession->id,
 
                                         'bg-primary-100 text-primary-900 dark:bg-primary-950 dark:text-primary-100'
                                             =>
@@ -986,6 +1121,21 @@
                                                 'status'
                                             ];
 
+                                        $gridCellEditable =
+                                            $this->gridEditMode
+                                            &&
+                                            $this->gridEditSessionId
+                                                ===
+                                                (int)
+                                                $gridSession->id
+                                            &&
+                                            (
+                                                $gridCell[
+                                                    'on_roster'
+                                                ]
+                                                ?? false
+                                            );
+
                                         $gridStatusLabel =
                                             match (
                                                 $gridStatus
@@ -1005,8 +1155,17 @@
                                     @endphp
 
                                     <td
+                                        @if ($gridCellEditable)
+                                            wire:click="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
+                                        @endif
                                         @class([
                                             'relative border border-gray-200 px-3 py-3 text-center font-bold dark:border-gray-700',
+
+                                            'cursor-pointer transition hover:ring-2 hover:ring-inset hover:ring-amber-400'
+                                                =>
+                                                    $gridCellEditable,
 
                                             'ring-inset ring-1 ring-primary-300 dark:ring-primary-800'
                                                 =>
