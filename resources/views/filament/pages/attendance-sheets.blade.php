@@ -445,10 +445,20 @@
     </div>
 @endif
 
+@php
+    $selectedSession =
+        $this->selectedSession(
+            $selectedSheet
+        );
+@endphp
+
 <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    @foreach ($selectedSheet->sessions->take(8) as $session)
+    @foreach ($selectedSheet->sessions as $session)
         @php
-            $sessionAttendance = $this->sessionAttendanceSummary($session);
+            $sessionAttendance =
+                $this->sessionAttendanceSummary(
+                    $session
+                );
         @endphp
 
         <a
@@ -456,9 +466,9 @@
             @class([
                 'block rounded-xl border p-3 text-sm transition',
                 'border-primary-300 bg-primary-50 text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200'
-                    => $this->selectedSession()?->id === $session->id,
+                    => $selectedSession?->id === $session->id,
                 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800'
-                    => $this->selectedSession()?->id !== $session->id,
+                    => $selectedSession?->id !== $session->id,
             ])
         >
             <div class="flex items-center justify-between gap-2">
@@ -520,15 +530,7 @@
     @endforeach
 </div>
 
-                        @if ($selectedSheet->sessions_count > 8)
-                            <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                                Showing first 8 dates only. Full attendance grid will be added in the next phase.
-                            </p>
-                        @endif
-
 @php
-    $selectedSession = $this->selectedSession();
-
     $immichAlbums =
         $selectedSheet->immichAlbum
             ? []

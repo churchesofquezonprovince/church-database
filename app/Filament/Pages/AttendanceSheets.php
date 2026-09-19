@@ -280,9 +280,18 @@ public function selectedSheet(): ?AttendanceSheet
             'sessions' =>
                 fn ($query) =>
                     $query
-                        ->with(
-                            'immichAssets'
-                        )
+                        ->with([
+                            'immichAssets',
+                            'records' =>
+                                fn ($query) =>
+                                    $query->select([
+                                        'id',
+                                        'attendance_session_id',
+                                        'is_present',
+                                        'attendance_source',
+                                        'immich_confirmed',
+                                    ]),
+                        ])
                         ->orderBy(
                             'session_date'
                         ),
@@ -328,9 +337,10 @@ public function selectedSheet(): ?AttendanceSheet
         ->first();
 }
 
-    public function selectedSession(): ?AttendanceSession
-    {
-        $sheet =
+    public function selectedSession(
+        ?AttendanceSheet $sheet = null
+    ): ?AttendanceSession {
+        $sheet ??=
             $this->selectedSheet();
 
         if (! $sheet) {
@@ -807,9 +817,24 @@ public function immichDetectionHistory(): Collection
 
 public function sessionAttendanceSummary(AttendanceSession $session): array
 {
-    $records = AttendanceRecord::query()
-        ->where('attendance_session_id', $session->id)
-        ->get();
+    /*
+     * Attendance Sheets renders one card per Session.
+     *
+     * selectedSheet() eager-loads these records so displaying many
+     * Session cards does not cause one AttendanceRecord query per card.
+     *
+     * Keep the fallback query because this helper is also safe to call
+     * with a Session loaded somewhere else.
+     */
+    $records =
+        $session->relationLoaded('records')
+            ? $session->records
+            : AttendanceRecord::query()
+                ->where(
+                    'attendance_session_id',
+                    $session->id
+                )
+                ->get();
 
     $present = $records->where('is_present', true);
 
