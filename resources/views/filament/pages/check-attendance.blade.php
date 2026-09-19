@@ -1158,7 +1158,7 @@
                         <thead>
                             <tr>
                                 <th
-                                    class="h-14 border
+                                    class="h-16 border
                                            border-gray-200
                                            bg-gray-100 px-3
                                            text-left font-bold
@@ -1184,7 +1184,7 @@
 
                                 <tr>
                                     <th
-                                        class="h-14 border
+                                        class="h-16 border
                                                border-gray-200
                                                bg-white px-3
                                                text-left
@@ -1290,7 +1290,7 @@
                                 )
                                     <th
                                         @class([
-                                            'h-14 min-w-24 border border-gray-200 px-2 text-center font-semibold dark:border-gray-700',
+                                            'h-16 w-16 min-w-16 max-w-16 border border-gray-200 p-0 text-center font-semibold dark:border-gray-700',
 
                                             'ring-2 ring-inset ring-amber-500'
                                                 =>
@@ -1328,7 +1328,9 @@
                                             wire:click="selectGridSession({{ $gridSession->id }})"
                                             wire:loading.attr="disabled"
                                             wire:target="selectGridSession({{ $gridSession->id }})"
-                                            class="block w-full rounded
+                                            class="flex h-full w-full flex-col
+                                                   items-center justify-center
+                                                   rounded
                                                    hover:underline
                                                    focus:outline-none
                                                    focus:ring-2
@@ -1451,7 +1453,7 @@
                                                 wire:target="toggleGridAttendance({{ $gridSession->id }}, {{ $gridPerson->id }})"
                                             @endif
                                             @class([
-                                                'relative h-14 min-w-24 border border-gray-200 px-3 text-center font-bold dark:border-gray-700',
+                                                'relative h-16 w-16 min-w-16 max-w-16 border border-gray-200 p-0 text-center font-bold dark:border-gray-700',
 
                                                 'cursor-pointer transition hover:ring-2 hover:ring-inset hover:ring-amber-400'
                                                     =>
