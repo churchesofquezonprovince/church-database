@@ -86,6 +86,9 @@ class ServiceMeetingMinutes extends Page implements HasTable
                         default => 'gray',
                     }),
             ])
-            ->defaultSort('created_time', 'desc');
+            ->defaultSort('created_time', 'desc')
+            ->defaultPaginationPageOption(20)
+            ->paginated([20, 50, 100, 200]);
+
     }
 }
