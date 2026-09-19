@@ -1,39 +1,137 @@
 <x-filament-panels::page>
+    @php
+        $albumRows =
+            $this->albumRows();
+
+        $storagePercent =
+            $this->storageUsagePercentage();
+
+        $filterOptions = [
+            'all' => 'All',
+            'linked' => 'Linked',
+            'unlinked' => 'Unlinked',
+            'shared' => 'Shared',
+        ];
+    @endphp
+
     <div class="space-y-6">
-        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-6 shadow-sm dark:border-sky-900 dark:bg-sky-950">
-            <p class="text-sm font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-300">
-                Posts Roadmap · Phase 21
-            </p>
 
-            <h2 class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                Immich Albums
-            </h2>
+        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 shadow-sm dark:border-sky-900 dark:bg-sky-950 sm:p-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-300">
+                        Posts · Immich
+                    </p>
 
-            <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
-                Planned module for connecting this website to Immich albums, shared album links, QR codes, gallery thumbnails, and Immich storage usage.
-            </p>
+                    <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                        Immich Albums
+                    </h2>
+
+                    <p class="mt-2 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
+                        Live album information from the connected Immich server.
+                        Attendance Sheet links remain managed by the church database.
+                    </p>
+
+                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                        @if ($connectionHealthy)
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                                Connected
+                            </span>
+
+                            <span class="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-600 shadow-sm dark:bg-gray-900 dark:text-gray-300">
+                                Immich {{ $this->versionLabel() }}
+                            </span>
+                        @else
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-200">
+                                <span class="h-2 w-2 rounded-full bg-red-500"></span>
+                                Disconnected
+                            </span>
+                        @endif
+
+                        @if ($lastLoadedAt)
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                Refreshed {{ $this->formatDateTime($lastLoadedAt) }}
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    wire:click="refreshImmich"
+                    wire:loading.attr="disabled"
+                    wire:target="refreshImmich"
+                    class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
+                >
+                    <x-heroicon-o-arrow-path
+                        class="h-4 w-4"
+                        wire:loading.class="animate-spin"
+                        wire:target="refreshImmich"
+                    />
+
+                    <span wire:loading.remove wire:target="refreshImmich">
+                        Refresh
+                    </span>
+
+                    <span wire:loading wire:target="refreshImmich">
+                        Refreshing…
+                    </span>
+                </button>
+            </div>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-3">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">
-                    Immich Storage Widget
+        @if ($connectionError)
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+                <p class="font-bold">
+                    Immich connection unavailable
                 </p>
 
-                <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
-                    45.2 GiB
+                <p class="mt-1 text-sm">
+                    {{ $connectionError }}
+                </p>
+            </div>
+        @endif
+
+        @if ($loadWarnings !== [])
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <p class="font-bold">
+                    Some Immich information could not be loaded.
+                </p>
+
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    @foreach ($loadWarnings as $warning)
+                        <li>{{ $warning }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    Immich Storage
+                </p>
+
+                <p class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ $this->formatBytes($serverStorage['diskUseRaw'] ?? null) }}
                 </p>
 
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    of 2.7 TiB used
+                    of
+                    {{ $this->formatBytes($serverStorage['diskSizeRaw'] ?? null) }}
+                    used
                 </p>
 
-                <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-                    <div class="h-full w-[2%] rounded-full bg-sky-600"></div>
+                <div class="mt-4 h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                    <div
+                        class="h-full rounded-full bg-sky-600"
+                        style="width: {{ $storagePercent }}%;"
+                    ></div>
                 </div>
 
-                <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                    Coming Soon · sample display only
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {{ number_format($storagePercent, 1) }}% used
                 </p>
             </div>
 
@@ -43,15 +141,32 @@
                 </p>
 
                 <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
-                    —
+                    {{ number_format(count($albums)) }}
                 </p>
 
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Synced from Immich
+                    Live from Immich
                 </p>
 
-                <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                    Coming Soon
+                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    Photos:
+                    {{ $this->formatNumber($serverStatistics['photos'] ?? null) }}
+                    · Videos:
+                    {{ $this->formatNumber($serverStatistics['videos'] ?? null) }}
+                </p>
+            </div>
+
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    Attendance Links
+                </p>
+
+                <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
+                    {{ number_format($this->linkedAlbumCount()) }}
+                </p>
+
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Albums linked to Attendance Sheets
                 </p>
             </div>
 
@@ -61,168 +176,216 @@
                 </p>
 
                 <p class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">
-                    —
+                    {{ number_format($this->sharedLinkCount()) }}
                 </p>
 
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Clickable links and QR codes
-                </p>
-
-                <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">
-                    Coming Soon
+                    Albums reporting an Immich shared link
                 </p>
             </div>
         </div>
 
-        <div class="rounded-2xl border border-dashed border-sky-300 bg-white p-6 shadow-sm dark:border-sky-800 dark:bg-gray-900">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                        Album Actions
-                    </h3>
+        <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0 flex-1 lg:max-w-xl">
+                    <div
+                        class="flex w-full items-center gap-3 rounded-xl border border-gray-300 bg-white px-3 shadow-sm focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 dark:border-gray-700 dark:bg-gray-950"
+                        style="min-height: 2.75rem;"
+                    >
+                        <x-heroicon-o-magnifying-glass
+                            class="h-5 w-5 shrink-0 text-gray-400"
+                        />
 
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Planned actions for managing Immich albums from this website.
-                    </p>
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="albumSearch"
+                            placeholder="Search album name, description, sheet, or locality…"
+                            class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-gray-900 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0 dark:text-white"
+                        >
+                    </div>
                 </div>
 
-                <span class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-                    Coming Soon
-                </span>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($filterOptions as $filterValue => $filterLabel)
+                        <button
+                            type="button"
+                            wire:click="setAlbumFilter('{{ $filterValue }}')"
+                            @class([
+                                'rounded-full px-4 py-2 text-sm font-bold transition',
+                                'bg-sky-600 text-white shadow-sm' =>
+                                    $albumFilter === $filterValue,
+                                'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700' =>
+                                    $albumFilter !== $filterValue,
+                            ])
+                        >
+                            {{ $filterLabel }}
+                        </button>
+                    @endforeach
+                </div>
             </div>
 
-            <div class="mt-5 grid gap-4 md:grid-cols-2">
-                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-950">
-                    <h4 class="font-bold text-gray-900 dark:text-white">
-                        Create Album
-                    </h4>
-
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Create a new Immich album from this website. Planned fields: album title, description, locality, meeting type, and date.
-                    </p>
-
-                    <button
-                        type="button"
-                        disabled
-                        class="mt-4 rounded-xl bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                    >
-                        Create Album · Coming Soon
-                    </button>
-                </div>
-
-                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-950">
-                    <h4 class="font-bold text-gray-900 dark:text-white">
-                        Sync Albums
-                    </h4>
-
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Planned sync from Immich API to display albums, thumbnails, shared links, and storage statistics.
-                    </p>
-
-                    <button
-                        type="button"
-                        disabled
-                        class="mt-4 rounded-xl bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                    >
-                        Sync from Immich · Coming Soon
-                    </button>
-                </div>
+            <div class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                Showing {{ count($albumRows) }}
+                of {{ count($albums) }} album(s).
             </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                        Gallery Preview
-                    </h3>
+        @if (count($albumRows) > 0)
+            <div class="grid gap-4 xl:grid-cols-2">
+                @foreach ($albumRows as $album)
+                    <article class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                        <div class="flex min-w-0 gap-4 p-5">
+                            <div
+                                class="flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800"
+                                style="width: 200px; height: 200px; min-width: 200px;"
+                            >
+                                @if (filled($album['localThumbnailUrl'] ?? null))
+                                    <img
+                                        src="{{ $album['localThumbnailUrl'] }}"
+                                        alt="{{ $album['albumName'] }}"
+                                        loading="lazy"
+                                        class="h-full w-full object-cover"
+                                    >
+                                @else
+                                    <x-heroicon-o-photo class="h-12 w-12 text-gray-400" />
+                                @endif
+                            </div>
 
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        Planned layout: each album thumbnail will show available shared links and QR codes below it.
-                    </p>
-                </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
+                                            {{ $album['albumName'] }}
+                                        </h3>
 
-                <span class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-200">
-                    Coming Soon
-                </span>
-            </div>
+                                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            {{ number_format($album['assetCount']) }}
+                                            asset(s)
+                                            · Updated
+                                            {{ $this->formatDate($album['lastModifiedAssetTimestamp'] ?? $album['updatedAt']) }}
+                                        </p>
+                                    </div>
 
-            <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach ([
-                    ['title' => 'Lord’s Table Album', 'locality' => 'Lucena City'],
-                    ['title' => 'Prayer Meeting Album', 'locality' => 'Candelaria'],
-                    ['title' => 'YP Meeting Album', 'locality' => 'Tayabas'],
-                ] as $album)
-                    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-950">
-                        <div class="flex h-40 items-center justify-center bg-gray-200 dark:bg-gray-800">
-                            <x-heroicon-o-photo class="h-14 w-14 text-gray-400" />
-                        </div>
+                                    <div class="flex shrink-0 flex-wrap gap-2">
+                                        @if ($album['linked'])
+                                            <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                                                Linked
+                                            </span>
+                                        @endif
 
-                        <div class="p-4">
-                            <h4 class="font-bold text-gray-900 dark:text-white">
-                                {{ $album['title'] }}
-                            </h4>
+                                        @if ($album['hasSharedLink'])
+                                            <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700 dark:bg-sky-900 dark:text-sky-200">
+                                                Shared Link
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
 
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                {{ $album['locality'] }}
-                            </p>
-
-                            <div class="mt-4 grid grid-cols-2 gap-2">
-                                <button
-                                    type="button"
-                                    disabled
-                                    class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                                >
-                                    QR · Soon
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled
-                                    class="rounded-xl bg-sky-600 px-3 py-2 text-xs font-bold text-white opacity-60"
-                                >
-                                    Shared Link · Soon
-                                </button>
+                                @if (filled($album['description']))
+                                    <p class="mt-3 break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                        {{ $album['description'] }}
+                                    </p>
+                                @endif
                             </div>
                         </div>
-                    </div>
+
+                        <div class="grid border-t border-gray-200 bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-950 sm:grid-cols-2">
+                            <div class="p-4">
+                                <p class="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                    Album Dates
+                                </p>
+
+                                <p class="mt-1 font-semibold text-gray-700 dark:text-gray-200">
+                                    {{ $this->formatDate($album['startDate']) }}
+                                    @if ($album['endDate'])
+                                        to
+                                        {{ $this->formatDate($album['endDate']) }}
+                                    @endif
+                                </p>
+
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Created {{ $this->formatDate($album['createdAt']) }}
+                                </p>
+                            </div>
+
+                            <div class="border-t border-gray-200 p-4 dark:border-gray-700 sm:border-l sm:border-t-0">
+                                <p class="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                    Attendance Sheet
+                                </p>
+
+                                @if ($album['linked'])
+                                    <p class="mt-1 font-semibold text-gray-700 dark:text-gray-200">
+                                        {{ data_get($album, 'link.sheet_title') ?: 'Linked sheet' }}
+                                    </p>
+
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ data_get($album, 'link.sheet_locality') ?: 'No locality' }}
+
+                                        ·
+
+                                        {{ data_get($album, 'link.enabled') ? 'Sync enabled' : 'Sync disabled' }}
+                                    </p>
+                                @else
+                                    <p class="mt-1 text-gray-500 dark:text-gray-400">
+                                        Not linked
+                                    </p>
+                                @endif
+                            </div>
+                        </div>
+
+
+                    </article>
                 @endforeach
             </div>
-        </div>
+        @else
+            <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <x-heroicon-o-photo class="mx-auto h-10 w-10 text-gray-400" />
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-                Planned Immich Integration
+                <h3 class="mt-3 font-bold text-gray-900 dark:text-white">
+                    No albums match
+                </h3>
+
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Change the search text or album filter.
+                </p>
+            </div>
+        @endif
+
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h3 class="font-bold text-gray-900 dark:text-white">
+                Immich Albums integration status
             </h3>
 
-            <div class="mt-5 grid gap-4 md:grid-cols-2">
-                <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p class="font-bold text-gray-900 dark:text-white">API Settings</p>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Future environment values: IMMICH_URL, IMMICH_API_KEY, IMMICH_PUBLIC_URL.
-                    </p>
-                </div>
+            <p class="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                This page is currently read-only. Album data and server statistics
+                come directly from Immich. The church database stores only its
+                Attendance Sheet-to-album relationships.
+            </p>
 
-                <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p class="font-bold text-gray-900 dark:text-white">Storage Widget</p>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Future widget will display Immich storage usage, total storage, asset count, photo count, and video count.
-                    </p>
-                </div>
+            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                    Live albums
+                </span>
 
-                <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p class="font-bold text-gray-900 dark:text-white">Album Creation</p>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Future form will create albums directly in Immich and save the album ID locally.
-                    </p>
-                </div>
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                    Live storage
+                </span>
 
-                <div class="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                    <p class="font-bold text-gray-900 dark:text-white">Shared Links and QR</p>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Future gallery will show clickable Immich shared links and QR codes under every album thumbnail.
-                    </p>
-                </div>
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
+                    Attendance links
+                </span>
+
+                <span class="rounded-full bg-amber-100 px-3 py-1 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                    Album thumbnails next
+                </span>
+
+                <span class="rounded-full bg-amber-100 px-3 py-1 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                    QR / shared-link actions next
+                </span>
+
+                <span class="rounded-full bg-amber-100 px-3 py-1 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                    Create Album next
+                </span>
             </div>
         </div>
     </div>

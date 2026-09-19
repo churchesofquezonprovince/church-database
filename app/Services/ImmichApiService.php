@@ -365,4 +365,41 @@ public function peopleFromAlbumForDate(
             ->throw()
             ->json();
     }
+
+    public function version(): array
+    {
+        $response = $this->client()
+            ->get('/api/server/version')
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
+    public function serverStatistics(): array
+    {
+        $response = $this->client()
+            ->get('/api/server/statistics')
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
+    public function serverStorage(): array
+    {
+        $response = $this->client()
+            ->get('/api/server/storage')
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
 }
