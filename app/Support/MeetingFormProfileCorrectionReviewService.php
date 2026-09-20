@@ -42,6 +42,18 @@ final class MeetingFormProfileCorrectionReviewService
                     );
                 }
 
+                /*
+                 * A Campus/Gospel Contact may have been linked
+                 * to People Database after this correction was
+                 * originally submitted.
+                 *
+                 * Resolve that newer canonical Person before
+                 * reading and comparing the current value.
+                 */
+                $this->syncLinkedPersonId(
+                    $change
+                );
+
                 $identity =
                     $this->identityFor(
                         $change
@@ -177,6 +189,15 @@ final class MeetingFormProfileCorrectionReviewService
                         'This database change has already been reviewed.'
                     );
                 }
+
+                /*
+                 * If the original Campus/Gospel Contact has
+                 * since been linked to People Database, use the
+                 * current canonical identity for review logging.
+                 */
+                $this->syncLinkedPersonId(
+                    $change
+                );
 
                 $identity =
                     $this->identityFor(
@@ -872,6 +893,76 @@ final class MeetingFormProfileCorrectionReviewService
         );
 
         $contact->save();
+    }
+
+
+    /**
+     * A pending database correction can pre-date the linking of
+     * a Campus/Gospel Contact to People Database.
+     *
+     * Resolve that newer canonical relationship at review time so
+     * Person-only, Church Information, and Education fields become
+     * approvable without losing the original contact identity.
+     */
+    private function syncLinkedPersonId(
+        AttendanceMeetingProfileCorrection $change
+    ): void {
+        if ($change->person_id) {
+            return;
+        }
+
+        $owner =
+            $change->field_owner
+            ?: MeetingFormDatabaseFieldRegistry::owner(
+                $change->database_field
+            );
+
+        /*
+         * Gospel-specific fields remain owned by the Gospel
+         * Contact even when that contact is linked to a Person.
+         *
+         * Only canonical Person / Church / Education targets
+         * need the newly linked person_id.
+         */
+        if (
+            ! in_array(
+                $owner,
+                [
+                    'person',
+                    'church_profile',
+                    'education_profile',
+                ],
+                true
+            )
+        ) {
+            return;
+        }
+
+        $personId = null;
+
+        if ($change->campus_contact_id) {
+            $personId =
+                $change->campusContact()
+                    ->value('person_id');
+        }
+
+        if (
+            ! $personId
+            && $change->gospel_contact_id
+        ) {
+            $personId =
+                $change->gospelContact()
+                    ->value('person_id');
+        }
+
+        if (! $personId) {
+            return;
+        }
+
+        $change->forceFill([
+            'person_id' =>
+                (int) $personId,
+        ])->save();
     }
 
 
