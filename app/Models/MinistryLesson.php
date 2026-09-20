@@ -15,6 +15,7 @@ class MinistryLesson extends Model
         'ministry_book_id',
         'code',
         'title',
+        'title_tagalog',
         'description',
         'sort_order',
         'is_active',

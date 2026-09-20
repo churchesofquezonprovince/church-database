@@ -43,8 +43,21 @@ class ShepherdingHistory extends Page
 
     public int $perPage = 50;
 
+    /*
+     * Ministry display preference only.
+     *
+     * The underlying Ministry Lesson IDs remain unchanged.
+     */
+    public bool $showTagalogMinistry = false;
+
     public function mount(): void
     {
+        $this->showTagalogMinistry =
+            (bool) session(
+                'shepherding_ministry_tagalog',
+                false
+            );
+
         $this->search =
             trim(
                 (string) request()->query(
@@ -187,6 +200,15 @@ class ShepherdingHistory extends Page
             )
                 ? $requestedPerPage
                 : 50;
+    }
+
+    public function updatedShowTagalogMinistry(
+        bool $value
+    ): void {
+        session()->put(
+            'shepherding_ministry_tagalog',
+            $value
+        );
     }
 
     public function getTitle(): string
@@ -503,6 +525,36 @@ class ShepherdingHistory extends Page
                                         'title',
                                         'like',
                                         $like
+                                    )
+                                    ->orWhere(
+                                        'title_tagalog',
+                                        'like',
+                                        $like
+                                    )
+                                    ->orWhereHas(
+                                        'book',
+                                        function (
+                                            Builder $query
+                                        ) use (
+                                            $like
+                                        ): void {
+                                            $query
+                                                ->where(
+                                                    'code',
+                                                    'like',
+                                                    $like
+                                                )
+                                                ->orWhere(
+                                                    'title',
+                                                    'like',
+                                                    $like
+                                                )
+                                                ->orWhere(
+                                                    'title_tagalog',
+                                                    'like',
+                                                    $like
+                                                );
+                                        }
                                     );
                             }
                         )

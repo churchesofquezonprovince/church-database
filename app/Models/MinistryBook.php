@@ -13,6 +13,7 @@ class MinistryBook extends Model
     protected $fillable = [
         'code',
         'title',
+        'title_tagalog',
         'short_title',
         'description',
         'is_active',

@@ -137,7 +137,7 @@
                 <input
                     type="search"
                     wire:model.live.debounce.300ms="lessonSearch"
-                    placeholder="Search lessons by code or title..."
+                    placeholder="Search lessons by code, English, or Tagalog title..."
                     class="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                 >
 
@@ -298,8 +298,15 @@
                                     <input
                                         type="text"
                                         wire:model="newLessonTitle.{{ $book->id }}"
-                                        placeholder="Lesson title (optional)"
+                                        placeholder="English title (optional)"
                                         class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                    >
+
+                                    <input
+                                        type="text"
+                                        wire:model="newLessonTagalogTitle.{{ $book->id }}"
+                                        placeholder="Tagalog title (optional)"
+                                        class="md:col-span-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                     >
 
                                     <textarea
@@ -341,8 +348,15 @@
                                                 <input
                                                     type="text"
                                                     wire:model="editLessonTitle"
-                                                    placeholder="Lesson title"
+                                                    placeholder="English title"
                                                     class="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                                                >
+
+                                                <input
+                                                    type="text"
+                                                    wire:model="editLessonTagalogTitle"
+                                                    placeholder="Tagalog title"
+                                                    class="md:col-span-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
                                                 >
 
                                                 <textarea
@@ -392,7 +406,14 @@
                                                         @endif
                                                     </div>
 
-                                                    @if ($lesson->description)
+                                                    @if ($lesson->title_tagalog)
+                                                    <p class="mt-1 text-xs font-medium text-primary-700 dark:text-primary-300">
+                                                        Tagalog:
+                                                        {{ $lesson->title_tagalog }}
+                                                    </p>
+                                                @endif
+
+                                                @if ($lesson->description)
                                                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                                             {{ $lesson->description }}
                                                         </p>

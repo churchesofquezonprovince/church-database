@@ -1,4 +1,33 @@
 <x-filament-panels::page>
+    <div class="flex justify-end">
+        <label
+            class="inline-flex cursor-pointer
+                   items-center gap-2
+                   rounded-xl border
+                   border-gray-200
+                   bg-white px-4 py-2
+                   text-sm font-semibold
+                   text-gray-700 shadow-sm
+                   dark:border-gray-700
+                   dark:bg-gray-900
+                   dark:text-gray-200"
+        >
+            <input
+                type="checkbox"
+                wire:model.live="showTagalogMinistry"
+                class="rounded border-gray-300
+                       text-primary-600
+                       focus:ring-primary-500
+                       dark:border-gray-600
+                       dark:bg-gray-800"
+            >
+
+            <span>
+                Tagalog
+            </span>
+        </label>
+    </div>
+
     @php
         $contacts =
             $this->historyContacts();
@@ -603,7 +632,14 @@
 
                                                         @if ($book?->title)
                                                             ·
-                                                            {{ $book->title }}
+                                                            {{
+    $showTagalogMinistry
+        ? (
+            $book->title_tagalog
+            ?: $book->title
+        )
+        : $book->title
+}}
                                                         @endif
                                                     </p>
 
@@ -631,7 +667,14 @@
 
                                                                 @if ($lesson->title)
                                                                     ·
-                                                                    {{ $lesson->title }}
+                                                                    {{
+    $showTagalogMinistry
+        ? (
+            $lesson->title_tagalog
+            ?: $lesson->title
+        )
+        : $lesson->title
+}}
                                                                 @endif
                                                             </span>
                                                         @endforeach

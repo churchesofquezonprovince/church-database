@@ -120,6 +120,12 @@ class ShepherdingContacts extends Page
     public array $ministryLessonIds = [];
 
     /*
+     * Display preference only.
+     * The selected canonical Ministry Lesson IDs do not change.
+     */
+    public bool $showTagalogMinistry = false;
+
+    /*
      * Ordered Hymns sung during this contact.
      *
      * Each row:
@@ -142,6 +148,12 @@ class ShepherdingContacts extends Page
 
     public function mount(): void
     {
+        $this->showTagalogMinistry =
+            (bool) session(
+                'shepherding_ministry_tagalog',
+                false
+            );
+
         $this->contactDate =
             now()->toDateString();
 
@@ -163,6 +175,15 @@ class ShepherdingContacts extends Page
                 $requestedRecordId
             );
         }
+    }
+
+    public function updatedShowTagalogMinistry(
+        bool $value
+    ): void {
+        session()->put(
+            'shepherding_ministry_tagalog',
+            $value
+        );
     }
 
     public function getTitle(): string

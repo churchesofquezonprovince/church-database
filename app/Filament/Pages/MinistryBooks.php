@@ -43,6 +43,8 @@ class MinistryBooks extends Page
 
     public array $newLessonTitle = [];
 
+    public array $newLessonTagalogTitle = [];
+
     public array $newLessonDescription = [];
 
     public ?int $editingLessonId = null;
@@ -50,6 +52,8 @@ class MinistryBooks extends Page
     public string $editLessonCode = '';
 
     public string $editLessonTitle = '';
+
+    public string $editLessonTagalogTitle = '';
 
     public string $editLessonDescription = '';
 
@@ -127,6 +131,11 @@ class MinistryBooks extends Page
                                             )
                                             ->orWhere(
                                                 'title',
+                                                'like',
+                                                "%{$search}%"
+                                            )
+                                            ->orWhere(
+                                                'title_tagalog',
                                                 'like',
                                                 "%{$search}%"
                                             );
@@ -470,6 +479,11 @@ class MinistryBooks extends Page
                 'string',
                 'max:255',
             ],
+            "newLessonTagalogTitle.{$book->id}" => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
             "newLessonDescription.{$book->id}" => [
                 'nullable',
                 'string',
@@ -509,6 +523,14 @@ class MinistryBooks extends Page
             )
                 ? trim($data['newLessonTitle'][$book->id])
                 : null,
+            'title_tagalog' => filled(
+                $data['newLessonTagalogTitle'][$book->id]
+                    ?? null
+            )
+                ? trim(
+                    $data['newLessonTagalogTitle'][$book->id]
+                )
+                : null,
             'description' => filled(
                 $data['newLessonDescription'][$book->id] ?? null
             )
@@ -526,12 +548,14 @@ class MinistryBooks extends Page
                 'book' => $book->title,
                 'code' => $lesson->code,
                 'title' => $lesson->title,
+                'title_tagalog' => $lesson->title_tagalog,
             ],
         );
 
         unset(
             $this->newLessonCode[$book->id],
             $this->newLessonTitle[$book->id],
+            $this->newLessonTagalogTitle[$book->id],
             $this->newLessonDescription[$book->id],
         );
 
@@ -550,6 +574,8 @@ class MinistryBooks extends Page
         $this->editLessonCode = $lesson->code;
         $this->editLessonTitle =
             (string) ($lesson->title ?? '');
+        $this->editLessonTagalogTitle =
+            (string) ($lesson->title_tagalog ?? '');
         $this->editLessonDescription =
             (string) ($lesson->description ?? '');
         $this->editLessonSortOrder =
@@ -571,6 +597,11 @@ class MinistryBooks extends Page
                 'max:50',
             ],
             'editLessonTitle' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'editLessonTagalogTitle' => [
                 'nullable',
                 'string',
                 'max:255',
@@ -616,6 +647,13 @@ class MinistryBooks extends Page
             'code' => $code,
             'title' => filled($data['editLessonTitle'])
                 ? trim($data['editLessonTitle'])
+                : null,
+            'title_tagalog' => filled(
+                $data['editLessonTagalogTitle']
+            )
+                ? trim(
+                    $data['editLessonTagalogTitle']
+                )
                 : null,
             'description' => filled(
                 $data['editLessonDescription']
@@ -675,6 +713,7 @@ class MinistryBooks extends Page
         $this->editingLessonId = null;
         $this->editLessonCode = '';
         $this->editLessonTitle = '';
+        $this->editLessonTagalogTitle = '';
         $this->editLessonDescription = '';
         $this->editLessonSortOrder = 0;
     }

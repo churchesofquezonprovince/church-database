@@ -2619,13 +2619,38 @@
                                    sm:justify-between"
                         >
                             <div>
-                                <h4
-                                    class="text-sm font-bold
-                                           text-gray-900
-                                           dark:text-white"
+                                <div
+                                    class="flex flex-wrap
+                                           items-center gap-3"
                                 >
-                                    Ministry Used
-                                </h4>
+                                    <h4
+                                        class="text-sm font-bold
+                                               text-gray-900
+                                               dark:text-white"
+                                    >
+                                        Ministry Used
+                                    </h4>
+
+                                    <label
+                                        class="inline-flex cursor-pointer
+                                               items-center gap-2
+                                               text-xs font-semibold
+                                               text-gray-700
+                                               dark:text-gray-300"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            wire:model.live="showTagalogMinistry"
+                                            class="rounded border-gray-300
+                                                   text-primary-600
+                                                   focus:ring-primary-500
+                                                   dark:border-gray-600
+                                                   dark:bg-gray-800"
+                                        >
+
+                                        <span>Tagalog</span>
+                                    </label>
+                                </div>
 
                                 <p
                                     class="mt-1 text-xs
@@ -2741,7 +2766,14 @@
                                             </strong>
 
                                             <span>
-                                                {{ $lesson->title }}
+                                                {{
+    $showTagalogMinistry
+        ? (
+            $lesson->title_tagalog
+            ?: $lesson->title
+        )
+        : $lesson->title
+}}
                                             </span>
 
                                             <span
@@ -2772,7 +2804,7 @@
                                 <input
                                     type="search"
                                     x-model="ministrySearch"
-                                    placeholder="Search HG01, salvation, church life, prayer..."
+                                    placeholder="Search HG01, salvation, kaligtasan, church life, prayer..."
                                     class="block w-full
                                            rounded-xl border
                                            border-gray-300
@@ -2820,6 +2852,12 @@
                                                             $lesson->code
                                                             . ' '
                                                             . $lesson->title
+                                                            . ' '
+                                                            . (
+                                                                $lesson
+                                                                    ->title_tagalog
+                                                                ?? ''
+                                                            )
                                                     )
                                                     ->implode(' ')
                                             )
@@ -2890,9 +2928,23 @@
                                                            text-sm font-semibold
                                                            text-gray-800
                                                            dark:text-gray-100"
-                                                    title="{{ $book->title }}"
+                                                    title="{{
+    $showTagalogMinistry
+        ? (
+            $book->title_tagalog
+            ?: $book->title
+        )
+        : $book->title
+}}"
                                                 >
-                                                    {{ $book->title }}
+                                                    {{
+    $showTagalogMinistry
+        ? (
+            $book->title_tagalog
+            ?: $book->title
+        )
+        : $book->title
+}}
                                                 </span>
                                             </div>
 
@@ -3042,14 +3094,28 @@
                                                         </strong>
 
                                                         <span
-                                                            title="{{ $lesson->title }}"
+                                                            title="{{
+    $showTagalogMinistry
+        ? (
+            $lesson->title_tagalog
+            ?: $lesson->title
+        )
+        : $lesson->title
+}}"
                                                             class="min-w-0
                                                                    truncate
                                                                    text-sm
                                                                    text-gray-700
                                                                    dark:text-gray-200"
                                                         >
-                                                            {{ $lesson->title }}
+                                                            {{
+    $showTagalogMinistry
+        ? (
+            $lesson->title_tagalog
+            ?: $lesson->title
+        )
+        : $lesson->title
+}}
                                                         </span>
                                                     </div>
                                                 </label>
@@ -3630,7 +3696,14 @@
 
                                                         @if ($book?->title)
                                                             ·
-                                                            {{ $book->title }}
+                                                            {{
+    $showTagalogMinistry
+        ? (
+            $book->title_tagalog
+            ?: $book->title
+        )
+        : $book->title
+}}
                                                         @endif
                                                     </p>
 
@@ -3658,7 +3731,14 @@
 
                                                                 @if ($lesson->title)
                                                                     ·
-                                                                    {{ $lesson->title }}
+                                                                    {{
+    $showTagalogMinistry
+        ? (
+            $lesson->title_tagalog
+            ?: $lesson->title
+        )
+        : $lesson->title
+}}
                                                                 @endif
                                                             </span>
                                                         @endforeach
