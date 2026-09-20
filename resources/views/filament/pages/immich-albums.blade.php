@@ -57,27 +57,54 @@
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    wire:click="refreshImmich"
-                    wire:loading.attr="disabled"
-                    wire:target="refreshImmich"
-                    class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
-                >
-                    <x-heroicon-o-arrow-path
-                        class="h-4 w-4"
-                        wire:loading.class="animate-spin"
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        wire:click="openCreateAlbumModal"
+                        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                        <x-heroicon-o-plus
+                            class="h-4 w-4"
+                        />
+
+                        Create Album
+                    </button>
+
+                    <a
+                        href="{{ route('immich-albums.public') }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gray-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600"
+                    >
+                        <x-heroicon-o-arrow-top-right-on-square
+                            class="h-4 w-4"
+                        />
+
+                        Public Dashboard
+                    </a>
+
+                    <button
+                        type="button"
+                        wire:click="refreshImmich"
+                        wire:loading.attr="disabled"
                         wire:target="refreshImmich"
-                    />
+                        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        <x-heroicon-o-arrow-path
+                            class="h-4 w-4"
+                            wire:loading.class="animate-spin"
+                            wire:target="refreshImmich"
+                        />
 
-                    <span wire:loading.remove wire:target="refreshImmich">
-                        Refresh
-                    </span>
+                        <span wire:loading.remove wire:target="refreshImmich">
+                            Refresh
+                        </span>
 
-                    <span wire:loading wire:target="refreshImmich">
-                        Refreshing…
-                    </span>
-                </button>
+                        <span wire:loading wire:target="refreshImmich">
+                            Refreshing…
+                        </span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -393,11 +420,9 @@
                                         @else
                                             <button
                                                 type="button"
-                                                wire:click.stop="createSharedLink('{{ $album['id'] }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="createSharedLink('{{ $album['id'] }}')"
+                                                wire:click.stop="openCreateLinkModal('{{ $album['id'] }}')"
                                                 x-on:click.stop
-                                                class="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-700 disabled:opacity-60"
+                                                class="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-sky-600 px-3 py-1 text-xs font-bold text-white hover:bg-sky-700"
                                             >
                                                 Create Link
                                             </button>
@@ -563,6 +588,463 @@
             }
         }
     </style>
+
+
+    {{-- =====================================================
+         CREATE ALBUM
+         ===================================================== --}}
+    @if ($showCreateAlbumModal)
+        <div
+            wire:click.self="closeCreateAlbumModal"
+            style="
+                position: fixed;
+                inset: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                background: rgba(0, 0, 0, .72);
+            "
+        >
+            <div
+                class="rounded-2xl bg-gray-900 text-white shadow-2xl"
+                style="
+                    width: min(100%, 560px);
+                    overflow: hidden;
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                "
+            >
+                <div
+                    class="flex items-center justify-between px-6 py-5"
+                    style="
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+                    "
+                >
+                    <div>
+                        <h2 class="text-lg font-bold">
+                            Create Album
+                        </h2>
+
+                        <p class="mt-1 text-sm text-gray-400">
+                            Create a new album in Immich.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        wire:click="closeCreateAlbumModal"
+                        class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div class="space-y-5 p-5">
+                    <div>
+                        <label class="mb-2 block text-sm font-semibold">
+                            Album name
+                        </label>
+
+                        <input
+                            type="text"
+                            wire:model.defer="newAlbumName"
+                            autocomplete="off"
+                            placeholder="Album name"
+                            class="w-full text-sm text-white"
+                            style="
+                                display: block;
+                                width: 100%;
+                                height: 46px;
+                                padding: 0 14px;
+                                border-radius: 12px;
+                                border: 1px solid #4b5563;
+                                background: #1f2937;
+                                color: #ffffff;
+                                outline: none;
+                            "
+                        >
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-semibold">
+                            Description
+                        </label>
+
+                        <textarea
+                            wire:model.defer="newAlbumDescription"
+                            rows="5"
+                            placeholder="Optional description"
+                            class="w-full text-sm text-white"
+                            style="
+                                display: block;
+                                width: 100%;
+                                min-height: 150px;
+                                padding: 12px 14px;
+                                border-radius: 12px;
+                                border: 1px solid #4b5563;
+                                background: #1f2937;
+                                color: #ffffff;
+                                outline: none;
+                                resize: vertical;
+                                line-height: 1.5;
+                            "
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div
+                    class="flex justify-end gap-3 px-6 py-4"
+                    style="
+                        border-top: 1px solid rgba(255, 255, 255, 0.10);
+                    "
+                >
+                    <button
+                        type="button"
+                        wire:click="closeCreateAlbumModal"
+                        class="rounded-xl bg-gray-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-gray-600"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        wire:click="createAlbum"
+                        wire:loading.attr="disabled"
+                        wire:target="createAlbum"
+                        class="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-60"
+                    >
+                        <span
+                            wire:loading.remove
+                            wire:target="createAlbum"
+                        >
+                            Create Album
+                        </span>
+
+                        <span
+                            wire:loading
+                            wire:target="createAlbum"
+                        >
+                            Creating…
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+
+    {{-- =====================================================
+         CREATE LINK
+         ===================================================== --}}
+    @if ($showCreateLinkModal)
+        <div
+            wire:click.self="closeCreateLinkModal"
+            style="
+                position: fixed;
+                inset: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                background: rgba(0, 0, 0, .72);
+                overflow-y: auto;
+            "
+        >
+            <div
+                class="rounded-2xl bg-gray-900 text-white shadow-2xl"
+                style="
+                    width: min(100%, 580px);
+                    max-height: calc(100vh - 2rem);
+                    overflow-y: auto;
+                    border: 1px solid rgba(255, 255, 255, 0.10);
+                "
+            >
+                <div
+                    class="flex items-center justify-between px-6 py-5"
+                    style="
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+                    "
+                >
+                    <div>
+                        <h2 class="text-lg font-bold">
+                            Create link to share
+                        </h2>
+
+                        <p class="mt-1 text-sm text-gray-400">
+                            {{ $createLinkAlbumName }}
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        wire:click="closeCreateLinkModal"
+                        class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div class="space-y-5 p-5">
+                    <p class="text-sm text-gray-300">
+                        Let anyone with the link see photos and people
+                        in this album.
+                    </p>
+
+                    <div
+                        x-data="{
+                            slugPreview: @js($shareSlug),
+                            shareBaseUrl: @js($this->immichPublicUrl() . '/s/')
+                        }"
+                    >
+                        <label class="mb-1 block text-sm font-semibold">
+                            Custom URL
+                        </label>
+
+                        <p class="mb-2 text-xs text-gray-400">
+                            Optional custom name for the shared URL.
+                        </p>
+
+                        <input
+                            type="text"
+                            wire:model.defer="shareSlug"
+                            x-model="slugPreview"
+                            autocomplete="off"
+                            placeholder="Optional custom URL"
+                            class="w-full text-sm text-white"
+                            style="
+                                display: block;
+                                width: 100%;
+                                height: 46px;
+                                padding: 0 14px;
+                                border-radius: 12px;
+                                border: 1px solid #4b5563;
+                                background: #1f2937;
+                                color: #ffffff;
+                                outline: none;
+                            "
+                        >
+
+                        <p
+                            class="mt-2 break-all text-xs text-gray-400"
+                            style="
+                                min-height: 18px;
+                                font-family:
+                                    ui-monospace,
+                                    SFMono-Regular,
+                                    Menlo,
+                                    Monaco,
+                                    Consolas,
+                                    monospace;
+                            "
+                            x-text="shareBaseUrl + slugPreview"
+                        ></p>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-semibold">
+                            Password
+                        </label>
+
+                        <p class="mb-2 text-xs text-gray-400">
+                            Require a password to access this shared link.
+                        </p>
+
+                        <input
+                            type="password"
+                            wire:model.defer="sharePassword"
+                            autocomplete="new-password"
+                            placeholder="Optional password"
+                            class="w-full text-sm text-white"
+                            style="
+                                display: block;
+                                width: 100%;
+                                height: 46px;
+                                padding: 0 14px;
+                                border-radius: 12px;
+                                border: 1px solid #4b5563;
+                                background: #1f2937;
+                                color: #ffffff;
+                                outline: none;
+                            "
+                        >
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-semibold">
+                            Description
+                        </label>
+
+                        <textarea
+                            wire:model.defer="shareDescription"
+                            rows="4"
+                            placeholder="Optional shared-link description"
+                            class="w-full text-sm text-white"
+                            style="
+                                display: block;
+                                width: 100%;
+                                min-height: 120px;
+                                padding: 12px 14px;
+                                border-radius: 12px;
+                                border: 1px solid #4b5563;
+                                background: #1f2937;
+                                color: #ffffff;
+                                outline: none;
+                                resize: vertical;
+                                line-height: 1.5;
+                            "
+                        ></textarea>
+                    </div>
+
+                    <div>
+                        <label class="mb-2 block text-sm font-semibold">
+                            Expire after
+                        </label>
+
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ([
+                                'never' => 'Never',
+                                '1_day' => 'in 1 day',
+                                '7_days' => 'in 7 days',
+                                '30_days' => 'in 30 days',
+                                '3_months' => 'in 3 months',
+                                '1_year' => 'in 1 year',
+                            ] as $expiryValue => $expiryLabel)
+                                <button
+                                    type="button"
+                                    wire:click="$set('shareExpiry', '{{ $expiryValue }}')"
+                                    class="rounded-lg border px-3 py-1.5 text-xs font-bold"
+                                    style="
+                                        @if ($shareExpiry === $expiryValue)
+                                            background: #2563eb;
+                                            border-color: #60a5fa;
+                                            color: white;
+                                        @else
+                                            background: #111827;
+                                            border-color: #4b5563;
+                                            color: #d1d5db;
+                                        @endif
+                                    "
+                                >
+                                    {{ $expiryLabel }}
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div
+                        class="space-y-4 pt-5"
+                        style="
+                            border-top: 1px solid rgba(255, 255, 255, 0.10);
+                        "
+                    >
+                        <label class="flex cursor-pointer items-center justify-between gap-4">
+                            <span>
+                                <span class="block text-sm font-semibold">
+                                    Show metadata
+                                </span>
+
+                                <span class="block text-xs text-gray-400">
+                                    Allow shared viewers to see photo metadata.
+                                </span>
+                            </span>
+
+                            <input
+                                type="checkbox"
+                                wire:model.defer="shareShowMetadata"
+                                class="h-5 w-5 rounded"
+                                style="
+                                    width: 20px;
+                                    height: 20px;
+                                    flex: 0 0 20px;
+                                    accent-color: #0ea5e9;
+                                "
+                            >
+                        </label>
+
+                        <label class="flex cursor-pointer items-center justify-between gap-4">
+                            <span>
+                                <span class="block text-sm font-semibold">
+                                    Allow public user to download
+                                </span>
+                            </span>
+
+                            <input
+                                type="checkbox"
+                                wire:model.defer="shareAllowDownload"
+                                class="h-5 w-5 rounded"
+                                style="
+                                    width: 20px;
+                                    height: 20px;
+                                    flex: 0 0 20px;
+                                    accent-color: #0ea5e9;
+                                "
+                            >
+                        </label>
+
+                        <label class="flex cursor-pointer items-center justify-between gap-4">
+                            <span>
+                                <span class="block text-sm font-semibold">
+                                    Allow public user to upload
+                                </span>
+                            </span>
+
+                            <input
+                                type="checkbox"
+                                wire:model.defer="shareAllowUpload"
+                                class="h-5 w-5 rounded"
+                                style="
+                                    width: 20px;
+                                    height: 20px;
+                                    flex: 0 0 20px;
+                                    accent-color: #0ea5e9;
+                                "
+                            >
+                        </label>
+                    </div>
+                </div>
+
+                <div
+                    class="flex justify-end gap-3 px-6 py-4"
+                    style="
+                        border-top: 1px solid rgba(255, 255, 255, 0.10);
+                    "
+                >
+                    <button
+                        type="button"
+                        wire:click="closeCreateLinkModal"
+                        class="rounded-xl bg-gray-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-gray-600"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        wire:click="createSharedLink"
+                        wire:loading.attr="disabled"
+                        wire:target="createSharedLink"
+                        class="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-60"
+                    >
+                        <span
+                            wire:loading.remove
+                            wire:target="createSharedLink"
+                        >
+                            Create link
+                        </span>
+
+                        <span
+                            wire:loading
+                            wire:target="createSharedLink"
+                        >
+                            Creating…
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
 
     <script src="{{ asset('vendor/qrcodejs/qrcode.min.js') }}"></script>
 

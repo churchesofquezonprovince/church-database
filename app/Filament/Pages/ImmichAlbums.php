@@ -36,6 +36,38 @@ class ImmichAlbums extends Page
 
     public ?string $lastLoadedAt = null;
 
+    /*
+     * Create Album modal.
+     */
+    public bool $showCreateAlbumModal = false;
+
+    public string $newAlbumName = '';
+
+    public string $newAlbumDescription = '';
+
+    /*
+     * Create Shared Link modal.
+     */
+    public bool $showCreateLinkModal = false;
+
+    public ?string $createLinkAlbumId = null;
+
+    public string $createLinkAlbumName = '';
+
+    public string $shareSlug = '';
+
+    public string $sharePassword = '';
+
+    public string $shareDescription = '';
+
+    public string $shareExpiry = 'never';
+
+    public bool $shareShowMetadata = true;
+
+    public bool $shareAllowDownload = true;
+
+    public bool $shareAllowUpload = false;
+
     public function mount(): void
     {
         $this->refreshImmich(
@@ -877,42 +909,38 @@ class ImmichAlbums extends Page
             . rawurlencode($key);
     }
 
-    public function createSharedLink(
-        string $albumId
-    ): void {
+    public function openCreateAlbumModal(): void
+    {
         abort_unless(
             auth()->user()?->canManageRecords(),
             403
         );
 
-        $album = collect($this->albums)
-            ->first(
-                fn (array $album): bool =>
-                    (string) ($album['id'] ?? '')
-                    === $albumId
+        $this->newAlbumName = '';
+        $this->newAlbumDescription = '';
+        $this->showCreateAlbumModal = true;
+    }
+
+    public function closeCreateAlbumModal(): void
+    {
+        $this->showCreateAlbumModal = false;
+    }
+
+    public function createAlbum(): void
+    {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $albumName =
+            trim(
+                $this->newAlbumName
             );
 
-        if (! $album) {
+        if ($albumName === '') {
             Notification::make()
-                ->title('Immich album not found')
-                ->danger()
-                ->send();
-
-            return;
-        }
-
-        /*
-         * Never create a second link when this page already knows
-         * that an active Shared Link exists.
-         */
-        if (
-            filled(
-                $album['sharedUrl']
-                ?? null
-            )
-        ) {
-            Notification::make()
-                ->title('Shared Link already exists')
+                ->title('Album name is required')
                 ->warning()
                 ->send();
 
@@ -920,24 +948,276 @@ class ImmichAlbums extends Page
         }
 
         try {
-            app(ImmichApiService::class)
-                ->createAlbumSharedLink(
-                    $albumId
+            $created =
+                app(
+                    ImmichApiService::class
+                )
+                    ->createAlbum(
+                        albumName:
+                            $albumName,
+
+                        description:
+                            trim(
+                                $this
+                                    ->newAlbumDescription
+                            )
+                    );
+
+            $this->showCreateAlbumModal =
+                false;
+
+            $this->refreshImmich(
+                showNotification: false
+            );
+
+            Notification::make()
+                ->title('Immich Album created')
+                ->body(
+                    (
+                        $created['albumName']
+                        ?? $albumName
+                    )
+                    . ' was created successfully.'
+                )
+                ->success()
+                ->send();
+
+        } catch (Throwable $e) {
+            Log::error(
+                'Unable to create Immich Album.',
+                [
+                    'message' =>
+                        $e->getMessage(),
+                ]
+            );
+
+            Notification::make()
+                ->title('Could not create album')
+                ->body(
+                    $e->getMessage()
+                )
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function openCreateLinkModal(
+        string $albumId
+    ): void {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $album =
+            collect(
+                $this->albums
+            )
+                ->first(
+                    fn (
+                        array $album
+                    ): bool =>
+                        (string) (
+                            $album['id']
+                            ?? ''
+                        )
+                        === $albumId
                 );
 
+        if (! $album) {
+            Notification::make()
+                ->title(
+                    'Immich album not found'
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if (
+            filled(
+                $album['sharedUrl']
+                ?? null
+            )
+        ) {
+            Notification::make()
+                ->title(
+                    'Shared Link already exists'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $this->createLinkAlbumId =
+            $albumId;
+
+        $this->createLinkAlbumName =
+            (string) (
+                $album['albumName']
+                ?? 'Album'
+            );
+
+        $this->shareSlug = '';
+        $this->sharePassword = '';
+        $this->shareDescription = '';
+        $this->shareExpiry = 'never';
+
+        /*
+         * Match the current Immich Create Link UI defaults.
+         */
+        $this->shareShowMetadata = true;
+        $this->shareAllowDownload = true;
+        $this->shareAllowUpload = false;
+
+        $this->showCreateLinkModal = true;
+    }
+
+    public function closeCreateLinkModal(): void
+    {
+        $this->showCreateLinkModal = false;
+        $this->createLinkAlbumId = null;
+    }
+
+    public function createSharedLink(): void
+    {
+        abort_unless(
+            auth()->user()?->canManageRecords(),
+            403
+        );
+
+        $albumId =
+            trim(
+                (string) (
+                    $this
+                        ->createLinkAlbumId
+                    ?? ''
+                )
+            );
+
+        if ($albumId === '') {
+            Notification::make()
+                ->title(
+                    'No album selected'
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $album =
+            collect(
+                $this->albums
+            )
+                ->first(
+                    fn (
+                        array $album
+                    ): bool =>
+                        (string) (
+                            $album['id']
+                            ?? ''
+                        )
+                        === $albumId
+                );
+
+        if (! $album) {
+            Notification::make()
+                ->title(
+                    'Immich album not found'
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if (
+            filled(
+                $album['sharedUrl']
+                ?? null
+            )
+        ) {
+            $this->showCreateLinkModal =
+                false;
+
+            Notification::make()
+                ->title(
+                    'Shared Link already exists'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(
+                ImmichApiService::class
+            )
+                ->createAlbumSharedLink(
+                    albumId:
+                        $albumId,
+
+                    options: [
+                        'slug' =>
+                            trim(
+                                $this->shareSlug
+                            ),
+
+                        'password' =>
+                            $this->sharePassword,
+
+                        'description' =>
+                            trim(
+                                $this
+                                    ->shareDescription
+                            ),
+
+                        'expiresAt' =>
+                            $this
+                                ->sharedLinkExpiryIso(),
+
+                        'showMetadata' =>
+                            $this
+                                ->shareShowMetadata,
+
+                        'allowDownload' =>
+                            $this
+                                ->shareAllowDownload,
+
+                        'allowUpload' =>
+                            $this
+                                ->shareAllowUpload,
+                    ]
+                );
+
+            $this->showCreateLinkModal =
+                false;
+
+            $this->createLinkAlbumId =
+                null;
+
             /*
-             * Reload from Immich so the real server response remains
-             * the source of truth.
+             * Reload from Immich. Immich remains the
+             * source of truth for shared links.
              */
             $this->refreshImmich(
                 showNotification: false
             );
 
             Notification::make()
-                ->title('Immich Shared Link created')
+                ->title(
+                    'Immich Shared Link created'
+                )
                 ->body(
-                    ($album['albumName'] ?? 'Album')
-                    . ' can now be opened and shared publicly.'
+                    (
+                        $album['albumName']
+                        ?? 'Album'
+                    )
+                    . ' can now be shared publicly.'
                 )
                 ->success()
                 ->send();
@@ -950,7 +1230,8 @@ class ImmichAlbums extends Page
                         $albumId,
 
                     /*
-                     * Never log a Shared Link key.
+                     * Do not log passwords, slugs,
+                     * or generated share keys.
                      */
                     'message' =>
                         $e->getMessage(),
@@ -958,11 +1239,50 @@ class ImmichAlbums extends Page
             );
 
             Notification::make()
-                ->title('Could not create Shared Link')
-                ->body($e->getMessage())
+                ->title(
+                    'Could not create Shared Link'
+                )
+                ->body(
+                    $e->getMessage()
+                )
                 ->danger()
                 ->send();
         }
+    }
+
+    private function sharedLinkExpiryIso(): ?string
+    {
+        return match (
+            $this->shareExpiry
+        ) {
+            '1_day' =>
+                CarbonImmutable::now()
+                    ->addDay()
+                    ->toISOString(),
+
+            '7_days' =>
+                CarbonImmutable::now()
+                    ->addDays(7)
+                    ->toISOString(),
+
+            '30_days' =>
+                CarbonImmutable::now()
+                    ->addDays(30)
+                    ->toISOString(),
+
+            '3_months' =>
+                CarbonImmutable::now()
+                    ->addMonths(3)
+                    ->toISOString(),
+
+            '1_year' =>
+                CarbonImmutable::now()
+                    ->addYear()
+                    ->toISOString(),
+
+            default =>
+                null,
+        };
     }
 
     public function formatBytes(

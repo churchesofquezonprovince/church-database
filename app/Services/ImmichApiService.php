@@ -58,28 +58,97 @@ class ImmichApiService
             : [];
     }
 
-    public function createAlbumSharedLink(
-        string $albumId
+    public function createAlbum(
+        string $albumName,
+        ?string $description = null,
     ): array {
-        /*
-         * Match the existing Quezon Province Churches links:
-         *
-         * Upload       = allowed
-         * Download     = allowed
-         * Metadata     = shown
-         * Expiry       = none
-         * Password     = none
-         *
-         * Do not send unused optional fields as empty strings.
-         */
+        $payload = [
+            'albumName' => trim($albumName),
+        ];
+
+        if (filled($description)) {
+            $payload['description'] =
+                trim($description);
+        }
+
         $response = $this->client()
-            ->post('/api/shared-links', [
-                'type' => 'ALBUM',
-                'albumId' => $albumId,
-                'allowUpload' => true,
-                'allowDownload' => true,
-                'showMetadata' => true,
-            ])
+            ->post(
+                '/api/albums',
+                $payload
+            )
+            ->throw()
+            ->json();
+
+        return is_array($response)
+            ? $response
+            : [];
+    }
+
+    public function createAlbumSharedLink(
+        string $albumId,
+        array $options = [],
+    ): array {
+        $showMetadata =
+            (bool) (
+                $options['showMetadata']
+                ?? true
+            );
+
+        $allowDownload =
+            $showMetadata
+                ? (bool) (
+                    $options['allowDownload']
+                    ?? true
+                )
+                : false;
+
+        $payload = [
+            'type' => 'ALBUM',
+            'albumId' => $albumId,
+
+            'allowUpload' =>
+                (bool) (
+                    $options['allowUpload']
+                    ?? false
+                ),
+
+            'allowDownload' =>
+                $allowDownload,
+
+            'showMetadata' =>
+                $showMetadata,
+        ];
+
+        /*
+         * Immich 3.x validates optional values strictly.
+         *
+         * Do not send empty optional strings such as
+         * expiresAt = "".
+         */
+        foreach (
+            [
+                'slug',
+                'password',
+                'description',
+                'expiresAt',
+            ] as $field
+        ) {
+            if (
+                filled(
+                    $options[$field]
+                    ?? null
+                )
+            ) {
+                $payload[$field] =
+                    $options[$field];
+            }
+        }
+
+        $response = $this->client()
+            ->post(
+                '/api/shared-links',
+                $payload
+            )
             ->throw()
             ->json();
 
