@@ -406,14 +406,20 @@
                                 </div>
 
                                 @if (filled($album['description']))
-                                    <p class="immich-description-desktop mt-3 break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                    <p
+                                        class="immich-description-desktop mt-3 break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300"
+                                        style="white-space: pre-line;"
+                                    >
                                         {{ $album['description'] }}
                                     </p>
                                 @endif
                             </div>
 
                             @if (filled($album['description']))
-                                <p class="immich-description-mobile w-full break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                                <p
+                                    class="immich-description-mobile w-full break-words text-sm leading-relaxed text-gray-600 dark:text-gray-300"
+                                    style="white-space: pre-line;"
+                                >
                                     {{ $album['description'] }}
                                 </p>
                             @endif

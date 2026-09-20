@@ -27,6 +27,7 @@ use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\PrayerMeetingItemController;
 use App\Http\Controllers\PublicMeetingFormController;
+use App\Http\Controllers\PublicImmichAlbumController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
 
@@ -91,6 +92,28 @@ Route::domain('m.overcomers.win')
 
 
 Route::redirect('/', '/quezonprovinceactivities');
+
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC IMMICH ALBUMS
+|--------------------------------------------------------------------------
+|
+| Public, read-only gallery. Only albums with an active Immich
+| Shared Link are exposed here.
+|
+*/
+Route::middleware([
+    'web',
+    'throttle:120,1',
+])
+    ->get(
+        '/albums',
+        PublicImmichAlbumController::class
+    )
+    ->name('immich-albums.public');
+
+
 
 
 Route::middleware(['web', 'auth'])
