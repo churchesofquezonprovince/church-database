@@ -233,7 +233,7 @@ class ShepherdingHistory extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 4;
+        return 50;
     }
 
     public function people(): Collection

@@ -135,7 +135,7 @@ class ManageAttendanceSheets extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 60;
+        return 40;
     }
 
     public static function shouldRegisterNavigation(): bool

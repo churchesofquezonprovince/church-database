@@ -20,7 +20,7 @@ class BackupDashboard extends Page
 
     protected static string|\UnitEnum|null $navigationGroup = 'Administration';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $slug = 'backup-dashboard';
 

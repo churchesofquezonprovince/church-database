@@ -51,7 +51,7 @@ class Reports extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 7;
+        return 60;
     }
 
     private function loadReports(): void

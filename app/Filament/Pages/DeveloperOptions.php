@@ -14,6 +14,8 @@ use Throwable;
 use Illuminate\Support\Facades\Artisan;
 class DeveloperOptions extends Page
 {
+    use \App\Filament\Concerns\ManagesProblemReports;
+
 
     // Developer Options: System Information
     public string $appVersion = 'Not configured';
@@ -64,7 +66,7 @@ class DeveloperOptions extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 91;
+        return 50;
     }
 
     public function getTitle(): string

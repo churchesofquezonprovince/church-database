@@ -46,7 +46,7 @@ class LocalityDashboard extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 4;
+        return 40;
     }
 
     private function loadDashboard(): void

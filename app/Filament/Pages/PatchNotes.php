@@ -32,7 +32,7 @@ class PatchNotes extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 99;
+        return 40;
     }
 
     public static function shouldRegisterNavigation(): bool

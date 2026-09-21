@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 
 class CampusActivities extends Page
 {
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 30;
 
     protected string $view = 'filament.pages.campus-activities';
 
@@ -39,7 +39,7 @@ class CampusActivities extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 2;
+        return 30;
     }
 
     public static function shouldRegisterNavigation(): bool

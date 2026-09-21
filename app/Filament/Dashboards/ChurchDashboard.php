@@ -28,6 +28,6 @@ class ChurchDashboard extends BaseDashboard
 
 public static function getNavigationSort(): ?int
     {
-        return 1;
+        return 10;
     }
 }

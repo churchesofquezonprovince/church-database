@@ -41,6 +41,6 @@ class PeopleImport extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 8;
+        return 70;
     }
 }

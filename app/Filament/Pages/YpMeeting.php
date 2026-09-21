@@ -30,7 +30,7 @@ class YpMeeting extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 3;
+        return 40;
     }
 
     public static function shouldRegisterNavigation(): bool

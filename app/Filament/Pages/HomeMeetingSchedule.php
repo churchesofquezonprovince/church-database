@@ -30,7 +30,7 @@ class HomeMeetingSchedule extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 7;
+        return 40;
     }
 
     public static function shouldRegisterNavigation(): bool

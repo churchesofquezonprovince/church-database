@@ -30,7 +30,7 @@ class Newsletter extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 6;
+        return 60;
     }
 
     public static function shouldRegisterNavigation(): bool

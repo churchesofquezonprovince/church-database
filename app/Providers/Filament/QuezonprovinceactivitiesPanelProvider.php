@@ -32,6 +32,7 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ->brandName('Churches of Quezon Database')
             ->viteTheme('resources/css/filament/quezonprovinceactivities/theme.css')
             ->login()
+            ->databaseNotifications()
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -42,12 +43,12 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
                 'ctrl+k',
             ])
             ->navigationGroups([
-                "Children's Work",
-                'Attendance',
-                'Campus Work',
                 'Church Database',
-                'Posts',
+                'Attendance',
                 'Shepherding',
+                'Campus Work',
+                'Children\'s Work',
+                'Posts',
                 'Administration',
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')

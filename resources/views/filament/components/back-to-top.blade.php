@@ -50,6 +50,11 @@
             const visible =
                 window.scrollY > 300;
 
+            document.documentElement.style.setProperty(
+                '--coqp-report-right',
+                visible ? '4.75rem' : '1.25rem'
+            );
+
             button.style.opacity =
                 visible ? '1' : '0';
 
@@ -76,3 +81,5 @@
         );
     })();
 </script>
+
+@include('components.problem-report')

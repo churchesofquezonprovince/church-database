@@ -945,3 +945,6 @@ Route::middleware(['web', 'auth'])
 ->name(
     'quezonprovinceactivities.attendance-meeting-responses.destroy'
 );
+
+
+require __DIR__.'/problem-reports.php';

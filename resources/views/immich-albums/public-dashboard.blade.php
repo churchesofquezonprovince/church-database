@@ -723,5 +723,6 @@
             );
         })();
     </script>
+@include('filament.components.back-to-top')
 </body>
 </html>

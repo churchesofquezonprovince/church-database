@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 class StudentNucleus extends Page
 {
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 50;
 
     protected string $view = 'filament.pages.student-nucleus';
 
@@ -37,7 +37,7 @@ class StudentNucleus extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 1;
+        return 50;
     }
 
     public static function shouldRegisterNavigation(): bool

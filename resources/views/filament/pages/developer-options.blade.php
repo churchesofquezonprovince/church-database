@@ -1,4 +1,57 @@
 <x-filament-panels::page>
+
+    <style>
+        .coqp-dev-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .coqp-dev-options :is(
+            .text-xs, .text-sm, p, label,
+            input, select, textarea, button,
+            th, td, .fi-btn-label
+        ) {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .coqp-dev-options :is(h2, h3) {
+            font-size: 1.125rem;
+            line-height: 1.5;
+            font-weight: 700;
+        }
+
+        .coqp-dev-options :is(
+            button, select, textarea,
+            input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])
+        ) {
+            min-height: 2.75rem;
+        }
+
+        .coqp-dev-options summary.list-none::-webkit-details-marker {
+            display: none;
+        }
+
+        .coqp-dev-options summary:focus-visible {
+            outline: 3px solid #3b82f6;
+            outline-offset: -3px;
+            border-radius: 1rem;
+        }
+
+        /* Only rotate the arrow belonging to the expanded section. */
+        .coqp-dev-options details.group > summary > svg {
+            transform: rotate(0deg);
+        }
+
+        .coqp-dev-options details.group[open] > summary > svg {
+            transform: rotate(180deg);
+        }
+    </style>
+    <div class="coqp-dev-options">
+
     <div class="space-y-6">
 
         <div
@@ -913,6 +966,8 @@
         </div>
     </details>
 
+    @include('filament.components.problem-reports')
+
     <!-- Developer Options: System Information -->
     <details
         open
@@ -998,4 +1053,5 @@
         </div>
     </details>
 
+    </div>
 </x-filament-panels::page>

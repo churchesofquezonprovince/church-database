@@ -43,6 +43,10 @@
                 return;
             }
 
+            if (! this.$store.sidebar.isOpen) {
+                this.query = '';
+            }
+
             const query = this.normalize(this.query);
 
             /*
@@ -271,6 +275,13 @@
         },
 
         init() {
+            // coqp-navigation-search-collapse-v1
+            this.$watch('$store.sidebar.isOpen', (isOpen) => {
+                if (! isOpen) {
+                    this.query = '';
+                    this.$nextTick(() => this.applySearch());
+                }
+            });
             try {
                 this.aliases = JSON.parse(
                     this.$el.dataset
@@ -306,9 +317,14 @@
         JSON_UNESCAPED_SLASHES
         | JSON_UNESCAPED_UNICODE
     ) }}"
-    class="mb-3 w-full px-2"
+    x-show="$store.sidebar.isOpen"
+    class="coqp-navigation-search mb-3 w-full px-2"
 >
     <style>
+        .fi-sidebar:not(.fi-sidebar-open) .coqp-navigation-search {
+            display: none !important;
+        }
+
         /*
          * While filtering, make matching collapsed groups
          * visible without permanently changing their normal
@@ -331,6 +347,7 @@
                 x-on:keydown.escape.prevent="clearSearch()"
                 type="search"
                 placeholder="Search navigation..."
+                aria-label="Search navigation"
                 autocomplete="off"
             />
         </x-filament::input.wrapper>

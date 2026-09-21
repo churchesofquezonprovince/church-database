@@ -97,7 +97,7 @@ class ImmichAlbums extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 7;
+        return 70;
     }
 
     public static function shouldRegisterNavigation(): bool

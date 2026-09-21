@@ -40,7 +40,7 @@ class AttendanceReports extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 70;
+        return 50;
     }
 
     public static function shouldRegisterNavigation(): bool

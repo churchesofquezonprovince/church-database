@@ -126,7 +126,7 @@ class ShepherdingDashboard extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 1;
+        return 10;
     }
 
     public function updatedLocality(): void

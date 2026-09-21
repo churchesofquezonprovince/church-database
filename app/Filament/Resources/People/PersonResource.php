@@ -72,7 +72,7 @@ protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUser
 
 //protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
 protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 

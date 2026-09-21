@@ -30,7 +30,7 @@ class EnjoymentPosts extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 5;
+        return 50;
     }
 
     public static function shouldRegisterNavigation(): bool

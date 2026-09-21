@@ -643,5 +643,6 @@
 
         </section>
     </main>
+@include('filament.components.back-to-top')
 </body>
 </html>

@@ -34,7 +34,7 @@ class StudentCenter extends Page
 
     public static function getNavigationSort(): ?int
     {
-        return 5;
+        return 40;
     }
 
     public function getTitle(): string

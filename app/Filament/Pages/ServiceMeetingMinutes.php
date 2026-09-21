@@ -42,7 +42,7 @@ class ServiceMeetingMinutes extends Page implements HasTable
 
     public static function getNavigationSort(): ?int
     {
-        return 2;
+        return 30;
     }
 
     protected function getHeaderActions(): array

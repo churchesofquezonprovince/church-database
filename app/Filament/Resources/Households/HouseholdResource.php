@@ -22,7 +22,7 @@ protected static ?string $navigationLabel = 'Households';
 
 protected static string | \UnitEnum | null $navigationGroup = 'Church Database';
 
-protected static ?int $navigationSort = 3;
+protected static ?int $navigationSort = 30;
 
 protected static ?string $modelLabel = 'Household';
 

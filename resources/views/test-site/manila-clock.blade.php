@@ -115,5 +115,6 @@
         updateManilaClock();
         setInterval(updateManilaClock, 1000);
     </script>
+@include('filament.components.back-to-top')
 </body>
 </html>

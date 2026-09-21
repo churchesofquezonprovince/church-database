@@ -217,7 +217,7 @@ public function mount(): void
 
     public static function getNavigationSort(): ?int
     {
-        return 30;
+        return 20;
     }
 
     public static function shouldRegisterNavigation(): bool
