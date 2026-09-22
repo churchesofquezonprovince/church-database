@@ -93,6 +93,9 @@ class DeveloperOptions extends Page
 
         $this->loadSystemInformation();
 
+        $this->serviceMeetingFolder =
+            \App\Models\DriveMeetingDocument::serviceMeetingFolderUrl();
+
         $this->databaseFieldMatchesBeforeAutofill =
             max(
                 0,
@@ -104,6 +107,108 @@ class DeveloperOptions extends Page
                     )
                 )
             );
+    }
+
+
+    public string $serviceMeetingFolder = '';
+
+
+    public function testServiceMeetingGoogleAccount(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        try {
+            \App\Services\ServiceMeetingGoogleAccount::testFolder();
+
+            Notification::make()
+                ->title('Folder access verified')
+                ->body('The active service account can read the saved Google Drive folder.')
+                ->success()
+                ->send();
+        } catch (\Throwable) {
+            Notification::make()
+                ->title('Folder access could not be verified')
+                ->body('Check the credentials, saved folder, Viewer sharing permission, and Drive API availability.')
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function saveServiceMeetingFolder(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->validate([
+            'serviceMeetingFolder' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $input = trim($this->serviceMeetingFolder);
+        $folder = $input;
+
+        if (str_contains($input, '://')) {
+            $parts = parse_url($input);
+
+            if (
+                ! is_array($parts)
+                || strtolower($parts['scheme'] ?? '') !== 'https'
+                || strtolower($parts['host'] ?? '') !== 'drive.google.com'
+                || isset($parts['user'])
+                || isset($parts['pass'])
+                || isset($parts['port'])
+                || ! preg_match(
+                    '~^/drive/(?:u/\d+/)?folders/([A-Za-z0-9_-]+)/?$~',
+                    $parts['path'] ?? '',
+                    $matches
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'serviceMeetingFolder' => 'Enter a Google Drive folder URL or folder ID.',
+                ]);
+            }
+
+            $folder = $matches[1];
+        }
+
+        if (! preg_match('/^[A-Za-z0-9_-]{10,200}$/', $folder)) {
+            throw ValidationException::withMessages([
+                'serviceMeetingFolder' => 'Enter a valid Google Drive folder ID.',
+            ]);
+        }
+
+        $oldKey = \App\Models\DriveMeetingDocument::documentCacheKey();
+
+        DeveloperSetting::putValue('service_meeting_drive_folder', $folder);
+
+        \Illuminate\Support\Facades\Cache::forget($oldKey);
+        \Illuminate\Support\Facades\Cache::forget(
+            \App\Models\DriveMeetingDocument::documentCacheKey()
+        );
+        \Illuminate\Support\Facades\Cache::forget('service_meeting_docs');
+
+        $this->serviceMeetingFolder =
+            \App\Models\DriveMeetingDocument::serviceMeetingFolderUrl();
+
+        Notification::make()
+            ->title('Service Meeting Minutes folder saved')
+            ->body('The document list will reload from this folder when opened. Folder access has not been tested.')
+            ->success()
+            ->send();
+    }
+
+    public function refreshServiceMeetingDocuments(): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        \Illuminate\Support\Facades\Cache::forget(
+            \App\Models\DriveMeetingDocument::documentCacheKey()
+        );
+        \Illuminate\Support\Facades\Cache::forget('service_meeting_docs');
+
+        Notification::make()
+            ->title('Document list cache cleared')
+            ->body('Open or reload Service Meeting Minutes to fetch the latest documents.')
+            ->success()
+            ->send();
     }
 
     public function saveMeetingFormAutofillSettings(): void

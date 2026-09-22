@@ -53,7 +53,7 @@ class ServiceMeetingMinutes extends Page implements HasTable
                 ->color('primary')
                 ->icon('heroicon-o-plus')
                 ->url(
-                    'https://drive.google.com/drive/folders/1HXwJXNAlss1h8IFa0rp1B13IxFv6RIbV',
+                    \App\Models\DriveMeetingDocument::serviceMeetingFolderUrl(),
                     true
                 ),
         ];

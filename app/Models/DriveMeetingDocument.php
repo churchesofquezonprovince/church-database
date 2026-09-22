@@ -26,15 +26,37 @@ class DriveMeetingDocument extends Model
         'file_type' => 'string',
     ];
 
+
+    public static function serviceMeetingFolderId(): string
+    {
+        $folder = DeveloperSetting::string(
+            'service_meeting_drive_folder',
+            '1HXwJXNAlss1h8IFa0rp1B13IxFv6RIbV'
+        );
+
+        return filled($folder)
+            ? $folder
+            : '1HXwJXNAlss1h8IFa0rp1B13IxFv6RIbV';
+    }
+
+    public static function serviceMeetingFolderUrl(): string
+    {
+        return 'https://drive.google.com/drive/folders/'
+            . rawurlencode(static::serviceMeetingFolderId());
+    }
+
+    public static function documentCacheKey(): string
+    {
+        return 'service_meeting_docs:' . hash('sha256', static::serviceMeetingFolderId());
+    }
+
     public function getRows(): array
     {
-        return Cache::remember('service_meeting_docs', 900, function () {
-            $client = new Client();
-            $client->setAuthConfig(storage_path('app/google-credentials.json'));
-            $client->addScope(Drive::DRIVE_READONLY);
+        return Cache::remember(static::documentCacheKey(), 900, function () {
+            $client = \App\Services\ServiceMeetingGoogleAccount::client();
             
             $drive = new Drive($client);
-            $folderId = '1HXwJXNAlss1h8IFa0rp1B13IxFv6RIbV';
+            $folderId = static::serviceMeetingFolderId();
             
             $optParams = [
                 'q' => "'{$folderId}' in parents and trashed = false",

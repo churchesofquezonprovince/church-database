@@ -887,6 +887,78 @@
     </details>
 
 
+
+    <details class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
+            <div>
+                <h2 class="text-lg font-bold text-gray-950 dark:text-white">
+                    Service Meeting Minutes Setup
+                </h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Choose the Google Drive folder used for Service Meeting Minutes.
+                </p>
+            </div>
+            <x-filament::icon
+                icon="heroicon-m-chevron-down"
+                class="h-5 w-5 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+            />
+        </summary>
+
+        <div class="border-t border-gray-200 px-6 pb-6 pt-5 dark:border-gray-700">
+            @include('filament.components.service-meeting-google-account')
+<form wire:submit="saveServiceMeetingFolder" class="space-y-4" style="margin-top: 1rem;">
+                <div>
+                    <label for="service-meeting-folder" class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        Google Drive Folder
+                    </label>
+                    <x-filament::input.wrapper class="mt-2">
+                        <x-filament::input
+                            id="service-meeting-folder"
+                            wire:model="serviceMeetingFolder"
+                            type="text"
+                            maxlength="2000"
+                            placeholder="Paste the Google Drive folder URL or ID"
+                        />
+                    </x-filament::input.wrapper>
+                    @error('serviceMeetingFolder')
+                        <p role="alert" class="mt-2 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+                    @enderror
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        The website's existing Google service account must have access
+                        to this folder. Documents remain stored in Google Drive.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <x-filament::button type="submit" wire:loading.attr="disabled">
+                        Save Folder
+                    </x-filament::button>
+                    <x-filament::button
+                        type="button"
+                        color="gray"
+                        wire:click="refreshServiceMeetingDocuments"
+                        wire:loading.attr="disabled"
+                    >
+                        Refresh Document List
+                    </x-filament::button>
+                    <x-filament::button
+                        tag="a"
+                        color="gray"
+                        :href="\App\Models\DriveMeetingDocument::serviceMeetingFolderUrl()"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Open Current Folder
+                    </x-filament::button>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    The list is cached for 15 minutes. Refresh Document List clears
+                    the saved folder's cache; reopen Service Meeting Minutes afterward.
+                </p>
+            </form>
+        </div>
+    </details>
+
     <!-- Developer Options: Cache & Maintenance -->
     <details
         class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"

@@ -948,3 +948,10 @@ Route::middleware(['web', 'auth'])
 
 
 require __DIR__.'/problem-reports.php';
+
+// Admin-only credential upload for Service Meeting Minutes.
+\Illuminate\Support\Facades\Route::post(
+    '/internal/service-meeting-google-account',
+    [\App\Http\Controllers\ServiceMeetingGoogleAccountController::class, 'store']
+)->middleware(['auth', 'throttle:6,1'])
+    ->name('service-meeting-google-account.store');
