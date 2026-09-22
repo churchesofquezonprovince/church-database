@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 
 class MinistryBooks extends Page
 {
+    use \App\Filament\Concerns\ImportsMinistryOutlines;
+
     protected string $view = 'filament.pages.ministry-books';
 
     public string $bookSearch = '';
@@ -25,6 +27,8 @@ class MinistryBooks extends Page
 
     public string $newBookTitle = '';
 
+    public string $newBookTagalogTitle = '';
+
     public string $newBookShortTitle = '';
 
     public string $newBookDescription = '';
@@ -34,6 +38,8 @@ class MinistryBooks extends Page
     public string $editBookCode = '';
 
     public string $editBookTitle = '';
+
+    public string $editBookTagalogTitle = '';
 
     public string $editBookShortTitle = '';
 
@@ -165,7 +171,8 @@ class MinistryBooks extends Page
                         $query
                             ->where('code', 'like', "%{$search}%")
                             ->orWhere('title', 'like', "%{$search}%")
-                            ->orWhere('short_title', 'like', "%{$search}%");
+                            ->orWhere('short_title', 'like', "%{$search}%")
+                            ->orWhere('title_tagalog', 'like', "%{$search}%");
                     });
                 }
             )
@@ -187,6 +194,11 @@ class MinistryBooks extends Page
             ],
             'newBookTitle' => [
                 'required',
+                'string',
+                'max:255',
+            ],
+            'newBookTagalogTitle' => [
+                'nullable',
                 'string',
                 'max:255',
             ],
@@ -228,6 +240,9 @@ class MinistryBooks extends Page
         $book = MinistryBook::query()->create([
             'code' => $code,
             'title' => trim($data['newBookTitle']),
+            'title_tagalog' => filled($data['newBookTagalogTitle'] ?? null)
+                ? trim($data['newBookTagalogTitle'])
+                : null,
             'short_title' =>
                 filled($data['newBookShortTitle'] ?? null)
                     ? trim($data['newBookShortTitle'])
@@ -266,6 +281,7 @@ class MinistryBooks extends Page
         $this->editingBookId = $book->id;
         $this->editBookCode = $book->code;
         $this->editBookTitle = $book->title;
+        $this->editBookTagalogTitle = (string) ($book->title_tagalog ?? '');
         $this->editBookShortTitle =
             (string) ($book->short_title ?? '');
         $this->editBookDescription =
@@ -288,6 +304,11 @@ class MinistryBooks extends Page
             ],
             'editBookTitle' => [
                 'required',
+                'string',
+                'max:255',
+            ],
+            'editBookTagalogTitle' => [
+                'nullable',
                 'string',
                 'max:255',
             ],
@@ -346,6 +367,9 @@ class MinistryBooks extends Page
         $book->update([
             'code' => $code,
             'title' => trim($data['editBookTitle']),
+            'title_tagalog' => filled($data['editBookTagalogTitle'] ?? null)
+                ? trim($data['editBookTagalogTitle'])
+                : null,
             'short_title' =>
                 filled($data['editBookShortTitle'] ?? null)
                     ? trim($data['editBookShortTitle'])
@@ -418,6 +442,7 @@ class MinistryBooks extends Page
         $this->editingBookId = null;
         $this->editBookCode = '';
         $this->editBookTitle = '';
+        $this->editBookTagalogTitle = '';
         $this->editBookShortTitle = '';
         $this->editBookDescription = '';
     }
@@ -693,6 +718,79 @@ class MinistryBooks extends Page
             ->send();
     }
 
+    public function removeAllBookLessons(int $bookId): void
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($bookId): array {
+            $book = MinistryBook::query()
+                ->lockForUpdate()
+                ->findOrFail($bookId);
+
+            $lessons = MinistryLesson::query()
+                ->where('ministry_book_id', $book->id)
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($lessons as $lesson) {
+                if ($lesson->contacts()->exists()) {
+                    return ['blocked' => true, 'count' => 0, 'editing' => false];
+                }
+            }
+
+            $editing = $lessons->contains('id', $this->editingLessonId);
+
+            foreach ($lessons as $lesson) {
+                if (! $lesson->delete()) {
+                    throw new \RuntimeException('A lesson could not be removed.');
+                }
+            }
+
+            if ($lessons->isNotEmpty()) {
+                ActivityLogger::log(
+                    action: 'ministry_book.lessons_removed',
+                    subject: $book,
+                    description: 'Removed all unlinked lessons from a Ministry Book.',
+                    newValues: [
+                        'lessons' => $lessons->map(fn ($lesson): array => [
+                            'id' => $lesson->id,
+                            'code' => $lesson->code,
+                            'title' => $lesson->title,
+                        ])->all(),
+                    ],
+                );
+            }
+
+            return [
+                'blocked' => false,
+                'count' => $lessons->count(),
+                'editing' => $editing,
+            ];
+        });
+
+        if ($result['blocked']) {
+            Notification::make()
+                ->title('Lessons could not be removed')
+                ->body('At least one lesson is linked to a shepherding contact. No lessons were removed.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        if ($result['editing']) {
+            $this->cancelLessonEditing();
+        }
+
+        unset($this->newLessonCode[$bookId]);
+
+        Notification::make()
+            ->title($result['count'] . ' lessons removed')
+            ->body('The Ministry Book has been kept.')
+            ->success()
+            ->send();
+    }
+
     public function deleteLesson(int $lessonId): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
@@ -722,6 +820,7 @@ class MinistryBooks extends Page
     {
         $this->newBookCode = '';
         $this->newBookTitle = '';
+        $this->newBookTagalogTitle = '';
         $this->newBookShortTitle = '';
         $this->newBookDescription = '';
     }

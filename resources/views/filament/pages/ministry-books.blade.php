@@ -1,9 +1,42 @@
 <x-filament-panels::page>
+
+<!-- coqp-ministry-dropdowns-v1 -->
+<style>
+    [data-ministry-dropdown] > .ministry-dropdown-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        cursor: pointer;
+        list-style: none;
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+    [data-ministry-dropdown] > summary::-webkit-details-marker {
+        display: none;
+    }
+    .ministry-dropdown-chevron {
+        flex-shrink: 0;
+        font-size: 1.5rem;
+        transition: transform 160ms ease;
+    }
+    [data-ministry-dropdown][open] > summary > .ministry-dropdown-chevron {
+        transform: rotate(90deg);
+    }
+    [data-ministry-dropdown] > summary:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 5px;
+        border-radius: .25rem;
+    }
+</style>
+
     @php
         $books = $this->books();
     @endphp
 
     <div class="space-y-6">
+        @include('filament.components.ministry-outline-import')
+
         <div class="rounded-2xl border border-primary-200 bg-primary-50 p-6 shadow-sm dark:border-primary-900 dark:bg-primary-950">
             <p class="text-sm font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-300">
                 Administration
@@ -19,75 +52,98 @@
             </p>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <h3 class="text-lg font-bold text-gray-950 dark:text-white">
-                Add Ministry Book
-            </h3>
+        <details data-ministry-dropdown data-collapse-target="Add-Ministry-Book" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+<summary class="ministry-dropdown-summary"><span>Add Ministry Book</span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary>
+<div class="mt-5">
+
+
 
             <form
                 wire:submit="addBook"
                 class="mt-5 grid gap-4 md:grid-cols-2"
             >
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        Code *
-                    </label>
+<!-- ministry-book-fields-v2 -->
 
-                    <input
-                        type="text"
-                        wire:model="newBookCode"
-                        placeholder="AB"
-                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                    >
+<div>
+    <label for="ministry-newBookCode"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Code *
+    </label>
 
-                    @error('newBookCode')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
+    <input id="ministry-newBookCode" type="text" wire:model="newBookCode"
+        maxlength="20" placeholder="AB"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        Title *
-                    </label>
-
-                    <input
-                        type="text"
-                        wire:model="newBookTitle"
-                        placeholder="After Being Saved"
-                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                    >
-
-                    @error('newBookTitle')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        Short Title
-                    </label>
-
-                    <input
-                        type="text"
-                        wire:model="newBookShortTitle"
-                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                    >
-                </div>
+    @error('newBookCode')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
 
 
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        Description
-                    </label>
+<div>
+    <label for="ministry-newBookTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        English Title *
+    </label>
 
-                    <textarea
-                        wire:model="newBookDescription"
-                        rows="3"
-                        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                    ></textarea>
-                </div>
+    <input id="ministry-newBookTitle" type="text" wire:model="newBookTitle"
+        maxlength="255" placeholder="English title"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
-                <div class="md:col-span-2 flex justify-end">
+    @error('newBookTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div>
+    <label for="ministry-newBookShortTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Short Title
+    </label>
+
+    <input id="ministry-newBookShortTitle" type="text" wire:model="newBookShortTitle"
+        maxlength="100" placeholder="Short title (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+
+    @error('newBookShortTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div>
+    <label for="ministry-newBookTagalogTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Tagalog Title
+    </label>
+
+    <input id="ministry-newBookTagalogTitle" type="text" wire:model="newBookTagalogTitle"
+        maxlength="255" placeholder="Tagalog title (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+
+    @error('newBookTagalogTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div class="md:col-span-2">
+    <label for="ministry-newBookDescription"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Description
+    </label>
+
+    <textarea id="ministry-newBookDescription" wire:model="newBookDescription"
+        rows="3" maxlength="5000" placeholder="Description (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"></textarea>
+
+    @error('newBookDescription')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+<div class="md:col-span-2 flex justify-end">
                     <button
                         type="submit"
                         class="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-primary-500"
@@ -96,14 +152,16 @@
                     </button>
                 </div>
             </form>
-        </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+</div></details>
+
+        <details open data-ministry-dropdown data-collapse-target="Configured-Ministry-Books" class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+<summary class="ministry-dropdown-summary"><span>Configured Ministry Books</span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary>
+<div class="mt-5">
+
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-950 dark:text-white">
-                        Configured Ministry Books
-                    </h3>
+
 
                     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         Lessons will be managed inside each book.
@@ -153,45 +211,108 @@
 
             <div class="mt-5 space-y-3">
                 @forelse ($books as $book)
-                    <div
+                    <details data-ministry-dropdown
                         wire:key="ministry-book-{{ $book->id }}"
                         class="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
                     >
+<summary class="ministry-dropdown-summary"><span>{{ $book->code }} · {{ $book->title }}
+    @if (filled($book->title_tagalog))
+        <span lang="tl" class="mt-1 block text-sm font-medium text-primary-700 dark:text-primary-300">
+            {{ $book->title_tagalog }}
+        </span>
+    @endif
+    <span class="mt-1 block text-sm font-normal text-gray-500 dark:text-gray-400">
+        {{ $book->lessons_count }} lessons · {{ $book->is_active ? 'Active' : 'Archived' }}
+    </span></span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary>
+<div class="mt-5">
+
                         @if ($editingBookId === $book->id)
                             <form
                                 wire:submit="saveBook"
                                 class="grid gap-4 md:grid-cols-2"
                             >
-                                <input
-                                    type="text"
-                                    wire:model="editBookCode"
-                                    placeholder="Code"
-                                    class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                >
+<!-- ministry-book-fields-v2 -->
 
-                                <input
-                                    type="text"
-                                    wire:model="editBookTitle"
-                                    placeholder="Title"
-                                    class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                >
+<div>
+    <label for="ministry-editBookCode"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Code *
+    </label>
 
-                                <input
-                                    type="text"
-                                    wire:model="editBookShortTitle"
-                                    placeholder="Short Title"
-                                    class="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                >
+    <input id="ministry-editBookCode" type="text" wire:model="editBookCode"
+        maxlength="20" placeholder="AB"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
+
+    @error('editBookCode')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
 
 
-                                <textarea
-                                    wire:model="editBookDescription"
-                                    rows="3"
-                                    placeholder="Description"
-                                    class="md:col-span-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                                ></textarea>
+<div>
+    <label for="ministry-editBookTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        English Title *
+    </label>
 
-                                <div class="md:col-span-2 flex justify-end gap-2">
+    <input id="ministry-editBookTitle" type="text" wire:model="editBookTitle"
+        maxlength="255" placeholder="English title"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
+
+    @error('editBookTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div>
+    <label for="ministry-editBookShortTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Short Title
+    </label>
+
+    <input id="ministry-editBookShortTitle" type="text" wire:model="editBookShortTitle"
+        maxlength="100" placeholder="Short title (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+
+    @error('editBookShortTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div>
+    <label for="ministry-editBookTagalogTitle"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Tagalog Title
+    </label>
+
+    <input id="ministry-editBookTagalogTitle" type="text" wire:model="editBookTagalogTitle"
+        maxlength="255" placeholder="Tagalog title (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
+
+    @error('editBookTagalogTitle')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+
+<div class="md:col-span-2">
+    <label for="ministry-editBookDescription"
+        class="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+        Description
+    </label>
+
+    <textarea id="ministry-editBookDescription" wire:model="editBookDescription"
+        rows="3" maxlength="5000" placeholder="Description (optional)"
+        class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"></textarea>
+
+    @error('editBookDescription')
+        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+    @enderror
+</div>
+
+<div class="md:col-span-2 flex justify-end gap-2">
                                     <button
                                         type="button"
                                         wire:click="cancelBookEditing"
@@ -230,6 +351,12 @@
                                             </span>
                                         @endif
                                     </div>
+
+                                    @if (filled($book->title_tagalog))
+                                        <p lang="tl" class="mt-2 text-sm font-medium text-primary-700 dark:text-primary-300">
+                                            <span>Tagalog:</span> {{ $book->title_tagalog }}
+                                        </p>
+                                    @endif
 
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         {{ $book->lessons_count }}
@@ -272,7 +399,10 @@
                             </div>
                         @endif
 
-                        <div class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
+                        <details data-ministry-dropdown class="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
+<summary class="ministry-dropdown-summary"><span>Lessons / Messages</span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary>
+<div class="mt-5">
+
                             <div class="flex items-center justify-between gap-3">
                                 <h5 class="text-sm font-bold text-gray-900 dark:text-white">
                                     Lessons / Messages
@@ -284,7 +414,7 @@
                             </div>
 
                             @if ($book->is_active)
-                                <form
+                                <details data-ministry-dropdown class="mt-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700"><summary class="ministry-dropdown-summary"><span>Add Lesson</span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary><div class="mt-4"><form
                                     wire:submit="addLesson({{ $book->id }})"
                                     class="mt-3 grid gap-3 md:grid-cols-2"
                                 >
@@ -324,15 +454,37 @@
                                             Add Lesson
                                         </button>
                                     </div>
-                                </form>
+                                </form></div></details>
                             @endif
 
-                            <div class="mt-4 space-y-2">
+                            @if ($book->lessons_count > 0)
+    <div class="mt-5 flex justify-end">
+        <button
+            type="button"
+            wire:click="removeAllBookLessons({{ $book->id }})"
+            wire:confirm="Remove ALL {{ $book->lessons_count }} lessons from {{ $book->title }}? This includes lessons hidden by filters. The book will be kept. Removal is blocked if any lesson is linked to a shepherding contact. This cannot be undone."
+            wire:loading.attr="disabled"
+            class="rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50 dark:border-red-900 dark:text-red-300"
+        >
+            Remove All Lessons
+        </button>
+    </div>
+@endif
+
+<div class="mt-4 space-y-2">
                                 @forelse ($book->lessons as $lesson)
-                                    <div
+                                    <details data-ministry-dropdown
                                         wire:key="ministry-lesson-{{ $lesson->id }}"
                                         class="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
                                     >
+<summary class="ministry-dropdown-summary"><span>{{ $lesson->code }} · {{ $lesson->title ?: 'Untitled lesson' }}
+    @if (filled($lesson->title_tagalog))
+        <span lang="tl" class="mt-1 block text-sm font-medium text-primary-700 dark:text-primary-300">
+            {{ $lesson->title_tagalog }}
+        </span>
+    @endif</span><span class="ministry-dropdown-chevron" aria-hidden="true">›</span></summary>
+<div class="mt-5">
+
                                         @if ($editingLessonId === $lesson->id)
                                             <form
                                                 wire:submit="saveLesson"
@@ -448,21 +600,25 @@
                                                 </div>
                                             </div>
                                         @endif
-                                    </div>
+
+</div></details>
                                 @empty
                                     <p class="py-3 text-sm text-gray-500 dark:text-gray-400">
                                         No matching lessons.
                                     </p>
                                 @endforelse
                             </div>
-                        </div>
-                    </div>
+
+</div></details>
+
+</div></details>
                 @empty
                     <p class="py-8 text-center text-sm text-gray-500">
                         No Ministry Books configured.
                     </p>
                 @endforelse
             </div>
-        </div>
+
+</div></details>
     </div>
 </x-filament-panels::page>
