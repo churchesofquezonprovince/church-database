@@ -374,7 +374,7 @@
                                                 'referenceProposalProvinceModes.'
                                                 . $proposal->id
                                             )
-                                                <p
+                                                <p data-coqp-field-error
                                                     class="mt-1 text-xs
                                                            font-semibold
                                                            text-red-600
@@ -434,7 +434,7 @@
                                                     'referenceProposalProvinceSelections.'
                                                     . $proposal->id
                                                 )
-                                                    <p
+                                                    <p data-coqp-field-error
                                                         class="mt-1 text-xs
                                                                font-semibold
                                                                text-red-600
@@ -501,7 +501,7 @@
                                                         'referenceProposalCountryModes.'
                                                         . $proposal->id
                                                     )
-                                                        <p
+                                                        <p data-coqp-field-error
                                                             class="mt-1 text-xs
                                                                    font-semibold
                                                                    text-red-600
@@ -561,7 +561,7 @@
                                                         'referenceProposalCountrySelections.'
                                                         . $proposal->id
                                                     )
-                                                        <p
+                                                        <p data-coqp-field-error
                                                             class="mt-1 text-xs
                                                                    font-semibold
                                                                    text-red-600
@@ -599,7 +599,7 @@
                                                             'referenceProposalNewCountryNames.'
                                                             . $proposal->id
                                                         )
-                                                            <p
+                                                            <p data-coqp-field-error
                                                                 class="mt-1 text-xs
                                                                        font-semibold
                                                                        text-red-600
@@ -643,7 +643,7 @@
                                                             'referenceProposalNewCountryCodes.'
                                                             . $proposal->id
                                                         )
-                                                            <p
+                                                            <p data-coqp-field-error
                                                                 class="mt-1 text-xs
                                                                        font-semibold
                                                                        text-red-600
@@ -681,7 +681,7 @@
                                                         'referenceProposalNewProvinceNames.'
                                                         . $proposal->id
                                                     )
-                                                        <p
+                                                        <p data-coqp-field-error
                                                             class="mt-1 text-xs
                                                                    font-semibold
                                                                    text-red-600
@@ -727,7 +727,7 @@
                                                         'referenceProposalNewProvinceCodes.'
                                                         . $proposal->id
                                                     )
-                                                        <p
+                                                        <p data-coqp-field-error
                                                             class="mt-1 text-xs
                                                                    font-semibold
                                                                    text-red-600

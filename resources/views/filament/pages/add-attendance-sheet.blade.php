@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div class="space-y-6">
         @if (session('attendance_sheet_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="971599c0c1066dee" data-coqp-keep="true" class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Attendance sheet created.</p>
                 <p class="mt-1 text-sm">
                     {{ session('attendance_sheet_title') }} was created with {{ session('attendance_sessions_created') }} session date(s).
@@ -17,7 +17,7 @@
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="d5e4e13f6670c933" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">

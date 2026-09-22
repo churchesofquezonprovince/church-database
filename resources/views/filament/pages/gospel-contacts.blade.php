@@ -65,45 +65,45 @@
 
         {{-- Flash messages --}}
         @if (session('gospel_contact_created'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="d69dba80aca76ece" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 Gospel Contact created.
             </div>
         @endif
 
         @if (session('gospel_contact_updated'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="01eb89c348e726eb" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 Gospel Contact updated.
             </div>
         @endif
 
         @if (session('gospel_contact_deleted'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="13f6baf83229ee16" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 Gospel Contact deleted.
             </div>
         @endif
 
         @if (session('gospel_contact_added_to_people'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="a63340a505773ce6" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 Gospel Contact added to the People Database
                 as a Gospel Friend.
             </div>
         @endif
 
         @if (session('gospel_contact_linked_existing_person'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="b18eb3509f8d5ecc" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 Gospel Contact linked to the existing Person.
             </div>
         @endif
 
         @if (session('gospel_contact_existing_people_added'))
-            <div class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
+            <div data-coqp-flash="success" data-coqp-flash-id="7a97eb563d630848" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
                 {{ session('gospel_contact_existing_people_added_count', 0) }}
                 existing People added as Gospel Contacts.
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-xl bg-red-50 p-4 text-sm text-red-800">
+            <div data-coqp-flash="danger" data-coqp-flash-id="19b595ed1d5eedb1" data-coqp-keep="true" class="rounded-xl bg-red-50 p-4 text-sm text-red-800">
                 <ul class="list-disc space-y-1 pl-5">
                     @foreach ($errors->all() as $error)
                         <li>{{ $error }}</li>

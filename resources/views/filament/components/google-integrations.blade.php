@@ -37,10 +37,10 @@
             .dark .coqp-google-setup .google-help { color:#cbd5e1; }
         </style>
         @if(session('google_setup_success'))
-            <p role="status">{{ session('google_setup_success') }}</p>
+            <p data-coqp-flash="success" data-coqp-flash-id="7149ff56956c3d28" data-coqp-keep="false" role="status">{{ session('google_setup_success') }}</p>
         @endif
         @if(session('google_setup_error'))
-            <p role="alert" class="font-semibold">{{ session('google_setup_error') }}</p>
+            <p data-coqp-flash="danger" data-coqp-flash-id="2fe238aac3e3e4f4" data-coqp-keep="false" role="alert" class="font-semibold">{{ session('google_setup_error') }}</p>
         @endif
         <p class="google-help">Current server settings remain in use until you save a section. Adding an account does not switch any integration.</p>
         <details>
@@ -130,7 +130,7 @@
                                         <td><button type="button" onclick="this.closest('tr').remove()">Remove</button></td>
                                     </tr>
                                 </template>
-                                <button type="button" onclick="const body = document.getElementById('google-calendar-rows'); if(body.rows.length >= 20) { alert('Up to 20 calendars may be configured.'); return; } const row = document.getElementById('google-calendar-row-template').content.cloneNode(true); const index = Number(body.dataset.next); row.querySelectorAll('[data-field]').forEach(input => { input.name = 'calendars[' + index + '][' + input.dataset.field + ']'; }); body.dataset.next = index + 1; body.appendChild(row);">Add Calendar</button>
+                                <button type="button" onclick="const body = document.getElementById('google-calendar-rows'); if(body.rows.length >= 20) { window.coqpToast('Up to 20 calendars may be configured.', 'warning'); return; } const row = document.getElementById('google-calendar-row-template').content.cloneNode(true); const index = Number(body.dataset.next); row.querySelectorAll('[data-field]').forEach(input => { input.name = 'calendars[' + index + '][' + input.dataset.field + ']'; }); body.dataset.next = index + 1; body.appendChild(row);">Add Calendar</button>
                             @else
                                 <label for="google-spreadsheet">Spreadsheet ID</label>
                                 <input id="google-spreadsheet" name="spreadsheet_id" value="{{ \App\Services\GoogleIntegrationSettings::get($prefix.'.spreadsheet_id') }}" maxlength="200">

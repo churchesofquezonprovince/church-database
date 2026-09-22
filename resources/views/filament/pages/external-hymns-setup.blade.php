@@ -575,7 +575,7 @@
                                                         @error(
                                                             'externalSourceForm.collection_name'
                                                         )
-                                                            <p
+                                                            <p data-coqp-field-error
                                                                 class="mt-1
                                                                        text-xs
                                                                        text-red-600"
@@ -618,7 +618,7 @@
                                                         @error(
                                                             'externalSourceForm.track_number'
                                                         )
-                                                            <p
+                                                            <p data-coqp-field-error
                                                                 class="mt-1
                                                                        text-xs
                                                                        text-red-600"
@@ -661,7 +661,7 @@
                                                     @error(
                                                         'externalSourceForm.source_url'
                                                     )
-                                                        <p
+                                                        <p data-coqp-field-error
                                                             class="mt-1
                                                                    text-xs
                                                                    text-red-600"

@@ -90,7 +90,7 @@
     <div class="space-y-6">
 
 @if (session('attendance_participants_removed_all'))
-    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+    <div data-coqp-flash="success" data-coqp-flash-id="0bbfea99a4a5d7da" data-coqp-keep="false" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
         <p class="font-bold">
             Remove All completed.
         </p>
@@ -123,7 +123,7 @@
 @endif
 
 @if (session('attendance_participant_removed'))
-    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+    <div data-coqp-flash="warning" data-coqp-flash-id="29582b3e46d576f9" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
         <p class="font-bold">
             Participant removed from the attendance sheet.
         </p>
@@ -140,7 +140,7 @@
 @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="6de958dbadb60743" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">
@@ -270,7 +270,7 @@
 )
     <div class="mt-5">
         @if (session('attendance_session_added'))
-            <div
+            <div data-coqp-flash="success" data-coqp-flash-id="613f1534947332e7" data-coqp-keep="false"
                 class="mb-3 rounded-xl border border-emerald-200
                        bg-emerald-50 px-4 py-3 text-sm
                        font-semibold text-emerald-800
@@ -354,7 +354,7 @@
                         >
 
                         @error('manual_session_date')
-                            <p
+                            <p data-coqp-field-error
                                 class="mt-2 text-xs font-semibold
                                        text-red-600
                                        dark:text-red-400"
@@ -449,7 +449,7 @@
         </details>
 
         @if (session('attendance_session_removed'))
-            <div
+            <div data-coqp-flash="success" data-coqp-flash-id="7808880ff9898176" data-coqp-keep="false"
                 class="mt-3 rounded-xl border border-emerald-200
                        bg-emerald-50 px-4 py-3 text-sm
                        font-semibold text-emerald-800
@@ -463,7 +463,7 @@
         @endif
 
         @error('manual_session_delete')
-            <div
+            <div data-coqp-field-error
                 class="mt-3 rounded-xl border border-red-200
                        bg-red-50 px-4 py-3 text-sm
                        font-semibold text-red-800

@@ -244,7 +244,7 @@
                     >
 
                     @error('sourceTitle')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -282,7 +282,7 @@
                     </p>
 
                     @error('startDate')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -411,7 +411,7 @@ Week 3: The God-man Living..."
                 >
 
                 @error('generalSubject')
-                    <p class="mt-1 text-xs text-red-600">
+                    <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                         {{ $message }}
                     </p>
                 @enderror
@@ -591,7 +591,7 @@ Week 3: The God-man Living..."
                                         'weekTitles.'
                                         . $weekIndex
                                     )
-                                        <p
+                                        <p data-coqp-field-error
                                             class="mt-1 text-xs
                                                    text-red-600"
                                         >
@@ -619,7 +619,7 @@ Week 3: The God-man Living..."
                 </div>
 
                 @error('weekTitles')
-                    <p class="mt-2 text-xs text-red-600">
+                    <p data-coqp-field-error class="mt-2 text-xs text-red-600">
                         {{ $message }}
                     </p>
                 @enderror

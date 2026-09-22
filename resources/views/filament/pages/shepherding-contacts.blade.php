@@ -713,7 +713,7 @@
                     </div>
 
                     @error('contactedPersonIds')
-                        <p class="mt-2 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-2 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -927,7 +927,7 @@
                         @endif
 
                         @error('localityId')
-                            <p
+                            <p data-coqp-field-error
                                 class="mt-1 text-xs
                                        text-red-600"
                             >
@@ -957,7 +957,7 @@
                         >
 
                         @error('contactDate')
-                            <p
+                            <p data-coqp-field-error
                                 class="mt-1 text-xs
                                        text-red-600"
                             >
@@ -1296,7 +1296,7 @@
                                     @error(
                                         'morningRevivalWeekId'
                                     )
-                                        <p
+                                        <p data-coqp-field-error
                                             class="mt-1 text-xs
                                                    text-red-600"
                                         >
@@ -1345,7 +1345,7 @@
                                     @error(
                                         'morningRevivalDay'
                                     )
-                                        <p
+                                        <p data-coqp-field-error
                                             class="mt-1 text-xs
                                                    text-red-600"
                                         >
@@ -1856,7 +1856,7 @@
                                                 @error(
                                                     "bibleReadingRows.{$bibleReadingIndex}.reference"
                                                 )
-                                                    <p
+                                                    <p data-coqp-field-error
                                                         class="mt-1
                                                                text-xs
                                                                text-danger-600
@@ -1910,7 +1910,7 @@
                             </div>
 
                             @error('bibleReadingRows')
-                                <p
+                                <p data-coqp-field-error
                                     class="mt-2 text-xs
                                            text-danger-600
                                            dark:text-danger-400"

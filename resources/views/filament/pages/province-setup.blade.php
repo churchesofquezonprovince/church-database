@@ -48,7 +48,7 @@
                     >
 
                     @error('countryName')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -68,7 +68,7 @@
                     >
 
                     @error('countryCode')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -87,7 +87,7 @@
                     >
 
                     @error('provinceName')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -107,7 +107,7 @@
                     >
 
                     @error('provinceCode')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -160,7 +160,7 @@
                         >
 
                         @error('newLocality')
-                            <p class="mt-1 text-xs text-red-600">
+                            <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                 {{ $message }}
                             </p>
                         @enderror
@@ -195,7 +195,7 @@
         ></textarea>
 
         @error('massLocalities')
-            <p class="text-xs text-red-600">
+            <p data-coqp-field-error class="text-xs text-red-600">
                 {{ $message }}
             </p>
         @enderror
@@ -294,7 +294,7 @@
                             >
 
                             @error('outsideCountryName')
-                                <p class="mt-1 text-xs text-red-600">
+                                <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                     {{ $message }}
                                 </p>
                             @enderror
@@ -314,7 +314,7 @@
                             >
 
                             @error('outsideCountryCode')
-                                <p class="mt-1 text-xs text-red-600">
+                                <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                     {{ $message }}
                                 </p>
                             @enderror
@@ -333,7 +333,7 @@
                             >
 
                             @error('outsideProvinceName')
-                                <p class="mt-1 text-xs text-red-600">
+                                <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                     {{ $message }}
                                 </p>
                             @enderror
@@ -353,7 +353,7 @@
                             >
 
                             @error('outsideProvinceCode')
-                                <p class="mt-1 text-xs text-red-600">
+                                <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                     {{ $message }}
                                 </p>
                             @enderror
@@ -377,7 +377,7 @@
                         ></textarea>
 
                         @error('outsideMassLocalities')
-                            <p class="mt-1 text-xs text-red-600">
+                            <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                 {{ $message }}
                             </p>
                         @enderror

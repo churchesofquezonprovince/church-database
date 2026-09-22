@@ -8,31 +8,31 @@
     <div class="space-y-6">
 
         @if (session('campus_work_dashboard_book_updated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="02bd0ace85d6f94f" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Book section updated.</p>
             </div>
         @endif
 
         @if (session('campus_work_dashboard_reading_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="4796762fbec99394" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Additional reading material added.</p>
             </div>
         @endif
 
         @if (session('campus_work_dashboard_reading_updated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="616cbe89ed324fed" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Additional reading material updated.</p>
             </div>
         @endif
 
         @if (session('campus_work_dashboard_reading_deleted'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="36b61e86d456930d" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Additional reading material removed.</p>
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="ad41979f68b599ee" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please check the following:</p>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">

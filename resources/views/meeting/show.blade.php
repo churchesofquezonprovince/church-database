@@ -340,7 +340,7 @@
 
     @if (session('meeting_response_saved'))
 
-        <div
+        <div data-coqp-flash="success" data-coqp-flash-id="618dc76dc74be5a1" data-coqp-keep="false"
             class="success"
             role="status"
         >
@@ -365,7 +365,7 @@
 
     @if ($errors->any())
 
-        <div
+        <div data-coqp-flash="danger" data-coqp-flash-id="61669d073e4ee2ba" data-coqp-keep="true"
             class="errors"
             role="alert"
         >

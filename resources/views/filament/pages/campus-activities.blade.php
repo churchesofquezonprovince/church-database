@@ -35,25 +35,25 @@
 
         {{-- Success messages --}}
         @if (session('campus_activity_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="86f692be80c5ff97" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Campus activity created successfully.</p>
             </div>
         @endif
 
         @if (session('campus_activity_updated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="f2dcf5d2e2911789" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Campus activity updated successfully.</p>
             </div>
         @endif
 
         @if (session('campus_activity_deleted'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="ed28838672d5a635" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Campus activity deleted.</p>
             </div>
         @endif
 
         @if (session('campus_activity_attendance_generated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="1fb989100fb77b95" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Attendance generated successfully.
                 </p>
@@ -74,7 +74,7 @@
         @endif
 
         @if (session('campus_activity_attendance_linked'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="5e1d80431ec8629f" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Existing Attendance linked successfully.
                 </p>
@@ -82,7 +82,7 @@
         @endif
 
         @if (session('campus_activity_attendance_unlinked'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="bed7699081b68b8b" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">
                     Attendance detached.
                 </p>
@@ -94,7 +94,7 @@
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="c0c70484683251b5" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">

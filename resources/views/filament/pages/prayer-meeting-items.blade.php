@@ -11,37 +11,37 @@
 
     <div class="space-y-6">
         @if (session('prayer_meeting_item_line_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="0e78aaf945859c19" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item line added.</p>
             </div>
         @endif
 
         @if (session('prayer_meeting_item_line_updated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="adb5bebba07ba41e" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item line updated.</p>
             </div>
         @endif
 
         @if (session('prayer_meeting_item_line_deleted'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="401a34946d953ee3" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item line removed.</p>
             </div>
         @endif
 
         @if (session('prayer_meeting_item_snapshot_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="14e377931b2da8c4" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item snapshot saved.</p>
             </div>
         @endif
 
         @if (session('prayer_meeting_item_snapshot_deleted'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="90d6eb633da97aa0" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer item snapshot deleted.</p>
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="0e7ac455a0a6a500" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please check the following:</p>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">

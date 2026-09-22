@@ -297,7 +297,7 @@ $preListedFilterCounts = [
             <div>
 
 @if (session('meeting_response_promoted_to_campus'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="cee9ecfb3fcc5c29" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
@@ -310,7 +310,7 @@ $preListedFilterCounts = [
 @endif
 
 @if (session('meeting_response_linked_to_person'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="cca605a7bca2cc5f" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
@@ -323,7 +323,7 @@ $preListedFilterCounts = [
 @endif
 
 @if (session('meeting_response_person_created'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="3061ac225041b3e7" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
@@ -337,7 +337,7 @@ $preListedFilterCounts = [
 
 
 @if (session('meeting_response_campus_promoted_to_person'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="5ff89205d57bb7ff" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
@@ -350,7 +350,7 @@ $preListedFilterCounts = [
 @endif
 
 @if (session('meeting_response_participant_added'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="10a64905c4cd0a58" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>
@@ -374,7 +374,7 @@ $preListedFilterCounts = [
 
 
 @if (session('meeting_response_participants_bulk_added'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="23a47a58587043ae" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200
                bg-emerald-50 p-3 text-sm text-emerald-800
                dark:border-emerald-900 dark:bg-emerald-950
@@ -402,7 +402,7 @@ $preListedFilterCounts = [
 
 
 @if (session('meeting_response_participant_already'))
-    <div
+    <div data-coqp-flash="info" data-coqp-flash-id="36f1c159938bd05f" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200"
     >
         {{ session('meeting_response_participant_name') }}
@@ -413,7 +413,7 @@ $preListedFilterCounts = [
 
 
 @if ($errors->has('meeting_response_participant'))
-    <div
+    <div data-coqp-flash="danger" data-coqp-flash-id="e1600075dd0ffe9b" data-coqp-keep="true"
         class="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
     >
         {{ $errors->first(
@@ -423,7 +423,7 @@ $preListedFilterCounts = [
 @endif
 
 @if (session('meeting_response_deleted'))
-    <div
+    <div data-coqp-flash="success" data-coqp-flash-id="ced611a28e8dc146" data-coqp-keep="false"
         class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
     >
         <strong>

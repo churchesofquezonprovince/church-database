@@ -82,4 +82,5 @@
     })();
 </script>
 
+@include('components.global-toasts')
 @include('components.problem-report')

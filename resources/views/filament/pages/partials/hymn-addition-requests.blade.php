@@ -169,7 +169,7 @@
                                         'hymnRequestLanguages.'
                                         . $request->id
                                     )
-                                        <p class="mt-1 text-xs text-red-600">
+                                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                             {{ $message }}
                                         </p>
                                     @enderror
@@ -213,7 +213,7 @@
                                         'hymnRequestBookNames.'
                                         . $request->id
                                     )
-                                        <p class="mt-1 text-xs text-red-600">
+                                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                             {{ $message }}
                                         </p>
                                     @enderror
@@ -249,7 +249,7 @@
                                         'hymnRequestNumbers.'
                                         . $request->id
                                     )
-                                        <p class="mt-1 text-xs text-red-600">
+                                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                             {{ $message }}
                                         </p>
                                     @enderror

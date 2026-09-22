@@ -57,6 +57,10 @@
     const message = root.querySelector('#coqp-report-message');
     const send = form.querySelector('[type=submit]');
     const close = root.querySelector('#coqp-report-close');
+    const feedback = (text, type) => {
+        if (window.coqpToast) { message.textContent = ''; window.coqpToast(text, type); }
+        else { message.textContent = text; }
+    };
     let sending = false;
     root.querySelector('#coqp-report-open').addEventListener('click', () => {
         form.elements.page_path.value = location.pathname;
@@ -69,7 +73,7 @@
         if (sending || !form.reportValidity()) return;
         const file = form.elements.screenshot.files[0];
         if (file && file.size > 4 * 1024 * 1024) {
-            message.textContent = 'Please choose a screenshot smaller than 4 MB.';
+            feedback('Please choose a screenshot smaller than 4 MB.', 'warning');
             return;
         }
         sending = true; send.disabled = true; close.disabled = true;
@@ -80,8 +84,9 @@
             if (!response.ok) throw new Error(response.status === 429 ? 'You have sent several reports. Please wait 10 minutes before trying again.' : response.status === 419 ? 'Your session expired. Keep a copy of your message, refresh the page, and try again.' : body.message || 'Your report could not be sent. Please try again.');
             form.reset();
             form.elements.page_path.value = location.pathname;
-            message.textContent = body.message + ' Reference #' + body.reference;
-        } catch (error) { message.textContent = error.message || 'Please check your connection and try again.'; }
+            dialog.close();
+            feedback((body.message || 'Your report was sent.') + ' Reference #' + body.reference, 'success');
+        } catch (error) { feedback(error.message || 'Please check your connection and try again.', 'danger'); }
         finally { sending = false; send.disabled = false; close.disabled = false; }
     });
 })();

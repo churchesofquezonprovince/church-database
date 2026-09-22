@@ -293,7 +293,7 @@
 
 
     @if (session('meeting_google_form_saved'))
-        <div class="success">
+        <div data-coqp-flash="success" data-coqp-flash-id="97101eefc7119d67" data-coqp-keep="false" class="success">
             <strong>
                 Response saved.
             </strong>
@@ -312,7 +312,7 @@
 
 
     @if ($errors->any())
-        <div class="errors">
+        <div data-coqp-flash="danger" data-coqp-flash-id="493b4c3b4adb9f45" data-coqp-keep="true" class="errors">
             <strong>
                 Please check your response.
             </strong>
@@ -776,7 +776,7 @@
                                     . $question->id
                                     . '.label'
                                 )
-                                    <div
+                                    <div data-coqp-field-error
                                         style="
                                             margin-top:6px;
                                             color:#b91c1c;
@@ -809,7 +809,7 @@
                                     . $question->id
                                     . '.province_name'
                                 )
-                                    <div
+                                    <div data-coqp-field-error
                                         style="
                                             margin-top:6px;
                                             color:#b91c1c;
@@ -887,7 +887,7 @@
                                     . $question->id
                                     . '.label'
                                 )
-                                    <div
+                                    <div data-coqp-field-error
                                         style="
                                             margin-top:6px;
                                             color:#b91c1c;
@@ -920,7 +920,7 @@
                                     . $question->id
                                     . '.province_name'
                                 )
-                                    <div
+                                    <div data-coqp-field-error
                                         style="
                                             margin-top:6px;
                                             color:#b91c1c;
@@ -954,7 +954,7 @@
                                     . $question->id
                                     . '.city_municipality'
                                 )
-                                    <div
+                                    <div data-coqp-field-error
                                         style="
                                             margin-top:6px;
                                             color:#b91c1c;
@@ -1027,7 +1027,7 @@
                         'answers.'
                         . $question->id
                     )
-                        <div
+                        <div data-coqp-field-error
                             style="
                                 margin-top:6px;
                                 color:#b91c1c;

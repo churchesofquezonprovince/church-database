@@ -28,7 +28,7 @@
         ></textarea>
 
         @error('ministryOutlinePaste')
-            <p role="alert" class="text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+            <p data-coqp-field-error role="alert" class="text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
         @enderror
 
         <div class="flex flex-wrap gap-3">
@@ -60,7 +60,7 @@
                 </div>
 
                 @if ($errors->has('ministryOutlineBooks*'))
-                    <div role="alert" class="space-y-1 text-sm text-red-600 dark:text-red-300">
+                    <div data-coqp-field-error role="alert" class="space-y-1 text-sm text-red-600 dark:text-red-300">
                         @foreach ($errors->getMessages() as $field => $messages)
                             @if (str_starts_with($field, 'ministryOutlineBooks'))
                                 @foreach ($messages as $message)

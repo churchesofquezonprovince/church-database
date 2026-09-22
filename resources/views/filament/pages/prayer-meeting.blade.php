@@ -44,19 +44,19 @@
     @endphp
 
         @if (session('other_locality_attendee_removed'))
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="94547730ad0bc6cc" data-coqp-keep="false" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 Other locality attendee removed from this meeting date.
             </div>
         @endif
 
         @if (session('other_locality_attendee_exists'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="0b27436853ca7f76" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 This person is already marked present for this meeting date.
             </div>
         @endif
 
         @if (session('other_locality_attendee_added'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="6de0bac6ac92448d" data-coqp-keep="false" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 Other locality attendee added and marked present.
             </div>
         @endif
@@ -203,7 +203,7 @@
         </div>
 
         @if (session('prayer_meeting_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="9630c0e91d1470b8" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Prayer Meeting attendance saved.</p>
                 <p class="mt-1 text-sm">
                     Present: {{ session('prayer_meeting_present_count') }}.
@@ -213,7 +213,7 @@
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="ebf4ccfb655fb631" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-3 list-disc space-y-1 pl-5 text-sm">

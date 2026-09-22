@@ -37,19 +37,19 @@
         {{-- Success messages --}}
 
         @if (session('campus_work_term_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="48bf27661f55f39d" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Academic term created successfully.</p>
             </div>
         @endif
 
         @if (session('campus_work_term_activated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="1f4562222f8169b1" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Active academic term updated.</p>
             </div>
         @endif
 
         @if (session('campus_work_term_members_copied'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="1f19b9ef7e78e6e4" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     {{ session('campus_work_term_members_added', 0) }} student(s) copied into this term.
                 </p>
@@ -61,19 +61,19 @@
         @endif
 
         @if (session('campus_work_term_archived'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="cce171c349c0c577" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Academic term archived.</p>
             </div>
         @endif
 
         @if (session('campus_work_term_restored'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="663963d5d5ea0baa" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Academic term restored.</p>
             </div>
         @endif
 
         @if (session('student_nucleus_members_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="8e15932fce00d824" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     {{ session('student_nucleus_members_added', 0) }} student(s) added to the Student Nucleus.
                 </p>
@@ -81,19 +81,19 @@
         @endif
 
         @if (session('student_nucleus_spiritual_condition_saved'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="9bb540db8253d38f" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Spiritual condition updated.</p>
             </div>
         @endif
 
         @if (session('student_nucleus_member_removed'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="bea1171372a972e0" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Student removed from the Student Nucleus.</p>
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="6db8980189868c4b" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">

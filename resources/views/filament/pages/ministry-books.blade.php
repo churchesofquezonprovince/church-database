@@ -75,7 +75,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
     @error('newBookCode')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -91,7 +91,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
     @error('newBookTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -107,7 +107,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
 
     @error('newBookShortTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -123,7 +123,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
 
     @error('newBookTagalogTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -139,7 +139,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"></textarea>
 
     @error('newBookDescription')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -244,7 +244,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
     @error('editBookCode')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -260,7 +260,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100" required>
 
     @error('editBookTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -276,7 +276,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
 
     @error('editBookShortTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -292,7 +292,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100">
 
     @error('editBookTagalogTitle')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 
@@ -308,7 +308,7 @@
         class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"></textarea>
 
     @error('editBookDescription')
-        <p class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+        <p data-coqp-field-error class="mt-1 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
     @enderror
 </div>
 

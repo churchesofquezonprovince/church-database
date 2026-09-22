@@ -47,7 +47,7 @@
                     >
 
                     @error('newName')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -66,7 +66,7 @@
                     >
 
                     @error('newShortName')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -93,7 +93,7 @@
                     </select>
 
                     @error('newProvinceId')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -112,7 +112,7 @@
                     >
 
                     @error('newCityMunicipality')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -176,7 +176,7 @@
                     </select>
 
                     @error('massProvinceId')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -195,7 +195,7 @@
                     ></textarea>
 
                     @error('massSchools')
-                        <p class="mt-1 text-xs text-red-600">
+                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
@@ -253,7 +253,7 @@
                                     >
 
                                     @error('editName')
-                                        <p class="mt-1 text-xs text-red-600">
+                                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                             {{ $message }}
                                         </p>
                                     @enderror

@@ -104,25 +104,25 @@
 
         {{-- Success Messages --}}
         @if (session('campus_contact_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="529fc0c7bc32070a" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Campus Contact created.</p>
             </div>
         @endif
 
         @if (session('campus_contact_updated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="084ee0b957cd1002" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">Campus Contact updated.</p>
             </div>
         @endif
 
         @if (session('campus_contact_deleted'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="751e13c36909f842" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">Campus Contact deleted.</p>
             </div>
         @endif
 
         @if (session('campus_contact_removed_from_term'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="f20a583ef4129b2d" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">
                     Campus Contact removed from this Academic Term.
                 </p>
@@ -130,7 +130,7 @@
         @endif
 
         @if (session('campus_contact_added_to_people'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="530b0b29ad3b953b" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Campus Contact added to the People Database as a Gospel Friend.
                 </p>
@@ -138,7 +138,7 @@
         @endif
 
         @if (session('campus_contact_linked_existing_person'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="d50cda18493995da" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Campus Contact successfully linked to an existing Person.
                 </p>
@@ -150,7 +150,7 @@
         @endif
 
         @if (session('campus_contact_existing_people_added'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="bd1a955f3153004a" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Existing People added to Campus Contacts.
                 </p>
@@ -163,7 +163,7 @@
         @endif
 
         @if (session('campus_work_term_created'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="cb29c98ec86a8b10" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Academic term created successfully.
                 </p>
@@ -171,7 +171,7 @@
         @endif
 
         @if (session('campus_work_term_activated'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="05c0b76363b3b1a9" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Active academic term updated.
                 </p>
@@ -179,7 +179,7 @@
         @endif
 
         @if (session('campus_work_term_archived'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="f97893b273d79353" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 <p class="font-bold">
                     Academic term archived.
                 </p>
@@ -187,7 +187,7 @@
         @endif
 
         @if (session('campus_work_term_restored'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="4952ef00f8c39d8c" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Academic term restored.
                 </p>
@@ -195,7 +195,7 @@
         @endif
 
         @if (session('campus_work_term_contacts_copied'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="0fef83bc36992411" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Campus Contacts copied successfully.
                 </p>
@@ -212,7 +212,7 @@
         @endif
 
         @if (session('campus_contact_unlinked_person'))
-            <div class="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-100">
+            <div data-coqp-flash="info" data-coqp-flash-id="ad0bacdac65f32ee" data-coqp-keep="false" class="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-100">
                 <p class="font-bold">
                     Campus Contact unlinked from the People Database.
                 </p>
@@ -225,7 +225,7 @@
         @endif
 
         @if (session('campus_contact_added_to_term'))
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="89bb58a9674ae09d" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Campus Contact added to the selected Academic Term.
                 </p>
@@ -233,7 +233,7 @@
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="e1a63cb7239df923" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
@@ -629,7 +629,7 @@
             session('campus_contact_import_status')
             === 'validated'
         )
-            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+            <div data-coqp-flash="info" data-coqp-flash-id="e3ebb8dc5d8e3a66" data-coqp-keep="false" class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
                 <p class="font-bold">
                     CSV validation successful.
                 </p>
@@ -645,7 +645,7 @@
             session('campus_contact_import_status')
             === 'imported'
         )
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="e6fff11ca93f4f63" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">
                     Campus Contacts imported successfully.
                 </p>
@@ -661,7 +661,7 @@
             session('campus_contact_import_status')
             === 'failed'
         )
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="3870e3b6ac6c53d2" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">
                     Campus Contact CSV validation failed.
                 </p>

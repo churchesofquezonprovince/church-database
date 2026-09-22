@@ -633,13 +633,13 @@
                     @endif
 
                     @error('selectedHymnId')
-                        <p class="mt-2 text-sm text-red-600">
+                        <p data-coqp-field-error class="mt-2 text-sm text-red-600">
                             {{ $message }}
                         </p>
                     @enderror
 
                     @error('hymnalUrl')
-                        <p class="mt-2 text-sm text-red-600">
+                        <p data-coqp-field-error class="mt-2 text-sm text-red-600">
                             {{ $message }}
                         </p>
                     @enderror

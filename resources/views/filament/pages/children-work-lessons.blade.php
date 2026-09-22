@@ -70,13 +70,13 @@ $futureLessons = $lessons
 
     <div class="space-y-6">
         @if (session('children_work_saved'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="cf10342d4cc36641" data-coqp-keep="false" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 shadow-sm dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 {{ session('children_work_saved') }}
             </div>
         @endif
 
         @if (session('children_work_error'))
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="70d445fd819e17f6" data-coqp-keep="false" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 {{ session('children_work_error') }}
             </div>
         @endif

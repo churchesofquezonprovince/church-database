@@ -27,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Action feedback appears at the top right; database/bell notifications are unchanged.
+        \Filament\Notifications\Livewire\Notifications::alignment(\Filament\Support\Enums\Alignment::Right);
+        \Filament\Notifications\Livewire\Notifications::verticalAlignment(\Filament\Support\Enums\VerticalAlignment::Start);
+
         FilamentView::registerRenderHook(
             PanelsRenderHook::SIDEBAR_NAV_START,
             fn (): string =>

@@ -19,7 +19,7 @@
     @endphp
 
     @if (session('attendance_session_deleted'))
-        <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+        <div data-coqp-flash="danger" data-coqp-flash-id="d78f47f77125d9e8" data-coqp-keep="false" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
             <p class="font-bold">Attendance session deleted.</p>
             <p class="mt-1 text-sm">
                 Deleted {{ session('attendance_session_deleted_date') }} and removed {{ session('attendance_session_deleted_records') }} attendance record(s).

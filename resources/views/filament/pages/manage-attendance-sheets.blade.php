@@ -19,31 +19,31 @@
         </div>
 
         @if (session('attendance_sheet_updated'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="92f9724c056221c2" data-coqp-keep="false" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 Attendance sheet updated.
             </div>
         @endif
 
         @if (session('attendance_sheet_archived'))
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <div data-coqp-flash="warning" data-coqp-flash-id="a98cd1830ef08dde" data-coqp-keep="false" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
                 Attendance sheet archived.
             </div>
         @endif
 
         @if (session('attendance_sheet_restored'))
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="a5a343758bca9e99" data-coqp-keep="false" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
                 Attendance sheet restored.
             </div>
         @endif
 
         @if (session('attendance_sheet_deleted'))
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="0c9701dcc68a501c" data-coqp-keep="false" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 Attendance sheet deleted permanently.
             </div>
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="5b36fd2682ebf6c7" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Please fix the following:</p>
 
                 <ul class="mt-2 list-inside list-disc text-sm">
@@ -1319,7 +1319,7 @@
                             'newMeetingFormQuestionTexts.'
                             . $sheet->id
                         )
-                            <p
+                            <p data-coqp-field-error
                                 class="mt-1 text-xs
                                        text-red-600"
                             >
@@ -1456,7 +1456,7 @@
                                         'newMeetingFormQuestionDatabaseFields.'
                                         . $sheet->id
                                     )
-                                        <p class="mt-1 text-xs text-red-600">
+                                        <p data-coqp-field-error class="mt-1 text-xs text-red-600">
                                             {{ $message }}
                                         </p>
                                     @enderror
@@ -1816,7 +1816,7 @@
                                 'newMeetingFormQuestionOptions.'
                                 . $sheet->id
                             )
-                                <p class="mt-2 text-xs text-red-600">
+                                <p data-coqp-field-error class="mt-2 text-xs text-red-600">
                                     {{ $message }}
                                 </p>
                             @enderror
@@ -2516,7 +2516,7 @@
                                             'meetingFormQuestionOptions.'
                                             . $question->id
                                         )
-                                            <p
+                                            <p data-coqp-field-error
                                                 class="mt-2 text-xs
                                                        text-red-600"
                                             >

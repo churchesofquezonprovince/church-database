@@ -15,7 +15,7 @@
         </div>
 
         @if (session('import_status') === 'validated')
-            <div class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="39271b140a821fdf" data-coqp-keep="false" class="rounded-2xl border border-green-200 bg-green-50 p-5 text-green-800 shadow-sm dark:border-green-900 dark:bg-green-950 dark:text-green-100">
                 <p class="font-bold">CSV validation passed.</p>
                 <p class="mt-1 text-sm">
                     Rows found: {{ session('import_summary.rows_found') }}. No records were saved because you selected validate only.
@@ -24,7 +24,7 @@
         @endif
 
         @if (session('import_status') === 'imported')
-            <div class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
+            <div data-coqp-flash="success" data-coqp-flash-id="60dcaf31ed0a7f13" data-coqp-keep="false" class="rounded-2xl border border-primary-200 bg-primary-50 p-5 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-950 dark:text-primary-100">
                 <p class="font-bold">Import completed.</p>
                 <p class="mt-1 text-sm">
                     Imported {{ session('import_summary.rows_imported') }} record(s).
@@ -33,7 +33,7 @@
         @endif
 
         @if (session('import_status') === 'failed')
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="b71b03b347160a70" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">CSV validation failed.</p>
                 <p class="mt-1 text-sm">
                     No records were imported. Fix the errors below, then upload again.
@@ -48,7 +48,7 @@
         @endif
 
         @if ($errors->any())
-            <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div data-coqp-flash="danger" data-coqp-flash-id="5bce341fbe987222" data-coqp-keep="true" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm dark:border-red-900 dark:bg-red-950 dark:text-red-100">
                 <p class="font-bold">Upload error.</p>
 
                 <ul class="mt-4 list-disc space-y-1 pl-5 text-sm">

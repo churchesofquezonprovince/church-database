@@ -522,7 +522,7 @@
                     </x-filament::input.wrapper>
 
                     @error('phrase')
-                        <p
+                        <p data-coqp-field-error
                             class="mt-1 text-xs text-danger-600"
                         >
                             {{ $message }}
@@ -579,7 +579,7 @@
                     </select>
 
                     @error('targetKey')
-                        <p
+                        <p data-coqp-field-error
                             class="mt-1 text-xs text-danger-600"
                         >
                             {{ $message }}
@@ -846,7 +846,7 @@
                 </x-filament::input.wrapper>
 
                 @error('databaseFieldMatchesBeforeAutofill')
-                    <p
+                    <p data-coqp-field-error
                         class="mt-1 text-xs text-danger-600"
                     >
                         {{ $message }}
@@ -923,7 +923,7 @@
                         />
                     </x-filament::input.wrapper>
                     @error('serviceMeetingFolder')
-                        <p role="alert" class="mt-2 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
+                        <p data-coqp-field-error role="alert" class="mt-2 text-sm text-red-600 dark:text-red-300">{{ $message }}</p>
                     @enderror
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         The website's existing Google service account must have access
