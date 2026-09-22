@@ -15,8 +15,8 @@ class GoogleCalendarService
 {
     public function enabled(): bool
     {
-        return (bool) config('services.google_calendar.enabled')
-            && filled(config('services.google_calendar.credentials_path'))
+        return (bool) \App\Services\GoogleIntegrationSettings::get('services.google_calendar.enabled')
+            && filled(\App\Services\GoogleIntegrationSettings::get('services.google_calendar.credentials_path'))
             && $this->configuredCalendars() !== [];
     }
 
@@ -24,7 +24,7 @@ class GoogleCalendarService
     {
         $calendars = [];
 
-        foreach ((array) config('services.google_calendar.calendars', []) as $key => $calendar) {
+        foreach ((array) \App\Services\GoogleIntegrationSettings::get('services.google_calendar.calendars', []) as $key => $calendar) {
             $id = trim((string) ($calendar['id'] ?? ''));
 
             if ($id === '') {
@@ -38,7 +38,7 @@ class GoogleCalendarService
             ];
         }
 
-        $legacyId = trim((string) config('services.google_calendar.calendar_id'));
+        $legacyId = trim((string) \App\Services\GoogleIntegrationSettings::get('services.google_calendar.calendar_id'));
 
         if ($legacyId !== '' && ! collect($calendars)->contains(fn (array $calendar): bool => $calendar['id'] === $legacyId)) {
             $calendars['default'] = [
@@ -361,7 +361,7 @@ class GoogleCalendarService
 
     private function credentialsPath(): string
     {
-        $path = (string) config('services.google_calendar.credentials_path');
+        $path = (string) \App\Services\GoogleIntegrationSettings::get('services.google_calendar.credentials_path');
 
         if ($path === '') {
             throw new RuntimeException('GOOGLE_CALENDAR_CREDENTIALS_PATH is not configured.');

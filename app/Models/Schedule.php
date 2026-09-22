@@ -64,7 +64,7 @@ class Schedule extends Model implements Eventable
     {
         $calendarId = trim((string) $this->google_calendar_id);
 
-        foreach ((array) config('services.google_calendar.calendars', []) as $calendar) {
+        foreach ((array) \App\Services\GoogleIntegrationSettings::get('services.google_calendar.calendars', []) as $calendar) {
             if (
                 $calendarId !== ''
                 && trim((string) ($calendar['id'] ?? '')) === $calendarId

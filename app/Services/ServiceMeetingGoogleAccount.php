@@ -16,9 +16,7 @@ class ServiceMeetingGoogleAccount
 
     public static function activePath(): string
     {
-        return is_file(static::replacementPath())
-            ? static::replacementPath()
-            : storage_path('app/google-credentials.json');
+        return \App\Services\GoogleIntegrationSettings::path('minutes');
     }
 
     public static function credentials(string $json): array

@@ -212,58 +212,31 @@ class ChurchDatabaseBackupService
     {
         try {
             if (! File::exists($localPath)) {
-                throw new \RuntimeException("Local backup file does not exist: {$localPath}");
+                throw new \RuntimeException('Local backup file does not exist.');
             }
-
-            $rcloneConfigPath = $this->rcloneConfigPath();
-
-            if (! File::exists($rcloneConfigPath)) {
-                throw new \RuntimeException("rclone config file not found: {$rcloneConfigPath}");
+            $destination = \App\Services\RcloneBackupSettings::validateDestination(
+                \App\Services\RcloneBackupSettings::current()
+            );
+            // Record the exact destination before the upload begins.
+            $backupRun->forceFill([
+                'google_drive_destination' => $destination,
+                'google_drive_path' => $destination['remote'].':'.$filename,
+            ])->save();
+            $result = \Illuminate\Support\Facades\Process::timeout(600)->run(
+                \App\Services\RcloneBackupSettings::command('copyto', $destination, $filename, $localPath)
+            );
+            if (! $result->successful()) {
+                throw new \RuntimeException('rclone upload failed. Check the connection and folder upload permission.');
             }
-
-            $remote = trim((string) config('backup.google_drive.rclone_remote', 'coqpbackup'));
-            $folderId = trim((string) config('backup.google_drive.folder_id'));
-            $binary = trim((string) config('backup.google_drive.rclone_binary', 'rclone')) ?: 'rclone';
-
-            if ($remote === '') {
-                throw new \RuntimeException('Google Drive rclone remote is not configured.');
-            }
-
-            if ($folderId === '') {
-                throw new \RuntimeException('Google Drive folder ID is not configured.');
-            }
-
-            $command = $this->shellCommand([
-                $binary,
-                'copyto',
-                $localPath,
-                $remote . ':' . $filename,
-                '--config',
-                $rcloneConfigPath,
-                '--drive-root-folder-id',
-                $folderId,
-                '--no-traverse',
-            ]);
-
-            $output = [];
-            $exitCode = 0;
-
-            exec($command . ' 2>&1', $output, $exitCode);
-
-            if ($exitCode !== 0) {
-                throw new \RuntimeException(trim(implode(PHP_EOL, $output)) ?: 'rclone upload failed.');
-            }
-
             $backupRun->update([
                 'google_drive_status' => 'uploaded',
                 'google_drive_file_id' => null,
-                'google_drive_path' => $remote . ':' . $filename,
                 'google_drive_uploaded_at' => now(),
             ]);
         } catch (Throwable $exception) {
             $backupRun->update([
                 'google_drive_status' => 'failed',
-                'error_message' => trim(($backupRun->error_message ? $backupRun->error_message . PHP_EOL : '') . 'Google Drive upload failed: ' . $exception->getMessage()),
+                'error_message' => trim(($backupRun->error_message ? $backupRun->error_message.PHP_EOL : '').'Google Drive upload failed: '.$exception->getMessage()),
             ]);
         }
     }
@@ -271,7 +244,7 @@ class ChurchDatabaseBackupService
 
     protected function googleDriveEnabled(): bool
     {
-        return (bool) config('backup.google_drive.enabled');
+        return (bool) \App\Services\RcloneBackupSettings::current()['enabled'];
     }
 
 

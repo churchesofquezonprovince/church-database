@@ -106,50 +106,21 @@ class ChurchDatabaseBackupCleanupService
 
     protected function deleteGoogleDriveFile(BackupRun $backup, bool $dryRun): bool
     {
-        $remotePath = trim((string) $backup->google_drive_path);
-
-        if ($remotePath === '') {
-            $remote = trim((string) config('backup.google_drive.rclone_remote', 'coqpbackup'));
-            $remotePath = $remote . ':' . $backup->filename;
-        }
-
-        if (! str_ends_with($backup->filename, '.sql.gz')) {
+        $destination = \App\Services\RcloneBackupSettings::destinationFor($backup);
+        if ($destination === null) {
+            // Legacy records do not prove where the remote file was uploaded.
             return false;
         }
-
-        if ($dryRun) {
-            return true;
-        }
-
-        $rcloneConfigPath = $this->normalizePath(
-            (string) config('backup.google_drive.rclone_config_path', 'storage/app/google-drive/rclone.conf'),
-            base_path()
+        if ($dryRun) { return true; }
+        $result = \Illuminate\Support\Facades\Process::timeout(60)->run(
+            \App\Services\RcloneBackupSettings::command('deletefile', $destination, $backup->filename)
         );
-
-        $folderId = trim((string) config('backup.google_drive.folder_id'));
-        $binary = trim((string) config('backup.google_drive.rclone_binary', 'rclone')) ?: 'rclone';
-
-        $command = $this->shellCommand([
-            $binary,
-            'deletefile',
-            $remotePath,
-            '--config',
-            $rcloneConfigPath,
-            '--drive-root-folder-id',
-            $folderId,
-        ]);
-
-        $output = [];
-        $exitCode = 0;
-
-        exec($command . ' 2>&1', $output, $exitCode);
-
-        if ($exitCode !== 0) {
-            throw new \RuntimeException(trim(implode(PHP_EOL, $output)) ?: 'Google Drive cleanup failed.');
+        if (! $result->successful()) {
+            throw new \RuntimeException('Google Drive cleanup failed at the recorded destination. Check its rclone connection.');
         }
-
         return true;
     }
+
 
     protected function shellCommand(array $parts): string
     {

@@ -783,7 +783,7 @@
 
     </div>
 
-    
+
     <details
         class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
     >
@@ -887,6 +887,8 @@
     </details>
 
 
+
+    @include('filament.components.google-integrations')
 
     <details class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">

@@ -955,3 +955,14 @@ require __DIR__.'/problem-reports.php';
     [\App\Http\Controllers\ServiceMeetingGoogleAccountController::class, 'store']
 )->middleware(['auth', 'throttle:6,1'])
     ->name('service-meeting-google-account.store');
+
+// Google Integrations Setup: admin authorization is enforced in the controller.
+\Illuminate\Support\Facades\Route::post(
+    '/internal/google-integrations',
+    [\App\Http\Controllers\GoogleIntegrationSettingsController::class, 'store']
+)->middleware(['auth', 'throttle:6,1'])->name('google-integrations.store');
+
+\Illuminate\Support\Facades\Route::post(
+    '/internal/rclone-backup-settings',
+    [\App\Http\Controllers\RcloneBackupSettingsController::class, 'store']
+)->middleware(['auth', 'throttle:6,1'])->name('rclone-backup-settings.store');

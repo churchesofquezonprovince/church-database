@@ -34,3 +34,6 @@ Thumbs.db
 *.swo
 /backups/
 storage/app/google-calendar/*.json
+
+# Private Google service-account keys
+/storage/app/google-integration-accounts/

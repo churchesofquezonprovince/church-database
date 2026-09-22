@@ -477,11 +477,11 @@ private function metadataUrl(
      */
     public function syncFromGoogleSheet(): array
     {
-        if (! config('children_work.google_sheets.enabled')) {
+        if (! \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.enabled')) {
             throw new Exception('Children Work Google Sheets sync is disabled.');
         }
 
-        $spreadsheetId = (string) config('children_work.google_sheets.spreadsheet_id');
+        $spreadsheetId = (string) \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.spreadsheet_id');
 
         if ($spreadsheetId === '') {
             throw new Exception('Missing CHILDREN_WORK_GOOGLE_SHEETS_ID.');
@@ -515,7 +515,7 @@ private function metadataUrl(
         $values = $formulaValues ?: $rawValues;
 
         $headerRowNumber = max(
-            (int) config('children_work.google_sheets.header_row', 1),
+            (int) \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.header_row', 1),
             1
         );
 
@@ -759,7 +759,7 @@ $payload['google_sheet_smart_chip_fields']
             $payload['sync_error'] = null;
 
 
-            
+
             if ($lesson) {
                 $lesson->update($payload);
                 $updated++;
@@ -787,13 +787,13 @@ $dataIndex += $hasContinuationRow ? 2 : 1;
 public function insertLessonChronologically(
     ChildrenWorkLesson $lesson
 ): void {
-    if (! config('children_work.google_sheets.enabled')) {
+    if (! \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.enabled')) {
         throw new Exception(
             'Children Work Google Sheets sync is disabled.'
         );
     }
 
-    $spreadsheetId = (string) config(
+    $spreadsheetId = (string) \App\Services\GoogleIntegrationSettings::get(
         'children_work.google_sheets.spreadsheet_id'
     );
 
@@ -910,13 +910,13 @@ public function updateLessonInGoogleSheet(
         return;
     }
 
-    if (! config('children_work.google_sheets.enabled')) {
+    if (! \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.enabled')) {
         throw new Exception(
             'Children Work Google Sheets sync is disabled.'
         );
     }
 
-    $spreadsheetId = (string) config(
+    $spreadsheetId = (string) \App\Services\GoogleIntegrationSettings::get(
         'children_work.google_sheets.spreadsheet_id'
     );
 
@@ -1329,13 +1329,13 @@ public function deleteLessonFromGoogleSheet(
         return;
     }
 
-    if (! config('children_work.google_sheets.enabled')) {
+    if (! \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.enabled')) {
         throw new Exception(
             'Children Work Google Sheets sync is disabled.'
         );
     }
 
-    $spreadsheetId = (string) config(
+    $spreadsheetId = (string) \App\Services\GoogleIntegrationSettings::get(
         'children_work.google_sheets.spreadsheet_id'
     );
 
@@ -1401,13 +1401,13 @@ public function deleteLessonFromGoogleSheet(
 
 public function pushToGoogleSheet(): array
 {
-    if (! config('children_work.google_sheets.enabled')) {
+    if (! \App\Services\GoogleIntegrationSettings::get('children_work.google_sheets.enabled')) {
         throw new Exception(
             'Children Work Google Sheets sync is disabled.'
         );
     }
 
-    $spreadsheetId = (string) config(
+    $spreadsheetId = (string) \App\Services\GoogleIntegrationSettings::get(
         'children_work.google_sheets.spreadsheet_id'
     );
 
@@ -1744,11 +1744,7 @@ private function mergeTwoLessonRows(
 
     private function sheetsService(): Sheets
     {
-        $credentialsPath = base_path(
-            (string) config(
-                'children_work.google_sheets.credentials_path'
-            )
-        );
+        $credentialsPath = \App\Services\GoogleIntegrationSettings::path('children');
 
         if (! file_exists($credentialsPath)) {
             throw new Exception(
@@ -1772,7 +1768,7 @@ private function mergeTwoLessonRows(
         Sheets $service,
         string $spreadsheetId
     ): string {
-        $configured = config(
+        $configured = \App\Services\GoogleIntegrationSettings::get(
             'children_work.google_sheets.sheet_name'
         );
 
@@ -2523,7 +2519,7 @@ private function chronologicalInsertRow(
 
     if (! $lastLesson) {
         return max(
-            (int) config(
+            (int) \App\Services\GoogleIntegrationSettings::get(
                 'children_work.google_sheets.header_row',
                 1
             ) + 1,

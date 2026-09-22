@@ -18,6 +18,7 @@ class BackupRun extends Model
         'google_drive_status',
         'google_drive_file_id',
         'google_drive_path',
+        'google_drive_destination',
         'google_drive_uploaded_at',
         'error_message',
         'started_at',
@@ -25,6 +26,7 @@ class BackupRun extends Model
     ];
 
     protected $casts = [
+        'google_drive_destination' => 'array',
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'google_drive_uploaded_at' => 'datetime',
