@@ -82,6 +82,10 @@
         </div>
 
 
+        @include(
+            'filament.pages.partials.shepherding-public-submissions'
+        )
+
         {{-- ===================================== --}}
         {{-- Record / Edit Contact --}}
         {{-- ===================================== --}}

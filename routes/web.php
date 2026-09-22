@@ -27,6 +27,7 @@ use App\Http\Controllers\PeopleImportController;
 use App\Http\Controllers\PrayerMeetingAttendanceController;
 use App\Http\Controllers\PrayerMeetingItemController;
 use App\Http\Controllers\PublicMeetingFormController;
+use App\Http\Controllers\PublicShepherdingSubmissionController;
 use App\Http\Controllers\PublicImmichAlbumController;
 
 use App\Http\Controllers\LordsTableAttendanceController;
@@ -92,6 +93,43 @@ Route::domain('m.overcomers.win')
 
 
 Route::redirect('/', '/quezonprovinceactivities');
+
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC SHEPHERDING RECORD DASHBOARD
+|--------------------------------------------------------------------------
+|
+| Submissions are staged for Admin review. They do not become canonical
+| Shepherding Records until approved from Shepherding Records.
+|
+*/
+Route::middleware([
+    'web',
+    'throttle:60,1',
+])
+    ->get(
+        '/shepherding',
+        [
+            PublicShepherdingSubmissionController::class,
+            'show',
+        ]
+    )
+    ->name('shepherding.public.show');
+
+Route::middleware([
+    'web',
+    'throttle:10,1',
+])
+    ->post(
+        '/shepherding',
+        [
+            PublicShepherdingSubmissionController::class,
+            'store',
+        ]
+    )
+    ->name('shepherding.public.store');
+
 
 
 /*

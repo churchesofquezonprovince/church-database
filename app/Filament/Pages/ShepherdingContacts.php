@@ -16,6 +16,7 @@ use App\Models\MinistryBook;
 use App\Models\MorningRevivalWeek;
 use App\Models\ProvinceSetting;
 use App\Models\Person;
+use App\Models\PublicShepherdingSubmission;
 use App\Models\ShepherdingActivityType;
 use App\Models\ShepherdingContact;
 use App\Support\ActivityLogger;
@@ -24,6 +25,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ShepherdingContacts extends Page
@@ -145,6 +147,34 @@ class ShepherdingContacts extends Page
     public array $participantIds = [];
 
     public string $notes = '';
+
+
+    public ?int $reviewingPublicSubmissionId = null;
+
+    public string $publicReviewReference = '';
+
+    public string $publicReviewSubmittedBy = '';
+
+    public string $publicReviewSubmitterContact = '';
+
+    public string $publicReviewTargets = '';
+
+    public string $publicReviewParticipants = '';
+
+    public string $publicReviewHymns = '';
+
+    public string $publicReviewMorningRevival = '';
+
+
+    /*
+     * Public Contact Target auto-match review.
+     *
+     * Exact + unambiguous matches are checked in the
+     * normal canonical Shepherding Contact selectors.
+     */
+    public array $publicReviewTargetMatches = [];
+
+    public array $publicReviewTargetNeedsReview = [];
 
     public function mount(): void
     {
@@ -2345,6 +2375,1074 @@ class ShepherdingContacts extends Page
         return ShepherdingContact::outcomeOptions();
     }
 
+    public function publicShepherdingSubmissions(): Collection
+    {
+        if (! auth()->user()?->isAdmin()) {
+            return collect();
+        }
+
+        return PublicShepherdingSubmission::query()
+            ->with('locality')
+            ->where(
+                'status',
+                PublicShepherdingSubmission::STATUS_PENDING
+            )
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+    }
+
+    public function reviewPublicSubmission(
+        int $submissionId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $submission =
+            PublicShepherdingSubmission::query()
+                ->where(
+                    'status',
+                    PublicShepherdingSubmission::STATUS_PENDING
+                )
+                ->findOrFail(
+                    $submissionId
+                );
+
+        $this->resetContactForm();
+
+        $this->reviewingPublicSubmissionId =
+            $submission->id;
+
+        $this->publicReviewReference =
+            (string) $submission->public_id;
+
+        $this->publicReviewSubmittedBy =
+            (string) $submission->submitted_by_name;
+
+        $this->publicReviewSubmitterContact =
+            (string) (
+                $submission->submitted_by_contact
+                ?? ''
+            );
+
+        $this->publicReviewTargets =
+            (string) $submission->contact_targets_text;
+
+        $this->publicReviewParticipants =
+            (string) (
+                $submission->participant_names_text
+                ?? ''
+            );
+
+        $this->publicReviewHymns =
+            (string) (
+                $submission->hymns_text
+                ?? ''
+            );
+
+        $this->publicReviewMorningRevival =
+            (string) (
+                $submission->morning_revival_text
+                ?? ''
+            );
+
+        $this->contactDate =
+            $submission
+                ->contact_date
+                ?->format('Y-m-d')
+            ?? now()->toDateString();
+
+        $this->contactTime =
+            (string) (
+                $submission->contact_time
+                ?? ''
+            );
+
+        $this->localityId =
+            $submission->locality_id
+                ? (int) $submission->locality_id
+                : null;
+
+        $this->localitySource =
+            'Public Shepherding Dashboard';
+
+        $this->outcome =
+            (string) $submission->outcome;
+
+        $this->activityTypeIds =
+            collect(
+                $submission->activity_type_ids
+                ?? []
+            )
+                ->map(
+                    fn ($id) => (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->ministryLessonIds =
+            collect(
+                $submission->ministry_lesson_ids
+                ?? []
+            )
+                ->map(
+                    fn ($id) => (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->bibleReadingRows =
+            collect(
+                $submission->bible_references
+                ?? []
+            )
+                ->map(
+                    fn ($reference): array => [
+                        'reference' =>
+                            (string) $reference,
+                    ]
+                )
+                ->values()
+                ->all();
+
+        $this->notes =
+            (string) (
+                $submission->notes
+                ?? ''
+            );
+
+        /*
+         * Automatically parse the public Contact Targets
+         * and check only exact, unambiguous canonical
+         * matches. Anything uncertain remains for Admin
+         * review.
+         */
+        $this->parseAndCheckPublicContactTargets(
+            false
+        );
+
+        Notification::make()
+            ->title(
+                'Public submission loaded for review'
+            )
+            ->body(
+                count(
+                    $this->publicReviewTargetMatches
+                )
+                . ' Contact Target(s) checked automatically. '
+                . count(
+                    $this->publicReviewTargetNeedsReview
+                )
+                . ' target(s) need review. '
+                . 'Also resolve serving saints, Hymns, '
+                . 'and Morning Revival as needed.'
+            )
+            ->warning()
+            ->send();
+    }
+
+    public function parseAndCheckPublicContactTargets(
+        bool $notify = true
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        if (
+            ! $this->reviewingPublicSubmissionId
+        ) {
+            return;
+        }
+
+        $lines =
+            $this->publicContactTargetLines(
+                $this->publicReviewTargets
+            );
+
+        $this->publicReviewTargetMatches = [];
+        $this->publicReviewTargetNeedsReview = [];
+
+        if ($lines === []) {
+            if ($notify) {
+                Notification::make()
+                    ->title(
+                        'No Public Contact Targets found'
+                    )
+                    ->warning()
+                    ->send();
+            }
+
+            return;
+        }
+
+        /*
+         * Build one exact-name index across all four
+         * canonical target sources.
+         *
+         * Linked Campus / Gospel Contacts are intentionally
+         * excluded because Shepherding Records already
+         * requires those to be selected through People.
+         */
+        $index = [];
+
+        $addCandidate =
+            function (
+                array $candidate,
+                array $keys
+            ) use (
+                &$index
+            ): void {
+                foreach (
+                    array_unique($keys)
+                    as $key
+                ) {
+                    if ($key === '') {
+                        continue;
+                    }
+
+                    $candidateKey =
+                        $candidate['type']
+                        . ':'
+                        . $candidate['id'];
+
+                    $index[$key][
+                        $candidateKey
+                    ] = $candidate;
+                }
+            };
+
+        /*
+         * People Database.
+         */
+        Person::query()
+            ->get([
+                'id',
+                'firstname',
+                'middlename',
+                'lastname',
+                'nickname',
+            ])
+            ->each(
+                function ($person) use (
+                    $addCandidate
+                ): void {
+                    $addCandidate(
+                        [
+                            'type' => 'person',
+                            'type_label' => 'Person',
+                            'id' => (int) $person->id,
+                            'label' =>
+                                $person->display_name,
+                        ],
+                        $this->publicPersonNameKeys(
+                            $person->firstname,
+                            $person->middlename,
+                            $person->lastname,
+                            $person->nickname
+                        )
+                    );
+                }
+            );
+
+        /*
+         * Households.
+         */
+        Household::query()
+            ->get([
+                'id',
+                'household_name',
+            ])
+            ->each(
+                function ($household) use (
+                    $addCandidate
+                ): void {
+                    $name =
+                        $this->normalizePublicTargetName(
+                            (string)
+                            $household
+                                ->household_name
+                        );
+
+                    $keys = [
+                        $name,
+                    ];
+
+                    if ($name !== '') {
+                        $keys[] =
+                            $name
+                            . ' household';
+
+                        $keys[] =
+                            $name
+                            . ' family';
+
+                        if (
+                            str_ends_with(
+                                $name,
+                                ' household'
+                            )
+                        ) {
+                            $keys[] =
+                                trim(
+                                    substr(
+                                        $name,
+                                        0,
+                                        -10
+                                    )
+                                );
+                        }
+
+                        if (
+                            str_ends_with(
+                                $name,
+                                ' family'
+                            )
+                        ) {
+                            $keys[] =
+                                trim(
+                                    substr(
+                                        $name,
+                                        0,
+                                        -7
+                                    )
+                                );
+                        }
+                    }
+
+                    $addCandidate(
+                        [
+                            'type' =>
+                                'household',
+
+                            'type_label' =>
+                                'Household',
+
+                            'id' =>
+                                (int)
+                                $household->id,
+
+                            'label' =>
+                                $household
+                                    ->display_name,
+                        ],
+                        $keys
+                    );
+                }
+            );
+
+        /*
+         * Unlinked Campus Contacts.
+         */
+        CampusContact::query()
+            ->whereNull('person_id')
+            ->get([
+                'id',
+                'firstname',
+                'lastname',
+            ])
+            ->each(
+                function ($contact) use (
+                    $addCandidate
+                ): void {
+                    $addCandidate(
+                        [
+                            'type' =>
+                                'campus',
+
+                            'type_label' =>
+                                'Campus Contact',
+
+                            'id' =>
+                                (int)
+                                $contact->id,
+
+                            'label' =>
+                                $contact
+                                    ->display_name,
+                        ],
+                        $this->publicPersonNameKeys(
+                            $contact->firstname,
+                            null,
+                            $contact->lastname,
+                            null
+                        )
+                    );
+                }
+            );
+
+        /*
+         * Unlinked Gospel Contacts.
+         */
+        GospelContact::query()
+            ->whereNull('person_id')
+            ->get([
+                'id',
+                'firstname',
+                'lastname',
+            ])
+            ->each(
+                function ($contact) use (
+                    $addCandidate
+                ): void {
+                    $addCandidate(
+                        [
+                            'type' =>
+                                'gospel',
+
+                            'type_label' =>
+                                'Gospel Contact',
+
+                            'id' =>
+                                (int)
+                                $contact->id,
+
+                            'label' =>
+                                $contact
+                                    ->display_name,
+                        ],
+                        $this->publicPersonNameKeys(
+                            $contact->firstname,
+                            null,
+                            $contact->lastname,
+                            null
+                        )
+                    );
+                }
+            );
+
+        $matches = [];
+        $needsReview = [];
+
+        foreach ($lines as $rawLine) {
+            $key =
+                $this->normalizePublicTargetName(
+                    $rawLine
+                );
+
+            $candidates =
+                array_values(
+                    $index[$key]
+                    ?? []
+                );
+
+            if (count($candidates) === 1) {
+                $candidate =
+                    $candidates[0];
+
+                $matches[] = [
+                    'raw' => $rawLine,
+                    ...$candidate,
+                ];
+
+                continue;
+            }
+
+            if (count($candidates) > 1) {
+                $needsReview[] = [
+                    'raw' =>
+                        $rawLine,
+
+                    'reason' =>
+                        'Multiple exact matches found.',
+
+                    'candidates' =>
+                        array_map(
+                            fn (
+                                array $candidate
+                            ): string =>
+                                $candidate[
+                                    'type_label'
+                                ]
+                                . ' · '
+                                . $candidate[
+                                    'label'
+                                ],
+                            $candidates
+                        ),
+                ];
+
+                continue;
+            }
+
+            $needsReview[] = [
+                'raw' =>
+                    $rawLine,
+
+                'reason' =>
+                    'No exact match found.',
+
+                'candidates' =>
+                    [],
+            ];
+        }
+
+        /*
+         * Add exact matches to the current selections.
+         * Existing Admin selections are preserved.
+         */
+        foreach ($matches as $match) {
+            $id =
+                (int) $match['id'];
+
+            match ($match['type']) {
+                'person' =>
+                    $this->contactedPersonIds[] =
+                        $id,
+
+                'household' =>
+                    $this->contactedHouseholdIds[] =
+                        $id,
+
+                'campus' =>
+                    $this->contactedCampusContactIds[] =
+                        $id,
+
+                'gospel' =>
+                    $this->contactedGospelContactIds[] =
+                        $id,
+
+                default => null,
+            };
+        }
+
+        $this->contactedPersonIds =
+            collect(
+                $this->contactedPersonIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->contactedHouseholdIds =
+            collect(
+                $this->contactedHouseholdIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->contactedCampusContactIds =
+            collect(
+                $this
+                    ->contactedCampusContactIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        $this->contactedGospelContactIds =
+            collect(
+                $this
+                    ->contactedGospelContactIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        /*
+         * Selecting a Household in the normal form also
+         * snapshots its current members. Preserve exactly
+         * that behavior for an auto-match.
+         */
+        $this->syncHouseholdMemberSnapshot();
+
+        /*
+         * A contacted Person cannot simultaneously remain
+         * a Serving Saint.
+         */
+        $contactedPersonIds =
+            collect(
+                $this->contactedPersonIds
+            );
+
+        $this->participantIds =
+            collect(
+                $this->participantIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn ($id): bool =>
+                        $contactedPersonIds
+                            ->contains($id)
+                )
+                ->unique()
+                ->values()
+                ->all();
+
+        /*
+         * Preserve a Locality explicitly submitted through
+         * the Public Dashboard. If Public did not provide
+         * one, derive it using the normal Shepherding rules.
+         */
+        if (! $this->localityId) {
+            $this->refreshLocalityFromTargets();
+        }
+
+        $this->publicReviewTargetMatches =
+            $matches;
+
+        $this->publicReviewTargetNeedsReview =
+            $needsReview;
+
+        if ($notify) {
+            Notification::make()
+                ->title(
+                    'Public Contact Targets parsed'
+                )
+                ->body(
+                    count($matches)
+                    . ' exact target(s) checked. '
+                    . count($needsReview)
+                    . ' target(s) need review.'
+                )
+                ->success()
+                ->send();
+        }
+    }
+
+    public function clearPublicTargetParsedChecks(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        /*
+         * Remove only IDs added by the most recent parser.
+         * Admin selections that were made separately remain.
+         */
+        $matchedByType =
+            collect(
+                $this->publicReviewTargetMatches
+            )
+                ->groupBy('type');
+
+        $personIds =
+            $matchedByType
+                ->get(
+                    'person',
+                    collect()
+                )
+                ->pluck('id')
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                );
+
+        $householdIds =
+            $matchedByType
+                ->get(
+                    'household',
+                    collect()
+                )
+                ->pluck('id')
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                );
+
+        $campusIds =
+            $matchedByType
+                ->get(
+                    'campus',
+                    collect()
+                )
+                ->pluck('id')
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                );
+
+        $gospelIds =
+            $matchedByType
+                ->get(
+                    'gospel',
+                    collect()
+                )
+                ->pluck('id')
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                );
+
+        $this->contactedPersonIds =
+            collect(
+                $this->contactedPersonIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn ($id): bool =>
+                        $personIds
+                            ->contains($id)
+                )
+                ->values()
+                ->all();
+
+        $this->contactedHouseholdIds =
+            collect(
+                $this->contactedHouseholdIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn ($id): bool =>
+                        $householdIds
+                            ->contains($id)
+                )
+                ->values()
+                ->all();
+
+        $this->contactedCampusContactIds =
+            collect(
+                $this
+                    ->contactedCampusContactIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn ($id): bool =>
+                        $campusIds
+                            ->contains($id)
+                )
+                ->values()
+                ->all();
+
+        $this->contactedGospelContactIds =
+            collect(
+                $this
+                    ->contactedGospelContactIds
+            )
+                ->map(
+                    fn ($id): int =>
+                        (int) $id
+                )
+                ->reject(
+                    fn ($id): bool =>
+                        $gospelIds
+                            ->contains($id)
+                )
+                ->values()
+                ->all();
+
+        $this->syncHouseholdMemberSnapshot();
+
+        $this->publicReviewTargetMatches = [];
+        $this->publicReviewTargetNeedsReview = [];
+
+        Notification::make()
+            ->title(
+                'Parsed Contact Target checks cleared'
+            )
+            ->success()
+            ->send();
+    }
+
+    private function publicContactTargetLines(
+        string $text
+    ): array {
+        return collect(
+            preg_split(
+                '/\R+/u',
+                $text
+            )
+            ?: []
+        )
+            ->map(
+                function ($line): string {
+                    $line =
+                        trim(
+                            (string) $line
+                        );
+
+                    /*
+                     * Accept numbered and bulleted lists:
+                     *
+                     * 1. Juan Dela Cruz
+                     * 2) Maria Santos
+                     * - Pedro Reyes
+                     * • Ana Cruz
+                     */
+                    $line =
+                        preg_replace(
+                            '/^\s*(?:\d+\s*[\.\)\-:]|[-*•]+)\s*/u',
+                            '',
+                            $line
+                        );
+
+                    return trim(
+                        (string) $line
+                    );
+                }
+            )
+            ->filter(
+                fn (string $line): bool =>
+                    $line !== ''
+            )
+            ->unique(
+                fn (string $line): string =>
+                    $this
+                        ->normalizePublicTargetName(
+                            $line
+                        )
+            )
+            ->values()
+            ->all();
+    }
+
+    private function publicPersonNameKeys(
+        ?string $firstname,
+        ?string $middlename,
+        ?string $lastname,
+        ?string $nickname
+    ): array {
+        $firstname =
+            trim(
+                (string) $firstname
+            );
+
+        $middlename =
+            trim(
+                (string) $middlename
+            );
+
+        $lastname =
+            trim(
+                (string) $lastname
+            );
+
+        $nickname =
+            trim(
+                (string) $nickname
+            );
+
+        if (
+            $firstname === ''
+            || $lastname === ''
+        ) {
+            return [];
+        }
+
+        $rawKeys = [
+            $firstname
+                . ' '
+                . $lastname,
+
+            $lastname
+                . ' '
+                . $firstname,
+
+            $lastname
+                . ', '
+                . $firstname,
+        ];
+
+        if ($middlename !== '') {
+            $rawKeys[] =
+                $firstname
+                . ' '
+                . $middlename
+                . ' '
+                . $lastname;
+
+            $rawKeys[] =
+                $lastname
+                . ' '
+                . $firstname
+                . ' '
+                . $middlename;
+
+            $rawKeys[] =
+                $lastname
+                . ', '
+                . $firstname
+                . ' '
+                . $middlename;
+        }
+
+        if ($nickname !== '') {
+            $rawKeys[] =
+                $nickname
+                . ' '
+                . $lastname;
+
+            $rawKeys[] =
+                $lastname
+                . ' '
+                . $nickname;
+
+            $rawKeys[] =
+                $lastname
+                . ', '
+                . $nickname;
+        }
+
+        return collect($rawKeys)
+            ->map(
+                fn (string $key): string =>
+                    $this
+                        ->normalizePublicTargetName(
+                            $key
+                        )
+            )
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizePublicTargetName(
+        string $value
+    ): string {
+        $value =
+            preg_replace(
+                '/^\s*(?:\d+\s*[\.\)\-:]|[-*•]+)\s*/u',
+                '',
+                trim($value)
+            );
+
+        $value =
+            mb_strtolower(
+                (string) $value
+            );
+
+        $value =
+            Str::ascii($value);
+
+        /*
+         * Ignore common informal titles if Public users
+         * include them.
+         */
+        $value =
+            preg_replace(
+                '/\b(?:brother|bro|sister|sis)\.?\b/i',
+                ' ',
+                $value
+            );
+
+        $value =
+            preg_replace(
+                '/[^a-z0-9]+/',
+                ' ',
+                (string) $value
+            );
+
+        return trim(
+            preg_replace(
+                '/\s+/',
+                ' ',
+                (string) $value
+            )
+        );
+    }
+
+    public function cancelPublicSubmissionReview(): void
+    {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $this->resetContactForm();
+
+        Notification::make()
+            ->title(
+                'Public submission review cancelled'
+            )
+            ->success()
+            ->send();
+    }
+
+    public function rejectPublicSubmission(
+        int $submissionId
+    ): void {
+        abort_unless(
+            auth()->user()?->isAdmin(),
+            403
+        );
+
+        $updated =
+            PublicShepherdingSubmission::query()
+                ->whereKey(
+                    $submissionId
+                )
+                ->where(
+                    'status',
+                    PublicShepherdingSubmission::STATUS_PENDING
+                )
+                ->update([
+                    'status' =>
+                        PublicShepherdingSubmission::STATUS_REJECTED,
+
+                    'reviewed_by_id' =>
+                        auth()->id(),
+
+                    'reviewed_at' =>
+                        now(),
+
+                    'review_note' =>
+                        'Rejected from Shepherding Records.',
+                ]);
+
+        if ($updated !== 1) {
+            Notification::make()
+                ->title(
+                    'Submission was not rejected'
+                )
+                ->body(
+                    'It may already have been reviewed.'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        if (
+            $this->reviewingPublicSubmissionId
+            === $submissionId
+        ) {
+            $this->resetContactForm();
+        }
+
+        Notification::make()
+            ->title(
+                'Public submission rejected'
+            )
+            ->success()
+            ->send();
+    }
+
     public function recentContacts(): Collection
     {
         return ShepherdingContact::query()
@@ -2942,6 +4040,36 @@ class ShepherdingContacts extends Page
                 $hymnRowsForSave
             );
 
+        $publicSubmissionId =
+            $this->reviewingPublicSubmissionId;
+
+        if ($publicSubmissionId !== null) {
+            abort_unless(
+                auth()->user()?->isAdmin(),
+                403
+            );
+
+            if ($this->editingContactId !== null) {
+                throw \Illuminate\Validation\ValidationException
+                    ::withMessages([
+                        'public_submission' =>
+                            'A Public Shepherding Submission '
+                            . 'cannot be approved while editing '
+                            . 'an existing Shepherding Record.',
+                    ]);
+            }
+
+            PublicShepherdingSubmission::query()
+                ->whereKey(
+                    $publicSubmissionId
+                )
+                ->where(
+                    'status',
+                    PublicShepherdingSubmission::STATUS_PENDING
+                )
+                ->firstOrFail();
+        }
+
         $isEditing = filled(
             $this->editingContactId
         );
@@ -2983,7 +4111,8 @@ class ShepherdingContacts extends Page
                 $bibleReadingsForSave,
                 $hymnSync,
                 $hymnRequestSync,
-                $participantIds
+                $participantIds,
+                $publicSubmissionId
             ): void {
                 $oldValues = $contact->exists
                     ? [
@@ -3433,6 +4562,46 @@ class ShepherdingContacts extends Page
                     oldValues: $oldValues,
                     newValues: $newValues,
                 );
+
+
+                if ($publicSubmissionId !== null) {
+                    $approved =
+                        PublicShepherdingSubmission::query()
+                            ->whereKey(
+                                $publicSubmissionId
+                            )
+                            ->where(
+                                'status',
+                                PublicShepherdingSubmission::STATUS_PENDING
+                            )
+                            ->update([
+                                'status' =>
+                                    PublicShepherdingSubmission::STATUS_APPROVED,
+
+                                'reviewed_by_id' =>
+                                    auth()->id(),
+
+                                'reviewed_at' =>
+                                    now(),
+
+                                'review_note' =>
+                                    'Approved and recorded '
+                                    . 'from Shepherding Records.',
+
+                                'shepherding_contact_id' =>
+                                    $contact->id,
+                            ]);
+
+                    if ($approved !== 1) {
+                        throw \Illuminate\Validation\ValidationException
+                            ::withMessages([
+                                'public_submission' =>
+                                    'This Public Shepherding '
+                                    . 'Submission was already '
+                                    . 'reviewed by another request.',
+                            ]);
+                    }
+                }
             }
         );
 
@@ -4386,6 +5555,18 @@ class ShepherdingContacts extends Page
         $this->morningRevivalArchiveSearch = '';
 
         $this->editingContactId = null;
+
+        $this->reviewingPublicSubmissionId = null;
+        $this->publicReviewReference = '';
+        $this->publicReviewSubmittedBy = '';
+        $this->publicReviewSubmitterContact = '';
+        $this->publicReviewTargets = '';
+        $this->publicReviewParticipants = '';
+        $this->publicReviewHymns = '';
+        $this->publicReviewMorningRevival = '';
+        $this->publicReviewTargetMatches = [];
+        $this->publicReviewTargetNeedsReview = [];
+
 
         $this->targetSearch = '';
         $this->householdMemberSearch = '';
