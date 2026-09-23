@@ -15,6 +15,7 @@ class CampusContact extends Model
 
     protected $fillable = [
         'person_id',
+        'household_id',
         'firstname',
         'lastname',
         'sex',
@@ -88,6 +89,14 @@ class CampusContact extends Model
     public function person(): BelongsTo
     {
         return $this->belongsTo(Person::class);
+    }
+
+    public function household(): BelongsTo
+    {
+        return $this->belongsTo(
+            Household::class,
+            'household_id'
+        );
     }
 
     public function termMemberships(): HasMany

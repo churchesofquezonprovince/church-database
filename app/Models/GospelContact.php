@@ -14,6 +14,7 @@ class GospelContact extends Model
 
     protected $fillable = [
         'person_id',
+        'household_id',
         'firstname',
         'lastname',
         'sex',
@@ -104,6 +105,14 @@ class GospelContact extends Model
         return $this->belongsTo(
             Locality::class,
             'locality_id'
+        );
+    }
+
+    public function household(): BelongsTo
+    {
+        return $this->belongsTo(
+            Household::class,
+            'household_id'
         );
     }
 

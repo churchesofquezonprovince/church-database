@@ -70,6 +70,22 @@ class Household extends Model
         return $this->hasMany(Person::class, 'household_id');
     }
 
+    public function campusContacts(): HasMany
+    {
+        return $this->hasMany(
+            CampusContact::class,
+            'household_id'
+        );
+    }
+
+    public function gospelContacts(): HasMany
+    {
+        return $this->hasMany(
+            GospelContact::class,
+            'household_id'
+        );
+    }
+
     protected function displayName(): Attribute
     {
         return Attribute::make(
