@@ -47,26 +47,90 @@ class PatchNotes extends Page
 
     public function patchNotes(): Collection
     {
-        $output = $this->gitLogOutput();
+        $output =
+            $this->gitPatchNoteOutput();
 
         if (blank($output)) {
             return collect();
         }
 
-        return collect(explode("\n", trim($output)))
-            ->filter()
-            ->map(function (string $line): array {
-                [$hash, $dateTime, $subject] = array_pad(
-                    explode('|', $line, 3),
-                    3,
+        /*
+         * Each Git commit is separated by ASCII Record
+         * Separator (0x1E), while its fields use ASCII Unit
+         * Separator (0x1F).
+         *
+         * This allows the real multiline Git commit body to
+         * remain intact instead of inventing a description
+         * from the subject.
+         */
+        return collect(
+            explode(
+                "\x1e",
+                $output
+            )
+        )
+            ->map(
+                static fn (
+                    string $record
+                ): string =>
+                    trim(
+                        $record,
+                        "\r\n"
+                    )
+            )
+            ->filter(
+                static fn (
+                    string $record
+                ): bool =>
+                    $record !== ''
+            )
+            ->map(function (
+                string $record
+            ): array {
+                [
+                    $hash,
+                    $dateTime,
+                    $subject,
+                    $description,
+                ] = array_pad(
+                    explode(
+                        "\x1f",
+                        $record,
+                        4
+                    ),
+                    4,
                     ''
                 );
 
-                $dateTime = trim($dateTime);
-                $date = Str::before($dateTime, ' ');
-                $time = Str::after($dateTime, ' ');
+                $hash =
+                    trim($hash);
 
-                $parsed = $this->parseSubject($subject);
+                $dateTime =
+                    trim($dateTime);
+
+                $subject =
+                    trim($subject);
+
+                $description =
+                    trim($description);
+
+                $date =
+                    Str::before(
+                        $dateTime,
+                        ' '
+                    );
+
+                $time =
+                    Str::after(
+                        $dateTime,
+                        ' '
+                    );
+
+                $parsed =
+                    $this->parseSubject(
+                        $subject,
+                        $description
+                    );
 
                 return [
                     'hash' => $hash,
@@ -82,16 +146,19 @@ class PatchNotes extends Page
                      */
                     'type' => $parsed['type'],
 
-                    /*
-                     * A commit can now contain multiple types:
-                     *
-                     * Fixed X and Repair Y
-                     * => ['Fixed', 'Repaired']
-                     */
                     'types' => $parsed['types'],
 
-                    'title' => $parsed['title'],
-                    'description' => $parsed['description'],
+                    'title' =>
+                        $parsed['title'],
+
+                    /*
+                     * This is now the actual Git commit body.
+                     * It is null when the commit only has a
+                     * subject/title.
+                     */
+                    'description' =>
+                        $parsed['description'],
+
                     'original' => $subject,
                 ];
             })
@@ -108,6 +175,59 @@ class PatchNotes extends Page
     {
         return $this->patchNotes()->isNotEmpty();
     }
+
+    private function gitPatchNoteOutput(): string
+    {
+        $repositoryPath =
+            base_path();
+
+        /*
+         * Fields:
+         *
+         * %h = short commit hash
+         * %cd = commit date
+         * %s = commit subject / title
+         * %b = actual commit body / description
+         *
+         * 0x1F separates fields.
+         * 0x1E separates commits.
+         */
+        $command =
+            'git -c '
+            . escapeshellarg(
+                'safe.directory='
+                . $repositoryPath
+            )
+            . ' -C '
+            . escapeshellarg(
+                $repositoryPath
+            )
+            . " log --date=format:'%Y-%m-%d %H:%M' "
+            . '--pretty=format:'
+            . escapeshellarg(
+                '%h%x1f%cd%x1f%s%x1f%b%x1e'
+            )
+            . ' 2>/dev/null';
+
+        $lines = [];
+        $exitCode = 0;
+
+        exec(
+            $command,
+            $lines,
+            $exitCode
+        );
+
+        if ($exitCode !== 0) {
+            return '';
+        }
+
+        return implode(
+            "\n",
+            $lines
+        );
+    }
+
 
     private function gitLogOutput(): string
     {
@@ -161,7 +281,10 @@ class PatchNotes extends Page
         );
     }
 
-    private function parseSubject(string $subject): array
+    private function parseSubject(
+        string $subject,
+        string $description = ''
+    ): array
     {
         $tag = 'General';
         $detail = trim($subject);
@@ -230,7 +353,10 @@ class PatchNotes extends Page
             'types' => $types,
 
             'title' => $this->humanTitle($detail),
-            'description' => $this->plainDescription($detail),
+            'description' =>
+                filled(trim($description))
+                    ? trim($description)
+                    : null,
         ];
     }
 

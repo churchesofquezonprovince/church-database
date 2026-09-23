@@ -192,10 +192,13 @@
      TOP ROW:
      TAG + TIME                         HASH
 ============================================== --}}
-<div class="flex items-center justify-between gap-4">
+<div class="flex items-start justify-between gap-4">
 
-    {{-- Left: Tag + Time --}}
-    <div class="flex min-w-0 flex-wrap items-center gap-2">
+    {{-- Left: Phase + Time + Change Types --}}
+    <div
+        class="flex min-w-0 flex-1
+               flex-wrap items-center gap-2"
+    >
 
         <span class="rounded-full bg-primary-100 px-2.5 py-1 text-xs font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
             {{ $note['tag'] }}
@@ -209,6 +212,47 @@
             }}
         </span>
 
+        @foreach (
+            ($note['types'] ?? [$note['type']])
+            as $type
+        )
+
+            <span @class([
+                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold',
+
+                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200'
+                    => $type === 'Added',
+
+                'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'
+                    => $type === 'Removed',
+
+                'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
+                    => in_array(
+                        $type,
+                        ['Fixed', 'Restored'],
+                        true
+                    ),
+
+                'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200'
+                    => $type === 'Repaired',
+
+                'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200'
+                    => $type === 'Improved',
+
+                'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
+                    => $type === 'Renamed',
+
+                'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-200'
+                    => $type === 'Organized',
+
+                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    => $type === 'Updated',
+            ])>
+                {{ $type }}
+            </span>
+
+        @endforeach
+
     </div>
 
     {{-- Right: Commit Hash --}}
@@ -217,52 +261,6 @@
     </span>
 
 </div>
-
-
-                                        {{-- =============================================
-                                             CHANGE TYPE BADGES
-                                        ============================================== --}}
-                                        <div class="mt-2 flex flex-wrap items-center gap-2">
-
-                                            @foreach (($note['types'] ?? [$note['type']]) as $type)
-
-                                                <span @class([
-                                                    'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold',
-
-                                                    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200'
-                                                        => $type === 'Added',
-
-                                                    'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'
-                                                        => $type === 'Removed',
-
-                                                    'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
-                                                        => in_array(
-                                                            $type,
-                                                            ['Fixed', 'Restored'],
-                                                            true
-                                                        ),
-
-                                                    'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200'
-                                                        => $type === 'Repaired',
-
-                                                    'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200'
-                                                        => $type === 'Improved',
-
-                                                    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
-                                                        => $type === 'Renamed',
-
-                                                    'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-200'
-                                                        => $type === 'Organized',
-
-                                                    'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                                                        => $type === 'Updated',
-                                                ])>
-                                                    {{ $type }}
-                                                </span>
-
-                                            @endforeach
-
-                                        </div>
 
 
                                         {{-- =============================================
@@ -276,9 +274,9 @@
                                         {{-- =============================================
                                              DESCRIPTION
                                         ============================================== --}}
-                                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                            {{ $note['description'] }}
-                                        </p>
+                                        @if (filled($note['description'] ?? null))
+                                            <p class="whitespace-pre-line text-sm text-gray-600 dark:text-gray-300">{{ $note['description'] }}</p>
+                                        @endif
 
                                     </div>
 
