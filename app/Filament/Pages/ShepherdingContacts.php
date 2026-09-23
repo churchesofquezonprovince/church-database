@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\CampusContact;
 use App\Models\GospelContact;
+use App\Models\HomeMeetingScheduleEntry;
 use App\Models\Household;
 use App\Models\Hymn;
 use App\Models\HymnSource;
@@ -13,6 +14,7 @@ use App\Support\RecoveryVersionBible;
 use App\Models\HymnAdditionRequest;
 use App\Models\Locality;
 use App\Models\MinistryBook;
+use App\Models\MinistryLesson;
 use App\Models\MorningRevivalWeek;
 use App\Models\ProvinceSetting;
 use App\Models\Person;
@@ -187,6 +189,9 @@ class ShepherdingContacts extends Page
         $this->contactDate =
             now()->toDateString();
 
+        /*
+         * Existing edit-record handoff has priority.
+         */
         $requestedRecordId =
             (int) request()->query(
                 'record',
@@ -204,8 +209,278 @@ class ShepherdingContacts extends Page
             $this->editContact(
                 $requestedRecordId
             );
+
+            return;
+        }
+
+        /*
+         * Home Meeting Schedule handoff.
+         */
+        $homeMeetingScheduleId =
+            (int) request()->query(
+                'home_meeting_schedule',
+                0
+            );
+
+        if ($homeMeetingScheduleId > 0) {
+            $this->prefillFromHomeMeetingSchedule(
+                $homeMeetingScheduleId
+            );
         }
     }
+
+
+    private function prefillFromHomeMeetingSchedule(
+        int $scheduleId
+    ): void {
+        $schedule =
+            HomeMeetingScheduleEntry::query()
+                ->where('is_active', true)
+                ->find($scheduleId);
+
+        if (! $schedule) {
+            return;
+        }
+
+        /*
+         * This is always a new Shepherding Record.
+         */
+        $this->editingContactId = null;
+
+        $this->contactDate =
+            now()->toDateString();
+
+        $this->contactTime =
+            substr(
+                (string) $schedule->meeting_time,
+                0,
+                5
+            );
+
+        $this->localityId =
+            (int) $schedule->locality_id;
+
+        $this->localitySource =
+            'Auto-filled from Home Meeting Schedule.';
+
+        /*
+         * Serving Ones remain intentionally empty.
+         * They are optional and should be selected
+         * manually for each actual meeting.
+         */
+        $this->participantIds = [];
+
+        /*
+         * Automatically mark Home Meeting.
+         */
+        $homeMeetingActivityId =
+            ShepherdingActivityType::query()
+                ->where('code', 'HM')
+                ->where('is_active', true)
+                ->value('id');
+
+        $this->activityTypeIds =
+            $homeMeetingActivityId
+                ? [(int) $homeMeetingActivityId]
+                : [];
+
+        /*
+         * The Shepherding handoff requires a linked
+         * Household. Unlinked schedule entries do not
+         * receive the Add Shepherding Record button.
+         */
+        if (! $schedule->household_id) {
+            return;
+        }
+
+        $householdId =
+            (int) $schedule->household_id;
+
+        $this->contactedHouseholdIds = [
+            $householdId,
+        ];
+
+        /*
+         * Reuse the normal Shepherding form behavior:
+         * snapshot all current Household members and
+         * initially mark them Present.
+         */
+        $this->syncHouseholdMemberSnapshot();
+
+        /*
+         * The schedule's Locality remains authoritative
+         * for this prefilled Home Meeting.
+         */
+        $this->localityId =
+            (int) $schedule->locality_id;
+
+        $this->localitySource =
+            'Auto-filled from Home Meeting Schedule.';
+
+        /*
+         * Advance to the next active Ministry Lesson
+         * based on the Household's latest Shepherding
+         * Record that actually used Ministry material.
+         */
+        $nextLessonId =
+            $this
+                ->nextHomeMeetingMinistryLessonId(
+                    $householdId
+                );
+
+        $this->ministryLessonIds =
+            $nextLessonId
+                ? [$nextLessonId]
+                : [];
+    }
+
+
+    private function nextHomeMeetingMinistryLessonId(
+        int $householdId
+    ): ?int {
+        /*
+         * Build the canonical active Ministry sequence:
+         *
+         * Book sort order
+         *     -> Lesson sort order
+         *     -> Lesson code
+         *
+         * Books with no active lessons are skipped.
+         */
+        $lessonSequence =
+            MinistryBook::query()
+                ->where('is_active', true)
+                ->whereHas(
+                    'lessons',
+                    fn ($query) =>
+                        $query->where(
+                            'is_active',
+                            true
+                        )
+                )
+                ->with([
+                    'lessons' =>
+                        fn ($query) =>
+                            $query
+                                ->where(
+                                    'is_active',
+                                    true
+                                )
+                                ->orderBy(
+                                    'sort_order'
+                                )
+                                ->orderBy('code'),
+                ])
+                ->orderBy('sort_order')
+                ->orderBy('title')
+                ->get()
+                ->flatMap(
+                    fn (MinistryBook $book) =>
+                        $book->lessons
+                )
+                ->values();
+
+        if ($lessonSequence->isEmpty()) {
+            return null;
+        }
+
+        /*
+         * Most recent Shepherding Record for this
+         * Household that contains Ministry Used.
+         */
+        $lastContact =
+            ShepherdingContact::query()
+                ->whereHas(
+                    'contactedHouseholds',
+                    fn ($query) =>
+                        $query->whereKey(
+                            $householdId
+                        )
+                )
+                ->whereHas(
+                    'ministryLessons'
+                )
+                ->with(
+                    'ministryLessons'
+                )
+                ->orderByDesc(
+                    'contact_date'
+                )
+                ->orderByDesc(
+                    'contact_time'
+                )
+                ->orderByDesc('id')
+                ->first();
+
+        /*
+         * No previous Ministry reading:
+         * begin with the first active lesson.
+         */
+        if (! $lastContact) {
+            return (int) $lessonSequence
+                ->first()
+                ->id;
+        }
+
+        /*
+         * A Shepherding Record may contain more than
+         * one Ministry Lesson. Treat the furthest
+         * lesson in canonical order as the last one
+         * completed during that record.
+         */
+        $positions =
+            $lastContact
+                ->ministryLessons
+                ->map(
+                    fn (MinistryLesson $lesson) =>
+                        $lessonSequence->search(
+                            fn (
+                                MinistryLesson $candidate
+                            ): bool =>
+                                (int) $candidate->id
+                                ===
+                                (int) $lesson->id
+                        )
+                )
+                ->filter(
+                    fn ($position): bool =>
+                        $position !== false
+                )
+                ->map(
+                    fn ($position): int =>
+                        (int) $position
+                )
+                ->values();
+
+        /*
+         * Historical Ministry may have since been
+         * disabled. If none of the previous lessons
+         * are currently active, begin at the first
+         * active lesson instead of guessing.
+         */
+        if ($positions->isEmpty()) {
+            return (int) $lessonSequence
+                ->first()
+                ->id;
+        }
+
+        $nextPosition =
+            ((int) $positions->max()) + 1;
+
+        $nextLesson =
+            $lessonSequence->get(
+                $nextPosition
+            );
+
+        /*
+         * Null means the Household has reached the
+         * end of all currently active Ministry lessons.
+         */
+        return $nextLesson
+            ? (int) $nextLesson->id
+            : null;
+    }
+
 
     public function updatedShowTagalogMinistry(
         bool $value
