@@ -3,6 +3,9 @@
         $locality = $this->locality();
         $scheduleGroups =
             $this->scheduleGroups();
+
+        $householdOptions =
+            $this->householdOptions();
     @endphp
 
     <div class="space-y-6">
@@ -199,6 +202,7 @@
                                         </span>
 
                                         @if ($entry->household_id)
+
                                             <a
                                                 href="{{
                                                     $this
@@ -218,18 +222,72 @@
                                             >
                                                 Add Shepherding Record
                                             </a>
-                                        @else
-                                            <span
+
+                                            <button
+                                                type="button"
+                                                wire:click="unlinkHousehold({{ $entry->id }})"
+                                                wire:confirm="Unlink this Household from {{ $entry->display_name }}?"
                                                 class="rounded-lg
                                                        bg-gray-100
                                                        px-3 py-1.5
                                                        text-xs font-semibold
-                                                       text-gray-500
+                                                       text-gray-600
+                                                       transition
+                                                       hover:bg-gray-200
                                                        dark:bg-gray-800
-                                                       dark:text-gray-400"
+                                                       dark:text-gray-300
+                                                       dark:hover:bg-gray-700"
                                             >
-                                                Household not linked
-                                            </span>
+                                                Unlink
+                                            </button>
+
+                                        @else
+
+                                            <select
+                                                wire:model="householdSelections.{{ $entry->id }}"
+                                                class="min-w-44 rounded-lg
+                                                       border-gray-300
+                                                       bg-white
+                                                       py-1.5 text-xs
+                                                       text-gray-700
+                                                       shadow-sm
+                                                       focus:border-primary-500
+                                                       focus:ring-primary-500
+                                                       dark:border-gray-700
+                                                       dark:bg-gray-900
+                                                       dark:text-gray-200"
+                                            >
+                                                <option value="">
+                                                    Select Household
+                                                </option>
+
+                                                @foreach (
+                                                    $householdOptions
+                                                    as $householdId
+                                                    => $householdName
+                                                )
+                                                    <option
+                                                        value="{{ $householdId }}"
+                                                    >
+                                                        {{ $householdName }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+
+                                            <button
+                                                type="button"
+                                                wire:click="linkHousehold({{ $entry->id }})"
+                                                class="rounded-lg
+                                                       bg-emerald-600
+                                                       px-3 py-1.5
+                                                       text-xs font-bold
+                                                       text-white
+                                                       transition
+                                                       hover:bg-emerald-500"
+                                            >
+                                                Link
+                                            </button>
+
                                         @endif
                                     </div>
                                 </div>

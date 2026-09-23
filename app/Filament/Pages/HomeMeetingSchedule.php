@@ -3,7 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Models\HomeMeetingScheduleEntry;
+use App\Models\Household;
 use App\Models\Locality;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 
@@ -11,6 +13,25 @@ class HomeMeetingSchedule extends Page
 {
     protected string $view =
         'filament.pages.home-meeting-schedule';
+
+    public array $householdSelections = [];
+
+
+    public function mount(): void
+    {
+        foreach (
+            $this->scheduleEntries()
+            as $entry
+        ) {
+            $this->householdSelections[
+                $entry->id
+            ] =
+                $entry->household_id
+                    ? (string) $entry->household_id
+                    : '';
+        }
+    }
+
 
     public function getTitle(): string
     {
@@ -116,6 +137,156 @@ class HomeMeetingSchedule extends Page
             )
             ->values();
     }
+
+    public function householdOptions(): array
+    {
+        $locality = $this->locality();
+
+        if (! $locality) {
+            return [];
+        }
+
+        return Household::query()
+            ->where(
+                'locality_id',
+                $locality->id
+            )
+            ->with('head')
+            ->orderBy('household_name')
+            ->get()
+            ->mapWithKeys(
+                fn (Household $household): array => [
+                    (int) $household->id =>
+                        $household->display_name,
+                ]
+            )
+            ->all();
+    }
+
+
+    public function linkHousehold(
+        int $entryId
+    ): void {
+        $locality = $this->locality();
+
+        if (! $locality) {
+            return;
+        }
+
+        $entry =
+            HomeMeetingScheduleEntry::query()
+                ->where(
+                    'locality_id',
+                    $locality->id
+                )
+                ->findOrFail(
+                    $entryId
+                );
+
+        $householdId =
+            (int) (
+                $this->householdSelections[
+                    $entryId
+                ]
+                ?? 0
+            );
+
+        if ($householdId <= 0) {
+            Notification::make()
+                ->title(
+                    'Select a Household first'
+                )
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $household =
+            Household::query()
+                ->whereKey(
+                    $householdId
+                )
+                ->where(
+                    'locality_id',
+                    $entry->locality_id
+                )
+                ->first();
+
+        if (! $household) {
+            Notification::make()
+                ->title(
+                    'Household does not belong to Lucban'
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $entry->update([
+            'household_id' =>
+                $household->id,
+        ]);
+
+        $this->householdSelections[
+            $entryId
+        ] = (string) $household->id;
+
+        Notification::make()
+            ->title(
+                'Household linked'
+            )
+            ->body(
+                $entry->display_name
+                . ' is now linked to '
+                . $household->display_name
+                . '.'
+            )
+            ->success()
+            ->send();
+    }
+
+
+    public function unlinkHousehold(
+        int $entryId
+    ): void {
+        $locality = $this->locality();
+
+        if (! $locality) {
+            return;
+        }
+
+        $entry =
+            HomeMeetingScheduleEntry::query()
+                ->where(
+                    'locality_id',
+                    $locality->id
+                )
+                ->findOrFail(
+                    $entryId
+                );
+
+        $entry->update([
+            'household_id' => null,
+        ]);
+
+        $this->householdSelections[
+            $entryId
+        ] = '';
+
+        Notification::make()
+            ->title(
+                'Household unlinked'
+            )
+            ->body(
+                $entry->display_name
+                . ' can now be linked to another Household.'
+            )
+            ->success()
+            ->send();
+    }
+
 
     public function shepherdingRecordUrl(
         HomeMeetingScheduleEntry $entry
