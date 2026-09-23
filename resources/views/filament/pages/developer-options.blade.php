@@ -31,6 +31,22 @@
             min-height: 2.75rem;
         }
 
+        .coqp-dev-options [x-cloak] {
+            display: none !important;
+        }
+
+        .coqp-dev-options mark[data-developer-search-highlight] {
+            border-radius: 0.2rem;
+            background: #fde68a;
+            color: #78350f;
+            padding: 0 0.08em;
+        }
+
+        .dark .coqp-dev-options mark[data-developer-search-highlight] {
+            background: #92400e;
+            color: #fef3c7;
+        }
+
         .coqp-dev-options summary.list-none::-webkit-details-marker {
             display: none;
         }
@@ -50,13 +66,418 @@
             transform: rotate(180deg);
         }
     </style>
-    <div class="coqp-dev-options">
+    <div
+        class="coqp-dev-options"
+        x-data="{
+            query: '',
+            status: '',
 
-    <div class="space-y-6">
+            normalize(value) {
+                return String(
+                    value == null ? '' : value
+                )
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .trim()
+            },
 
+            items(root) {
+                const grouped =
+                    root.querySelector(
+                        '#developer-options-sections'
+                    )
+
+                const groupedItems =
+                    grouped
+                        ? Array.from(
+                            grouped.children
+                        ).filter(
+                            (element) =>
+                                ! element.hasAttribute(
+                                    'data-developer-search-ignore'
+                                )
+                        )
+                        : []
+
+                const remainingItems =
+                    Array.from(
+                        root.children
+                    ).filter(
+                        (element) =>
+                            element !== grouped
+                    )
+
+                return [
+                    ...groupedItems,
+                    ...remainingItems,
+                ]
+            },
+
+            clearHighlights(root) {
+                root
+                    .querySelectorAll(
+                        'mark[data-developer-search-highlight]'
+                    )
+                    .forEach((mark) => {
+                        const parent =
+                            mark.parentNode
+
+                        if (! parent) {
+                            return
+                        }
+
+                        parent.replaceChild(
+                            document.createTextNode(
+                                mark.textContent || ''
+                            ),
+                            mark
+                        )
+
+                        parent.normalize()
+                    })
+            },
+
+            highlight(element, terms) {
+                const walker =
+                    document.createTreeWalker(
+                        element,
+                        NodeFilter.SHOW_TEXT
+                    )
+
+                const nodes = []
+
+                while (walker.nextNode()) {
+                    const node =
+                        walker.currentNode
+
+                    const parent =
+                        node.parentElement
+
+                    if (! parent) {
+                        continue
+                    }
+
+                    if (
+                        parent.closest(
+                            'script, style, textarea, '
+                            + 'select, option, '
+                            + '[data-developer-search-no-highlight]'
+                        )
+                    ) {
+                        continue
+                    }
+
+                    if (
+                        ! node.nodeValue
+                        || ! node.nodeValue.trim()
+                    ) {
+                        continue
+                    }
+
+                    nodes.push(node)
+                }
+
+                nodes.forEach((node) => {
+                    const value =
+                        node.nodeValue || ''
+
+                    const lower =
+                        value.toLowerCase()
+
+                    const matches = []
+
+                    terms.forEach((term) => {
+                        let offset = 0
+
+                        while (offset < lower.length) {
+                            const index =
+                                lower.indexOf(
+                                    term,
+                                    offset
+                                )
+
+                            if (index === -1) {
+                                break
+                            }
+
+                            matches.push({
+                                start: index,
+                                end:
+                                    index
+                                    + term.length,
+                            })
+
+                            offset =
+                                index
+                                + term.length
+                        }
+                    })
+
+                    if (matches.length === 0) {
+                        return
+                    }
+
+                    matches.sort(
+                        (a, b) =>
+                            a.start - b.start
+                            || b.end - a.end
+                    )
+
+                    const merged = []
+
+                    matches.forEach((match) => {
+                        const previous =
+                            merged[
+                                merged.length - 1
+                            ]
+
+                        if (
+                            ! previous
+                            || match.start
+                                >= previous.end
+                        ) {
+                            merged.push({
+                                ...match,
+                            })
+
+                            return
+                        }
+
+                        previous.end =
+                            Math.max(
+                                previous.end,
+                                match.end
+                            )
+                    })
+
+                    const fragment =
+                        document
+                            .createDocumentFragment()
+
+                    let position = 0
+
+                    merged.forEach((match) => {
+                        if (
+                            match.start
+                                > position
+                        ) {
+                            fragment.append(
+                                document
+                                    .createTextNode(
+                                        value.slice(
+                                            position,
+                                            match.start
+                                        )
+                                    )
+                            )
+                        }
+
+                        const mark =
+                            document
+                                .createElement(
+                                    'mark'
+                                )
+
+                        mark.setAttribute(
+                            'data-developer-search-highlight',
+                            ''
+                        )
+
+                        mark.textContent =
+                            value.slice(
+                                match.start,
+                                match.end
+                            )
+
+                        fragment.append(mark)
+
+                        position =
+                            match.end
+                    })
+
+                    if (
+                        position
+                            < value.length
+                    ) {
+                        fragment.append(
+                            document
+                                .createTextNode(
+                                    value.slice(
+                                        position
+                                    )
+                                )
+                        )
+                    }
+
+                    node.replaceWith(
+                        fragment
+                    )
+                })
+            },
+
+            search(root) {
+                const terms = this
+                    .normalize(this.query)
+                    .split(' ')
+                    .filter(Boolean)
+
+                if (terms.length === 0) {
+                    this.clear(root)
+                    return
+                }
+
+                this.clearHighlights(root)
+
+                const items =
+                    this.items(root)
+
+                let matches = 0
+                let firstMatch = null
+
+                items.forEach(
+                    (element) => {
+                        if (
+                            element.tagName
+                                === 'DETAILS'
+                            && element.dataset
+                                .developerOriginalOpen
+                                === undefined
+                        ) {
+                            element.dataset
+                                .developerOriginalOpen =
+                                element.open
+                                    ? '1'
+                                    : '0'
+                        }
+
+                        const haystack =
+                            this.normalize(
+                                element.textContent
+                            )
+
+                        const matched =
+                            terms.every(
+                                (term) =>
+                                    haystack.includes(
+                                        term
+                                    )
+                            )
+
+                        element.hidden =
+                            ! matched
+
+                        if (! matched) {
+                            return
+                        }
+
+                        matches++
+
+                        if (firstMatch === null) {
+                            firstMatch =
+                                element
+                        }
+
+                        if (
+                            element.tagName
+                                === 'DETAILS'
+                        ) {
+                            element.open = true
+                        }
+
+                        this.highlight(
+                            element,
+                            terms
+                        )
+                    }
+                )
+
+                if (matches === 0) {
+                    this.status =
+                        'No Developer Options matched “'
+                        + this.query.trim()
+                        + '”.'
+
+                    return
+                }
+
+                this.status =
+                    matches
+                    + (
+                        matches === 1
+                            ? ' section found.'
+                            : ' sections found.'
+                    )
+
+                if (firstMatch !== null) {
+                    const firstHighlight =
+                        firstMatch.querySelector(
+                            'mark[data-developer-search-highlight]'
+                        )
+
+                    const scrollTarget =
+                        firstHighlight
+                        || firstMatch
+
+                    scrollTarget.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                    })
+                }
+            },
+
+            clear(root) {
+                this.clearHighlights(root)
+
+                this.items(root).forEach(
+                    (element) => {
+                        element.hidden =
+                            false
+
+                        if (
+                            element.tagName
+                                !== 'DETAILS'
+                        ) {
+                            return
+                        }
+
+                        const original =
+                            element.dataset
+                                .developerOriginalOpen
+
+                        if (
+                            original
+                                === undefined
+                        ) {
+                            return
+                        }
+
+                        element.open =
+                            original === '1'
+
+                        delete element
+                            .dataset
+                            .developerOriginalOpen
+                    }
+                )
+
+                this.query = ''
+                this.status = ''
+            },
+        }"
+    >
+
+    <div
+        id="developer-options-sections"
+        x-ref="sections"
+        class="space-y-6"
+    >
+
+        {{-- Developer Options Search --}}
         <div
+            id="developer-options-search-card"
+            data-developer-search-ignore
             class="rounded-2xl border border-gray-200
-                   bg-white p-6 shadow-sm
+                   bg-white p-5 shadow-sm
                    dark:border-gray-700 dark:bg-gray-900"
         >
             <div>
@@ -64,23 +485,125 @@
                     class="text-lg font-bold
                            text-gray-950 dark:text-white"
                 >
-                    Setup & Reference Data
+                    Search Developer Options
                 </h2>
 
                 <p
                     class="mt-1 text-sm
                            text-gray-500 dark:text-gray-400"
                 >
-                    Open administrative setup pages used to
-                    maintain geographic, school, and ministry
-                    reference data.
+                    Search settings, actions, setup pages,
+                    integrations, maintenance tools, and reports.
                 </p>
             </div>
 
             <div
-                class="mt-5 grid gap-3
-                       md:grid-cols-3"
+                class="mt-4 flex flex-col gap-3
+                       sm:flex-row sm:items-center"
             >
+                <input
+                    id="developer-options-search"
+                    x-ref="searchInput"
+                    x-model="query"
+                    @keydown.enter.prevent="search($root)"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Example: Google Drive, province, cache, aliases, PHP..."
+                    class="block min-w-0 flex-1 rounded-xl
+                           border border-gray-300 bg-white
+                           px-4 py-3 text-gray-900
+                           dark:border-gray-600
+                           dark:bg-gray-950
+                           dark:text-gray-100"
+                >
+
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        @click="search($root)"
+                        class="rounded-xl bg-primary-600
+                               px-5 py-3 font-bold text-white
+                               hover:bg-primary-500"
+                    >
+                        Search
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="clear($root)"
+                        class="rounded-xl border
+                               border-gray-300
+                               bg-white px-5 py-3
+                               font-bold text-gray-700
+                               hover:bg-gray-50
+                               dark:border-gray-600
+                               dark:bg-gray-950
+                               dark:text-gray-200
+                               dark:hover:bg-gray-800"
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <div
+                id="developer-options-search-status"
+                x-show="status !== ''"
+                x-text="status"
+                x-cloak
+                class="mt-3 text-sm
+                       font-semibold text-gray-600
+                       dark:text-gray-300"
+                aria-live="polite"
+            ></div>
+        </div>
+
+        <details
+            class="group rounded-2xl border border-gray-200
+                   bg-white shadow-sm
+                   dark:border-gray-700 dark:bg-gray-900"
+        >
+            <summary
+                class="flex cursor-pointer list-none
+                       items-center justify-between
+                       gap-4 px-6 py-5"
+            >
+                <div>
+                    <h2
+                        class="text-lg font-bold
+                               text-gray-950 dark:text-white"
+                    >
+                        Setup & Reference Data
+                    </h2>
+
+                    <p
+                        class="mt-1 text-sm
+                               text-gray-500 dark:text-gray-400"
+                    >
+                        Open administrative setup pages used to
+                        maintain geographic, school, and ministry
+                        reference data.
+                    </p>
+                </div>
+
+                <x-filament::icon
+                    icon="heroicon-m-chevron-down"
+                    class="h-5 w-5 shrink-0
+                           text-gray-400
+                           transition-transform
+                           group-open:rotate-180"
+                />
+            </summary>
+
+            <div
+                class="border-t border-gray-200
+                       dark:border-gray-700"
+            >
+                <div
+                    style="margin: 1.25rem;"
+                    class="grid gap-3
+                           md:grid-cols-3"
+                >
                 <a
                     href="{{ \App\Filament\Pages\ProvinceSetup::getUrl() }}"
                     class="group flex items-center gap-4
@@ -467,8 +990,9 @@
                         </div>
                     </div>
                 </a>
+                </div>
             </div>
-        </div>
+        </details>
 
         <details
             class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"

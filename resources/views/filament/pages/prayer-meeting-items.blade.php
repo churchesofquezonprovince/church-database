@@ -65,7 +65,23 @@
                     </h2>
 
                     <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        Load prayer items by locality. Meeting day and time are automatically read from Attendance → Prayer Meeting.
+                        Load prayer items by locality in the
+                        <a
+                            href="https://coqpdatabase.overcomers.win/quezonprovinceactivities/province-setup"
+                            class="font-semibold
+                                   text-primary-600
+                                   underline
+                                   underline-offset-2
+                                   hover:text-primary-500
+                                   dark:text-primary-400
+                                   dark:hover:text-primary-300"
+                            title="Open Province Setup"
+                        >
+                            Primary Province
+                        </a>
+                        and has Persons in the Database in it.
+                        Meeting day and time are automatically
+                        read from Attendance → Prayer Meeting.
                     </p>
 
                     <div class="mt-4 rounded-xl border border-gray-300 bg-gray-50 p-4 text-sm dark:border-gray-700 dark:bg-gray-950">

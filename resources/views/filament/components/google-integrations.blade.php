@@ -9,7 +9,16 @@
         $googleCalendarRows[] = ['name' => '', 'id' => '', 'color' => '#3b82f6'];
     }
 @endphp
-<details id="google-integrations" class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900" open>
+<details id="google-integrations" class="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+    x-init="
+        if (
+            window.location.hash
+                === '#google-integrations'
+        ) {
+            $el.open = true
+        }
+    "
+>
     <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5">
         <div>
             <h2 class="text-lg font-bold text-gray-950 dark:text-white">Google Integrations Setup</h2>

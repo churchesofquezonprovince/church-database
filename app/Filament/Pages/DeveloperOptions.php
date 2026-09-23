@@ -565,8 +565,16 @@ class DeveloperOptions extends Page
 
     protected function loadSystemInformation(): void
     {
+        /*
+         * Keep the configured version only as a fallback.
+         *
+         * When Git is available, System Information uses the
+         * same version formula as Patch Notes:
+         *
+         * 1.<highest numeric phase>.<total Git updates>
+         */
         $this->appVersion =
-            config(
+            (string) config(
                 'app.version',
                 'Not configured'
             );
@@ -577,13 +585,35 @@ class DeveloperOptions extends Page
         $this->phpVersion =
             PHP_VERSION;
 
+        $repositoryPath =
+            base_path();
+
+        $git = function (
+            array $arguments
+        ) use (
+            $repositoryPath
+        ) {
+            return Process::path(
+                $repositoryPath
+            )->run([
+                'git',
+                '-c',
+                'safe.directory='
+                    . $repositoryPath,
+                ...$arguments,
+            ]);
+        };
+
         try {
+            /*
+             * Current commit.
+             */
             $commitResult =
-                Process::path(
-                    base_path()
-                )->run(
-                    'git rev-parse --short HEAD'
-                );
+                $git([
+                    'rev-parse',
+                    '--short',
+                    'HEAD',
+                ]);
 
             if ($commitResult->successful()) {
                 $hash =
@@ -598,15 +628,16 @@ class DeveloperOptions extends Page
             }
 
             /*
-             * System Information should reflect the latest
-             * committed development phase automatically rather
-             * than relying on a manually maintained APP_PHASE.
+             * Latest committed development phase.
+             *
+             * Example:
+             * Phase 30M - Add ...
+             *
+             * becomes:
+             * Phase 30M
              */
             $phaseResult =
-                Process::path(
-                    base_path()
-                )->run([
-                    'git',
+                $git([
                     'log',
                     '-1',
                     '--format=%s',
@@ -621,7 +652,7 @@ class DeveloperOptions extends Page
 
                 if (
                     preg_match(
-                        '/^(Phase\\s+[^\\s]+)/',
+                        '/^(Phase\s+[^\s]+)/',
                         $subject,
                         $matches
                     ) === 1
@@ -630,12 +661,87 @@ class DeveloperOptions extends Page
                         $matches[1];
                 }
             }
-        } catch (Throwable $e) {
-            $this->gitCommitHash =
-                'Unavailable';
 
-            $this->currentPhase =
-                'Unavailable';
+            /*
+             * Match Patch Notes version calculation:
+             *
+             * Major version:
+             * 1
+             *
+             * Middle number:
+             * highest numeric Phase number
+             *
+             * Final number:
+             * total number of Git commits / updates
+             */
+            $historyResult =
+                $git([
+                    'log',
+                    '--format=%s',
+                ]);
+
+            if ($historyResult->successful()) {
+                $subjects =
+                    preg_split(
+                        '/\R/',
+                        trim(
+                            $historyResult->output()
+                        )
+                    ) ?: [];
+
+                $subjects =
+                    array_values(
+                        array_filter(
+                            $subjects,
+                            static fn (
+                                string $subject
+                            ): bool =>
+                                trim($subject)
+                                    !== ''
+                        )
+                    );
+
+                $totalUpdates =
+                    count($subjects);
+
+                $highestPhase = 0;
+
+                foreach (
+                    $subjects
+                    as $subject
+                ) {
+                    if (
+                        preg_match(
+                            '/^Phase\s+(\d+)/i',
+                            trim($subject),
+                            $matches
+                        ) !== 1
+                    ) {
+                        continue;
+                    }
+
+                    $highestPhase =
+                        max(
+                            $highestPhase,
+                            (int) $matches[1]
+                        );
+                }
+
+                if (
+                    $highestPhase > 0
+                    && $totalUpdates > 0
+                ) {
+                    $this->appVersion =
+                        '1.'
+                        . $highestPhase
+                        . '.'
+                        . $totalUpdates;
+                }
+            }
+        } catch (Throwable) {
+            /*
+             * Leave the safe fallback values above in place.
+             */
         }
     }
 
