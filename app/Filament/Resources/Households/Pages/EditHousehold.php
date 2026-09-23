@@ -6,6 +6,8 @@ use App\Filament\Pages\FamilyTree;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use App\Filament\Resources\Households\HouseholdResource;
+use App\Models\CampusContact;
+use App\Models\GospelContact;
 use App\Models\Person;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
@@ -31,6 +33,10 @@ protected function getHeaderActions(): array
 
     protected array $memberIdsToSync = [];
 
+    protected array $campusContactIdsToSync = [];
+
+    protected array $gospelContactIdsToSync = [];
+
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $data['member_ids'] = $this->record
@@ -39,14 +45,53 @@ protected function getHeaderActions(): array
             ->map(fn ($id): string => (string) $id)
             ->all();
 
+        $data['campus_contact_ids'] =
+            $this->record
+                ->campusContacts()
+                ->whereNull('person_id')
+                ->pluck('id')
+                ->map(
+                    fn ($id): string =>
+                        (string) $id
+                )
+                ->all();
+
+        $data['gospel_contact_ids'] =
+            $this->record
+                ->gospelContacts()
+                ->whereNull('person_id')
+                ->pluck('id')
+                ->map(
+                    fn ($id): string =>
+                        (string) $id
+                )
+                ->all();
+
         return $data;
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $this->memberIdsToSync = $this->normalizeMemberIds($data['member_ids'] ?? []);
+        $this->memberIdsToSync =
+            $this->normalizeMemberIds(
+                $data['member_ids'] ?? []
+            );
 
-        unset($data['member_ids']);
+        $this->campusContactIdsToSync =
+            $this->normalizeMemberIds(
+                $data['campus_contact_ids'] ?? []
+            );
+
+        $this->gospelContactIdsToSync =
+            $this->normalizeMemberIds(
+                $data['gospel_contact_ids'] ?? []
+            );
+
+        unset(
+            $data['member_ids'],
+            $data['campus_contact_ids'],
+            $data['gospel_contact_ids']
+        );
 
         return $data;
     }
@@ -54,6 +99,8 @@ protected function getHeaderActions(): array
     protected function afterSave(): void
     {
         $this->syncHouseholdMembers();
+        $this->syncCampusContacts();
+        $this->syncGospelContacts();
     }
 
     private function normalizeMemberIds(mixed $ids): array
@@ -101,6 +148,94 @@ protected function getHeaderActions(): array
             ->whereIn('id', $memberIds->all())
             ->update([
                 'household_id' => $this->record->id,
+            ]);
+    }
+
+    private function syncCampusContacts(): void
+    {
+        $selectedIds = collect(
+            $this->campusContactIdsToSync
+        )
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        CampusContact::query()
+            ->whereNull('person_id')
+            ->where(
+                'household_id',
+                $this->record->id
+            )
+            ->when(
+                $selectedIds->isNotEmpty(),
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $selectedIds->all()
+                    )
+            )
+            ->update([
+                'household_id' => null,
+            ]);
+
+        if ($selectedIds->isEmpty()) {
+            return;
+        }
+
+        CampusContact::query()
+            ->whereNull('person_id')
+            ->whereIn(
+                'id',
+                $selectedIds->all()
+            )
+            ->update([
+                'household_id' =>
+                    $this->record->id,
+            ]);
+    }
+
+    private function syncGospelContacts(): void
+    {
+        $selectedIds = collect(
+            $this->gospelContactIdsToSync
+        )
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        GospelContact::query()
+            ->whereNull('person_id')
+            ->where(
+                'household_id',
+                $this->record->id
+            )
+            ->when(
+                $selectedIds->isNotEmpty(),
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $selectedIds->all()
+                    )
+            )
+            ->update([
+                'household_id' => null,
+            ]);
+
+        if ($selectedIds->isEmpty()) {
+            return;
+        }
+
+        GospelContact::query()
+            ->whereNull('person_id')
+            ->whereIn(
+                'id',
+                $selectedIds->all()
+            )
+            ->update([
+                'household_id' =>
+                    $this->record->id,
             ]);
     }
 
