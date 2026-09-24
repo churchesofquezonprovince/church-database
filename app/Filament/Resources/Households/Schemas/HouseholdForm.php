@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Households\Schemas;
 
+use App\Models\CampusContact;
+use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Locality;
 use App\Models\Person;
@@ -22,7 +24,7 @@ class HouseholdForm
         return $schema
             ->components([
                 Section::make('Household Information')
-                    ->description('Create or update a household record. Select the household head and all household members below.')
+                    ->description('Create or update a household record. Members may come from People, Campus Contacts, or Gospel Contacts.')
                     ->schema([
                         TextInput::make('household_name')
                             ->label('Household Name')
@@ -59,16 +61,48 @@ class HouseholdForm
                                     ->all());
                             }),
 
-                        Select::make('member_ids')
-                            ->label('Household Members')
-                            ->options(fn (): array => self::personOptions())
-                            ->multiple()
-                            ->searchable()
-                            ->preload()
-                            ->native(false)
-                            ->placeholder('Select household members')
-                            ->helperText('Select all people who belong to this household. The household head is included automatically after saving.')
-                            ->columnSpanFull(),
+                          Select::make('member_ids')
+                              ->label('People Members')
+                              ->options(fn (): array => self::personOptions())
+                              ->multiple()
+                              ->searchable()
+                              ->preload()
+                              ->native(false)
+                              ->placeholder('Select People members')
+                              ->helperText('Select People Database records who belong to this household. The household head is included automatically after saving.')
+                              ->columnSpanFull(),
+
+                          Select::make('campus_contact_ids')
+                              ->label('Campus Contact Members')
+                              ->options(
+                                  fn ($livewire): array =>
+                                      self::campusContactOptions(
+                                          $livewire->record?->id
+                                      )
+                              )
+                              ->multiple()
+                              ->searchable()
+                              ->preload()
+                              ->native(false)
+                              ->placeholder('Select unlinked Campus Contacts')
+                              ->helperText('Only Campus Contacts not yet linked to the People Database are shown.')
+                              ->columnSpanFull(),
+
+                          Select::make('gospel_contact_ids')
+                              ->label('Gospel Contact Members')
+                              ->options(
+                                  fn ($livewire): array =>
+                                      self::gospelContactOptions(
+                                          $livewire->record?->id
+                                      )
+                              )
+                              ->multiple()
+                              ->searchable()
+                              ->preload()
+                              ->native(false)
+                              ->placeholder('Select unlinked Gospel Contacts')
+                              ->helperText('Only Gospel Contacts not yet linked to the People Database are shown.')
+                              ->columnSpanFull(),
 
                         Select::make('locality_id')
                             ->label('Locality')
@@ -239,6 +273,94 @@ class HouseholdForm
         }
 
         return $options;
+    }
+
+
+    private static function campusContactOptions(
+        mixed $householdId = null
+    ): array {
+        $householdId =
+            (int) ($householdId ?? 0);
+
+        return CampusContact::query()
+            ->whereNull('person_id')
+            ->where(
+                function ($query) use (
+                    $householdId
+                ): void {
+                    $query->whereNull(
+                        'household_id'
+                    );
+
+                    if ($householdId > 0) {
+                        $query->orWhere(
+                            'household_id',
+                            $householdId
+                        );
+                    }
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get()
+            ->mapWithKeys(
+                fn (
+                    CampusContact $contact
+                ): array => [
+                    $contact->id =>
+                        $contact->display_name
+                        . ' — '
+                        . (
+                            $contact->effective_locality
+                            ?: 'No locality'
+                        ),
+                ]
+            )
+            ->all();
+    }
+
+
+    private static function gospelContactOptions(
+        mixed $householdId = null
+    ): array {
+        $householdId =
+            (int) ($householdId ?? 0);
+
+        return GospelContact::query()
+            ->whereNull('person_id')
+            ->where(
+                function ($query) use (
+                    $householdId
+                ): void {
+                    $query->whereNull(
+                        'household_id'
+                    );
+
+                    if ($householdId > 0) {
+                        $query->orWhere(
+                            'household_id',
+                            $householdId
+                        );
+                    }
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get()
+            ->mapWithKeys(
+                fn (
+                    GospelContact $contact
+                ): array => [
+                    $contact->id =>
+                        $contact->display_name
+                        . ' — '
+                        . (
+                            $contact->effective_locality
+                            ?: 'No locality'
+                        ),
+                ]
+            )
+            ->all();
     }
 
 

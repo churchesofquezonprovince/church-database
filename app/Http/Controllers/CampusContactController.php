@@ -362,6 +362,21 @@ class CampusContactController extends Controller
             ])
             ->findOrFail($data['person_id']);
 
+        if (
+            filled($contact->household_id)
+            && filled($person->household_id)
+            && (int) $contact->household_id
+                !== (int) $person->household_id
+        ) {
+            return back()->withErrors([
+                'contact' =>
+                    'Household mismatch: this Campus Contact '
+                    . 'and the selected Person belong to '
+                    . 'different households. Resolve the '
+                    . 'household assignment first.',
+            ]);
+        }
+
         DB::transaction(function () use (
             $contact,
             $person
@@ -381,6 +396,10 @@ class CampusContactController extends Controller
 
             $person->locality_id = $person->locality_id
                 ?: $contact->locality_id;
+
+            $person->household_id =
+                $person->household_id
+                ?: $contact->household_id;
 
             $person->contact_number = $person->contact_number
                 ?: $contact->contact_number;
@@ -608,6 +627,7 @@ class CampusContactController extends Controller
                 $person->lastname = $contact->lastname;
                 $person->sex = $contact->sex;
                 $person->locality_id = $contact->locality_id;
+                $person->household_id = $contact->household_id;
 
                 $person->contact_number =
                     $contact->contact_number;
@@ -650,6 +670,7 @@ class CampusContactController extends Controller
 
                 $contact->update([
                     'person_id' => $person->id,
+                    'household_id' => null,
                 ]);
 
                 ActivityLogger::log(
@@ -767,6 +788,7 @@ class CampusContactController extends Controller
     ): void {
         $contact->update([
             'person_id' => $person->id,
+            'household_id' => null,
 
             'firstname' =>
                 $person->firstname,

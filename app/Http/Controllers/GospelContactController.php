@@ -475,6 +475,21 @@ class GospelContactController extends Controller
                 $data['person_id']
             );
 
+        if (
+            filled($contact->household_id)
+            && filled($person->household_id)
+            && (int) $contact->household_id
+                !== (int) $person->household_id
+        ) {
+            return back()->withErrors([
+                'contact' =>
+                    'Household mismatch: this Gospel Contact '
+                    . 'and the selected Person belong to '
+                    . 'different households. Resolve the '
+                    . 'household assignment first.',
+            ]);
+        }
+
         DB::transaction(
             function () use (
                 $contact,
@@ -498,6 +513,10 @@ class GospelContactController extends Controller
                 $person->locality_id =
                     $person->locality_id
                     ?: $contact->locality_id;
+
+                $person->household_id =
+                    $person->household_id
+                    ?: $contact->household_id;
 
                 $person->contact_number =
                     $person->contact_number
@@ -809,6 +828,9 @@ class GospelContactController extends Controller
                 $person->locality_id =
                     $contact->locality_id;
 
+                $person->household_id =
+                    $contact->household_id;
+
                 $person->contact_number =
                     $contact
                         ->contact_number;
@@ -850,6 +872,9 @@ class GospelContactController extends Controller
                 $contact->update([
                     'person_id' =>
                         $person->id,
+
+                    'household_id' =>
+                        null,
                 ]);
 
                 ActivityLogger::log(
@@ -925,6 +950,9 @@ class GospelContactController extends Controller
         $contact->update([
             'person_id' =>
                 $person->id,
+
+            'household_id' =>
+                null,
 
             'firstname' =>
                 $person->firstname,
