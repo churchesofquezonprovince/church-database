@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Households\Schemas;
 
 use App\Filament\Pages\FamilyTree;
 use App\Filament\Resources\People\PersonResource;
+use App\Models\CampusContact;
+use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Person;
 use Filament\Infolists\Components\TextEntry;
@@ -62,11 +64,35 @@ class HouseholdInfolist
                     ])
                     ->columns(2),
 
-                Section::make('Members')
+                Section::make('Household Members')
+                    ->description(
+                        'Members recorded in People, Campus Contacts, and Gospel Contacts.'
+                    )
                     ->schema([
-                        TextEntry::make('members_list')
-                            ->label('Household Members')
-                            ->state(fn (Household $record): HtmlString => self::membersList($record))
+                        TextEntry::make('people_members_list')
+                            ->label('People')
+                            ->state(
+                                fn (Household $record): HtmlString =>
+                                    self::membersList($record)
+                            )
+                            ->html()
+                            ->columnSpanFull(),
+
+                        TextEntry::make('campus_contact_members_list')
+                            ->label('Campus Contacts')
+                            ->state(
+                                fn (Household $record): HtmlString =>
+                                    self::campusContactsList($record)
+                            )
+                            ->html()
+                            ->columnSpanFull(),
+
+                        TextEntry::make('gospel_contact_members_list')
+                            ->label('Gospel Contacts')
+                            ->state(
+                                fn (Household $record): HtmlString =>
+                                    self::gospelContactsList($record)
+                            )
                             ->html()
                             ->columnSpanFull(),
                     ]),
@@ -78,7 +104,8 @@ class HouseholdInfolist
         $name = $record->household_name ?: 'Unnamed Household';
         $head = $record->head?->display_name ?? 'No household head';
         $locality = $record->locality ?: 'No locality';
-        $membersCount = $record->members()->count();
+        $membersCount =
+            self::totalMemberCount($record);
 
         $familyTreeButton = filled($record->household_head_id)
             ? '<a href="' . e(FamilyTree::getUrl(['personId' => $record->household_head_id])) . '" class="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-500">Open head family tree</a>'
@@ -155,7 +182,8 @@ class HouseholdInfolist
 
     private static function memberCount(Household $record): HtmlString
     {
-        $count = $record->members()->count();
+        $count =
+            self::totalMemberCount($record);
 
         return new HtmlString(
             '<span class="inline-flex rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-lg font-bold text-primary-700 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
@@ -163,6 +191,19 @@ class HouseholdInfolist
             . '</span>'
         );
     }
+
+    private static function totalMemberCount(
+        Household $record
+    ): int {
+        return $record->members()->count()
+            + $record->campusContacts()
+                ->whereNull('person_id')
+                ->count()
+            + $record->gospelContacts()
+                ->whereNull('person_id')
+                ->count();
+    }
+
 
     private static function personLink(?Person $person): HtmlString
     {
@@ -222,6 +263,176 @@ class HouseholdInfolist
 
         return new HtmlString('<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">' . $cards . '</div>');
     }
+
+    private static function campusContactsList(
+        Household $record
+    ): HtmlString {
+        $contacts = $record
+            ->campusContacts()
+            ->whereNull('person_id')
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+
+        if ($contacts->isEmpty()) {
+            return self::none(
+                'No Campus Contact members recorded'
+            );
+        }
+
+        $cards = $contacts
+            ->map(
+                function (
+                    CampusContact $contact
+                ): string {
+                    $initials = collect([
+                        $contact->firstname,
+                        $contact->lastname,
+                    ])
+                        ->filter()
+                        ->map(
+                            fn (string $part): string =>
+                                strtoupper(
+                                    substr(
+                                        trim($part),
+                                        0,
+                                        1
+                                    )
+                                )
+                        )
+                        ->join('');
+
+                    $details = collect([
+                        $contact->school_campus,
+                        $contact->effective_locality,
+                        $contact->contact_number,
+                    ])
+                        ->filter()
+                        ->map(
+                            fn ($value): string =>
+                                e((string) $value)
+                        )
+                        ->join(' • ');
+
+                    return
+                        '<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">'
+                        . '<div class="flex items-center gap-3">'
+                        . '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white">'
+                        . e($initials ?: '?')
+                        . '</div>'
+                        . '<div class="min-w-0 flex-1">'
+                        . '<div class="flex flex-wrap items-center gap-2">'
+                        . '<p class="font-bold text-gray-900 dark:text-white">'
+                        . e($contact->display_name)
+                        . '</p>'
+                        . '<span class="inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-950 dark:text-sky-200">Campus Contact</span>'
+                        . '</div>'
+                        . (
+                            $details
+                                ? '<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">'
+                                    . $details
+                                    . '</p>'
+                                : ''
+                        )
+                        . '</div>'
+                        . '</div>'
+                        . '</div>';
+                }
+            )
+            ->join('');
+
+        return new HtmlString(
+            '<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">'
+            . $cards
+            . '</div>'
+        );
+    }
+
+
+    private static function gospelContactsList(
+        Household $record
+    ): HtmlString {
+        $contacts = $record
+            ->gospelContacts()
+            ->whereNull('person_id')
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+
+        if ($contacts->isEmpty()) {
+            return self::none(
+                'No Gospel Contact members recorded'
+            );
+        }
+
+        $cards = $contacts
+            ->map(
+                function (
+                    GospelContact $contact
+                ): string {
+                    $initials = collect([
+                        $contact->firstname,
+                        $contact->lastname,
+                    ])
+                        ->filter()
+                        ->map(
+                            fn (string $part): string =>
+                                strtoupper(
+                                    substr(
+                                        trim($part),
+                                        0,
+                                        1
+                                    )
+                                )
+                        )
+                        ->join('');
+
+                    $details = collect([
+                        $contact->contact_place,
+                        $contact->effective_locality,
+                        $contact->contact_number,
+                    ])
+                        ->filter()
+                        ->map(
+                            fn ($value): string =>
+                                e((string) $value)
+                        )
+                        ->join(' • ');
+
+                    return
+                        '<div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">'
+                        . '<div class="flex items-center gap-3">'
+                        . '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white">'
+                        . e($initials ?: '?')
+                        . '</div>'
+                        . '<div class="min-w-0 flex-1">'
+                        . '<div class="flex flex-wrap items-center gap-2">'
+                        . '<p class="font-bold text-gray-900 dark:text-white">'
+                        . e($contact->display_name)
+                        . '</p>'
+                        . '<span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200">Gospel Contact</span>'
+                        . '</div>'
+                        . (
+                            $details
+                                ? '<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">'
+                                    . $details
+                                    . '</p>'
+                                : ''
+                        )
+                        . '</div>'
+                        . '</div>'
+                        . '</div>';
+                }
+            )
+            ->join('');
+
+        return new HtmlString(
+            '<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">'
+            . $cards
+            . '</div>'
+        );
+    }
+
 
     private static function none(string $message = 'Not recorded'): HtmlString
     {
