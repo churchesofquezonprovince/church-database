@@ -5,9 +5,11 @@ namespace App\Filament\Pages;
 use App\Models\HomeMeetingScheduleEntry;
 use App\Models\Household;
 use App\Models\Locality;
+use App\Support\LocalityOptions;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Url;
 
 class HomeMeetingSchedule extends Page
 {
@@ -16,9 +18,37 @@ class HomeMeetingSchedule extends Page
 
     public array $householdSelections = [];
 
+    #[Url(as: 'locality', history: true)]
+    public ?string $selectedLocality = null;
+
 
     public function mount(): void
     {
+        $this->selectedLocality =
+            $this->resolvedLocalityName(
+                $this->selectedLocality
+            );
+
+        $this->loadHouseholdSelections();
+    }
+
+
+    public function updatedSelectedLocality(
+        ?string $value
+    ): void {
+        $this->selectedLocality =
+            $this->resolvedLocalityName(
+                $value
+            );
+
+        $this->loadHouseholdSelections();
+    }
+
+
+    private function loadHouseholdSelections(): void
+    {
+        $this->householdSelections = [];
+
         foreach (
             $this->scheduleEntries()
             as $entry
@@ -30,6 +60,56 @@ class HomeMeetingSchedule extends Page
                     ? (string) $entry->household_id
                     : '';
         }
+    }
+
+
+    public function localityOptions(): array
+    {
+        return LocalityOptions::
+            primaryProvinceNamesWithPeople()
+            ->mapWithKeys(
+                fn (string $name): array => [
+                    $name => $name,
+                ]
+            )
+            ->all();
+    }
+
+
+    private function resolvedLocalityName(
+        ?string $requested
+    ): ?string {
+        $localities =
+            LocalityOptions::
+                primaryProvinceNamesWithPeople()
+                ->values();
+
+        $requested = trim(
+            (string) $requested
+        );
+
+        if (
+            $requested !== ''
+            && $localities->contains(
+                fn (string $name): bool =>
+                    mb_strtolower($name)
+                    === mb_strtolower($requested)
+            )
+        ) {
+            return $localities->first(
+                fn (string $name): bool =>
+                    mb_strtolower($name)
+                    === mb_strtolower($requested)
+            );
+        }
+
+        $lucban = $localities->first(
+            fn (string $name): bool =>
+                mb_strtolower($name) === 'lucban'
+        );
+
+        return $lucban
+            ?? $localities->first();
     }
 
 
@@ -72,12 +152,14 @@ class HomeMeetingSchedule extends Page
 
     public function locality(): ?Locality
     {
-        return Locality::query()
-            ->whereRaw(
-                'LOWER(name) = ?',
-                ['lucban']
-            )
-            ->first();
+        if (! filled($this->selectedLocality)) {
+            return null;
+        }
+
+        return LocalityOptions::
+            primaryProvinceLocality(
+                $this->selectedLocality
+            );
     }
 
     public function scheduleEntries(): Collection
@@ -216,7 +298,8 @@ class HomeMeetingSchedule extends Page
         if (! $household) {
             Notification::make()
                 ->title(
-                    'Household does not belong to Lucban'
+                    'Household does not belong to '
+                    . $locality->name
                 )
                 ->danger()
                 ->send();

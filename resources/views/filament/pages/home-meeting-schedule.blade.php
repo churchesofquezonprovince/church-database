@@ -7,6 +7,9 @@
 
         $householdOptions =
             $this->householdOptions();
+
+        $localityOptions =
+            $this->localityOptions();
     @endphp
 
     <div class="space-y-6">
@@ -45,24 +48,51 @@
                                dark:text-gray-300"
                     >
                         Weekly home meeting schedule for
-                        {{ $locality?->name ?? 'Lucban' }}.
-                        Household linking and Shepherding
-                        Record shortcuts will be added next.
+                        {{ $locality?->name ?? 'the selected locality' }}.
+                        Link Households and open Shepherding
+                        Records directly from each schedule.
                     </p>
                 </div>
 
-                <span
-                    class="rounded-full bg-white
-                           px-3 py-1.5 text-sm
-                           font-bold text-emerald-700
-                           ring-1 ring-emerald-200
+                <label
+                    class="flex items-center gap-2 rounded-xl
+                           bg-white px-3 py-2 text-sm font-bold
+                           text-emerald-700 ring-1
+                           ring-emerald-200
                            dark:bg-gray-900
                            dark:text-emerald-300
                            dark:ring-emerald-900"
                 >
-                    Locality:
-                    {{ $locality?->name ?? 'Lucban' }}
-                </span>
+                    <span>Locality:</span>
+
+                    <select
+                        wire:model.live="selectedLocality"
+                        class="rounded-lg border-gray-300
+                               bg-white py-1 pl-2 pr-8
+                               text-sm font-semibold
+                               text-gray-900 shadow-sm
+                               focus:border-emerald-500
+                               focus:ring-emerald-500
+                               dark:border-gray-700
+                               dark:bg-gray-950
+                               dark:text-white"
+                    >
+                        @forelse (
+                            $localityOptions
+                            as $localityName => $label
+                        )
+                            <option
+                                value="{{ $localityName }}"
+                            >
+                                {{ $label }}
+                            </option>
+                        @empty
+                            <option value="">
+                                No localities with People
+                            </option>
+                        @endforelse
+                    </select>
+                </label>
             </div>
         </div>
 
