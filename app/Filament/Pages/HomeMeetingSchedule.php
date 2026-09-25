@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\Households\HouseholdResource;
 use App\Models\HomeMeetingScheduleEntry;
 use App\Models\Household;
 use App\Models\Locality;
@@ -368,6 +369,20 @@ class HomeMeetingSchedule extends Page
             )
             ->success()
             ->send();
+    }
+
+
+    public function createHouseholdUrl(
+        HomeMeetingScheduleEntry $entry
+    ): string {
+        return HouseholdResource::getUrl(
+            'create'
+        )
+            . '?'
+            . http_build_query([
+                'home_meeting_schedule' =>
+                    (int) $entry->id,
+            ]);
     }
 
 

@@ -302,6 +302,26 @@
                                                 @endforeach
                                             </select>
 
+                                            <a
+                                                href="{{
+                                                    $this
+                                                        ->createHouseholdUrl(
+                                                            $entry
+                                                        )
+                                                }}"
+                                                class="inline-flex
+                                                       items-center
+                                                       rounded-lg
+                                                       bg-emerald-600
+                                                       px-3 py-1.5
+                                                       text-xs font-bold
+                                                       text-white
+                                                       transition
+                                                       hover:bg-emerald-500"
+                                            >
+                                                Create Household
+                                            </a>
+
                                             <button
                                                 type="button"
                                                 wire:click="linkHousehold({{ $entry->id }})"

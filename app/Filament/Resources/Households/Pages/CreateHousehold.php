@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Households\Pages;
 
+use App\Filament\Pages\HomeMeetingSchedule;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Models\CampusContact;
 use App\Models\GospelContact;
+use App\Models\HomeMeetingScheduleEntry;
 use App\Models\Person;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 
 class CreateHousehold extends CreateRecord
 {
@@ -17,8 +21,54 @@ class CreateHousehold extends CreateRecord
 
     protected array $gospelContactIdsToSync = [];
 
+    #[Locked]
+    public ?int $homeMeetingScheduleId = null;
+
+
+    public function mount(): void
+    {
+        $this->homeMeetingScheduleId =
+            request()->integer(
+                'home_meeting_schedule'
+            ) ?: null;
+
+        parent::mount();
+    }
+
+
+    protected function afterFill(): void
+    {
+        $entry =
+            $this->homeMeetingScheduleEntry();
+
+        if (! $entry) {
+            return;
+        }
+
+        $this->form->fill([
+            'locality_id' =>
+                (int) $entry->locality_id,
+        ]);
+    }
+
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $entry =
+            $this->homeMeetingScheduleEntry();
+
+        if (
+            $entry
+            && (int) ($data['locality_id'] ?? 0)
+                !== (int) $entry->locality_id
+        ) {
+            throw ValidationException::withMessages([
+                'locality_id' => [
+                    'This Household must use the same Locality as the Home Meeting schedule.',
+                ],
+            ]);
+        }
+
         $this->memberIdsToSync =
             $this->normalizeMemberIds(
                 $data['member_ids'] ?? []
@@ -48,7 +98,73 @@ class CreateHousehold extends CreateRecord
         $this->syncHouseholdMembers();
         $this->syncCampusContacts();
         $this->syncGospelContacts();
+        $this->linkHomeMeetingSchedule();
     }
+
+    protected function getRedirectUrl(): string
+    {
+        $entry =
+            $this->homeMeetingScheduleEntry();
+
+        if (! $entry) {
+            return parent::getRedirectUrl();
+        }
+
+        $localityName =
+            $entry->locality?->name;
+
+        $url =
+            HomeMeetingSchedule::getUrl();
+
+        if (filled($localityName)) {
+            $url .= '?'
+                . http_build_query([
+                    'locality' =>
+                        $localityName,
+                ]);
+        }
+
+        return $url;
+    }
+
+
+    private function homeMeetingScheduleEntry(): ?HomeMeetingScheduleEntry
+    {
+        if (! $this->homeMeetingScheduleId) {
+            return null;
+        }
+
+        return HomeMeetingScheduleEntry::query()
+            ->with('locality')
+            ->where('is_active', true)
+            ->find(
+                $this->homeMeetingScheduleId
+            );
+    }
+
+
+    private function linkHomeMeetingSchedule(): void
+    {
+        $entry =
+            $this->homeMeetingScheduleEntry();
+
+        if (! $entry) {
+            return;
+        }
+
+        HomeMeetingScheduleEntry::query()
+            ->whereKey($entry->id)
+            ->whereNull('household_id')
+            ->where(
+                'locality_id',
+                (int) $this->record->locality_id
+            )
+            ->update([
+                'household_id' =>
+                    (int) $this->record->id,
+            ]);
+    }
+
 
     private function normalizeMemberIds(mixed $ids): array
     {
