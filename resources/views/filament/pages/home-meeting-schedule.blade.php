@@ -1,5 +1,6 @@
 <x-filament-panels::page>
-    @php
+
+@php
         $locality = $this->locality();
         $scheduleGroups =
             $this->scheduleGroups();
@@ -76,8 +77,7 @@
                        dark:bg-gray-900"
             >
                 <p
-                    class="font-semibold text-gray-700
-                           dark:text-gray-200"
+                    class="dark:text-emerald-300 text-emerald-600 font-semibold text-gray-700"
                 >
                     No active home meetings configured.
                 </p>
@@ -99,15 +99,13 @@
                                dark:bg-gray-900"
                     >
                         <div
-                            class="border-b border-gray-200
-                                   bg-gray-50 px-5 py-4
-                                   dark:border-gray-700
-                                   dark:bg-gray-800/60"
+                            class="bg-white dark:bg-gray-800 border-b border-gray-200 px-5 py-4
+                                   dark:border-gray-700"
                         >
                             <h3
                                 class="text-lg font-bold
-                                       text-gray-900
-                                       dark:text-white"
+                                       text-gray-900 dark:text-white
+                                      "
                             >
                                 {{ $group['day_label'] }}
                             </h3>
@@ -120,8 +118,8 @@
                                 <p
                                     class="mt-1 text-sm
                                            font-semibold
-                                           text-emerald-700
-                                           dark:text-emerald-300"
+                                           text-emerald-700 dark:text-emerald-300
+"
                                 >
                                     {{ $group['area_name'] }}
                                 </p>
