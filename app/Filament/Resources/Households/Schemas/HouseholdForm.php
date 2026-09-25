@@ -41,9 +41,13 @@ class HouseholdForm
                             ->native(false)
                             ->live()
                             ->placeholder('Select household head')
-                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically. People marked Deceased are excluded from current Household members.')
-                            ->afterStateUpdated(function ($state, $set, $get): void {
-                                $suggestedMemberIds = self::suggestedMemberIdsForHead($state);
+                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically. People marked Deceased or already assigned to another Household are excluded from automatic suggestions.')
+                            ->afterStateUpdated(function ($state, $set, $get, $livewire): void {
+                                $suggestedMemberIds =
+                                    self::suggestedMemberIdsForHead(
+                                        $state,
+                                        $livewire->record?->id
+                                    );
 
                                 if ($suggestedMemberIds === []) {
                                     return;
@@ -138,13 +142,17 @@ class HouseholdForm
 
 
 
-    private static function suggestedMemberIdsForHead(mixed $headId): array
-    {
+    private static function suggestedMemberIdsForHead(
+        mixed $headId,
+        mixed $currentHouseholdId = null
+    ): array {
         if (blank($headId)) {
             return [];
         }
 
         $headId = (int) $headId;
+        $currentHouseholdId =
+            (int) ($currentHouseholdId ?? 0);
 
         if ($headId <= 0) {
             return [];
@@ -183,8 +191,13 @@ class HouseholdForm
         }
 
         /*
-         * Family relationships remain intact, but a Person
-         * marked Deceased is not a current Household member.
+         * Family relationships remain intact, but:
+         *
+         * - Deceased People are not current Household members.
+         * - Automatically suggested relatives already assigned
+         *   to another Household remain with that Household.
+         * - The explicitly selected Household Head is allowed,
+         *   because choosing the head is an intentional action.
          */
         return Person::query()
             ->whereIn(
@@ -198,6 +211,25 @@ class HouseholdForm
                         'status',
                         'Deceased'
                     )
+            )
+            ->where(
+                function ($query) use (
+                    $headId,
+                    $currentHouseholdId
+                ): void {
+                    $query
+                        ->whereKey($headId)
+                        ->orWhereNull(
+                            'household_id'
+                        );
+
+                    if ($currentHouseholdId > 0) {
+                        $query->orWhere(
+                            'household_id',
+                            $currentHouseholdId
+                        );
+                    }
+                }
             )
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
