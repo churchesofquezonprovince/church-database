@@ -41,7 +41,7 @@ class HouseholdForm
                             ->native(false)
                             ->live()
                             ->placeholder('Select household head')
-                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically.')
+                            ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically. People marked Deceased are excluded from current Household members.')
                             ->afterStateUpdated(function ($state, $set, $get): void {
                                 $suggestedMemberIds = self::suggestedMemberIdsForHead($state);
 
@@ -151,7 +151,6 @@ class HouseholdForm
         }
 
         $head = Person::query()
-            ->with('spouse')
             ->find($headId);
 
         if (! $head) {
@@ -159,10 +158,17 @@ class HouseholdForm
         }
 
         $childrenIds = Person::query()
-            ->whereHas('parentRelationships', fn ($query) => $query->where('parent_id', $headId))
+            ->whereHas(
+                'parentRelationships',
+                fn ($query) =>
+                    $query->where(
+                        'parent_id',
+                        $headId
+                    )
+            )
             ->pluck('id');
 
-        return collect([
+        $candidateIds = collect([
             $head->id,
             $head->spouse_id,
         ])
@@ -170,6 +176,31 @@ class HouseholdForm
             ->map(fn ($id): int => (int) $id)
             ->filter(fn (int $id): bool => $id > 0)
             ->unique()
+            ->values();
+
+        if ($candidateIds->isEmpty()) {
+            return [];
+        }
+
+        /*
+         * Family relationships remain intact, but a Person
+         * marked Deceased is not a current Household member.
+         */
+        return Person::query()
+            ->whereIn(
+                'id',
+                $candidateIds->all()
+            )
+            ->whereDoesntHave(
+                'churchProfile',
+                fn ($query) =>
+                    $query->where(
+                        'status',
+                        'Deceased'
+                    )
+            )
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
             ->values()
             ->all();
     }
