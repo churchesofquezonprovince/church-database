@@ -19,28 +19,25 @@ class GospelContacts extends Page
 
     public string $search = '';
 
-    public string $statusFilter = 'all';
-
-    public string $existingPeopleSearch = '';
+    public string $viewMode = 'active';
 
     public function mount(): void
     {
-        $status = (string) request()->query(
-            'status',
-            'all'
+        $requestedView = (string) request()->query(
+            'view',
+            ''
         );
 
-        $this->statusFilter = in_array(
-            $status,
-            [
-                'all',
-                'linked',
-                'unlinked',
-            ],
-            true
-        )
-            ? $status
-            : 'all';
+        $legacyStatus = (string) request()->query(
+            'status',
+            ''
+        );
+
+        $this->viewMode =
+            $requestedView === 'archived'
+            || $legacyStatus === 'linked'
+                ? 'archived'
+                : 'active';
     }
 
     public function getTitle(): string
@@ -163,12 +160,9 @@ class GospelContacts extends Page
                 }
             )
             ->when(
-                $this->statusFilter === 'linked',
+                $this->viewMode === 'archived',
                 fn ($query) =>
-                    $query->whereNotNull('person_id')
-            )
-            ->when(
-                $this->statusFilter === 'unlinked',
+                    $query->whereNotNull('person_id'),
                 fn ($query) =>
                     $query->whereNull('person_id')
             )
@@ -180,102 +174,24 @@ class GospelContacts extends Page
     public function summary(): array
     {
         return [
-            'total' =>
-                GospelContact::query()->count(),
-
-            'unlinked' =>
+            'active' =>
                 GospelContact::query()
                     ->whereNull('person_id')
                     ->count(),
 
-            'linked' =>
+            'archived' =>
                 GospelContact::query()
                     ->whereNotNull('person_id')
                     ->count(),
+
+            'historical_total' =>
+                GospelContact::query()->count(),
         ];
     }
 
     public function localityOptions(): array
     {
         return LocalityOptions::groupedActiveConfigured();
-    }
-
-    public function availableExistingPeople(): Collection
-    {
-        $search = trim(
-            $this->existingPeopleSearch
-        );
-
-        if (mb_strlen($search) < 2) {
-            return collect();
-        }
-
-        $like = "%{$search}%";
-
-        return Person::query()
-            ->select([
-                'id',
-                'firstname',
-                'middlename',
-                'lastname',
-                'nickname',
-                'sex',
-                'locality',
-                'locality_id',
-                'contact_number',
-                'email',
-                'facebook_account',
-            ])
-            ->with([
-                'churchProfile',
-            ])
-            ->whereDoesntHave(
-                'gospelContact'
-            )
-            ->where(
-                function ($query) use ($like): void {
-                    $query
-                        ->where(
-                            'firstname',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'middlename',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'lastname',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'nickname',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'locality',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'contact_number',
-                            'like',
-                            $like
-                        )
-                        ->orWhere(
-                            'email',
-                            'like',
-                            $like
-                        );
-                }
-            )
-            ->orderBy('lastname')
-            ->orderBy('firstname')
-            ->limit(50)
-            ->get();
     }
 
     public function personUrl(

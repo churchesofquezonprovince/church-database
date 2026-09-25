@@ -3,7 +3,6 @@
         $contacts = $this->contacts();
         $summary = $this->summary();
         $localityGroups = $this->localityOptions();
-        $existingPeople = $this->availableExistingPeople();
 
         $possibleDuplicates = collect(
             session(
@@ -55,10 +54,17 @@
                 class="mt-2 max-w-4xl text-sm
                        text-gray-600 dark:text-gray-300"
             >
-                Maintain people currently being contacted
-                through gospel work. A Gospel Contact may
-                later be linked to the People Database while
-                preserving its Gospel Contact history.
+                @if ($this->viewMode === 'archived')
+                    These Gospel Contacts have already been
+                    absorbed into the People Database. Their
+                    original Gospel Contact records are retained
+                    so Shepherding history remains intact.
+                @else
+                    Maintain people currently being contacted
+                    through gospel work. Once a Gospel Contact
+                    is absorbed into the People Database, the
+                    contact moves to Archived Gospel Contacts.
+                @endif
             </p>
         </div>
 
@@ -82,10 +88,33 @@
             </div>
         @endif
 
+        @if (session('gospel_contact_delete_blocked'))
+            @php
+                $shepherdingCount = (int) session(
+                    'gospel_contact_delete_shepherding_count',
+                    0
+                );
+            @endphp
+
+            <div
+                data-coqp-flash="danger"
+                data-coqp-flash-id="gospel-contact-delete-blocked"
+                data-coqp-keep="true"
+                class="rounded-xl bg-red-50 p-4 text-red-800"
+            >
+                Cannot delete this Gospel Contact because it is
+                referenced by {{ $shepherdingCount }}
+                Shepherding {{ $shepherdingCount === 1 ? 'Record' : 'Records' }}.
+                Delete or edit the related Shepherding
+                {{ $shepherdingCount === 1 ? 'Record' : 'Records' }}
+                first.
+            </div>
+        @endif
+
         @if (session('gospel_contact_added_to_people'))
             <div data-coqp-flash="success" data-coqp-flash-id="a63340a505773ce6" data-coqp-keep="false" class="rounded-xl bg-emerald-50 p-4 text-emerald-800">
-                Gospel Contact added to the People Database
-                as a Gospel Friend.
+                Gospel Contact absorbed into the People Database
+                and moved to Archived Gospel Contacts.
             </div>
         @endif
 
@@ -523,93 +552,50 @@
         </details>
 
 
-        {{-- Add existing Person --}}
-        <details
-            class="rounded-2xl border border-gray-200
-                   bg-white p-6 shadow-sm
-                   dark:border-gray-700 dark:bg-gray-900"
+        {{-- Active / Archived Gospel Contacts --}}
+        <a
+            href="{{ \App\Filament\Pages\GospelContacts::getUrl([
+                'view' => $this->viewMode === 'archived'
+                    ? 'active'
+                    : 'archived',
+            ]) }}"
+            class="flex items-center justify-between gap-4
+                   rounded-2xl border border-gray-200
+                   bg-white p-6 shadow-sm transition
+                   hover:border-primary-300 hover:bg-primary-50
+                   dark:border-gray-700 dark:bg-gray-900
+                   dark:hover:border-primary-800
+                   dark:hover:bg-gray-800"
         >
-            <summary
-                class="cursor-pointer text-lg font-bold
-                       text-gray-950 dark:text-white"
-            >
-                Add Existing Person from People Database
-            </summary>
-
-            <p class="mt-3 text-sm text-gray-500">
-                This creates a linked Gospel Contact without
-                changing the Person's existing church status
-                or Contact Origin.
-            </p>
-
-            <input
-                type="search"
-                wire:model.live.debounce.400ms="existingPeopleSearch"
-                placeholder="Type at least 2 characters..."
-                class="mt-4 block w-full rounded-xl
-                       border border-gray-300
-                       dark:border-gray-700
-                       dark:bg-gray-950 px-4 py-3"
-            >
-
-            @if ($existingPeople->isNotEmpty())
-                <form
-                    method="POST"
-                    action="{{ route('quezonprovinceactivities.gospel-work.contacts.existing-people.store') }}"
-                    class="mt-4"
-                >
-                    @csrf
-
-                    <div
-                        class="max-h-64 space-y-1 overflow-y-auto
-                               rounded-xl border border-gray-200 p-2
-                               dark:border-gray-700"
-                    >
-                        @foreach ($existingPeople as $person)
-                            <label
-                                class="flex cursor-pointer
-                                       items-center gap-3 rounded-lg
-                                       px-3 py-2 hover:bg-gray-50
-                                       dark:hover:bg-gray-800"
-                            >
-                                <input
-                                    type="checkbox"
-                                    name="person_ids[]"
-                                    value="{{ $person->id }}"
-                                >
-
-                                <span class="text-sm">
-                                    <strong>
-                                        {{ $person->display_name }}
-                                    </strong>
-
-                                    @if ($person->locality)
-                                        · {{ $person->locality }}
-                                    @endif
-
-                                    @if ($person->churchProfile?->status)
-                                        · {{ $person->churchProfile->status }}
-                                    @endif
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
-
-                    <button
-                        type="submit"
-                        class="mt-3 rounded-xl bg-primary-600
-                               px-4 py-2 text-sm font-bold
-                               text-white"
-                    >
-                        Add Selected to Gospel Contacts
-                    </button>
-                </form>
-            @elseif (mb_strlen(trim($existingPeopleSearch)) >= 2)
-                <p class="mt-4 text-sm text-gray-500">
-                    No matching available People found.
+            <div>
+                <p class="text-lg font-bold text-gray-950 dark:text-white">
+                    {{ $this->viewMode === 'archived'
+                        ? 'Back to Active Gospel Contacts'
+                        : 'Archived Gospel Contacts' }}
                 </p>
+
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    @if ($this->viewMode === 'archived')
+                        Return to people still being followed up
+                        as Gospel Contacts.
+                    @else
+                        View Gospel Contacts already absorbed into
+                        the People Database.
+                    @endif
+                </p>
+            </div>
+
+            @if ($this->viewMode !== 'archived')
+                <span
+                    class="inline-flex shrink-0 rounded-full
+                           bg-gray-100 px-3 py-1
+                           text-sm font-bold text-gray-700
+                           dark:bg-gray-800 dark:text-gray-200"
+                >
+                    {{ $summary['archived'] }}
+                </span>
             @endif
-        </details>
+        </a>
             </div>
         </details>
 
@@ -617,9 +603,9 @@
         {{-- Summary --}}
         <div class="grid gap-4 sm:grid-cols-3">
             @foreach ([
-                ['label' => 'Total Gospel Contacts', 'value' => $summary['total']],
-                ['label' => 'Not in People Database', 'value' => $summary['unlinked']],
-                ['label' => 'Linked to People', 'value' => $summary['linked']],
+                ['label' => 'Active Gospel Contacts', 'value' => $summary['active']],
+                ['label' => 'Archived Gospel Contacts', 'value' => $summary['archived']],
+                ['label' => 'Historical Total', 'value' => $summary['historical_total']],
             ] as $card)
                 <div
                     class="rounded-2xl border border-gray-200
@@ -641,34 +627,22 @@
         </div>
 
 
-        {{-- Filters --}}
+        {{-- Search --}}
         <div
-            class="grid gap-3 rounded-2xl border
-                   border-gray-200 bg-white p-4
-                   dark:border-gray-700 dark:bg-gray-900
-                   sm:grid-cols-2"
+            class="rounded-2xl border border-gray-200
+                   bg-white p-4
+                   dark:border-gray-700 dark:bg-gray-900"
         >
             <input
                 type="search"
                 wire:model.live.debounce.300ms="search"
-                placeholder="Search Gospel Contacts..."
-                class="rounded-xl border border-gray-300
-                       dark:border-gray-700 dark:bg-gray-950 px-4 py-3"
+                placeholder="{{ $this->viewMode === 'archived'
+                    ? 'Search Archived Gospel Contacts...'
+                    : 'Search Gospel Contacts...' }}"
+                class="block w-full rounded-xl
+                       border border-gray-300 px-4 py-3
+                       dark:border-gray-700 dark:bg-gray-950"
             >
-
-            <select
-                wire:model.live="statusFilter"
-                class="rounded-xl border border-gray-300
-                       dark:border-gray-700 dark:bg-gray-950 px-4 py-3"
-            >
-                <option value="all">All Contacts</option>
-                <option value="unlinked">
-                    Not yet in People Database
-                </option>
-                <option value="linked">
-                    Linked to People Database
-                </option>
-            </select>
         </div>
 
 
@@ -777,7 +751,7 @@
                                                text-xs font-bold
                                                text-white"
                                     >
-                                        Add to People Database
+                                        Absorb into People Database
                                     </button>
                                 </form>
                             @else

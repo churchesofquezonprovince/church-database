@@ -277,6 +277,34 @@ class GospelContactController extends Controller
             403
         );
 
+        $shepherdingRecordCount = DB::table(
+            'shepherding_contact_gospel_contacts'
+        )
+            ->where(
+                'gospel_contact_id',
+                $contact->id
+            )
+            ->distinct()
+            ->count('shepherding_contact_id');
+
+        /*
+         * Preserve historical Shepherding Records.
+         *
+         * A Gospel Contact that has already been used as
+         * a Shepherding target must remain in the database.
+         */
+        if ($shepherdingRecordCount > 0) {
+            return back()
+                ->with(
+                    'gospel_contact_delete_blocked',
+                    true
+                )
+                ->with(
+                    'gospel_contact_delete_shepherding_count',
+                    $shepherdingRecordCount
+                );
+        }
+
         DB::transaction(
             function () use ($contact): void {
                 ActivityLogger::log(
