@@ -1871,19 +1871,26 @@
                                                 >
 
                                                 <div
-                                                    class="mt-2 flex
-                                                           flex-wrap
-                                                           items-center
-                                                           gap-x-4 gap-y-2
-                                                           text-xs
-                                                           text-gray-600
-                                                           dark:text-gray-300"
+                                                    class="mt-2 text-xs"
+                                                    style="display:flex;
+                                                           flex-wrap:wrap;
+                                                           align-items:center;
+                                                           gap:0.5rem;"
                                                 >
                                                     <label
-                                                        class="inline-flex
-                                                               cursor-pointer
-                                                               items-center
-                                                               gap-1.5"
+                                                        class="cursor-pointer
+                                                               border
+                                                               border-gray-200
+                                                               bg-gray-50
+                                                               text-gray-700
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-800
+                                                               dark:text-gray-200"
+                                                        style="display:inline-flex;
+                                                               align-items:center;
+                                                               gap:0.4rem;
+                                                               padding:0.35rem 0.6rem;
+                                                               border-radius:0.5rem;"
                                                     >
                                                         <input
                                                             type="checkbox"
@@ -1892,7 +1899,7 @@
                                                                    border-gray-300
                                                                    text-emerald-600
                                                                    focus:ring-emerald-500
-                                                                   dark:border-gray-700
+                                                                   dark:border-gray-600
                                                                    dark:bg-gray-900"
                                                         >
 
@@ -1902,20 +1909,28 @@
                                                     </label>
 
                                                     <label
-                                                        class="inline-flex
-                                                               cursor-pointer
-                                                               items-center
-                                                               gap-1.5"
+                                                        class="cursor-pointer
+                                                               border
+                                                               border-gray-200
+                                                               bg-gray-50
+                                                               text-gray-700
+                                                               dark:border-gray-700
+                                                               dark:bg-gray-800
+                                                               dark:text-gray-200"
+                                                        style="display:inline-flex;
+                                                               align-items:center;
+                                                               gap:0.4rem;
+                                                               padding:0.35rem 0.6rem;
+                                                               border-radius:0.5rem;"
                                                     >
                                                         <input
                                                             type="checkbox"
                                                             data-rvbible-whole-words
-                                                            checked
                                                             class="rounded
                                                                    border-gray-300
                                                                    text-emerald-600
                                                                    focus:ring-emerald-500
-                                                                   dark:border-gray-700
+                                                                   dark:border-gray-600
                                                                    dark:bg-gray-900"
                                                         >
 
@@ -1925,8 +1940,18 @@
                                                     </label>
 
                                                     <span
-                                                        class="text-gray-400
-                                                               dark:text-gray-500"
+                                                        class="border
+                                                               border-emerald-200
+                                                               bg-emerald-50
+                                                               font-medium
+                                                               text-emerald-700
+                                                               dark:border-emerald-900
+                                                               dark:bg-emerald-950
+                                                               dark:text-emerald-300"
+                                                        style="display:inline-flex;
+                                                               align-items:center;
+                                                               padding:0.35rem 0.6rem;
+                                                               border-radius:0.5rem;"
                                                     >
                                                         Verses only
                                                     </span>
