@@ -8,7 +8,7 @@
         position: fixed;
         right: 1.25rem;
         bottom: 1.25rem;
-        z-index: 9999;
+        z-index: 30;
         width: 44px;
         height: 44px;
         border-radius: 9999px;

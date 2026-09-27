@@ -2,7 +2,7 @@
 <div id="coqp-report-widget">
     <style>
         #coqp-report-widget{font-family:ui-sans-serif,system-ui,sans-serif;font-size:16px;line-height:1.5}
-        #coqp-report-open{position:fixed;right:var(--coqp-report-right,1.25rem);transition:right 160ms ease;bottom:1.25rem;z-index:9999;min-height:44px;padding:10px 16px;border:1px solid #60a5fa;border-radius:24px;background:#1d4ed8;color:white;font-weight:600;box-shadow:0 4px 16px #0003;cursor:pointer}
+        #coqp-report-open{position:fixed;right:var(--coqp-report-right,1.25rem);transition:right 160ms ease;bottom:1.25rem;z-index:30;min-height:44px;padding:10px 16px;border:1px solid #60a5fa;border-radius:24px;background:#1d4ed8;color:white;font-weight:600;box-shadow:0 4px 16px #0003;cursor:pointer}
         #coqp-report-dialog{position:fixed;inset:0;margin:auto;width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #cbd5e1;border-radius:18px;padding:24px;background:#fff;color:#172033;box-shadow:0 20px 80px #0005}
         #coqp-report-dialog::backdrop{background:#0f172a99}
         #coqp-report-dialog h2{font-size:24px;font-weight:700;margin:0 0 8px}

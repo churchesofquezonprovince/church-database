@@ -1755,7 +1755,7 @@
                         <section
                             data-rvbible-section
                             style="position: relative;
-                                   z-index: 100;
+                                   z-index: 10;
                                    overflow: visible;"
                             class="rounded-xl border
                                    border-emerald-200

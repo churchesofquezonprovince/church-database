@@ -32,7 +32,7 @@ class QuezonprovinceactivitiesPanelProvider extends PanelProvider
             ->brandName('Churches of Quezon Database')
             ->viteTheme('resources/css/filament/quezonprovinceactivities/theme.css')
             ->login()
-            ->databaseNotifications()
+            ->databaseNotifications(livewireComponent: \App\Livewire\AttentionDatabaseNotifications::class)
             ->colors([
                 'primary' => Color::Amber,
             ])
