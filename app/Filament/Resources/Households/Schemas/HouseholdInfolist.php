@@ -37,7 +37,10 @@ class HouseholdInfolist
 
                         TextEntry::make('household_head')
                             ->label('Household Head')
-                            ->state(fn (Household $record): HtmlString => self::personLink($record->head))
+                            ->state(
+                                fn (Household $record): HtmlString =>
+                                    self::householdHead($record)
+                            )
                             ->html(),
 
                         TextEntry::make('locality')
@@ -102,7 +105,10 @@ class HouseholdInfolist
     private static function overview(Household $record): HtmlString
     {
         $name = $record->household_name ?: 'Unnamed Household';
-        $head = $record->head?->display_name ?? 'No household head';
+        $head =
+            $record->head?->display_name
+            ?? $record->gospelContactHead?->display_name
+            ?? 'No household head';
         $locality = $record->locality ?: 'No locality';
         $membersCount =
             self::totalMemberCount($record);
@@ -202,6 +208,32 @@ class HouseholdInfolist
             + $record->gospelContacts()
                 ->whereNull('person_id')
                 ->count();
+    }
+
+
+    private static function householdHead(
+        Household $record
+    ): HtmlString {
+        if ($record->head) {
+            return self::personLink(
+                $record->head
+            );
+        }
+
+        if ($record->gospelContactHead) {
+            return new HtmlString(
+                '<span class="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">'
+                . e(
+                    $record
+                        ->gospelContactHead
+                        ->display_name
+                )
+                . '<span class="text-xs font-semibold opacity-75"> — Gospel Contact</span>'
+                . '</span>'
+            );
+        }
+
+        return self::none();
     }
 
 

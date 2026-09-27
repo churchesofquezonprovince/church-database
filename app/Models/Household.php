@@ -18,6 +18,7 @@ class Household extends Model
     protected $fillable = [
         'household_name',
         'household_head_id',
+        'gospel_contact_head_id',
         'address',
         'locality',
         'locality_id',
@@ -43,15 +44,24 @@ class Household extends Model
         });
 
         static::saved(function (Household $household): void {
-            if (! $household->household_head_id) {
-                return;
+            if ($household->household_head_id) {
+                Person::query()
+                    ->whereKey($household->household_head_id)
+                    ->update([
+                        'household_id' => $household->id,
+                    ]);
             }
 
-            Person::query()
-                ->whereKey($household->household_head_id)
-                ->update([
-                    'household_id' => $household->id,
-                ]);
+            if ($household->gospel_contact_head_id) {
+                GospelContact::query()
+                    ->whereKey(
+                        $household->gospel_contact_head_id
+                    )
+                    ->whereNull('person_id')
+                    ->update([
+                        'household_id' => $household->id,
+                    ]);
+            }
         });
     }
 
@@ -63,6 +73,14 @@ class Household extends Model
     public function head(): BelongsTo
     {
         return $this->belongsTo(Person::class, 'household_head_id');
+    }
+
+    public function gospelContactHead(): BelongsTo
+    {
+        return $this->belongsTo(
+            GospelContact::class,
+            'gospel_contact_head_id'
+        );
     }
 
     public function members(): HasMany
@@ -135,6 +153,40 @@ class Household extends Model
 
             if ($duplicate) {
                 $errors['household_name'][] = 'Possible duplicate: another household already has the same name in the same locality.';
+            }
+        }
+
+        if (
+            filled($this->household_head_id)
+            && filled($this->gospel_contact_head_id)
+        ) {
+            $errors['household_head_id'][] =
+                'Choose either a People Household Head or a Gospel Contact Household Head, not both.';
+
+            $errors['gospel_contact_head_id'][] =
+                'Choose either a People Household Head or a Gospel Contact Household Head, not both.';
+        }
+
+        if (filled($this->gospel_contact_head_id)) {
+            $gospelHead = GospelContact::query()
+                ->find($this->gospel_contact_head_id);
+
+            if (! $gospelHead) {
+                $errors['gospel_contact_head_id'][] =
+                    'The selected Gospel Contact could not be found.';
+            } elseif (filled($gospelHead->person_id)) {
+                $errors['gospel_contact_head_id'][] =
+                    'A Gospel Contact already linked to People must be selected as a People Household Head instead.';
+            } elseif (
+                filled($gospelHead->household_id)
+                && (
+                    ! $this->exists
+                    || (int) $gospelHead->household_id
+                        !== (int) $this->id
+                )
+            ) {
+                $errors['gospel_contact_head_id'][] =
+                    'This Gospel Contact already belongs to another Household.';
             }
         }
 

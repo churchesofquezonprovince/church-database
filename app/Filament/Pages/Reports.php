@@ -150,7 +150,12 @@ class Reports extends Page
                 'label' => 'Households Without Head',
                 'description' => 'Households with no household head assigned.',
                 'count' => Household::query()
-                    ->whereNull('household_head_id')
+                    ->whereNull(
+                        'household_head_id'
+                    )
+                    ->whereNull(
+                        'gospel_contact_head_id'
+                    )
                     ->count(),
                 'url' => $this->householdTableUrl([
                     'missing_data' => 'no_head',

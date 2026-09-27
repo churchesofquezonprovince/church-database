@@ -87,6 +87,27 @@ protected function getHeaderActions(): array
                 $data['gospel_contact_ids'] ?? []
             );
 
+        if (
+            filled(
+                $data['gospel_contact_head_id']
+                    ?? null
+            )
+        ) {
+            $this->gospelContactIdsToSync =
+                collect(
+                    $this->gospelContactIdsToSync
+                )
+                    ->push(
+                        (int)
+                        $data[
+                            'gospel_contact_head_id'
+                        ]
+                    )
+                    ->unique()
+                    ->values()
+                    ->all();
+        }
+
         unset(
             $data['member_ids'],
             $data['campus_contact_ids'],

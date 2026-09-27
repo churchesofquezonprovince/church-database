@@ -34,7 +34,7 @@ class HouseholdForm
                             ->placeholder('Santos Family'),
 
                         Select::make('household_head_id')
-                            ->label('Household Head')
+                            ->label('People Household Head')
                             ->options(fn (): array => self::personOptions())
                             ->searchable()
                             ->preload()
@@ -43,6 +43,13 @@ class HouseholdForm
                             ->placeholder('Select household head')
                             ->helperText('This person will be used for the household family tree shortcut. Spouse and children will be suggested automatically. People marked Deceased or already assigned to another Household are excluded from automatic suggestions.')
                             ->afterStateUpdated(function ($state, $set, $get, $livewire): void {
+                                if (filled($state)) {
+                                    $set(
+                                        'gospel_contact_head_id',
+                                        null
+                                    );
+                                }
+
                                 $suggestedMemberIds =
                                     self::suggestedMemberIdsForHead(
                                         $state,
@@ -64,6 +71,134 @@ class HouseholdForm
                                     ->map(fn (int $id): string => (string) $id)
                                     ->all());
                             }),
+
+                          Select::make('gospel_contact_head_id')
+
+                              ->label('Gospel Contact Household Head')
+
+                              ->options(
+
+                                  fn ($livewire): array =>
+
+                                      self::gospelContactOptions(
+
+                                          $livewire->record?->id
+
+                                      )
+
+                              )
+
+                              ->searchable()
+
+                              ->preload()
+
+                              ->native(false)
+
+                              ->live()
+
+                              ->placeholder(
+
+                                  'Select an unlinked Gospel Contact'
+
+                              )
+
+                              ->helperText(
+
+                                  'Use this when the Household Head is still a Gospel Contact and has not yet been added to the People Database. The selected head is automatically included as a Gospel Contact Household member.'
+
+                              )
+
+                              ->afterStateUpdated(
+
+                                  function (
+
+                                      $state,
+
+                                      $set,
+
+                                      $get
+
+                                  ): void {
+
+                                      if (blank($state)) {
+
+                                          return;
+
+                                      }
+
+
+                                      $set(
+
+                                          'household_head_id',
+
+                                          null
+
+                                      );
+
+
+                                      $currentIds = collect(
+
+                                          $get(
+
+                                              'gospel_contact_ids'
+
+                                          ) ?? []
+
+                                      )
+
+                                          ->map(
+
+                                              fn ($id): int =>
+
+                                                  (int) $id
+
+                                          )
+
+                                          ->filter(
+
+                                              fn (int $id): bool =>
+
+                                                  $id > 0
+
+                                          );
+
+
+                                      $set(
+
+                                          'gospel_contact_ids',
+
+                                          $currentIds
+
+                                              ->push(
+
+                                                  (int) $state
+
+                                              )
+
+                                              ->unique()
+
+                                              ->values()
+
+                                              ->map(
+
+                                                  fn (
+
+                                                      int $id
+
+                                                  ): string =>
+
+                                                      (string) $id
+
+                                              )
+
+                                              ->all()
+
+                                      );
+
+                                  }
+
+                              ),
+
 
                           Select::make('member_ids')
                               ->label('People Members')

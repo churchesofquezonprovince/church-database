@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\GospelContact;
+use App\Models\Household;
 use App\Models\Person;
 use App\Support\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
@@ -566,6 +567,12 @@ class GospelContactController extends Controller
 
                 $person->save();
 
+                $this
+                    ->transferHouseholdHeadFromGospelContact(
+                        $contact,
+                        $person
+                    );
+
                 /*
                  * Existing Person:
                  * preserve church status.
@@ -897,6 +904,12 @@ class GospelContactController extends Controller
                  */
                 $profile->save();
 
+                $this
+                    ->transferHouseholdHeadFromGospelContact(
+                        $contact,
+                        $person
+                    );
+
                 $contact->update([
                     'person_id' =>
                         $person->id,
@@ -970,6 +983,30 @@ class GospelContactController extends Controller
             )
             ->values();
     }
+
+    private function transferHouseholdHeadFromGospelContact(
+        GospelContact $contact,
+        Person $person
+    ): void {
+        /*
+         * When an unlinked Gospel Contact is serving as the
+         * Household Head, promotion to People transfers that
+         * role to the canonical Person record.
+         */
+        Household::query()
+            ->where(
+                'gospel_contact_head_id',
+                $contact->id
+            )
+            ->update([
+                'household_head_id' =>
+                    $person->id,
+
+                'gospel_contact_head_id' =>
+                    null,
+            ]);
+    }
+
 
     private function syncContactMirrorFromPerson(
         GospelContact $contact,

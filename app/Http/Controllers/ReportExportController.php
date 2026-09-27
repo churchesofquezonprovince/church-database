@@ -78,14 +78,20 @@ class ReportExportController extends Controller
         $this->authorizeExport();
 
         $rows = Household::query()
-            ->with(['head'])
+            ->with([
+                'head',
+                'gospelContactHead',
+            ])
             ->withCount('members')
             ->orderBy('household_name')
             ->lazy(100)
             ->map(fn (Household $household): array => [
                 $household->id,
                 $household->household_name,
-                $household->head?->display_name,
+                $household->head?->display_name
+                    ?? $household
+                        ->gospelContactHead
+                        ?->display_name,
                 $household->locality,
                 $household->address,
                 $household->members_count,
@@ -279,11 +285,26 @@ class ReportExportController extends Controller
         $this->authorizeExport();
 
         $rows = Household::query()
-            ->with(['head'])
+            ->with([
+                'head',
+                'gospelContactHead',
+            ])
             ->withCount('members')
             ->where(function (Builder $query): void {
                 $query
-                    ->whereNull('household_head_id')
+                    ->where(
+                        function (
+                            Builder $headQuery
+                        ): void {
+                            $headQuery
+                                ->whereNull(
+                                    'household_head_id'
+                                )
+                                ->whereNull(
+                                    'gospel_contact_head_id'
+                                );
+                        }
+                    )
                     ->orWhereNull('locality_id');
             })
             ->orderBy('household_name')
@@ -291,7 +312,10 @@ class ReportExportController extends Controller
             ->map(fn (Household $household): array => [
                 $household->id,
                 $household->household_name,
-                $household->head?->display_name,
+                $household->head?->display_name
+                    ?? $household
+                        ->gospelContactHead
+                        ?->display_name,
                 $household->locality,
                 $household->members_count,
                 implode(', ', $this->missingHouseholdFields($household)),
@@ -402,7 +426,12 @@ class ReportExportController extends Controller
     {
         $missing = [];
 
-        if (blank($household->household_head_id)) {
+        if (
+            blank($household->household_head_id)
+            && blank(
+                $household->gospel_contact_head_id
+            )
+        ) {
             $missing[] = 'Household Head';
         }
 

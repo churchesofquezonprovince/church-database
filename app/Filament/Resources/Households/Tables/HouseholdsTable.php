@@ -163,7 +163,13 @@ class HouseholdsTable
                         }
 
                         if ($value === 'no_head') {
-                            return $query->whereNull('household_head_id');
+                            return $query
+                                ->whereNull(
+                                    'household_head_id'
+                                )
+                                ->whereNull(
+                                    'gospel_contact_head_id'
+                                );
                         }
 
                         if ($value === 'no_locality') {
@@ -215,16 +221,29 @@ class HouseholdsTable
 
     private static function headColumn(Household $record): HtmlString
     {
-        if (! $record->head) {
+        if ($record->head) {
             return new HtmlString(
-                '<span class="rounded-lg border border-dashed border-gray-300 px-2.5 py-1 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">No head</span>'
+                '<span class="inline-flex rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
+                . e($record->head->display_name)
+                . '</span>'
+            );
+        }
+
+        if ($record->gospelContactHead) {
+            return new HtmlString(
+                '<span class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">'
+                . e(
+                    $record
+                        ->gospelContactHead
+                        ->display_name
+                )
+                . ' <span class="font-semibold opacity-75">— Gospel Contact</span>'
+                . '</span>'
             );
         }
 
         return new HtmlString(
-            '<span class="inline-flex rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">'
-            . e($record->head->display_name)
-            . '</span>'
+            '<span class="rounded-lg border border-dashed border-gray-300 px-2.5 py-1 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">No head</span>'
         );
     }
 
