@@ -31,6 +31,9 @@
         $householdMembers =
             $this->householdMembers();
 
+        $householdGospelMembers =
+            $this->householdGospelMembers();
+
         $participantPeople =
             $this->participantPeople();
 
@@ -746,11 +749,11 @@
                                 class="mt-1 text-xs
                                        text-gray-600 dark:text-gray-400"
                             >
-                                Current Household members are
-                                selected as Present by default.
-                                Uncheck anyone who was not there.
-                                This list is saved historically
-                                with the contact.
+                                Current Household People and
+                                Gospel Contact members are selected
+                                as Present by default. Uncheck anyone
+                                who was not there. This list is saved
+                                historically with the contact.
                             </p>
                         </div>
 
@@ -774,7 +777,7 @@
                                    dark:bg-gray-950"
                             style="max-height: 12rem;"
                         >
-                            @forelse ($householdMembers as $person)
+                            @foreach ($householdMembers as $person)
                                 @php
                                     $snapshotHouseholdId =
                                         (int) (
@@ -863,7 +866,106 @@
                                         </span>
                                     @endif
                                 </label>
-                            @empty
+                            @endforeach
+
+                            @foreach ($householdGospelMembers as $gospelContact)
+                                @php
+                                    $snapshotHouseholdId =
+                                        (int) (
+                                            $householdGospelMemberHouseholdIds[
+                                                $gospelContact->id
+                                            ] ?? 0
+                                        );
+
+                                    $snapshotHousehold =
+                                        $selectedContactedHouseholds
+                                            ->firstWhere(
+                                                'id',
+                                                $snapshotHouseholdId
+                                            );
+
+                                    $isPresent =
+                                        (bool) (
+                                            $householdGospelMemberPresence[
+                                                $gospelContact->id
+                                            ] ?? false
+                                        );
+                                @endphp
+
+                                <label
+                                    wire:key="shepherding-checkbox-householdGospelMemberPresence-{{ $gospelContact->id }}"
+                                    class="flex cursor-pointer
+                                           items-center justify-between
+                                           gap-3 rounded-lg px-2 py-2
+                                           hover:bg-gray-50
+                                           dark:hover:bg-gray-800"
+                                >
+                                    <span
+                                        class="flex min-w-0
+                                               items-center gap-3"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            wire:model.live="householdGospelMemberPresence.{{ $gospelContact->id }}"
+                                            class="rounded border-gray-300"
+                                        >
+
+                                        <span class="min-w-0">
+                                            <strong
+                                                class="block text-sm
+                                                       text-gray-900
+                                                       dark:text-gray-100"
+                                            >
+                                                {{ $gospelContact->display_name }}
+                                            </strong>
+
+                                            <span
+                                                class="block text-xs
+                                                       text-gray-500
+                                                       dark:text-gray-400"
+                                            >
+                                                @if ($snapshotHousehold)
+                                                    {{ $snapshotHousehold->display_name }}
+                                                    · Gospel Contact
+                                                @else
+                                                    Gospel Contact
+                                                @endif
+                                            </span>
+                                        </span>
+                                    </span>
+
+                                    @if ($isPresent)
+                                        <span
+                                            class="shrink-0 rounded-full
+                                                   bg-emerald-100
+                                                   px-2.5 py-1 text-xs
+                                                   font-bold
+                                                   text-emerald-800
+                                                   dark:bg-emerald-900
+                                                   dark:text-emerald-100"
+                                        >
+                                            Present
+                                        </span>
+                                    @else
+                                        <span
+                                            class="shrink-0 rounded-full
+                                                   bg-gray-100
+                                                   px-2.5 py-1 text-xs
+                                                   font-bold
+                                                   text-gray-600
+                                                   dark:bg-gray-800
+                                                   dark:text-gray-300"
+                                        >
+                                            Not Present
+                                        </span>
+                                    @endif
+                                </label>
+                            @endforeach
+
+                            @if (
+                                $householdMembers->isEmpty()
+                                && $householdGospelMembers->isEmpty()
+                            )
                                 <p
                                     class="px-2 py-4 text-sm
                                            text-gray-500
@@ -872,7 +974,7 @@
                                     No Household members found
                                     for the selected Household.
                                 </p>
-                            @endforelse
+                            @endif
                         </div>
                     </section>
                 @endif

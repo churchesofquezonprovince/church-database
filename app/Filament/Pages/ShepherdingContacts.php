@@ -53,6 +53,27 @@ class ShepherdingContacts extends Page
     public array $contactedGospelContactIds = [];
 
     /*
+     * Campus Contact targets automatically introduced by
+     * a selected Household.
+     *
+     * contact_id => household_id
+     *
+     * Standalone/manual Campus targets are intentionally
+     * absent from this map.
+     */
+    public array $householdCampusContactHouseholdIds = [];
+
+    /*
+     * Gospel Contact Household attendance snapshot.
+     *
+     * gospel_contact_id => bool
+     * gospel_contact_id => household_id
+     */
+    public array $householdGospelMemberPresence = [];
+
+    public array $householdGospelMemberHouseholdIds = [];
+
+    /*
      * Pending Gospel Contacts entered directly through
      * Search Contact Targets.
      *
@@ -768,6 +789,12 @@ class ShepherdingContacts extends Page
                 ->values()
                 ->all();
 
+        unset(
+            $this->householdCampusContactHouseholdIds[
+                $campusContactId
+            ]
+        );
+
         $this->refreshLocalityFromTargets();
     }
 
@@ -782,6 +809,30 @@ class ShepherdingContacts extends Page
                 ->values()
                 ->all();
 
+        $selectedIds = collect(
+            $this->contactedCampusContactIds
+        );
+
+        $this->householdCampusContactHouseholdIds =
+            collect(
+                $this
+                    ->householdCampusContactHouseholdIds
+            )
+                ->filter(
+                    fn (
+                        $householdId,
+                        $contactId
+                    ): bool =>
+                        $selectedIds->contains(
+                            (int) $contactId
+                        )
+                )
+                ->map(
+                    fn ($householdId): int =>
+                        (int) $householdId
+                )
+                ->all();
+
         $this->refreshLocalityFromTargets();
     }
 
@@ -790,12 +841,31 @@ class ShepherdingContacts extends Page
         $search =
             trim($this->targetSearch);
 
+        $householdGospelMemberIds = collect(
+            array_keys(
+                $this
+                    ->householdGospelMemberHouseholdIds
+            )
+        )
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         $candidate =
             $this->gospelContactCreationCandidate();
 
         return GospelContact::query()
             ->with('localityRecord')
             ->whereNull('person_id')
+            ->when(
+                $householdGospelMemberIds !== [],
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $householdGospelMemberIds
+                    )
+            )
             ->when(
                 filled($search),
                 function ($query) use (
@@ -1015,18 +1085,43 @@ class ShepherdingContacts extends Page
             return collect();
         }
 
+        $householdGospelMemberIds = collect(
+            array_keys(
+                $this
+                    ->householdGospelMemberHouseholdIds
+            )
+        )
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         /*
          * Do not filter person_id here.
-         * Historical Shepherding Records must continue
-         * showing a Gospel Contact after promotion.
+         *
+         * Historical standalone Gospel Contact targets must
+         * remain visible after promotion to People.
+         *
+         * Gospel Contacts represented by a selected Household
+         * are shown instead under Household Members Present.
          */
         return GospelContact::query()
             ->with('localityRecord')
             ->whereIn(
                 'id',
-                collect($this->contactedGospelContactIds)
+                collect(
+                    $this->contactedGospelContactIds
+                )
                     ->map(fn ($id) => (int) $id)
                     ->all()
+            )
+            ->when(
+                $householdGospelMemberIds !== [],
+                fn ($query) =>
+                    $query->whereNotIn(
+                        'id',
+                        $householdGospelMemberIds
+                    )
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
@@ -1037,7 +1132,9 @@ class ShepherdingContacts extends Page
         int $gospelContactId
     ): void {
         $this->contactedGospelContactIds =
-            collect($this->contactedGospelContactIds)
+            collect(
+                $this->contactedGospelContactIds
+            )
                 ->map(fn ($id) => (int) $id)
                 ->reject(
                     fn ($id): bool =>
@@ -1052,7 +1149,9 @@ class ShepherdingContacts extends Page
     public function updatedContactedGospelContactIds(): void
     {
         $this->contactedGospelContactIds =
-            collect($this->contactedGospelContactIds)
+            collect(
+                $this->contactedGospelContactIds
+            )
                 ->map(fn ($id) => (int) $id)
                 ->unique()
                 ->values()
@@ -1119,6 +1218,64 @@ class ShepherdingContacts extends Page
             ->orderBy('firstname')
             ->get();
     }
+
+    public function householdGospelMembers(): Collection
+    {
+        $ids = collect(
+            array_keys(
+                $this
+                    ->householdGospelMemberHouseholdIds
+            )
+        )
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $search = trim(
+            $this->householdMemberSearch
+        );
+
+        /*
+         * Do not filter person_id here.
+         *
+         * A historical Shepherding Record must continue
+         * showing this Gospel Contact attendance snapshot
+         * even if the contact is later promoted to People.
+         */
+        return GospelContact::query()
+            ->whereIn(
+                'id',
+                $ids->all()
+            )
+            ->when(
+                filled($search),
+                function ($query) use ($search): void {
+                    $query->where(
+                        function ($query) use ($search): void {
+                            $query
+                                ->where(
+                                    'firstname',
+                                    'like',
+                                    "%{$search}%"
+                                )
+                                ->orWhere(
+                                    'lastname',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                        }
+                    );
+                }
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
+    }
+
 
     public function selectedContactedHouseholds(): Collection
     {
@@ -3728,6 +3885,7 @@ class ShepherdingContacts extends Page
                 'contactedCampusContacts.localityRecord',
                 'contactedGospelContacts.localityRecord',
                 'householdMembers',
+                'householdGospelMembers',
                 'locality',
                 'activityTypes',
                 'ministryLessons.book',
@@ -3787,6 +3945,9 @@ class ShepherdingContacts extends Page
                 'max:255',
             ],
             'householdMemberPresence' => [
+                'array',
+            ],
+            'householdGospelMemberPresence' => [
                 'array',
             ],
             'localityId' => [
@@ -4015,6 +4176,82 @@ class ShepherdingContacts extends Page
                     ),
             ];
         }
+
+        $householdGospelMemberSync = [];
+
+        foreach (
+            $this->householdGospelMemberHouseholdIds
+            as $gospelContactId => $householdId
+        ) {
+            $gospelContactId =
+                (int) $gospelContactId;
+
+            $householdId =
+                (int) $householdId;
+
+            if (
+                ! in_array(
+                    $householdId,
+                    $contactedHouseholdIds,
+                    true
+                )
+            ) {
+                continue;
+            }
+
+            $householdGospelMemberSync[
+                $gospelContactId
+            ] = [
+                'household_id' =>
+                    $householdId,
+
+                'was_present' =>
+                    (bool) (
+                        $this
+                            ->householdGospelMemberPresence[
+                                $gospelContactId
+                            ]
+                        ?? false
+                    ),
+            ];
+        }
+
+        $householdGospelMemberIds = array_map(
+            'intval',
+            array_keys(
+                $householdGospelMemberSync
+            )
+        );
+
+        /*
+         * Match People Contacted behavior.
+         *
+         * A Gospel Contact represented by a selected
+         * Household belongs to the Household attendance
+         * snapshot, not the standalone Gospel target list.
+         *
+         * A Gospel Contact manually selected before the
+         * Household remains in component state so it can
+         * reappear if the Household is later removed, but
+         * it is not duplicated when this record is saved.
+         */
+        $contactedGospelContactIds =
+            collect(
+                $contactedGospelContactIds
+            )
+                ->map(fn ($id): int => (int) $id)
+                ->reject(
+                    fn ($id): bool =>
+                        in_array(
+                            $id,
+                            $householdGospelMemberIds,
+                            true
+                        )
+                )
+                ->unique()
+                ->values()
+                ->all();
+
 
         $householdMemberIds = array_map(
             'intval',
@@ -4357,6 +4594,7 @@ class ShepherdingContacts extends Page
                     'contactedCampusContacts',
                     'contactedGospelContacts',
                     'householdMembers',
+                    'householdGospelMembers',
                     'locality',
                     'activityTypes',
                     'ministryLessons',
@@ -4379,6 +4617,7 @@ class ShepherdingContacts extends Page
                 $contactedGospelContactIds,
                 $newGospelContacts,
                 $householdMemberSync,
+                $householdGospelMemberSync,
                 $activityIds,
                 $ministryIds,
                 $morningRevivalWeekIdForSave,
@@ -4682,6 +4921,12 @@ class ShepherdingContacts extends Page
                     );
 
                 $contact
+                    ->householdGospelMembers()
+                    ->sync(
+                        $householdGospelMemberSync
+                    );
+
+                $contact
                     ->householdMembers()
                     ->sync(
                         $householdMemberSync
@@ -4727,6 +4972,7 @@ class ShepherdingContacts extends Page
                     'contactedCampusContacts',
                     'contactedGospelContacts',
                     'householdMembers',
+                    'householdGospelMembers',
                     'locality',
                     'activityTypes',
                     'ministryLessons.book',
@@ -4902,6 +5148,7 @@ class ShepherdingContacts extends Page
                 'contactedCampusContacts',
                 'contactedGospelContacts',
                 'householdMembers',
+                'householdGospelMembers',
                 'activityTypes',
                 'ministryLessons',
                 'bibleReadings',
@@ -4942,6 +5189,11 @@ class ShepherdingContacts extends Page
                 ->map(fn ($id) => (int) $id)
                 ->all();
 
+        $this->householdCampusContactHouseholdIds = [];
+
+        $this->householdGospelMemberPresence = [];
+        $this->householdGospelMemberHouseholdIds = [];
+
         $this->newGospelContactNames = [];
 
         $this->householdMemberPresence = [];
@@ -4966,6 +5218,30 @@ class ShepherdingContacts extends Page
                 (int) $person
                     ->pivot
                     ->household_id;
+        }
+
+        foreach (
+            $contact->householdGospelMembers
+            as $gospelContact
+        ) {
+            $gospelContactId =
+                (int) $gospelContact->id;
+
+            $this
+                ->householdGospelMemberHouseholdIds[
+                    $gospelContactId
+                ] =
+                    (int) $gospelContact
+                        ->pivot
+                        ->household_id;
+
+            $this
+                ->householdGospelMemberPresence[
+                    $gospelContactId
+                ] =
+                    (bool) $gospelContact
+                        ->pivot
+                        ->was_present;
         }
 
         $this->initializedHouseholdIds =
@@ -5240,8 +5516,8 @@ class ShepherdingContacts extends Page
             ->values();
 
         /*
-         * Remove snapshot rows belonging to a Household
-         * that has just been unchecked.
+         * Remove People snapshot rows belonging to a
+         * Household that has just been unchecked.
          */
         foreach (
             $this->householdMemberHouseholdIds
@@ -5264,6 +5540,92 @@ class ShepherdingContacts extends Page
                 );
             }
         }
+
+        /*
+         * Remove historical Gospel Household attendance
+         * state belonging to a Household that has just
+         * been unchecked.
+         *
+         * This is separate from target provenance:
+         * a manually selected Gospel target may remain a
+         * target even after its Household is removed.
+         */
+        foreach (
+            $this->householdGospelMemberHouseholdIds
+            as $gospelContactId => $householdId
+        ) {
+            if (
+                ! $selectedHouseholdIds->contains(
+                    (int) $householdId
+                )
+            ) {
+                unset(
+                    $this
+                        ->householdGospelMemberHouseholdIds[
+                            $gospelContactId
+                        ],
+                    $this
+                        ->householdGospelMemberPresence[
+                            $gospelContactId
+                        ]
+                );
+            }
+        }
+
+        /*
+         * Remove only Campus/Gospel targets that were
+         * automatically introduced by a Household which
+         * is no longer selected.
+         *
+         * Manually selected targets have no tracking-map
+         * entry and therefore remain selected.
+         */
+        $campusIdsToRemove = collect(
+            $this->householdCampusContactHouseholdIds
+        )
+            ->filter(
+                fn ($householdId): bool =>
+                    ! $selectedHouseholdIds->contains(
+                        (int) $householdId
+                    )
+            )
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        if ($campusIdsToRemove->isNotEmpty()) {
+            $this->contactedCampusContactIds =
+                collect(
+                    $this->contactedCampusContactIds
+                )
+                    ->map(fn ($id) => (int) $id)
+                    ->reject(
+                        fn ($id): bool =>
+                            $campusIdsToRemove
+                                ->contains($id)
+                    )
+                    ->unique()
+                    ->values()
+                    ->all();
+        }
+
+        $this->householdCampusContactHouseholdIds =
+            collect(
+                $this
+                    ->householdCampusContactHouseholdIds
+            )
+                ->filter(
+                    fn ($householdId): bool =>
+                        $selectedHouseholdIds
+                            ->contains(
+                                (int) $householdId
+                            )
+                )
+                ->map(
+                    fn ($householdId): int =>
+                        (int) $householdId
+                )
+                ->all();
 
         $this->initializedHouseholdIds =
             collect(
@@ -5288,11 +5650,12 @@ class ShepherdingContacts extends Page
                 ->values();
 
         /*
-         * For a newly-selected Household, snapshot all
-         * CURRENT Household members and assume Present.
+         * For a newly-selected Household:
          *
-         * The user can immediately uncheck anyone who
-         * was not there.
+         * - snapshot all CURRENT People members
+         * - assume those People are Present
+         * - add unlinked Campus Contacts as targets
+         * - snapshot unlinked Gospel Contacts for attendance
          */
         if ($newHouseholdIds->isNotEmpty()) {
             $members = Person::query()
@@ -5329,6 +5692,127 @@ class ShepherdingContacts extends Page
                         ] = true;
                 }
             }
+
+            /*
+             * Existing manual targets must stay manual.
+             * Only IDs newly introduced here are entered
+             * into the Household tracking maps.
+             */
+            $selectedCampusIds = collect(
+                $this->contactedCampusContactIds
+            )
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $campusContacts =
+                CampusContact::query()
+                    ->whereNull('person_id')
+                    ->whereIn(
+                        'household_id',
+                        $newHouseholdIds->all()
+                    )
+                    ->get([
+                        'id',
+                        'household_id',
+                    ]);
+
+            foreach (
+                $campusContacts
+                as $campusContact
+            ) {
+                $campusContactId =
+                    (int) $campusContact->id;
+
+                if (
+                    $selectedCampusIds->contains(
+                        $campusContactId
+                    )
+                ) {
+                    continue;
+                }
+
+                $this
+                    ->contactedCampusContactIds[] =
+                        $campusContactId;
+
+                $this
+                    ->householdCampusContactHouseholdIds[
+                        $campusContactId
+                    ] =
+                        (int) $campusContact
+                            ->household_id;
+
+                $selectedCampusIds->push(
+                    $campusContactId
+                );
+            }
+
+            /*
+             * Gospel Contacts belonging to the Household are
+             * represented only in Household Members Present.
+             *
+             * They are not added to the standalone Gospel
+             * Contact target list.
+             */
+            $gospelContacts =
+                GospelContact::query()
+                    ->whereNull('person_id')
+                    ->whereIn(
+                        'household_id',
+                        $newHouseholdIds->all()
+                    )
+                    ->get([
+                        'id',
+                        'household_id',
+                    ]);
+
+            foreach (
+                $gospelContacts
+                as $gospelContact
+            ) {
+                $gospelContactId =
+                    (int) $gospelContact->id;
+
+                $this
+                    ->householdGospelMemberHouseholdIds[
+                        $gospelContactId
+                    ] =
+                        (int) $gospelContact
+                            ->household_id;
+
+                if (
+                    ! array_key_exists(
+                        $gospelContactId,
+                        $this
+                            ->householdGospelMemberPresence
+                    )
+                ) {
+                    $this
+                        ->householdGospelMemberPresence[
+                            $gospelContactId
+                        ] = true;
+                }
+            }
+
+
+            $this->contactedCampusContactIds =
+                collect(
+                    $this->contactedCampusContactIds
+                )
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+            $this->contactedGospelContactIds =
+                collect(
+                    $this->contactedGospelContactIds
+                )
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
 
             $this->initializedHouseholdIds =
                 collect(
@@ -5851,6 +6335,9 @@ class ShepherdingContacts extends Page
         $this->contactedHouseholdIds = [];
         $this->contactedCampusContactIds = [];
         $this->contactedGospelContactIds = [];
+        $this->householdCampusContactHouseholdIds = [];
+        $this->householdGospelMemberPresence = [];
+        $this->householdGospelMemberHouseholdIds = [];
         $this->newGospelContactNames = [];
 
         $this->householdMemberPresence = [];

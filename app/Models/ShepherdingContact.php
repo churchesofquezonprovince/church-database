@@ -118,6 +118,22 @@ class ShepherdingContact extends Model
             ->withTimestamps();
     }
 
+    public function householdGospelMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            GospelContact::class,
+            'shepherding_contact_household_gospel_members',
+            'shepherding_contact_id',
+            'gospel_contact_id'
+        )
+            ->withPivot([
+                'household_id',
+                'was_present',
+            ])
+            ->withTimestamps();
+    }
+
+
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Locality::class);
