@@ -124,28 +124,9 @@ class CreateHousehold extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        $entry =
-            $this->homeMeetingScheduleEntry();
-
-        if (! $entry) {
-            return parent::getRedirectUrl();
-        }
-
-        $localityName =
-            $entry->locality?->name;
-
-        $url =
-            HomeMeetingSchedule::getUrl();
-
-        if (filled($localityName)) {
-            $url .= '?'
-                . http_build_query([
-                    'locality' =>
-                        $localityName,
-                ]);
-        }
-
-        return $url;
+        return HouseholdResource::getUrl('view', [
+            'record' => $this->record,
+        ]);
     }
 
 

@@ -16,6 +16,13 @@ class EditHousehold extends EditRecord
 {
     protected static string $resource = HouseholdResource::class;
 
+    protected function getRedirectUrl(): string
+    {
+        return HouseholdResource::getUrl('view', [
+            'record' => $this->record,
+        ]);
+    }
+
 protected function getHeaderActions(): array
 {
     return [
