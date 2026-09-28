@@ -151,11 +151,11 @@
                        dark:bg-amber-950"
             >
                 <h3 class="font-bold text-amber-900 dark:text-amber-100">
-                    Possible Gospel Contact Duplicate
+                    Possible Matching Record Found
                 </h3>
 
                 <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                    A similar Gospel Contact already exists.
+                    The same first name and last name already exist in the database.
                 </p>
 
                 <div class="mt-4 space-y-2">
@@ -166,14 +166,24 @@
                                    dark:border-amber-800
                                    dark:bg-gray-900"
                         >
+                            <span
+                                class="mr-2 inline-flex rounded-full
+                                       bg-amber-100 px-2 py-0.5
+                                       text-xs font-bold text-amber-800
+                                       dark:bg-amber-900
+                                       dark:text-amber-100"
+                            >
+                                {{ $match['source'] ?? 'Gospel Contact' }}
+                            </span>
+
                             <strong>{{ $match['name'] }}</strong>
 
                             @if ($match['locality'] ?? null)
                                 · {{ $match['locality'] }}
                             @endif
 
-                            @if ($match['contact_place'] ?? null)
-                                · {{ $match['contact_place'] }}
+                            @if ($match['detail'] ?? null)
+                                · {{ $match['detail'] }}
                             @endif
 
                             · {{ $match['people_status'] }}

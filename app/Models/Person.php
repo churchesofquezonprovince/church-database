@@ -321,23 +321,40 @@ public function immichMapping(): HasOne
      *
      * The bypass is always restored, even if saving fails.
      */
-    public static function createAllowingExactDuplicate(
-        array $attributes
-    ): static {
+    /**
+     * Save this Person while intentionally allowing an exact
+     * first-name + last-name duplicate.
+     *
+     * All other Person validation remains active.
+     */
+    public function saveAllowingExactDuplicate(
+        array $options = []
+    ): bool {
         $previous =
             static::$allowExactDuplicateCreation;
 
         static::$allowExactDuplicateCreation = true;
 
         try {
-            $person = new static($attributes);
-            $person->save();
-
-            return $person;
+            return $this->save($options);
         } finally {
             static::$allowExactDuplicateCreation =
                 $previous;
         }
+    }
+
+    /**
+     * Create one Person while intentionally allowing an exact
+     * first-name + last-name duplicate.
+     */
+    public static function createAllowingExactDuplicate(
+        array $attributes
+    ): static {
+        $person = new static($attributes);
+
+        $person->saveAllowingExactDuplicate();
+
+        return $person;
     }
 
     private function validateBeforeSave(): void

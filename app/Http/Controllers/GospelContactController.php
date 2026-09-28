@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Household;
 use App\Models\Person;
@@ -37,36 +38,6 @@ class GospelContactController extends Controller
                     ->with(
                         'gospel_contact_possible_duplicates',
                         $matches
-                            ->map(
-                                fn (
-                                    GospelContact $contact
-                                ): array => [
-                                    'id' =>
-                                        $contact->id,
-
-                                    'name' =>
-                                        $contact
-                                            ->display_name,
-
-                                    'sex' =>
-                                        $contact
-                                            ->effective_sex,
-
-                                    'locality' =>
-                                        $contact
-                                            ->effective_locality,
-
-                                    'contact_place' =>
-                                        $contact
-                                            ->contact_place,
-
-                                    'people_status' =>
-                                        $contact
-                                            ->person_id
-                                            ? 'Linked to People'
-                                            : 'Not linked',
-                                ]
-                            )
                             ->values()
                             ->all()
                     )
@@ -748,42 +719,159 @@ class GospelContactController extends Controller
                     ?? null
             );
 
-        if (blank($firstname)) {
+        $lastname =
+            $this->nullIfBlank(
+                $data['lastname']
+                    ?? null
+            );
+
+        if (
+            blank($firstname)
+            || blank($lastname)
+        ) {
             return collect();
         }
 
-        $key = mb_strtolower(
-            trim(
-                (string) $firstname
-            )
-        );
+        $firstnameKey =
+            mb_strtolower(
+                trim(
+                    (string) $firstname
+                )
+            );
 
-        return GospelContact::query()
-            ->with([
-                'person.churchProfile',
-            ])
-            ->where(
-                function ($query) use ($key): void {
-                    $query
-                        ->whereRaw(
-                            'LOWER(firstname) = ?',
-                            [$key]
-                        )
-                        ->orWhereHas(
-                            'person',
-                            function ($query) use ($key): void {
-                                $query->whereRaw(
-                                    'LOWER(firstname) = ?',
-                                    [$key]
-                                );
-                            }
-                        );
-                }
+        $lastnameKey =
+            mb_strtolower(
+                trim(
+                    (string) $lastname
+                )
+            );
+
+        /*
+         * People Database is canonical.
+         */
+        $people = Person::query()
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(
+                fn (Person $person): array => [
+                    'source' =>
+                        'People Database',
+
+                    'id' =>
+                        $person->id,
+
+                    'name' =>
+                        $person->display_name,
+
+                    'locality' =>
+                        $person->locality,
+
+                    'detail' =>
+                        null,
+
+                    'people_status' =>
+                        'Person record',
+                ]
+            );
+
+        /*
+         * Only unlinked Gospel Contacts are listed here.
+         * Linked contacts are already represented by People.
+         */
+        $gospel = GospelContact::query()
+            ->whereNull('person_id')
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(10)
+            ->get()
+            ->map(
+                fn (
+                    GospelContact $contact
+                ): array => [
+                    'source' =>
+                        'Gospel Contact',
+
+                    'id' =>
+                        $contact->id,
+
+                    'name' =>
+                        $contact->display_name,
+
+                    'locality' =>
+                        $contact->locality,
+
+                    'detail' =>
+                        $contact->contact_place,
+
+                    'people_status' =>
+                        'Not linked',
+                ]
+            );
+
+        /*
+         * Cross-check unlinked Campus Contacts.
+         */
+        $campus = CampusContact::query()
+            ->whereNull('person_id')
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->limit(10)
+            ->get()
+            ->map(
+                fn (
+                    CampusContact $contact
+                ): array => [
+                    'source' =>
+                        'Campus Contact',
+
+                    'id' =>
+                        $contact->id,
+
+                    'name' =>
+                        $contact->display_name,
+
+                    'locality' =>
+                        $contact->locality,
+
+                    'detail' =>
+                        $contact->school_campus,
+
+                    'people_status' =>
+                        'Not linked',
+                ]
+            );
+
+        return $people
+            ->concat($gospel)
+            ->concat($campus)
+            ->take(20)
+            ->values();
     }
 
     private function possiblePeopleMatches(
@@ -817,24 +905,6 @@ class GospelContactController extends Controller
                         )
                     ),
                 ]
-            )
-            ->when(
-                filled($contact->sex),
-                fn (Builder $query): Builder =>
-                    $query->where(
-                        'sex',
-                        $contact->sex
-                    )
-            )
-            ->when(
-                filled(
-                    $contact->locality_id
-                ),
-                fn (Builder $query): Builder =>
-                    $query->where(
-                        'locality_id',
-                        $contact->locality_id
-                    )
             )
             ->orderBy('lastname')
             ->orderBy('firstname')
@@ -880,7 +950,7 @@ class GospelContactController extends Controller
                 $person->home_address =
                     $contact->address;
 
-                $person->save();
+                $person->saveAllowingExactDuplicate();
 
                 $profile =
                     $person

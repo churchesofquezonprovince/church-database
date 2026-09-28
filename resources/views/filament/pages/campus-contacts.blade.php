@@ -1684,6 +1684,10 @@
                                                 {{ $match['school'] ?: 'School not recorded' }}
                                             </span>
 
+                                            <span class="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                                                {{ $match['source'] ?? 'Campus Contact' }}
+                                            </span>
+
                                             <span class="rounded-full bg-violet-100 px-2.5 py-1 font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-200">
                                                 {{ $match['people_status'] }}
                                             </span>
