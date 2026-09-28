@@ -55,20 +55,60 @@ class ChurchProfile extends Model
                 $profile->status = 'Unknown';
             }
 
-            if (filled($profile->baptism_year)) {
-                $year = (int) $profile->baptism_year;
-                $month = filled($profile->baptism_month) ? (int) $profile->baptism_month : 1;
-                $day = filled($profile->baptism_day) ? (int) $profile->baptism_day : 1;
+            $hasBaptismYear =
+                filled($profile->baptism_year);
 
-                $month = max(1, min(12, $month));
-                $lastDay = \Carbon\CarbonImmutable::create($year, $month, 1)->daysInMonth;
-                $day = max(1, min($lastDay, $day));
+            $hasBaptismMonth =
+                filled($profile->baptism_month);
 
-                $profile->baptism_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+            $hasBaptismDay =
+                filled($profile->baptism_day);
+
+            /*
+             * Preserve partial baptism information exactly.
+             *
+             * Year, month, and day are independent optional
+             * values. Never invent missing portions of the date.
+             *
+             * baptism_date is maintained only when all three
+             * components are known.
+             */
+            if (
+                $hasBaptismYear
+                && $hasBaptismMonth
+                && $hasBaptismDay
+            ) {
+                $year =
+                    (int) $profile->baptism_year;
+
+                $month =
+                    (int) $profile->baptism_month;
+
+                $day =
+                    (int) $profile->baptism_day;
+
+                if (
+                    ! checkdate(
+                        $month,
+                        $day,
+                        $year
+                    )
+                ) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'baptism_day' =>
+                            'The baptism year, month, and day do not form a valid date.',
+                    ]);
+                }
+
+                $profile->baptism_date =
+                    sprintf(
+                        '%04d-%02d-%02d',
+                        $year,
+                        $month,
+                        $day
+                    );
             } else {
                 $profile->baptism_date = null;
-                $profile->baptism_month = null;
-                $profile->baptism_day = null;
             }
         });
     }

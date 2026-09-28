@@ -460,7 +460,9 @@ class PersonForm
                                     ->searchable()
                                     ->native(false)
                                     ->placeholder('Unknown year')
-                                    ->helperText('Use this if the exact baptism date is not known.'),
+                                    ->helperText(
+                                        'Optional. Year, month, and day may be recorded independently.'
+                                    ),
 
                                 Select::make('baptism_month')
                                     ->label('Baptism Month')
@@ -468,16 +470,27 @@ class PersonForm
                                     ->searchable()
                                     ->native(false)
                                     ->placeholder('Unknown month')
-                                    ->disabled(fn ($get): bool => blank($get('baptism_year'))),
+                                    ->helperText(
+                                        'Optional. A baptism month may be recorded even when the year is unknown.'
+                                    ),
 
                                 Select::make('baptism_day')
                                     ->label('Baptism Day')
-                                    ->options(fn ($get): array => self::dayOptions($get('baptism_year'), $get('baptism_month')))
+                                    ->options(
+                                        collect(range(1, 31))
+                                            ->mapWithKeys(
+                                                fn (int $day): array => [
+                                                    $day => (string) $day,
+                                                ]
+                                            )
+                                            ->all()
+                                    )
                                     ->searchable()
                                     ->native(false)
                                     ->placeholder('Unknown day')
-                                    ->disabled(fn ($get): bool => blank($get('baptism_year')) || blank($get('baptism_month')))
-                                    ->helperText('Optional. Leave blank if only the month or year is known.'),
+                                    ->helperText(
+                                        'Optional. A baptism day may be recorded even when the year or month is unknown.'
+                                    ),
 
                                 Select::make('service')
                                     ->label('Shepherding Groups')
