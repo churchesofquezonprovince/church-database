@@ -532,7 +532,13 @@
 
 
 <article class="card schedule-card">
-    <h2>Upcoming Lessons</h2>
+    <h2>
+        {{
+            $showingNextMonthLessons
+                ? 'Next Month Lessons'
+                : 'Upcoming Lessons'
+        }}
+    </h2>
 
     @forelse ($upcomingLessons as $lesson)
         <a

@@ -738,6 +738,66 @@ if (! $nextLesson) {
             ->limit(8)
             ->get();
 
+        $showingNextMonthLessons = false;
+
+        if ($upcomingLessons->isEmpty()) {
+            $nextMonthStart =
+                now()
+                    ->addMonthNoOverflow()
+                    ->startOfMonth()
+                    ->toDateString();
+
+            $nextMonthEnd =
+                now()
+                    ->addMonthNoOverflow()
+                    ->endOfMonth()
+                    ->toDateString();
+
+            /*
+             * When the current month's remaining list is empty,
+             * preview the full next calendar month.
+             *
+             * Do not exclude $nextLesson here. If the next
+             * scheduled lesson is already next month, it should
+             * appear as the first item in "Next Month Lessons".
+             */
+            $upcomingLessons =
+                (clone $dashboardQuery)
+                    ->whereNotNull('scheduled_on')
+                    ->whereDate(
+                        'scheduled_on',
+                        '>=',
+                        $nextMonthStart
+                    )
+                    ->whereDate(
+                        'scheduled_on',
+                        '<=',
+                        $nextMonthEnd
+                    )
+                    ->when(
+                        $nextLesson,
+                        fn ($query) => $query->where(
+                            'id',
+                            '!=',
+                            $nextLesson->id
+                        )
+                    )
+                    ->orderBy('scheduled_on')
+                    ->orderBy('id')
+                    ->limit(8)
+                    ->get();
+
+            $showingNextMonthLessons =
+                $upcomingLessons->isNotEmpty();
+        }
+
+        $futureLessonsAfter =
+            $showingNextMonthLessons
+                ? $nextMonthEnd
+                : now()
+                    ->endOfMonth()
+                    ->toDateString();
+
         $recentLessons = (clone $dashboardQuery)
             ->whereNotNull('scheduled_on')
             ->whereDate('scheduled_on', '<', today())
@@ -778,7 +838,7 @@ $pastLessons = (clone $dashboardQuery)
             ->whereDate(
                 'scheduled_on',
                 '>',
-                now()->endOfMonth()->toDateString()
+                $futureLessonsAfter
             )
             ->when(
     $nextLesson,
@@ -796,6 +856,8 @@ $pastLessons = (clone $dashboardQuery)
         return view('children-work.dashboard', [
             'nextLesson' => $nextLesson,
             'upcomingLessons' => $upcomingLessons,
+            'showingNextMonthLessons' =>
+                $showingNextMonthLessons,
             'recentLessons' => $recentLessons,
             'futureLessons' => $futureLessons,
             'pastLessons' => $pastLessons,
