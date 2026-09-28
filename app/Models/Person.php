@@ -19,6 +19,13 @@ class Person extends Model
 
     protected static array $previousSpouseIds = [];
 
+    /**
+     * Temporarily bypass only the exact-person duplicate guard.
+     *
+     * All other Person validation remains active.
+     */
+    protected static bool $allowExactDuplicateCreation = false;
+
     protected $table = 'persons';
 
     protected $fillable = [
@@ -308,6 +315,31 @@ public function immichMapping(): HasOne
     }
 
 
+    /**
+     * Create one Person while intentionally allowing an exact
+     * first-name + last-name duplicate.
+     *
+     * The bypass is always restored, even if saving fails.
+     */
+    public static function createAllowingExactDuplicate(
+        array $attributes
+    ): static {
+        $previous =
+            static::$allowExactDuplicateCreation;
+
+        static::$allowExactDuplicateCreation = true;
+
+        try {
+            $person = new static($attributes);
+            $person->save();
+
+            return $person;
+        } finally {
+            static::$allowExactDuplicateCreation =
+                $previous;
+        }
+    }
+
     private function validateBeforeSave(): void
     {
         $errors = [];
@@ -336,20 +368,104 @@ public function immichMapping(): HasOne
             $errors['emergency_contact_id'][] = 'A person cannot be their own emergency contact.';
         }
 
-        if (filled($this->firstname) && filled($this->lastname) && filled($this->birthdate)) {
-            $birthdate = $this->birthdate instanceof \DateTimeInterface
-                ? $this->birthdate->format('Y-m-d')
-                : (string) $this->birthdate;
+        $shouldCheckExactDuplicate =
+            ! $this->exists
+            || $this->isDirty([
+                'firstname',
+                'lastname',
+            ]);
 
-            $duplicate = self::query()
-                ->whereRaw('LOWER(firstname) = ?', [strtolower(trim((string) $this->firstname))])
-                ->whereRaw('LOWER(lastname) = ?', [strtolower(trim((string) $this->lastname))])
-                ->whereDate('birthdate', $birthdate)
-                ->when($this->exists, fn ($query) => $query->where('id', '!=', $this->id))
+        if (
+            ! static::$allowExactDuplicateCreation
+            && $shouldCheckExactDuplicate
+            && filled($this->firstname)
+            && filled($this->lastname)
+        ) {
+            $firstnameKey =
+                strtolower(
+                    trim(
+                        (string) $this->firstname
+                    )
+                );
+
+            $lastnameKey =
+                strtolower(
+                    trim(
+                        (string) $this->lastname
+                    )
+                );
+
+            $duplicatePerson = self::query()
+                ->whereRaw(
+                    'LOWER(firstname) = ?',
+                    [$firstnameKey]
+                )
+                ->whereRaw(
+                    'LOWER(lastname) = ?',
+                    [$lastnameKey]
+                )
+                ->when(
+                    $this->exists,
+                    fn ($query) =>
+                        $query->where(
+                            'id',
+                            '!=',
+                            $this->id
+                        )
+                )
                 ->exists();
 
-            if ($duplicate) {
-                $errors['firstname'][] = 'Possible duplicate: another person already has the same first name, last name, and birthdate.';
+            $duplicateGospelContact =
+                GospelContact::query()
+                    ->whereNull('person_id')
+                    ->whereRaw(
+                        'LOWER(firstname) = ?',
+                        [$firstnameKey]
+                    )
+                    ->whereRaw(
+                        'LOWER(lastname) = ?',
+                        [$lastnameKey]
+                    )
+                    ->exists();
+
+            $duplicateCampusContact =
+                CampusContact::query()
+                    ->whereNull('person_id')
+                    ->whereRaw(
+                        'LOWER(firstname) = ?',
+                        [$firstnameKey]
+                    )
+                    ->whereRaw(
+                        'LOWER(lastname) = ?',
+                        [$lastnameKey]
+                    )
+                    ->exists();
+
+            if (
+                $duplicatePerson
+                || $duplicateGospelContact
+                || $duplicateCampusContact
+            ) {
+                $sources = collect([
+                    $duplicatePerson
+                        ? 'People Database'
+                        : null,
+
+                    $duplicateGospelContact
+                        ? 'Gospel Contacts'
+                        : null,
+
+                    $duplicateCampusContact
+                        ? 'Campus Contacts'
+                        : null,
+                ])
+                    ->filter()
+                    ->implode(', ');
+
+                $errors['firstname'][] =
+                    'Possible duplicate: the same first name and last name already exist in '
+                    . $sources
+                    . '.';
             }
         }
 

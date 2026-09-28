@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\People\Schemas;
 
+use App\Filament\Resources\People\Pages\CreatePerson;
+use App\Models\CampusContact;
 use App\Models\GospelContact;
 use App\Models\Locality;
 use App\Models\Person;
@@ -9,6 +11,7 @@ use App\Models\Province;
 use App\Models\ProvinceSetting;
 use App\Models\School;
 use App\Support\ChurchProfileOptions;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -71,12 +74,28 @@ class PersonForm
                             ->label('Birthdate')
                             ->live()
                             ->maxDate(now())
-                            ->helperText('Used to automatically calculate the church category and detect duplicate records.'),
+                            ->helperText('Used to automatically calculate the church category.'),
 
                         Placeholder::make('duplicate_person_warning')
                             ->label('')
                             ->content(fn ($get, $livewire): HtmlString => self::duplicatePersonWarning($get, $livewire))
-                            ->visible(fn ($get, $livewire): bool => self::duplicatePersonFromForm($get, $livewire) !== null)
+                            ->visible(fn ($get, $livewire): bool => self::hasDuplicateRecordFromForm($get, $livewire))
+                            ->columnSpanFull(),
+
+                        Checkbox::make('create_anyway')
+                            ->label('Create this person anyway')
+                            ->helperText(
+                                'Use only when you have confirmed that this is a different person despite having the same first name and last name.'
+                            )
+                            ->default(false)
+                            ->visible(
+                                fn ($get, $livewire): bool =>
+                                    $livewire instanceof CreatePerson
+                                    && self::hasDuplicateRecordFromForm(
+                                        $get,
+                                        $livewire
+                                    )
+                            )
                             ->columnSpanFull(),
 
                         TextInput::make('birthplace')
@@ -837,46 +856,216 @@ class PersonForm
             ->implode(' — ');
     }
 
-    private static function duplicatePersonWarning($get, $livewire): HtmlString
-    {
-        $duplicate = self::duplicatePersonFromForm($get, $livewire);
+    private static function duplicatePersonWarning(
+        $get,
+        $livewire
+    ): HtmlString {
+        $matches =
+            self::duplicateRecordsFromForm(
+                $get,
+                $livewire
+            );
 
-        if (! $duplicate) {
+        if (
+            ! $matches['person']
+            && $matches['gospel']->isEmpty()
+            && $matches['campus']->isEmpty()
+        ) {
             return new HtmlString('');
         }
 
-        $name = e($duplicate->display_name);
-        $url = e(\App\Filament\Resources\People\PersonResource::getUrl('edit', [
-            'record' => $duplicate,
-        ]));
+        $items = [];
+
+        if ($matches['person']) {
+            $person = $matches['person'];
+
+            $name = e(
+                $person->display_name
+            );
+
+            $url = e(
+                \App\Filament\Resources\People\PersonResource::getUrl(
+                    'edit',
+                    [
+                        'record' => $person,
+                    ]
+                )
+            );
+
+            $items[] =
+                '<li>'
+                . '<strong>People Database:</strong> '
+                . $name
+                . ' '
+                . '<a href="'
+                . $url
+                . '" class="font-semibold underline">'
+                . 'Open existing record'
+                . '</a>'
+                . '</li>';
+        }
+
+        foreach (
+            $matches['gospel']
+            as $contact
+        ) {
+            $items[] =
+                '<li>'
+                . '<strong>Gospel Contact:</strong> '
+                . e($contact->display_name)
+                . ' '
+                . '<span class="text-xs">'
+                . '(not yet linked to People)'
+                . '</span>'
+                . '</li>';
+        }
+
+        foreach (
+            $matches['campus']
+            as $contact
+        ) {
+            $items[] =
+                '<li>'
+                . '<strong>Campus Contact:</strong> '
+                . e($contact->display_name)
+                . ' '
+                . '<span class="text-xs">'
+                . '(not yet linked to People)'
+                . '</span>'
+                . '</li>';
+        }
+
+        $guidance =
+            $livewire instanceof CreatePerson
+                ? '<p class="mt-2 text-sm">'
+                    . 'If a matching Gospel or Campus Contact is the same person, '
+                    . 'prefer adding or linking that existing contact to the People Database. '
+                    . 'If these are genuinely different people, use '
+                    . '<strong>Create this person anyway</strong> below.'
+                    . '</p>'
+                : '<p class="mt-2 text-sm">'
+                    . 'Review the existing People, Gospel Contact, or Campus Contact record '
+                    . 'before saving changes to this person\'s name.'
+                    . '</p>';
 
         return new HtmlString(
             '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">'
-            . '<p class="font-bold">Possible duplicate person found.</p>'
-            . '<p class="mt-1 text-sm">A person with the same first name, last name, and birthdate already exists: <strong>' . $name . '</strong></p>'
-            . '<a href="' . $url . '" class="mt-3 inline-flex rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Open existing record</a>'
+            . '<p class="font-bold">'
+            . 'Possible matching record found.'
+            . '</p>'
+            . '<p class="mt-1 text-sm">'
+            . 'The same first name and last name already exist:'
+            . '</p>'
+            . '<ul class="mt-2 list-disc space-y-1 pl-5 text-sm">'
+            . implode('', $items)
+            . '</ul>'
+            . $guidance
             . '</div>'
         );
     }
 
-    private static function duplicatePersonFromForm($get, $livewire): ?Person
-    {
-        $firstname = trim((string) $get('firstname'));
-        $lastname = trim((string) $get('lastname'));
-        $birthdate = $get('birthdate');
+    private static function hasDuplicateRecordFromForm(
+        $get,
+        $livewire
+    ): bool {
+        $matches =
+            self::duplicateRecordsFromForm(
+                $get,
+                $livewire
+            );
 
-        if ($firstname === '' || $lastname === '' || blank($birthdate)) {
-            return null;
+        return
+            $matches['person'] !== null
+            || $matches['gospel']->isNotEmpty()
+            || $matches['campus']->isNotEmpty();
+    }
+
+    private static function duplicateRecordsFromForm(
+        $get,
+        $livewire
+    ): array {
+        $firstname = trim(
+            (string) $get('firstname')
+        );
+
+        $lastname = trim(
+            (string) $get('lastname')
+        );
+
+        if (
+            $firstname === ''
+            || $lastname === ''
+        ) {
+            return [
+                'person' => null,
+                'gospel' => collect(),
+                'campus' => collect(),
+            ];
         }
 
-        $currentId = $livewire->record?->id ?? null;
+        $firstnameKey =
+            strtolower($firstname);
 
-        return Person::query()
-            ->whereRaw('LOWER(firstname) = ?', [strtolower($firstname)])
-            ->whereRaw('LOWER(lastname) = ?', [strtolower($lastname)])
-            ->whereDate('birthdate', (string) $birthdate)
-            ->when($currentId, fn ($query) => $query->where('id', '!=', $currentId))
+        $lastnameKey =
+            strtolower($lastname);
+
+        $currentId =
+            $livewire->record?->id
+            ?? null;
+
+        $person = Person::query()
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
+            )
+            ->when(
+                $currentId,
+                fn ($query) =>
+                    $query->where(
+                        'id',
+                        '!=',
+                        $currentId
+                    )
+            )
             ->first();
+
+        $gospel = GospelContact::query()
+            ->whereNull('person_id')
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
+            )
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
+
+        $campus = CampusContact::query()
+            ->whereNull('person_id')
+            ->whereRaw(
+                'LOWER(firstname) = ?',
+                [$firstnameKey]
+            )
+            ->whereRaw(
+                'LOWER(lastname) = ?',
+                [$lastnameKey]
+            )
+            ->orderBy('id')
+            ->limit(5)
+            ->get();
+
+        return [
+            'person' => $person,
+            'gospel' => $gospel,
+            'campus' => $campus,
+        ];
     }
 
     private static function personOptions(): array
