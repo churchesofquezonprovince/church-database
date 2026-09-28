@@ -130,6 +130,8 @@ class GoogleCalendarService
         }
 
         $service = $this->calendarService();
+        $windowStart = now()->subMonths(3)->startOfDay();
+        $windowEnd = now()->addYear()->endOfDay();
 
         $stats = [
             'enabled' => true,
@@ -144,11 +146,12 @@ class GoogleCalendarService
             $stats['calendars']++;
 
             $pageToken = null;
+            $seenEventIds = [];
 
             do {
                 $params = [
-                    'timeMin' => now()->subMonths(3)->startOfDay()->toRfc3339String(),
-                    'timeMax' => now()->addYear()->endOfDay()->toRfc3339String(),
+                    'timeMin' => $windowStart->toRfc3339String(),
+                    'timeMax' => $windowEnd->toRfc3339String(),
                     'singleEvents' => true,
                     'showDeleted' => true,
                     'maxResults' => 2500,
@@ -161,6 +164,10 @@ class GoogleCalendarService
                 $events = $service->events->listEvents($calendar['id'], $params);
 
                 foreach ($events->getItems() ?? [] as $googleEvent) {
+                    if (filled($googleEvent->getId())) {
+                        $seenEventIds[(string) $googleEvent->getId()] = true;
+                    }
+
                     $result = $this->pullGoogleEvent($googleEvent, $calendar['id']);
 
                     if (array_key_exists($result, $stats)) {
@@ -172,6 +179,58 @@ class GoogleCalendarService
 
                 $pageToken = $events->getNextPageToken();
             } while ($pageToken);
+
+            // Verify missing events before removing cancelled local copies.
+            // Reconcile only after every page was fetched successfully.
+            $candidates = Schedule::query()
+                ->where('google_calendar_id', $calendar['id'])
+                ->whereNotNull('google_event_id')
+                ->where('google_event_id', '<>', '')
+                ->where('starts_at', '<=', $windowEnd)
+                ->where(function ($query) use ($windowStart): void {
+                    $query->where('starts_at', '>=', $windowStart)
+                        ->orWhere('ends_at', '>=', $windowStart);
+                })
+                ->get(['id', 'google_event_id']);
+
+            foreach ($candidates as $candidate) {
+                $eventId = (string) $candidate->google_event_id;
+
+                if (isset($seenEventIds[$eventId])) {
+                    continue;
+                }
+
+                try {
+                    $remoteEvent = $service->events->get(
+                        $calendar['id'],
+                        $eventId
+                    );
+                } catch (GoogleServiceException $exception) {
+                    // Missing or inaccessible is not proof of cancellation.
+                    if (in_array((int) $exception->getCode(), [404, 410], true)) {
+                        $stats['skipped']++;
+                        continue;
+                    }
+
+                    throw $exception;
+                }
+
+                if (
+                    $remoteEvent->getStatus() !== 'cancelled'
+                    || (string) $remoteEvent->getId() !== $eventId
+                ) {
+                    continue;
+                }
+
+                $result = $this->pullGoogleEvent(
+                    $remoteEvent,
+                    $calendar['id']
+                );
+
+                if (array_key_exists($result, $stats)) {
+                    $stats[$result]++;
+                }
+            }
         }
 
         return $stats;
