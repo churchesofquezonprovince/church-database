@@ -2,17 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Widgets\DashboardSchedulesCalendarWidget;
 use App\Filament\Widgets\SchedulesCalendarWidget;
 use ReflectionClass;
 use Tests\TestCase;
 
 class SchedulesCalendarReadOnlyTest extends TestCase
 {
-    public function test_schedule_calendar_interactions_are_read_only(): void
+    public function test_dashboard_calendar_interactions_are_read_only(): void
     {
         $properties = (
             new ReflectionClass(
-                SchedulesCalendarWidget::class
+                DashboardSchedulesCalendarWidget::class
             )
         )->getDefaultProperties();
 
@@ -41,6 +42,36 @@ class SchedulesCalendarReadOnlyTest extends TestCase
         );
 
         $this->assertNull(
+            $properties['defaultEventClickAction']
+        );
+    }
+
+    public function test_posts_schedules_calendar_remains_editable(): void
+    {
+        $properties = (
+            new ReflectionClass(
+                SchedulesCalendarWidget::class
+            )
+        )->getDefaultProperties();
+
+        $this->assertTrue(
+            $properties['dateClickEnabled']
+        );
+
+        $this->assertTrue(
+            $properties['dateSelectEnabled']
+        );
+
+        $this->assertTrue(
+            $properties['eventClickEnabled']
+        );
+
+        $this->assertTrue(
+            $properties['noEventsClickEnabled']
+        );
+
+        $this->assertSame(
+            'editSchedule',
             $properties['defaultEventClickAction']
         );
     }

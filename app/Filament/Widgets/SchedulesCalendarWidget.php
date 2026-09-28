@@ -29,24 +29,21 @@ use Throwable;
 class SchedulesCalendarWidget extends CalendarWidget
 {
     /*
-     * Church Dashboard calendar is display-only.
+     * Editable schedule-management calendar used by
+     * Posts -> Schedules.
      *
-     * Schedule creation and editing remain available from the
-     * dedicated Schedules management page.
+     * ChurchDashboard explicitly excludes this widget and uses
+     * DashboardSchedulesCalendarWidget instead.
      */
-    protected bool $dateClickEnabled = false;
+    protected bool $dateClickEnabled = true;
 
-    protected bool $dateSelectEnabled = false;
+    protected bool $dateSelectEnabled = true;
 
-    protected bool $eventClickEnabled = false;
+    protected bool $eventClickEnabled = true;
 
-    protected bool $noEventsClickEnabled = false;
+    protected bool $noEventsClickEnabled = true;
 
-    protected bool $eventDragEnabled = false;
-
-    protected bool $eventResizeEnabled = false;
-
-    protected ?string $defaultEventClickAction = null;
+    protected ?string $defaultEventClickAction = 'editSchedule';
 
     public ?string $pendingScheduleStartsAt = null;
 
