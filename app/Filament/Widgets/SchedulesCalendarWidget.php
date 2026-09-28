@@ -28,17 +28,25 @@ use Throwable;
 
 class SchedulesCalendarWidget extends CalendarWidget
 {
-    protected bool $dateClickEnabled = true;
+    /*
+     * Church Dashboard calendar is display-only.
+     *
+     * Schedule creation and editing remain available from the
+     * dedicated Schedules management page.
+     */
+    protected bool $dateClickEnabled = false;
 
-    protected bool $dateSelectEnabled = true;
+    protected bool $dateSelectEnabled = false;
 
-    protected bool $eventClickEnabled = true;
+    protected bool $eventClickEnabled = false;
 
-    protected bool $noEventsClickEnabled = true;
+    protected bool $noEventsClickEnabled = false;
 
+    protected bool $eventDragEnabled = false;
 
+    protected bool $eventResizeEnabled = false;
 
-    protected ?string $defaultEventClickAction = 'editSchedule';
+    protected ?string $defaultEventClickAction = null;
 
     public ?string $pendingScheduleStartsAt = null;
 
