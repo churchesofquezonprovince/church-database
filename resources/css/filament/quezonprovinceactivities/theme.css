@@ -6,3 +6,54 @@
 
 @source '../../../../vendor/guava/calendar/resources/**/*';
 @import '../../../../vendor/guava/calendar/resources/css/theme.css';
+
+/* Phase 30N: expanded calendar event titles */
+
+/*
+ * Guava Calendar 3.x uses the Event Calendar `.ec-*`
+ * class names, not FullCalendar `.fc-*` classes.
+ *
+ * Keep the event time on one line, but allow the title
+ * to wrap and make the event grow vertically.
+ */
+.ec-day-grid .ec-event {
+    block-size: max-content !important;
+    max-block-size: none !important;
+
+    /*
+     * Match the normal Filament text-sm size used by
+     * schedule listings.
+     */
+    font-size: 0.875rem;
+}
+
+.ec-day-grid .ec-event-body {
+    min-inline-size: 0;
+    align-items: flex-start;
+}
+
+.ec-day-grid .ec-event-time {
+    flex: 0 0 auto;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+.ec-day-grid .ec-event-title {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+
+    overflow-wrap: anywhere;
+    word-break: normal;
+
+    min-block-size: 1.5em;
+    block-size: auto;
+    max-block-size: none;
+
+    line-height: 1.25;
+}
