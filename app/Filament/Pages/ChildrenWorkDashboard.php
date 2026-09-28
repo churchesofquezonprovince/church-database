@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Services\GoogleIntegrationSettings;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
 
@@ -42,6 +43,29 @@ class ChildrenWorkDashboard extends Page
     public static function canAccess(): bool
     {
         return true;
+    }
+
+    public function googleSheetUrl(): ?string
+    {
+        $spreadsheetId = trim(
+            (string) GoogleIntegrationSettings::get(
+                'children_work.google_sheets.spreadsheet_id'
+            )
+        );
+
+        if (
+            $spreadsheetId === ''
+            || ! preg_match(
+                '/^[A-Za-z0-9_-]+$/',
+                $spreadsheetId
+            )
+        ) {
+            return null;
+        }
+
+        return 'https://docs.google.com/spreadsheets/d/'
+            . $spreadsheetId
+            . '/edit';
     }
 
     public function getMaxContentWidth(): Width|string|null

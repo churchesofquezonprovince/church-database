@@ -250,6 +250,18 @@ $pastLessons = (clone $dashboardQuery)
                     >
                         Manage Lessons
                     </a>
+
+                    @if ($googleSheetUrl = $this->googleSheetUrl())
+                        <a
+                            href="{{ $googleSheetUrl }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                        >
+                            Open Google Sheet
+                        </a>
+                    @endif
+
                 @endif
 
                 <a
