@@ -161,6 +161,26 @@ class LocalityOptions
         return $groups;
     }
 
+    public static function activeConfiguredLocalityByName(
+        ?string $name
+    ): ?Locality {
+        $name = trim((string) $name);
+
+        if ($name === '') {
+            return null;
+        }
+
+        return Locality::query()
+            ->where('is_active', true)
+            ->whereRaw(
+                'LOWER(name) = ?',
+                [
+                    mb_strtolower($name),
+                ]
+            )
+            ->first();
+    }
+
     public static function activeConfiguredLocality(?int $id): ?Locality
     {
         if (! $id) {

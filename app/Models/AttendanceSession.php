@@ -12,10 +12,12 @@ class AttendanceSession extends Model
 {
     protected $fillable = [
         'attendance_sheet_id',
+        'schedule_id',
         'session_date',
         'session_time',
         'session_end_time',
         'title',
+        'location',
         'public_slug',
         'remarks',
         'is_no_meeting',
@@ -80,6 +82,14 @@ public function immichDetections(): HasMany
         $time = $this->sessionTimeLabel();
 
         return $time ? $date . ' · ' . $time : $date;
+    }
+
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(
+            Schedule::class,
+            'schedule_id'
+        );
     }
 
     public function sheet(): BelongsTo

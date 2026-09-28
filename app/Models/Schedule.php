@@ -20,6 +20,7 @@ class Schedule extends Model implements Eventable
         'is_all_day',
         'location',
         'locality',
+        'locality_id',
         'category',
         'source',
         'google_calendar_id',
@@ -39,6 +40,58 @@ class Schedule extends Model implements Eventable
             'ends_at' => 'datetime',
             'is_all_day' => 'boolean',
             'synced_at' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Schedule $schedule): void {
+            if (filled($schedule->locality_id)) {
+                $locality = Locality::query()
+                    ->whereKey(
+                        (int) $schedule->locality_id
+                    )
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($locality) {
+                    $schedule->locality =
+                        $locality->name;
+                }
+            } elseif (
+                $schedule->isDirty('locality_id')
+            ) {
+                $schedule->locality = null;
+            }
+        });
+    }
+
+    public static function categoryOptions(): array
+    {
+        return [
+            'Church Activity' =>
+                'Church Activity',
+
+            'Campus Work' =>
+                'Campus Work',
+
+            'Prayer Meeting' =>
+                'Prayer Meeting',
+
+            "Lord's Table" =>
+                "Lord's Table",
+
+            'Training' =>
+                'Training',
+
+            'Conference' =>
+                'Conference',
+
+            'Service Meeting' =>
+                'Service Meeting',
+
+            'Other' =>
+                'Other',
         ];
     }
 
@@ -91,6 +144,14 @@ class Schedule extends Model implements Eventable
         $brightness = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
 
         return $brightness > 150 ? '#111827' : '#ffffff';
+    }
+
+    public function localityRecord(): BelongsTo
+    {
+        return $this->belongsTo(
+            Locality::class,
+            'locality_id'
+        );
     }
 
     public function createdBy(): BelongsTo

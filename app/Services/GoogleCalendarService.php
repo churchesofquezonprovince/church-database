@@ -245,8 +245,14 @@ class GoogleCalendarService
         }
 
         $schedule = Schedule::query()
-#            ->where('google_calendar_id', $calendarId)
-            ->where('google_event_id', $googleEventId)
+            ->where(
+                'google_calendar_id',
+                $calendarId
+            )
+            ->where(
+                'google_event_id',
+                $googleEventId
+            )
             ->first();
 
         if ($googleEvent->getStatus() === 'cancelled') {
@@ -283,21 +289,122 @@ class GoogleCalendarService
             $endsAt = $endsAt->subDay()->startOfDay();
         }
 
-        $schedule->forceFill([
-            'title' => $googleEvent->getSummary() ?: '(No title)',
-            'description' => $this->cleanGoogleDescription($googleEvent->getDescription()),
-            'starts_at' => $startsAt,
-            'ends_at' => $endsAt,
-            'is_all_day' => $isAllDay,
-            'location' => $googleEvent->getLocation(),
-            'source' => $schedule->exists ? $schedule->source : 'google',
-            'google_calendar_id' => $calendarId,
-            'google_event_id' => $googleEventId,
-            'google_etag' => $googleEvent->getEtag(),
-            'google_sync_status' => 'synced',
-            'google_sync_error' => null,
-            'synced_at' => now(),
-        ])->saveQuietly();
+        $googleDescription =
+            $googleEvent->getDescription();
+
+        $googleLocation =
+            $googleEvent->getLocation();
+
+        $resolvedLocality = app(
+            ScheduleLocalityResolver::class
+        )->resolve(
+            $googleDescription,
+            $googleLocation
+        );
+
+        $googleCategory =
+            $this->categoryFromGoogleDescription(
+                $googleDescription
+            );
+
+        $scheduleData = [
+            'title' =>
+                $googleEvent->getSummary()
+                ?: '(No title)',
+
+            'description' =>
+                $this->cleanGoogleDescription(
+                    $googleDescription
+                ),
+
+            'starts_at' =>
+                $startsAt,
+
+            'ends_at' =>
+                $endsAt,
+
+            'is_all_day' =>
+                $isAllDay,
+
+            'location' =>
+                $googleLocation,
+
+            'source' =>
+                $schedule->exists
+                    ? $schedule->source
+                    : 'google',
+
+            'google_calendar_id' =>
+                $calendarId,
+
+            'google_event_id' =>
+                $googleEventId,
+
+            'google_etag' =>
+                $googleEvent->getEtag(),
+
+            'google_sync_status' =>
+                'synced',
+
+            'google_sync_error' =>
+                null,
+
+            'synced_at' =>
+                now(),
+        ];
+
+        /*
+         * Category is imported only when Google explicitly
+         * contains a valid COQP Category marker.
+         *
+         * Otherwise an existing manual Category is preserved.
+         */
+        if ($googleCategory !== null) {
+            $scheduleData['category'] =
+                $googleCategory;
+        }
+
+        /*
+         * Explicit Google Locality metadata is authoritative.
+         *
+         * Google Location-derived Locality is used only when
+         * the Schedule does not already have a canonical
+         * Locality. This prevents a venue in another city from
+         * overwriting a manually selected home/locality.
+         */
+        $resolvedLocalityId =
+            $resolvedLocality['locality_id']
+            ?? null;
+
+        $resolvedLocalitySource =
+            (string) (
+                $resolvedLocality['source']
+                ?? ''
+            );
+
+        $explicitGoogleLocality =
+            str_starts_with(
+                $resolvedLocalitySource,
+                'google_metadata_'
+            );
+
+        if (
+            filled($resolvedLocalityId)
+            && (
+                blank($schedule->locality_id)
+                || $explicitGoogleLocality
+            )
+        ) {
+            $scheduleData['locality_id'] =
+                (int) $resolvedLocalityId;
+
+            $scheduleData['locality'] =
+                $resolvedLocality['locality'];
+        }
+
+        $schedule
+            ->forceFill($scheduleData)
+            ->saveQuietly();
 
         return $isNew ? 'created' : 'updated';
     }
@@ -362,17 +469,113 @@ class GoogleCalendarService
             ->implode("\n\n");
     }
 
-    private function cleanGoogleDescription(?string $description): ?string
-    {
+    private function cleanGoogleDescription(
+        ?string $description
+    ): ?string {
         if (blank($description)) {
             return null;
         }
 
-        return trim((string) preg_replace(
-            "/\n{0,2}Source: COQP Database Schedule #\d+/i",
+        $cleaned = (string) $description;
+
+        /*
+         * COQP structured metadata is stored in Google Calendar
+         * descriptions for round-trip compatibility, but it
+         * should not appear in the Schedule's human Notes field.
+         */
+        $cleaned = preg_replace(
+            [
+                '/(?:^|\R)\s*Category\s*:\s*[^\r\n]*(?=\R|$)/iu',
+                '/(?:^|\R)\s*Locality\s*:\s*[^\r\n]*(?=\R|$)/iu',
+                '/(?:^|\R)\s*Source\s*:\s*COQP Database Schedule #\d+\s*(?=\R|$)/iu',
+            ],
             '',
-            $description
-        ));
+            $cleaned
+        ) ?? $cleaned;
+
+        $cleaned = preg_replace(
+            '/(?:\R\s*){3,}/u',
+            "\n\n",
+            $cleaned
+        ) ?? $cleaned;
+
+        $cleaned = trim($cleaned);
+
+        return $cleaned !== ''
+            ? $cleaned
+            : null;
+    }
+
+    private function categoryFromGoogleDescription(
+        ?string $description
+    ): ?string {
+        $value =
+            $this->googleDescriptionMetadataValue(
+                $description,
+                'Category'
+            );
+
+        if (blank($value)) {
+            return null;
+        }
+
+        foreach (
+            array_keys(
+                Schedule::categoryOptions()
+            )
+            as $category
+        ) {
+            if (
+                mb_strtolower($category)
+                ===
+                mb_strtolower(
+                    trim($value)
+                )
+            ) {
+                return $category;
+            }
+        }
+
+        /*
+         * Unknown Google text must never silently become a new
+         * COQP Category.
+         */
+        return null;
+    }
+
+    private function googleDescriptionMetadataValue(
+        ?string $description,
+        string $key
+    ): ?string {
+        if (blank($description)) {
+            return null;
+        }
+
+        $pattern =
+            '/(?:^|\R)\s*'
+            . preg_quote($key, '/')
+            . '\s*:\s*(.+?)\s*(?:\R|$)/iu';
+
+        if (
+            ! preg_match(
+                $pattern,
+                (string) $description,
+                $matches
+            )
+        ) {
+            return null;
+        }
+
+        $value = trim(
+            (string) (
+                $matches[1]
+                ?? ''
+            )
+        );
+
+        return $value !== ''
+            ? $value
+            : null;
     }
 
     private function dateTimeFromGoogleDateTime(?EventDateTime $dateTime): ?CarbonImmutable

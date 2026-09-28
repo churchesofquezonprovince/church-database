@@ -2,8 +2,12 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Pages\AttendanceSheets;
+use App\Models\AttendanceSession;
 use App\Models\Schedule;
 use App\Services\GoogleCalendarService;
+use App\Services\ScheduleAttendanceService;
+use App\Support\LocalityOptions;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
@@ -170,63 +174,88 @@ class SchedulesCalendarWidget extends CalendarWidget
                 
                 // THE NEW GENERATE BUTTON
                 Action::make('generateAttendance')
+                    ->visible(
+                        fn (Schedule $record): bool =>
+                            $this->linkedAttendanceSession(
+                                $record
+                            ) === null
+                    )
                     ->label('Generate Attendance Sheet')
                     ->color('success')
                     ->icon('heroicon-o-clipboard-document-check')
                     ->requiresConfirmation()
                     ->modalHeading('Generate Attendance')
-                    ->modalDescription('This will create an Attendance Sheet and Session for this specific schedule. Proceed?')
-                    ->action(function (Schedule $record): void {
-                        
-                        $start = \Carbon\CarbonImmutable::parse($record->starts_at);
-                        $meetingTime = $record->is_all_day ? null : $start->format('H:i');
+                    ->modalDescription(
+                        'Choose an existing compatible Attendance Sheet, or leave the field blank to auto-detect/create one.'
+                    )
+                    ->schema([
+                        Select::make('attendance_sheet_id')
+                            ->label(
+                                'Use Existing Attendance Sheet'
+                            )
+                            ->options(
+                                fn (Schedule $record): array =>
+                                    app(
+                                        ScheduleAttendanceService::class
+                                    )->attendanceSheetOptions(
+                                        $record
+                                    )
+                            )
+                            ->searchable()
+                            ->native(false)
+                            ->placeholder(
+                                'Auto-detect or create a new Attendance Sheet'
+                            )
+                            ->helperText(
+                                'Only compatible Attendance Sheets that already have a Session on this Schedule date are shown.'
+                            ),
+                    ])
+                    ->action(function (
+                        Schedule $record,
+                        array $data
+                    ): void {
+                        $sheetId =
+                            filled(
+                                $data[
+                                    'attendance_sheet_id'
+                                ]
+                                ?? null
+                            )
+                                ? (int) $data[
+                                    'attendance_sheet_id'
+                                ]
+                                : null;
 
-                        $sheetType = \App\Models\AttendanceSheet::TYPE_CUSTOM;
-                        $masterSheetTitle = $record->title;
-
-                        // The Funnel: Group LTM and Prayer Meetings
-                        if ($record->category === "Lord's Table") {
-                            $sheetType = \App\Models\AttendanceSheet::TYPE_LORDS_TABLE;
-                            $masterSheetTitle = "Lord's Table Meeting";
-                        } elseif ($record->category === 'Prayer Meeting') {
-                            $sheetType = \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING;
-                            $masterSheetTitle = "Prayer Meeting";
-                        }
-
-                        // Create or Find Master Sheet
-                        $sheet = \App\Models\AttendanceSheet::firstOrCreate(
-                            [
-                                'title' => $masterSheetTitle,
-                                'locality' => $record->locality,
-                            ],
-                            [
-                                'sheet_type' => $sheetType,
-                                'meeting_day' => $start->dayOfWeek,
-                                'meeting_time' => $meetingTime,
-                                'is_one_time' => false, 
-                                'is_active' => true,
-                                'created_by_id' => auth()->id() ?? 1, 
-                            ]
+                        $this->generateAttendanceForSchedule(
+                            $record,
+                            'Attendance Generated Successfully',
+                            $sheetId
                         );
-
-                        // Create the Session
-                        \App\Models\AttendanceSession::updateOrCreate(
-                            [
-                                'attendance_sheet_id' => $sheet->id,
-                                'session_date' => $start->toDateString(),
-                            ],
-                            [
-                                'session_time' => $meetingTime,
-                                'title' => $record->title . ' - ' . $start->format('M d, Y'),
-                                'remarks' => $record->description,
-                            ]
-                        );
-
-                        Notification::make()
-                            ->title('Attendance Generated Successfully')
-                            ->success()
-                            ->send();
                     }),
+
+                /*
+                 * When Attendance has already been linked,
+                 * replace Generate Attendance with a direct link
+                 * to that exact Attendance Sheet + Session.
+                 */
+                Action::make('openAttendanceSheet')
+                    ->label('Attendance Sheet')
+                    ->color('primary')
+                    ->icon(
+                        'heroicon-o-clipboard-document-check'
+                    )
+                    ->visible(
+                        fn (Schedule $record): bool =>
+                            $this->linkedAttendanceSession(
+                                $record
+                            ) !== null
+                    )
+                    ->url(
+                        fn (Schedule $record): ?string =>
+                            $this->attendanceSheetUrl(
+                                $record
+                            )
+                    ),
 
                 // YOUR EXISTING DELETE BUTTON
                 Action::make('deleteSchedule')
@@ -272,96 +301,100 @@ public function createScheduleAction(): CreateAction
                 ->icon('heroicon-o-clipboard-document-check'),
         ])
 
-        ->after(function (Schedule $record, array $arguments): void {
-            /*
-             * The Schedule has already been:
-             *
-             * 1. Validated by Filament
-             * 2. Passed through mutateDataUsing()
-             * 3. Saved to the database
-             *
-             * DO NOT call Schedule::create() again here.
-             */
-
+        ->after(function (
+            Schedule $record,
+            array $arguments
+        ): void {
             $this->refreshRecords();
 
-            /*
-             * If the ordinary "Create" button was clicked,
-             * we're finished.
-             */
-            if (! ($arguments['generateAttendance'] ?? false)) {
+            if (
+                ! (
+                    $arguments['generateAttendance']
+                    ?? false
+                )
+            ) {
                 return;
             }
 
-            /*
-             * If "Create & Generate Attendance Sheet"
-             * was clicked, use the Schedule that Filament
-             * has already created.
-             */
-            $schedule = $record;
+            $this->generateAttendanceForSchedule(
+                $record,
+                'Schedule Saved & Attendance Generated'
+            );
+        });
+}
 
-            $start = \Carbon\CarbonImmutable::parse(
-                $schedule->starts_at
+    protected function linkedAttendanceSession(
+        Schedule $schedule
+    ): ?AttendanceSession {
+        return AttendanceSession::query()
+            ->where(
+                'schedule_id',
+                $schedule->id
+            )
+            ->first();
+    }
+
+    protected function attendanceSheetUrl(
+        Schedule $schedule
+    ): ?string {
+        $session =
+            $this->linkedAttendanceSession(
+                $schedule
             );
 
-            $meetingTime = $schedule->is_all_day
-                ? null
-                : $start->format('H:i');
+        if (! $session) {
+            return null;
+        }
 
-            /*
-             * Determine attendance sheet type.
-             */
-            $sheetType = \App\Models\AttendanceSheet::TYPE_CUSTOM;
-            $masterSheetTitle = $schedule->title;
+        return AttendanceSheets::getUrl()
+            . '?'
+            . http_build_query([
+                'sheetId' =>
+                    $session->attendance_sheet_id,
 
-            if ($schedule->category === "Lord's Table") {
-                $sheetType = \App\Models\AttendanceSheet::TYPE_LORDS_TABLE;
-                $masterSheetTitle = "Lord's Table Meeting";
-            } elseif ($schedule->category === 'Prayer Meeting') {
-                $sheetType = \App\Models\AttendanceSheet::TYPE_PRAYER_MEETING;
-                $masterSheetTitle = 'Prayer Meeting';
-            }
+                'sessionId' =>
+                    $session->id,
+            ]);
+    }
 
-            /*
-             * Create or reuse the master Attendance Sheet.
-             */
-            $sheet = \App\Models\AttendanceSheet::firstOrCreate(
-                [
-                    'title' => $masterSheetTitle,
-                    'locality' => $schedule->locality,
-                ],
-                [
-                    'sheet_type' => $sheetType,
-                    'meeting_day' => $start->dayOfWeek,
-                    'meeting_time' => $meetingTime,
-                    'is_one_time' => false,
-                    'is_active' => true,
-                    'created_by_id' => auth()->id() ?? 1,
-                ]
-            );
-
-            /*
-             * Create or update the Attendance Session
-             * for this specific schedule date.
-             */
-            \App\Models\AttendanceSession::updateOrCreate(
-                [
-                    'attendance_sheet_id' => $sheet->id,
-                    'session_date' => $start->toDateString(),
-                ],
-                [
-                    'session_time' => $meetingTime,
-                    'title' => $schedule->title . ' - ' . $start->format('M d, Y'),
-                    'remarks' => $schedule->description,
-                ]
+    protected function generateAttendanceForSchedule(
+        Schedule $schedule,
+        string $successTitle,
+        ?int $attendanceSheetId = null
+    ): void {
+        try {
+            app(
+                ScheduleAttendanceService::class
+            )->generate(
+                $schedule,
+                auth()->id(),
+                $attendanceSheetId
             );
 
             Notification::make()
-                ->title('Schedule Saved & Attendance Generated')
+                ->title($successTitle)
                 ->success()
                 ->send();
-        });
-}
+        } catch (
+            \Illuminate\Validation\ValidationException
+            $exception
+        ) {
+            $message = collect(
+                $exception->errors()
+            )
+                ->flatten()
+                ->first()
+                ?? 'Attendance could not be generated.';
+
+            Notification::make()
+                ->title(
+                    'Attendance was not generated'
+                )
+                ->body($message)
+                ->danger()
+                ->send();
+        }
+    }
 
     public function defaultSchema(Schema $schema): Schema
     {
@@ -382,22 +415,24 @@ public function createScheduleAction(): CreateAction
 
                 Select::make('category')
                     ->label('Category')
-                    ->options([
-                        'Church Activity' => 'Church Activity',
-                        'Campus Work' => 'Campus Work',
-                        'Prayer Meeting' => 'Prayer Meeting',
-                        "Lord's Table" => "Lord's Table",
-                        'Training' => 'Training',
-                        'Conference' => 'Conference',
-                        'Service Meeting' => 'Service Meeting',
-                        'Other' => 'Other',
-                    ])
+                    ->options(
+                        Schedule::categoryOptions()
+                    )
                     ->searchable()
                     ->native(false),
 
-                TextInput::make('locality')
+                Select::make('locality_id')
                     ->label('Locality')
-                    ->maxLength(255),
+                    ->options(
+                        fn (): array =>
+                            LocalityOptions::groupedActiveConfigured()
+                    )
+                    ->searchable()
+                    ->native(false)
+                    ->placeholder('Select Locality')
+                    ->helperText(
+                        'Only active configured Localities can be selected.'
+                    ),
 
                 TextInput::make('location')
                     ->label('Location')
