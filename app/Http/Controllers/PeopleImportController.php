@@ -257,10 +257,109 @@ class PeopleImportController extends Controller
                 $errors[] = "Line {$line}: birthdate must use YYYY-MM-DD format.";
             }
 
-            $baptismDate = $row['baptism_date'] ?? '';
+            $baptismDate =
+                $row['baptism_date']
+                    ?? '';
 
-            if (filled($baptismDate) && ! $this->isValidPartialBaptismDate($baptismDate)) {
-                $errors[] = "Line {$line}: baptism_date must use YYYY, YYYY-MM, or YYYY-MM-DD format.";
+            if (
+                filled($baptismDate)
+                && ! $this->isValidPartialBaptismDate(
+                    $baptismDate
+                )
+            ) {
+                $errors[] =
+                    "Line {$line}: baptism_date must use YYYY, YYYY-MM, or YYYY-MM-DD format.";
+            }
+
+            $baptismYear =
+                trim(
+                    (string) (
+                        $row['baptism_year']
+                            ?? ''
+                    )
+                );
+
+            $baptismMonth =
+                trim(
+                    (string) (
+                        $row['baptism_month']
+                            ?? ''
+                    )
+                );
+
+            $baptismDay =
+                trim(
+                    (string) (
+                        $row['baptism_day']
+                            ?? ''
+                    )
+                );
+
+            if (
+                $baptismYear !== ''
+                && ! preg_match(
+                    '/^\\d{4}$/',
+                    $baptismYear
+                )
+            ) {
+                $errors[] =
+                    "Line {$line}: baptism_year must be a 4-digit year.";
+            }
+
+            if (
+                $baptismMonth !== ''
+                && (
+                    ! ctype_digit($baptismMonth)
+                    || (int) $baptismMonth < 1
+                    || (int) $baptismMonth > 12
+                )
+            ) {
+                $errors[] =
+                    "Line {$line}: baptism_month must be between 1 and 12.";
+            }
+
+            if (
+                $baptismDay !== ''
+                && (
+                    ! ctype_digit($baptismDay)
+                    || (int) $baptismDay < 1
+                    || (int) $baptismDay > 31
+                )
+            ) {
+                $errors[] =
+                    "Line {$line}: baptism_day must be between 1 and 31.";
+            }
+
+            /*
+             * Resolve the final components using explicit columns
+             * first and legacy baptism_date as fallback.
+             */
+            if (
+                ! (
+                    $baptismDate !== ''
+                    && ! $this->isValidPartialBaptismDate(
+                        $baptismDate
+                    )
+                )
+            ) {
+                $baptismParts =
+                    $this->resolveBaptismParts(
+                        $row
+                    );
+
+                if (
+                    $baptismParts['year'] !== null
+                    && $baptismParts['month'] !== null
+                    && $baptismParts['day'] !== null
+                    && ! checkdate(
+                        $baptismParts['month'],
+                        $baptismParts['day'],
+                        $baptismParts['year']
+                    )
+                ) {
+                    $errors[] =
+                        "Line {$line}: baptism year, month, and day do not form a valid date.";
+                }
             }
 
             $status = $this->importValue($row, 'church_status', 'status');
@@ -523,7 +622,11 @@ class PeopleImportController extends Controller
         $person->save();
 
         $profile = $person->churchProfile()->firstOrNew([]);
-        $baptismParts = $this->parsePartialBaptismDate($row['baptism_date'] ?? null);
+
+        $baptismParts =
+            $this->resolveBaptismParts(
+                $row
+            );
 
         $profile->status = $this->nullable($this->importValue($row, 'church_status', 'status')) ?: 'Unknown';
         $profile->category = $this->nullable($this->importValue($row, 'category'));
@@ -646,6 +749,57 @@ class PeopleImportController extends Controller
             'year' => null,
             'month' => null,
             'day' => null,
+        ];
+    }
+
+    /**
+     * Resolve baptism components for People Import.
+     *
+     * Explicit baptism_year / baptism_month / baptism_day
+     * columns take precedence individually.
+     *
+     * Legacy baptism_date remains supported as fallback:
+     * YYYY
+     * YYYY-MM
+     * YYYY-MM-DD
+     */
+    private function resolveBaptismParts(
+        array $row
+    ): array {
+        $legacy =
+            $this->parsePartialBaptismDate(
+                $row['baptism_date']
+                    ?? null
+            );
+
+        $year =
+            filled(
+                $row['baptism_year']
+                    ?? null
+            )
+                ? (int) $row['baptism_year']
+                : $legacy['year'];
+
+        $month =
+            filled(
+                $row['baptism_month']
+                    ?? null
+            )
+                ? (int) $row['baptism_month']
+                : $legacy['month'];
+
+        $day =
+            filled(
+                $row['baptism_day']
+                    ?? null
+            )
+                ? (int) $row['baptism_day']
+                : $legacy['day'];
+
+        return [
+            'year' => $year,
+            'month' => $month,
+            'day' => $day,
         ];
     }
 

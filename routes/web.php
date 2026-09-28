@@ -228,6 +228,9 @@ Route::middleware(['web', 'auth'])
                 'workplace',
                 'category',
                 'baptism_date',
+                'baptism_year',
+                'baptism_month',
+                'baptism_day',
                 'service',
                 'status',
             ];
@@ -255,7 +258,10 @@ Route::middleware(['web', 'auth'])
                     'Southern Luzon State University',
                     '',
                     'Student',
-                    '2024-01',
+                    '',
+                    '2024',
+                    '3',
+                    '15',
                     'Young People',
                     'Active',
                 ]);
