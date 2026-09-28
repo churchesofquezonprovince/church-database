@@ -16,6 +16,13 @@
         #coqp-report-widget :is(button,input,select,textarea):focus-visible{outline:3px solid #2563eb;outline-offset:3px}
         #coqp-report-dialog button:disabled{opacity:.6;cursor:wait}
         #coqp-report-message{font-weight:600;white-space:pre-wrap}
+          .coqp-report-honeypot{
+              position:absolute!important;
+              left:-10000px!important;
+              width:1px!important;
+              height:1px!important;
+              overflow:hidden!important;
+          }
         @media print{#coqp-report-widget,#global-back-to-top{display:none!important}}
     </style>
     <button id="coqp-report-open" type="button" aria-haspopup="dialog" aria-controls="coqp-report-dialog">Report a Problem</button>
@@ -25,6 +32,28 @@
         <form id="coqp-report-form" action="{{ route('problem-reports.store', [], false) }}" method="post" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="page_path" value="/">
+              <input
+                  type="hidden"
+                  name="report_elapsed_ms"
+                  value="0"
+              >
+
+              <div
+                  class="coqp-report-honeypot"
+                  aria-hidden="true"
+              >
+                  <label for="coqp-report-website">
+                      Website
+                  </label>
+
+                  <input
+                      id="coqp-report-website"
+                      name="website"
+                      type="text"
+                      tabindex="-1"
+                      autocomplete="off"
+                  >
+              </div>
             <label for="coqp-report-category">What is the problem?</label>
             <select id="coqp-report-category" name="category" required>
                 @foreach (\App\Models\ProblemReport::CATEGORIES as $value => $label)
@@ -62,8 +91,11 @@
         else { message.textContent = text; }
     };
     let sending = false;
+      let reportOpenedAt = 0;
     root.querySelector('#coqp-report-open').addEventListener('click', () => {
         form.elements.page_path.value = location.pathname;
+          form.elements.report_elapsed_ms.value = '0';
+          reportOpenedAt = Date.now();
         dialog.showModal();
     });
     close.addEventListener('click', () => { if (!sending) dialog.close(); });
@@ -76,6 +108,13 @@
             feedback('Please choose a screenshot smaller than 4 MB.', 'warning');
             return;
         }
+          form.elements.report_elapsed_ms.value = String(
+              Math.max(
+                  0,
+                  Date.now() - reportOpenedAt
+              )
+          );
+
         sending = true; send.disabled = true; close.disabled = true;
         message.textContent = 'Sending your report…';
         try {
@@ -84,8 +123,18 @@
             if (!response.ok) throw new Error(response.status === 429 ? 'You have sent several reports. Please wait 10 minutes before trying again.' : response.status === 419 ? 'Your session expired. Keep a copy of your message, refresh the page, and try again.' : body.message || 'Your report could not be sent. Please try again.');
             form.reset();
             form.elements.page_path.value = location.pathname;
+              form.elements.report_elapsed_ms.value = '0';
+              reportOpenedAt = 0;
             dialog.close();
-            feedback((body.message || 'Your report was sent.') + ' Reference #' + body.reference, 'success');
+            const reference = body.reference
+                  ? ' Reference #' + body.reference
+                  : '';
+
+              feedback(
+                  (body.message || 'Your report was sent.')
+                      + reference,
+                  'success'
+              );
         } catch (error) { feedback(error.message || 'Please check your connection and try again.', 'danger'); }
         finally { sending = false; send.disabled = false; close.disabled = false; }
     });

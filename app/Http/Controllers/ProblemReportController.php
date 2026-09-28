@@ -7,6 +7,38 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 class ProblemReportController extends Controller {
     public function store(Request $request) {
+        /*
+         * Public anti-spam checks.
+         *
+         * Real visitors never fill the honeypot, and the report
+         * dialog records when it was opened. Automated form posts
+         * commonly either fill every field or submit immediately.
+         *
+         * Return an ordinary success response to detected bots so
+         * the endpoint does not advertise which check caught them.
+         */
+        if (! $request->user()) {
+            $honeypot = trim(
+                (string) $request->input('website', '')
+            );
+
+            $elapsedMs = (int) $request->input(
+                'report_elapsed_ms',
+                0
+            );
+
+            $tooFast =
+                $elapsedMs < 3000;
+
+            if ($honeypot !== '' || $tooFast) {
+                return response()->json([
+                    'message' =>
+                        'Thank you. Your report has been received.',
+                    'reference' => null,
+                ], 201);
+            }
+        }
+
         $validator = Validator::make($request->all(), [
             'category' => ['required', Rule::in(array_keys(ProblemReport::CATEGORIES))],
             'description' => ['required', 'string', 'min:10', 'max:5000'],
