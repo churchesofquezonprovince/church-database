@@ -63,6 +63,41 @@ class AttendanceSheetStatusController extends Controller
                     ->whereIn('attendance_session_id', $sessionIds)
                     ->count();
 
+            /*
+             * A Schedule link belongs to the Attendance Session.
+             *
+             * Before permanently deleting the Sheet and Sessions,
+             * explicitly remove those Schedule links. The Schedule
+             * itself remains untouched and will become eligible
+             * for Generate Attendance Sheet again.
+             */
+            $linkedScheduleCount =
+                $sessionIds->isEmpty()
+                    ? 0
+                    : AttendanceSession::query()
+                        ->whereIn(
+                            'id',
+                            $sessionIds
+                        )
+                        ->whereNotNull(
+                            'schedule_id'
+                        )
+                        ->count();
+
+            if ($linkedScheduleCount > 0) {
+                AttendanceSession::query()
+                    ->whereIn(
+                        'id',
+                        $sessionIds
+                    )
+                    ->whereNotNull(
+                        'schedule_id'
+                    )
+                    ->update([
+                        'schedule_id' => null,
+                    ]);
+            }
+
             ActivityLogger::log(
                 action: 'attendance_sheet.deleted',
                 subject: $sheet,
@@ -75,6 +110,8 @@ class AttendanceSheetStatusController extends Controller
                     'sessions_count' => $sheet->sessions_count,
                     'participants_count' => $sheet->participants_count,
                     'records_count' => $recordCount,
+                    'linked_schedules_unlinked' =>
+                        $linkedScheduleCount,
                 ],
             );
 

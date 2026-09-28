@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceSession;
 use App\Models\AttendanceSheet;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -80,21 +81,73 @@ class AttendanceSheetMaintenanceController extends Controller
         ];
 
         DB::transaction(function () use ($sheet, $oldValues): void {
+            $sessionIds =
+                $sheet
+                    ->sessions()
+                    ->pluck('id');
+
+            /*
+             * Explicitly unlink every Schedule attached to a
+             * Session in this Sheet before permanent deletion.
+             *
+             * Attendance data is still deleted as requested,
+             * but the Schedule itself is never deleted.
+             */
+            $linkedScheduleCount =
+                $sessionIds->isEmpty()
+                    ? 0
+                    : AttendanceSession::query()
+                        ->whereIn(
+                            'id',
+                            $sessionIds
+                        )
+                        ->whereNotNull(
+                            'schedule_id'
+                        )
+                        ->count();
+
+            if ($linkedScheduleCount > 0) {
+                AttendanceSession::query()
+                    ->whereIn(
+                        'id',
+                        $sessionIds
+                    )
+                    ->whereNotNull(
+                        'schedule_id'
+                    )
+                    ->update([
+                        'schedule_id' => null,
+                    ]);
+            }
+
             ActivityLogger::log(
                 action: 'attendance_sheet.deleted',
                 subject: $sheet,
                 description: 'Deleted attendance sheet and all related attendance data.',
-                oldValues: $oldValues,
+                oldValues: array_merge(
+                    $oldValues,
+                    [
+                        'linked_schedules_unlinked' =>
+                            $linkedScheduleCount,
+                    ]
+                ),
             );
 
-            $sessionIds = $sheet->sessions()->pluck('id');
-
             AttendanceRecord::query()
-                ->whereIn('attendance_session_id', $sessionIds)
+                ->whereIn(
+                    'attendance_session_id',
+                    $sessionIds
+                )
                 ->delete();
 
-            $sheet->participants()->delete();
-            $sheet->sessions()->delete();
+            $sheet
+                ->participants()
+                ->delete();
+
+            $sheet
+                ->sessions()
+                ->delete();
+
             $sheet->delete();
         });
 
