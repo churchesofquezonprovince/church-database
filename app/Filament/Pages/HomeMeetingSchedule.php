@@ -6,6 +6,8 @@ use App\Filament\Resources\Households\HouseholdResource;
 use App\Models\HomeMeetingScheduleEntry;
 use App\Models\Household;
 use App\Models\Locality;
+use App\Models\MinistryBook;
+use App\Models\ShepherdingContact;
 use App\Support\LocalityOptions;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -18,6 +20,16 @@ class HomeMeetingSchedule extends Page
         'filament.pages.home-meeting-schedule';
 
     public array $householdSelections = [];
+
+    /**
+     * Request-local canonical active Ministry sequence.
+     */
+    protected ?Collection $homeMeetingMinistrySequenceCache = null;
+
+    /**
+     * household_id => next Ministry display data.
+     */
+    protected array $nextHomeMeetingMinistryCache = [];
 
     #[Url(as: 'locality', history: true)]
     public ?string $selectedLocality = null;
@@ -377,6 +389,245 @@ class HomeMeetingSchedule extends Page
             )
             ->success()
             ->send();
+    }
+
+
+    /**
+     * Keep short names on one line.
+     *
+     * Longer names use the first two words on the first line
+     * so the Home Meeting controls can remain beside the name.
+     *
+     * Examples:
+     * Jenny Rose / Tampol
+     * Claudette Raton / & Chariz
+     */
+    public function homeMeetingNameLines(
+        string $displayName
+    ): array {
+        $parts = preg_split(
+            '/\s+/',
+            trim($displayName),
+            -1,
+            PREG_SPLIT_NO_EMPTY
+        ) ?: [];
+
+        if (count($parts) <= 2) {
+            return [
+                implode(' ', $parts),
+                null,
+            ];
+        }
+
+        return [
+            implode(
+                ' ',
+                array_slice($parts, 0, 2)
+            ),
+            implode(
+                ' ',
+                array_slice($parts, 2)
+            ),
+        ];
+    }
+
+
+    /**
+     * Return the same next Ministry material used by the
+     * Home Meeting -> Add Shepherding Record handoff.
+     */
+    public function nextHomeMeetingMinistry(
+        HomeMeetingScheduleEntry $entry
+    ): ?array {
+        if (! $entry->household_id) {
+            return null;
+        }
+
+        $householdId =
+            (int) $entry->household_id;
+
+        if (
+            array_key_exists(
+                $householdId,
+                $this->nextHomeMeetingMinistryCache
+            )
+        ) {
+            return $this
+                ->nextHomeMeetingMinistryCache[
+                    $householdId
+                ];
+        }
+
+        $lessonSequence =
+            $this->homeMeetingMinistrySequence();
+
+        if ($lessonSequence->isEmpty()) {
+            return $this
+                ->nextHomeMeetingMinistryCache[
+                    $householdId
+                ] = null;
+        }
+
+        /*
+         * Match the existing Shepherding Record behavior:
+         * use the newest record for this Household that
+         * actually contains Ministry Used.
+         */
+        $lastContact =
+            ShepherdingContact::query()
+                ->forHouseholdMinistryProgress(
+                    $householdId
+                )
+                ->whereHas(
+                    'ministryLessons'
+                )
+                ->with(
+                    'ministryLessons'
+                )
+                ->orderByDesc(
+                    'contact_date'
+                )
+                ->orderByDesc(
+                    'contact_time'
+                )
+                ->orderByDesc('id')
+                ->first();
+
+        if (! $lastContact) {
+            return $this
+                ->nextHomeMeetingMinistryCache[
+                    $householdId
+                ] = $lessonSequence->first();
+        }
+
+        $positions =
+            $lastContact
+                ->ministryLessons
+                ->map(
+                    fn ($lesson) =>
+                        $lessonSequence->search(
+                            fn (
+                                array $candidate
+                            ): bool =>
+                                (int) $candidate['id']
+                                ===
+                                (int) $lesson->id
+                        )
+                )
+                ->filter(
+                    fn ($position): bool =>
+                        $position !== false
+                )
+                ->map(
+                    fn ($position): int =>
+                        (int) $position
+                )
+                ->values();
+
+        /*
+         * Historical lessons may have since been disabled.
+         * Match the Shepherding form by restarting from the
+         * first currently-active lesson when necessary.
+         */
+        if ($positions->isEmpty()) {
+            return $this
+                ->nextHomeMeetingMinistryCache[
+                    $householdId
+                ] = $lessonSequence->first();
+        }
+
+        $nextPosition =
+            ((int) $positions->max()) + 1;
+
+        return $this
+            ->nextHomeMeetingMinistryCache[
+                $householdId
+            ] = $lessonSequence->get(
+                $nextPosition
+            );
+    }
+
+
+    /**
+     * Canonical active Ministry progression:
+     * Book sort order -> Lesson sort order -> Lesson code.
+     */
+    private function homeMeetingMinistrySequence(): Collection
+    {
+        if (
+            $this->homeMeetingMinistrySequenceCache
+            !== null
+        ) {
+            return $this
+                ->homeMeetingMinistrySequenceCache;
+        }
+
+        return $this
+            ->homeMeetingMinistrySequenceCache =
+                MinistryBook::query()
+                    ->where('is_active', true)
+                    ->whereHas(
+                        'lessons',
+                        fn ($query) =>
+                            $query->where(
+                                'is_active',
+                                true
+                            )
+                    )
+                    ->with([
+                        'lessons' =>
+                            fn ($query) =>
+                                $query
+                                    ->where(
+                                        'is_active',
+                                        true
+                                    )
+                                    ->orderBy(
+                                        'sort_order'
+                                    )
+                                    ->orderBy('code'),
+                    ])
+                    ->orderBy('sort_order')
+                    ->orderBy('title')
+                    ->get()
+                    ->flatMap(
+                        fn (MinistryBook $book) =>
+                            $book
+                                ->lessons
+                                ->map(
+                                    fn ($lesson): array => [
+                                        'id' =>
+                                            (int) $lesson->id,
+
+                                        /*
+                                         * Prefer Tagalog when the
+                                         * Ministry record provides it.
+                                         */
+                                        'book' =>
+                                            filled(
+                                                $book
+                                                    ->title_tagalog
+                                            )
+                                                ? (string)
+                                                    $book
+                                                        ->title_tagalog
+                                                : (string)
+                                                    $book->title,
+
+                                        'lesson' =>
+                                            filled(
+                                                $lesson
+                                                    ->title_tagalog
+                                            )
+                                                ? (string)
+                                                    $lesson
+                                                        ->title_tagalog
+                                                : (string)
+                                                    $lesson->title,
+                                    ]
+                                )
+                    )
+                    ->values();
     }
 
 

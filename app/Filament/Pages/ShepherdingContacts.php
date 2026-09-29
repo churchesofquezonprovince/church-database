@@ -411,12 +411,8 @@ class ShepherdingContacts extends Page
          */
         $lastContact =
             ShepherdingContact::query()
-                ->whereHas(
-                    'contactedHouseholds',
-                    fn ($query) =>
-                        $query->whereKey(
-                            $householdId
-                        )
+                ->forHouseholdMinistryProgress(
+                    $householdId
                 )
                 ->whereHas(
                     'ministryLessons'
@@ -6366,4 +6362,3 @@ class ShepherdingContacts extends Page
     }
 
 }
-

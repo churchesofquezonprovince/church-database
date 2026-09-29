@@ -164,45 +164,48 @@
                             )
                                 <div
                                     class="flex flex-wrap
-                                           items-center
+                                           items-start
                                            justify-between
-                                           gap-3 px-5 py-4"
+                                           gap-x-3 gap-y-1 px-5 py-4"
                                 >
-                                    <div class="min-w-0">
-                                        <p
-                                            class="font-semibold
-                                                   text-gray-900
-                                                   dark:text-white"
-                                        >
-                                            {{ $entry->display_name }}
-                                        </p>
+                                      @php
+                                          $nameLines =
+                                              $this
+                                                  ->homeMeetingNameLines(
+                                                      $entry
+                                                          ->display_name
+                                                  );
 
-                                        @if ($entry->household)
-                                            <p
-                                                class="mt-1 text-xs
-                                                       text-gray-500
-                                                       dark:text-gray-400"
-                                            >
-                                                Household:
-                                                {{
-                                                    $entry
-                                                        ->household
-                                                        ->display_name
-                                                }}
-                                            </p>
-                                        @elseif (
-                                            $entry->contactPerson
-                                        )
-                                            <p
-                                                class="mt-1 text-xs
-                                                       text-gray-500
-                                                       dark:text-gray-400"
-                                            >
-                                                Person linked
-                                            </p>
-                                        @endif
-                                    </div>
+                                          $nextMinistry =
+                                              $entry->household_id
+                                                  ? $this
+                                                      ->nextHomeMeetingMinistry(
+                                                          $entry
+                                                      )
+                                                  : null;
+                                      @endphp
 
+                                      <div class="min-w-0">
+                                          <p
+                                              class="whitespace-nowrap
+                                                     font-semibold
+                                                     text-gray-900
+                                                     dark:text-white"
+                                          >
+                                              {{ $nameLines[0] }}
+                                          </p>
+
+                                          @if ($nameLines[1])
+                                              <p
+                                                  class="whitespace-nowrap
+                                                         font-semibold
+                                                         text-gray-900
+                                                         dark:text-white"
+                                              >
+                                                  {{ $nameLines[1] }}
+                                              </p>
+                                          @endif
+                                      </div>
                                     <div
                                         class="flex shrink-0
                                                flex-wrap items-center
@@ -273,7 +276,7 @@
 
                                             <select
                                                 wire:model="householdSelections.{{ $entry->id }}"
-                                                class="min-w-44 rounded-lg
+                                                class="w-40 rounded-lg
                                                        border-gray-300
                                                        bg-white
                                                        py-1.5 text-xs
@@ -338,6 +341,80 @@
 
                                         @endif
                                     </div>
+                                      @if (
+                                          $entry->household
+                                          || $entry->contactPerson
+                                          || $nextMinistry
+                                      )
+                                          <div
+                                              class="basis-full
+                                                     min-w-0 pt-1"
+                                          >
+                                              @if ($entry->household)
+                                                  <p
+                                                      class="text-xs
+                                                             text-gray-500
+                                                             dark:text-gray-400"
+                                                  >
+                                                      Household:
+                                                      <span
+                                                          class="font-medium
+                                                                 text-gray-600
+                                                                 dark:text-gray-300"
+                                                      >
+                                                          {{
+                                                              $entry
+                                                                  ->household
+                                                                  ->display_name
+                                                          }}
+                                                      </span>
+                                                  </p>
+                                              @elseif (
+                                                  $entry->contactPerson
+                                              )
+                                                  <p
+                                                      class="text-xs
+                                                             text-gray-500
+                                                             dark:text-gray-400"
+                                                  >
+                                                      Person linked
+                                                  </p>
+                                              @endif
+
+                                              @if ($nextMinistry)
+                                                  <p
+                                                      class="mt-1 text-xs
+                                                             text-gray-500
+                                                             dark:text-gray-400"
+                                                  >
+                                                      <span
+                                                          class="font-semibold
+                                                                 text-gray-700
+                                                                 dark:text-gray-200"
+                                                      >
+                                                          Next Ministry Book:
+                                                      </span>
+
+                                                      <span
+                                                          class="font-semibold
+                                                                 text-emerald-700
+                                                                 dark:text-emerald-300"
+                                                      >
+                                                          {{
+                                                              $nextMinistry[
+                                                                  'book'
+                                                              ]
+                                                          }}
+                                                      </span>:
+                                                      {{
+                                                          $nextMinistry[
+                                                              'lesson'
+                                                          ]
+                                                      }}
+                                                  </p>
+                                              @endif
+                                          </div>
+                                      @endif
                                 </div>
                             @endforeach
 

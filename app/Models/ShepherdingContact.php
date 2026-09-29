@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,6 +63,103 @@ class ShepherdingContact extends Model
                 self::OUTCOME_OTHER,
         ];
     }
+
+    /**
+     * Include Shepherding Records that contribute to the
+     * Ministry progress of a Household regardless of whether
+     * the record was entered from Home Meeting Schedule,
+     * directly against the Household, a Person, or a
+     * Gospel Contact.
+     *
+     * Historical Household-member snapshots are also honored
+     * when they are available.
+     */
+    public function scopeForHouseholdMinistryProgress(
+        Builder $query,
+        int $householdId
+    ): Builder {
+        return $query->where(
+            function (Builder $query) use (
+                $householdId
+            ): void {
+                $query
+                    /*
+                     * Household selected directly.
+                     */
+                    ->whereHas(
+                        'contactedHouseholds',
+                        fn (Builder $target) =>
+                            $target->whereKey(
+                                $householdId
+                            )
+                    )
+
+                    /*
+                     * Person selected directly.
+                     */
+                    ->orWhereHas(
+                        'contactedPeople',
+                        fn (Builder $target) =>
+                            $target->where(
+                                'persons.household_id',
+                                $householdId
+                            )
+                    )
+
+                    /*
+                     * Gospel Contact selected directly.
+                     */
+                    ->orWhereHas(
+                        'contactedGospelContacts',
+                        fn (Builder $target) =>
+                            $target->where(
+                                'gospel_contacts.household_id',
+                                $householdId
+                            )
+                    )
+
+                    /*
+                     * A Gospel Contact may later have been
+                     * promoted to People. Honor the Person's
+                     * current Household as well.
+                     */
+                    ->orWhereHas(
+                        'contactedGospelContacts.person',
+                        fn (Builder $target) =>
+                            $target->where(
+                                'persons.household_id',
+                                $householdId
+                            )
+                    )
+
+                    /*
+                     * Historical Person Household snapshot.
+                     */
+                    ->orWhereHas(
+                        'householdMembers',
+                        fn (Builder $target) =>
+                            $target->where(
+                                'shepherding_contact_household_members.household_id',
+                                $householdId
+                            )
+                    )
+
+                    /*
+                     * Historical Gospel Contact Household
+                     * snapshot.
+                     */
+                    ->orWhereHas(
+                        'householdGospelMembers',
+                        fn (Builder $target) =>
+                            $target->where(
+                                'shepherding_contact_household_gospel_members.household_id',
+                                $householdId
+                            )
+                    );
+            }
+        );
+    }
+
 
     public function contactedPeople(): BelongsToMany
     {
