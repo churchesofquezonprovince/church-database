@@ -38,6 +38,9 @@
             'churchProfile',
             'localityRecord',
             'household',
+            'educationProfile.school',
+            'parentRelationships.parent',
+            'parentRelationships.gospelContact',
         ])
         ->whereHas(
             'churchProfile',
@@ -93,6 +96,38 @@
         )
         ->orderBy('name')
         ->get();
+
+    /*
+     * Parent / guardian identity can come from:
+     * 1. an existing Person,
+     * 2. a Gospel Contact,
+     * 3. a legacy recorded name.
+     */
+    $parentLabel = function (
+        \App\Models\Person $person,
+        string $relationship
+    ): string {
+        $record = $person->parentRelationships
+            ->firstWhere('relationship', $relationship);
+
+        if (! $record) {
+            return '—';
+        }
+
+        if ($record->parent) {
+            return $record->parent->display_name;
+        }
+
+        if ($record->gospelContact) {
+            return $record->gospelContact->display_name;
+        }
+
+        if (filled($record->parent_name)) {
+            return trim((string) $record->parent_name);
+        }
+
+        return '—';
+    };
 @endphp
 
 <div class="space-y-6">
@@ -605,6 +640,61 @@
                                     dark:text-gray-400
                                 "
                             >
+                                School
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Grade Level
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Father
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Mother
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Guardian
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
                                 Contact
                             </th>
 
@@ -741,6 +831,82 @@
                                     {{
                                         $person->household?->household_name
                                             ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        px-4 py-4 text-sm
+                                        text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $person
+                                            ->educationProfile
+                                            ?->school
+                                            ?->name
+                                            ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        whitespace-nowrap px-4 py-4
+                                        text-sm text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $person
+                                            ->educationProfile
+                                            ?->grade_level
+                                            ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        px-4 py-4 text-sm
+                                        text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $parentLabel(
+                                            $person,
+                                            'Father'
+                                        )
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        px-4 py-4 text-sm
+                                        text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $parentLabel(
+                                            $person,
+                                            'Mother'
+                                        )
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        px-4 py-4 text-sm
+                                        text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $parentLabel(
+                                            $person,
+                                            'Guardian'
+                                        )
                                     }}
                                 </td>
 
