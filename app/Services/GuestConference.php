@@ -85,6 +85,18 @@ final class GuestConference
                 || ($g->event_role && $p->event_role && $g->event_role!==$p->event_role))) {
                 throw ValidationException::withMessages(['guestAttendance'=>'Team or event role conflicts. Review the assignments before linking.']);
             }
+            if (
+                \Illuminate\Support\Facades\Schema::hasTable(
+                    'conference_participant_field_values'
+                )
+            ) {
+                ConferenceParticipantFields::assertAttendeeMergeable(
+                    (int) $event->id,
+                    -$guestId,
+                    $personId
+                );
+            }
+
             $seen=[];
             foreach (self::invitations($event->id) as $i) {
                 $from=(int)$i->inviter_person_id; $to=(int)$i->invitee_person_id;
@@ -101,6 +113,19 @@ final class GuestConference
             $p=DB::table('conference_person_details')->where('conference_event_id',$event->id)->where('person_id',$personId)->first();
             if ($g) DB::table('conference_person_details')->updateOrInsert(['conference_event_id'=>$event->id,'person_id'=>$personId],
                 ['conference_team_id'=>$p?->conference_team_id ?: $g->conference_team_id,'event_role'=>$p?->event_role ?: $g->event_role,'updated_at'=>now()]);
+
+            if (
+                \Illuminate\Support\Facades\Schema::hasTable(
+                    'conference_participant_field_values'
+                )
+            ) {
+                ConferenceParticipantFields::mergeAttendee(
+                    (int) $event->id,
+                    -$guestId,
+                    $personId
+                );
+            }
+
             $links=self::invitations($event->id)->map(fn($i)=>[
                 'from'=>(int)$i->inviter_person_id===-$guestId ? $personId : (int)$i->inviter_person_id,
                 'to'=>(int)$i->invitee_person_id===-$guestId ? $personId : (int)$i->invitee_person_id]);
