@@ -82,6 +82,175 @@
         <div class="cq-actions"><button type="submit" class="cq-primary" wire:loading.attr="disabled">{{ $teamEditId ? 'Save Team' : 'Add Team' }}</button>@if ($teamEditId)<button type="button" wire:click="cancelTeam">Cancel Edit</button>@endif</div>
     </form>
 </details>
+<details class="cq-card" open>
+    <summary>Participant Columns</summary>
+
+    <p>
+        Add conference-specific columns just like extra
+        spreadsheet columns. Optional checkbox fields preserve
+        three states: Unknown, Yes, and No.
+    </p>
+
+    @if ($participantFields->isNotEmpty())
+        <div class="cq-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach ($participantFields as $field)
+                        <tr
+                            wire:key="conference-field-{{ $field->id }}"
+                        >
+                            <td>
+                                {{ $field->name }}
+                            </td>
+
+                            <td>
+                                {{
+                                    $participantFieldTypes[
+                                        $field->field_type
+                                    ]
+                                    ?? $field->field_type
+                                }}
+                            </td>
+
+                            <td>
+                                {{
+                                    $field->is_required
+                                        ? 'Yes'
+                                        : 'No'
+                                }}
+                            </td>
+
+                            <td>
+                                <button
+                                    type="button"
+                                    wire:click="editParticipantField({{ $field->id }})"
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    type="button"
+                                    wire:click="deleteParticipantField({{ $field->id }})"
+                                    wire:confirm="Remove this participant column and all values stored in it?"
+                                >
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @else
+        <p>
+            No custom participant columns yet.
+        </p>
+    @endif
+
+    <form wire:submit="saveParticipantField">
+        <div class="cq-grid">
+            <label>
+                Column name
+
+                <input
+                    wire:model="fieldName"
+                    maxlength="100"
+                    placeholder="e.g. With Invite?"
+                    required
+                >
+
+                @error('fieldName')
+                    <span>{{ $message }}</span>
+                @enderror
+            </label>
+
+            <label>
+                Column type
+
+                <select
+                    wire:model.live="fieldType"
+                    required
+                >
+                    @foreach (
+                        $participantFieldTypes
+                        as $type => $label
+                    )
+                        <option value="{{ $type }}">
+                            {{ $label }}
+                        </option>
+                    @endforeach
+                </select>
+
+                @error('fieldType')
+                    <span>{{ $message }}</span>
+                @enderror
+            </label>
+
+            <label>
+                <span>
+                    Required value
+                </span>
+
+                <input
+                    type="checkbox"
+                    wire:model="fieldRequired"
+                >
+            </label>
+
+            @if (
+                $fieldType
+                ===
+                \App\Services\ConferenceParticipantFields::TYPE_SELECT
+            )
+                <label>
+                    Dropdown options
+                    <textarea
+                        wire:model="fieldOptionsText"
+                        rows="5"
+                        placeholder="One option per line"
+                    ></textarea>
+
+                    @error('fieldOptions')
+                        <span>{{ $message }}</span>
+                    @enderror
+                </label>
+            @endif
+        </div>
+
+        <div class="cq-actions">
+            <button
+                type="submit"
+                class="cq-primary"
+                wire:loading.attr="disabled"
+            >
+                {{
+                    $fieldEditId
+                        ? 'Save Column'
+                        : 'Add Column'
+                }}
+            </button>
+
+            @if ($fieldEditId)
+                <button
+                    type="button"
+                    wire:click="cancelParticipantField"
+                >
+                    Cancel Edit
+                </button>
+            @endif
+        </div>
+    </form>
+</details>
+
 <div class="cq-card"><h2>Participants</h2>
     <p>People, enrolled guests, and contacts share conference totals, teams, and invitations. Enroll guests through Attendance Sheets; check them in through Check Attendance.</p>
     <div class="cq-grid">
@@ -98,13 +267,143 @@
     <form wire:submit="savePerson" class="cq-card" style="margin-top:16px"><h2>Assign {{ $all['rows']->get($editPersonId)['name'] }}</h2><div class="cq-grid">
         <label>Team<select wire:model="personTeamId"><option value="">Unassigned</option>@foreach ($data['teams'] as $team)<option value="{{ $team->id }}">{{ $team->name }}</option>@endforeach</select></label>
         <label>Event role<select wire:model="personRole"><option value="">Unassigned</option>@foreach ($roles as $key=>$label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select></label>
+
+        @foreach ($participantFields as $field)
+            <label>
+                {{ $field->name }}
+                @if ($field->is_required)
+                    *
+                @endif
+
+                @if (
+                    $field->field_type
+                    ===
+                    \App\Services\ConferenceParticipantFields::TYPE_CHECKBOX
+                )
+                    <select
+                        wire:model="personFieldValues.{{ $field->id }}"
+                        @if ($field->is_required) required @endif
+                    >
+                        <option value="">
+                            Unknown
+                        </option>
+                        <option value="1">
+                            Yes
+                        </option>
+                        <option value="0">
+                            No
+                        </option>
+                    </select>
+
+                @elseif (
+                    $field->field_type
+                    ===
+                    \App\Services\ConferenceParticipantFields::TYPE_SELECT
+                )
+                    <select
+                        wire:model="personFieldValues.{{ $field->id }}"
+                        @if ($field->is_required) required @endif
+                    >
+                        <option value="">
+                            Not entered
+                        </option>
+
+                        @foreach ($field->options as $option)
+                            <option value="{{ $option }}">
+                                {{ $option }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                @elseif (
+                    $field->field_type
+                    ===
+                    \App\Services\ConferenceParticipantFields::TYPE_NUMBER
+                )
+                    <input
+                        type="number"
+                        step="any"
+                        wire:model="personFieldValues.{{ $field->id }}"
+                        @if ($field->is_required) required @endif
+                    >
+
+                @elseif (
+                    $field->field_type
+                    ===
+                    \App\Services\ConferenceParticipantFields::TYPE_DATE
+                )
+                    <input
+                        type="date"
+                        wire:model="personFieldValues.{{ $field->id }}"
+                        @if ($field->is_required) required @endif
+                    >
+
+                @else
+                    <input
+                        type="text"
+                        maxlength="500"
+                        wire:model="personFieldValues.{{ $field->id }}"
+                        @if ($field->is_required) required @endif
+                    >
+                @endif
+            </label>
+        @endforeach
+
+        @error('participantFieldValue')
+            <div>
+                {{ $message }}
+            </div>
+        @enderror
     </div><div class="cq-actions"><button class="cq-primary" type="submit" wire:loading.attr="disabled">Save Assignment</button><button type="button" wire:click="$set('editPersonId', null)">Cancel</button></div></form>
     @endif
-    <div class="cq-table"><table><thead><tr><th>Name</th><th>Locality</th><th>Roster / Attendance</th><th>Team / Role</th><th>Invited</th><th>Action</th></tr></thead><tbody>
-    @forelse ($rows as $row)<tr wire:key="cq-person-{{ $eventId }}-{{ $row['id'] }}"><td><button type="button" wire:click="showPerson({{ $row['id'] }})">{{ $row['name'] }}</button></td><td>{{ $row['locality'] }}</td><td>{{ $row['roster'] ? 'On roster' : 'Not on roster' }}<br>{{ $row['attended'] ? 'Attended' : ($row['recorded'] ? 'No Present / Late record' : 'No attendance record') }}</td><td>{{ $row['team']?->name ?? 'No team' }}<br>{{ $roles[$row['role']] ?? 'Role unassigned' }}</td><td>
+    <div class="cq-table"><table><thead><tr><th>Name</th><th>Locality</th><th>Roster / Attendance</th><th>Team / Role</th>
+        @foreach ($participantFields as $field)
+            <th>
+                {{ $field->name }}
+            </th>
+        @endforeach
+        <th>Invited</th><th>Action</th></tr></thead><tbody>
+    @forelse ($rows as $row)<tr wire:key="cq-person-{{ $eventId }}-{{ $row['id'] }}"><td><button type="button" wire:click="showPerson({{ $row['id'] }})">{{ $row['name'] }}</button></td><td>{{ $row['locality'] }}</td><td>{{ $row['roster'] ? 'On roster' : 'Not on roster' }}<br>{{ $row['attended'] ? 'Attended' : ($row['recorded'] ? 'No Present / Late record' : 'No attendance record') }}</td><td>{{ $row['team']?->name ?? 'No team' }}<br>{{ $roles[$row['role']] ?? 'Role unassigned' }}</td>
+
+        @foreach ($participantFields as $field)
+            @php
+                $participantFieldValue =
+                    $participantFieldValues->get(
+                        \App\Services\ConferenceParticipantFields::valueKey(
+                            (int) $field->id,
+                            (int) $row['id']
+                        )
+                    );
+            @endphp
+
+            <td>
+                @if (
+                    $field->field_type
+                    ===
+                    \App\Services\ConferenceParticipantFields::TYPE_CHECKBOX
+                )
+                    @if ($participantFieldValue === true)
+                        ☑ Yes
+                    @elseif ($participantFieldValue === false)
+                        ☐ No
+                    @else
+                        —
+                    @endif
+                @else
+                    {{
+                        $participantFieldValue === null
+                            || $participantFieldValue === ''
+                                ? '—'
+                                : $participantFieldValue
+                    }}
+                @endif
+            </td>
+        @endforeach
+
+        <td>
         @foreach ($row['invites'] as $id) @if ($all['rows']->has($id))<button type="button" title="{{ $all['rows']->get($id)['name'] }}" wire:click="showPerson({{ $id }})">{{ $all['rows']->get($id)['name'] }}</button>@endif @endforeach
     </td><td><button type="button" wire:click="editPerson({{ $row['id'] }})">Assign</button></td></tr>
-    @empty<tr><td colspan="6">No people match these filters.</td></tr>@endforelse
+    @empty<tr><td colspan="{{ 6 + $participantFields->count() }}">No attendees match these filters.</td></tr>@endforelse
     </tbody></table></div>
     <div class="cq-actions"><button type="button" wire:click="changePage({{ $currentPage - 1 }})" @disabled($currentPage <= 1)>Previous</button><span>{{ $rowCount }} people · Page {{ $currentPage }} of {{ $lastPage }}</span><button type="button" wire:click="changePage({{ $currentPage + 1 }})" @disabled($currentPage >= $lastPage)>Next</button></div>
 </div>

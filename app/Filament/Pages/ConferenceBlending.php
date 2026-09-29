@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\{AttendanceSheet, AttendanceSession};
 use App\Services\ConferenceWorkspace as Workspace;
+use App\Services\ConferenceParticipantFields as ParticipantFields;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,12 @@ class ConferenceBlending extends Page
     public ?int $inviterId = null;
     public ?int $inviteeId = null;
     public ?int $detailPersonId = null;
+    public ?int $fieldEditId = null;
+    public string $fieldName = '';
+    public string $fieldType = 'checkbox';
+    public bool $fieldRequired = false;
+    public string $fieldOptionsText = '';
+    public array $personFieldValues = [];
 
     public static function getNavigationGroup(): ?string { return 'Attendance'; }
     public static function getNavigationSort(): ?int { return 45; }
@@ -47,7 +54,30 @@ class ConferenceBlending extends Page
     public function updatedSetupSheetId(): void { $this->setupSessionIds = []; }
     public function updatedEventId(): void
     {
-        $this->reset('sessionId', 'search', 'localityFilter', 'attendanceFilter', 'teamFilter', 'roleFilter', 'responseFilter', 'questionFilter', 'answerFilter', 'editPersonId', 'teamEditId', 'teamName', 'inviterId', 'inviteeId', 'detailPersonId', 'pageNumber');
+        $this->reset(
+            'sessionId',
+            'search',
+            'localityFilter',
+            'attendanceFilter',
+            'teamFilter',
+            'roleFilter',
+            'responseFilter',
+            'questionFilter',
+            'answerFilter',
+            'editPersonId',
+            'personFieldValues',
+            'teamEditId',
+            'teamName',
+            'inviterId',
+            'inviteeId',
+            'detailPersonId',
+            'fieldEditId',
+            'fieldName',
+            'fieldType',
+            'fieldRequired',
+            'fieldOptionsText',
+            'pageNumber'
+        );
         $this->resetValidation();
     }
     public function updatedSessionId(): void { $this->reset('pageNumber', 'detailPersonId', 'editPersonId'); }
@@ -69,15 +99,149 @@ class ConferenceBlending extends Page
     }
     public function editPerson(int $id): void
     {
-        $row = Workspace::data($this->currentId())['rows']->get($id) ?? abort(404);
-        $this->editPersonId = $id; $this->personTeamId = $row['team_id']; $this->personRole = $row['role'];
+        $eventId =
+            $this->currentId();
+
+        $row =
+            Workspace::data(
+                $eventId
+            )['rows']->get($id)
+            ?? abort(404);
+
+        $this->editPersonId =
+            $id;
+
+        $this->personTeamId =
+            $row['team_id'];
+
+        $this->personRole =
+            $row['role'];
+
+        $this->personFieldValues = [];
+
+        if (
+            ! \Illuminate\Support\Facades\Schema::hasTable(
+                'conference_participant_fields'
+            )
+        ) {
+            return;
+        }
+
+        $values =
+            ParticipantFields::values(
+                $eventId
+            );
+
+        foreach (
+            ParticipantFields::fields(
+                $eventId
+            ) as $field
+        ) {
+            $value =
+                $values->get(
+                    ParticipantFields::valueKey(
+                        (int) $field->id,
+                        $id
+                    )
+                );
+
+            if (
+                $field->field_type
+                === ParticipantFields::TYPE_CHECKBOX
+            ) {
+                $value =
+                    $value === true
+                        ? '1'
+                        : (
+                            $value === false
+                                ? '0'
+                                : ''
+                        );
+            } elseif ($value === null) {
+                $value = '';
+            } else {
+                $value =
+                    (string) $value;
+            }
+
+            $this->personFieldValues[
+                (string) $field->id
+            ] = $value;
+        }
     }
+
     public function savePerson(): void
     {
-        abort_unless($this->editPersonId, 422);
-        Workspace::savePerson($this->currentId(), $this->editPersonId, $this->personTeamId, $this->personRole);
-        $this->editPersonId = null; $this->success('Team and event role saved');
+        abort_unless(
+            $this->editPersonId !== null,
+            422
+        );
+
+        $eventId =
+            $this->currentId();
+
+        DB::transaction(
+            function () use ($eventId): void {
+                Workspace::savePerson(
+                    $eventId,
+                    $this->editPersonId,
+                    $this->personTeamId,
+                    $this->personRole
+                );
+
+                if (
+                    ! \Illuminate\Support\Facades\Schema::hasTable(
+                        'conference_participant_fields'
+                    )
+                ) {
+                    return;
+                }
+
+                foreach (
+                    ParticipantFields::fields(
+                        $eventId
+                    ) as $field
+                ) {
+                    $raw =
+                        $this->personFieldValues[
+                            (string) $field->id
+                        ]
+                        ?? null;
+
+                    $value = $raw;
+
+                    if (
+                        $field->field_type
+                        === ParticipantFields::TYPE_CHECKBOX
+                    ) {
+                        $value =
+                            $raw === '1'
+                                ? true
+                                : (
+                                    $raw === '0'
+                                        ? false
+                                        : null
+                                );
+                    }
+
+                    ParticipantFields::saveValue(
+                        $eventId,
+                        (int) $field->id,
+                        $this->editPersonId,
+                        $value
+                    );
+                }
+            }
+        );
+
+        $this->editPersonId = null;
+        $this->personFieldValues = [];
+
+        $this->success(
+            'Participant assignment saved'
+        );
     }
+
     public function editTeam(int $id): void
     {
         $team = DB::table('conference_teams')->where('conference_event_id', $this->currentId())->where('id', $id)->first() ?? abort(404);
@@ -104,6 +268,138 @@ class ConferenceBlending extends Page
         });
         $this->cancelTeam(); $this->success('Team saved');
     }
+    public function editParticipantField(
+        int $id
+    ): void {
+        $field =
+            ParticipantFields::fields(
+                $this->currentId()
+            )->get($id)
+            ?? abort(404);
+
+        $this->fieldEditId =
+            (int) $field->id;
+
+        $this->fieldName =
+            (string) $field->name;
+
+        $this->fieldType =
+            (string) $field->field_type;
+
+        $this->fieldRequired =
+            (bool) $field->is_required;
+
+        $this->fieldOptionsText =
+            implode(
+                PHP_EOL,
+                $field->options ?? []
+            );
+
+        $this->resetValidation();
+    }
+
+
+    public function cancelParticipantField(): void
+    {
+        $this->reset(
+            'fieldEditId',
+            'fieldName',
+            'fieldType',
+            'fieldRequired',
+            'fieldOptionsText'
+        );
+
+        $this->fieldType =
+            ParticipantFields::TYPE_CHECKBOX;
+
+        $this->resetValidation();
+    }
+
+
+    public function saveParticipantField(): void
+    {
+        $eventId =
+            $this->currentId();
+
+        $this->fieldName =
+            trim(
+                $this->fieldName
+            );
+
+        $options = [];
+
+        if (
+            $this->fieldType
+            === ParticipantFields::TYPE_SELECT
+        ) {
+            $options =
+                collect(
+                    preg_split(
+                        '/\R/u',
+                        $this->fieldOptionsText
+                    ) ?: []
+                )
+                    ->map(
+                        fn ($value): string =>
+                            trim(
+                                (string) $value
+                            )
+                    )
+                    ->filter(
+                        fn (string $value): bool =>
+                            $value !== ''
+                    )
+                    ->values()
+                    ->all();
+        }
+
+        if ($this->fieldEditId) {
+            ParticipantFields::update(
+                $eventId,
+                $this->fieldEditId,
+                $this->fieldName,
+                $this->fieldType,
+                $this->fieldRequired,
+                $options
+            );
+        } else {
+            ParticipantFields::create(
+                $eventId,
+                $this->fieldName,
+                $this->fieldType,
+                $this->fieldRequired,
+                $options
+            );
+        }
+
+        $this->cancelParticipantField();
+
+        $this->success(
+            'Participant column saved'
+        );
+    }
+
+
+    public function deleteParticipantField(
+        int $id
+    ): void {
+        ParticipantFields::delete(
+            $this->currentId(),
+            $id
+        );
+
+        if (
+            $this->fieldEditId === $id
+        ) {
+            $this->cancelParticipantField();
+        }
+
+        $this->success(
+            'Participant column removed'
+        );
+    }
+
+
     public function saveInvitation(): void
     {
         $this->validate(['inviterId' => 'required|integer', 'inviteeId' => 'required|integer']);
@@ -134,6 +430,28 @@ class ConferenceBlending extends Page
             ? AttendanceSession::query()->where('attendance_sheet_id', $this->setupSheetId)->where('is_no_meeting', false)->orderBy('session_date')->get() : collect();
         $data = $this->eventId ? Workspace::data($this->eventId, $this->sessionId) : null;
         $all = $data ? ($this->sessionId ? Workspace::data($this->eventId) : $data) : null;
+        $participantFields =
+            $data
+            && \Illuminate\Support\Facades\Schema::hasTable(
+                'conference_participant_fields'
+            )
+                ? ParticipantFields::fields(
+                    (int) $this->eventId
+                )
+                : collect();
+
+        $participantFieldValues =
+            $data
+            && \Illuminate\Support\Facades\Schema::hasTable(
+                'conference_participant_field_values'
+            )
+                ? ParticipantFields::values(
+                    (int) $this->eventId
+                )
+                : collect();
+
+        $participantFieldTypes =
+            ParticipantFields::types();
         $questions = $data ? $data['sheet']->meetingFormQuestions()->whereIn('question_type', ['checkboxes', 'dropdown', 'multiple_choice'])->get() : collect();
         $question = $questions->firstWhere('id', $this->questionFilter);
         $answerOptions = collect($question?->options ?? [])->filter(fn ($v) => is_scalar($v))->map(fn ($v) => (string) $v);
@@ -161,6 +479,6 @@ class ConferenceBlending extends Page
                 ? ($data['workflow']->get($r->id)['needs_action'] ?? false) : $r->response === $this->responseFilter))
                 && (! $question || $this->answerFilter === '' || Workspace::matchesAnswer(collect([$r]), $question->id, $this->answerFilter));
         }) : collect();
-        return compact('events', 'sheets', 'setupSessions', 'data', 'all', 'questions', 'answerOptions', 'localities', 'rows', 'rowCount', 'currentPage', 'lastPage', 'responses');
+        return compact('events', 'sheets', 'setupSessions', 'data', 'all', 'questions', 'answerOptions', 'localities', 'rows', 'rowCount', 'currentPage', 'lastPage', 'responses', 'participantFields', 'participantFieldValues', 'participantFieldTypes');
     }
 }
