@@ -549,6 +549,46 @@ class HomeMeetingSchedule extends Page
 
 
     /**
+     * Format the Ministry lesson number consistently for the
+     * Home Meeting Schedule.
+     *
+     * Examples:
+     * SL08   -> 08 - Lesson Title
+     * HG01   -> 01 - Lesson Title
+     * LL-1   -> 01 - Lesson Title
+     * TLV1-1 -> 01 - Lesson Title
+     */
+    private function formatHomeMeetingMinistryLesson(
+        string $code,
+        string $title
+    ): string {
+        $code = trim($code);
+        $title = trim($title);
+
+        if (
+            preg_match(
+                '/(\d+)$/',
+                $code,
+                $matches
+            ) !== 1
+        ) {
+            return $title;
+        }
+
+        $lessonNumber = str_pad(
+            $matches[1],
+            2,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        return $lessonNumber
+            . ' - '
+            . $title;
+    }
+
+
+    /**
      * Canonical active Ministry progression:
      * Book sort order -> Lesson sort order -> Lesson code.
      */
@@ -615,15 +655,19 @@ class HomeMeetingSchedule extends Page
                                                     $book->title,
 
                                         'lesson' =>
-                                            filled(
-                                                $lesson
-                                                    ->title_tagalog
-                                            )
-                                                ? (string)
-                                                    $lesson
-                                                        ->title_tagalog
-                                                : (string)
-                                                    $lesson->title,
+                                            $this
+                                                ->formatHomeMeetingMinistryLesson(
+                                                    (string) $lesson->code,
+                                                    filled(
+                                                        $lesson
+                                                            ->title_tagalog
+                                                    )
+                                                        ? (string)
+                                                            $lesson
+                                                                ->title_tagalog
+                                                        : (string)
+                                                            $lesson->title
+                                                ),
                                     ]
                                 )
                     )
