@@ -28,7 +28,7 @@
 @if ($data)
 @php $roles = ['young_person'=>'Young Person', 'serving_one'=>'Serving One', 'other'=>'Other']; @endphp
 <div class="cq-card">
-    <h2>{{ $data['sheet']->title }}</h2><p>{{ $data['event']->activity_type }}</p>
+    <p>{{ $data['event']->activity_type }}</p>
     @if (! $data['sheet']->is_active)<p>This attendance sheet is archived. Its conference records remain available; existing attendance pages may require reactivating the sheet.</p>@endif
     <label>Meeting date<select wire:model.live="sessionId"><option value="">All conference dates</option>@foreach ($data['sessions'] as $session)<option value="{{ $session->id }}">{{ $session->dateTimeLabel() }} — {{ $session->location ?: 'No location set' }}</option>@endforeach</select></label>
     <div class="cq-actions">
@@ -46,10 +46,39 @@
     <p>Totals cover the selected dates before table filters. People are counted once across dates. Form responses are submissions and may include the same person on different dates. Present and Late count as attended.</p>
 </div>
 <details class="cq-card" open><summary>Teams</summary>
-    <p>Assign an event role separately from team membership. Serving One here does not change website permissions.</p>
     <div class="cq-actions">@foreach ($data['teams'] as $team)<button type="button" wire:click="editTeam({{ $team->id }})"><span class="cq-dot" style="background:{{ preg_match('/^#[0-9a-fA-F]{6}$/', $team->color) ? $team->color : '#888888' }}"></span> {{ $team->name }} ({{ $all['rows']->where('team_id',$team->id)->count() }})</button>@endforeach</div>
     <form wire:submit="saveTeam"><div class="cq-grid"><label>Team name<input wire:model="teamName" maxlength="100" required></label><label>Team color<input type="color" wire:model="teamColor"></label></div>
-        <div class="cq-actions"><span>Recent colors:</span>@foreach ($recentColors as $color) @if (preg_match('/^#[0-9a-fA-F]{6}$/', $color))<button type="button" title="{{ $color }}" aria-label="Use color {{ $color }}" wire:click="$set('teamColor', '{{ $color }}')"><span class="cq-dot" style="background:{{ $color }}"></span></button>@endif @endforeach</div>
+        @php
+            $presetColors = [
+                'Rose' => '#CC0000',
+                'Lily' => '#FCE5CD',
+                'Peony' => '#C27BA0',
+                'Lavender' => '#B4A7D6',
+                'Hydrangea' => '#A4C2F4',
+                'Cymbidium' => '#B6D7A8',
+                'Violet' => '#674EA7',
+                'Black Iris' => '#434343',
+                'Marigold' => '#F6B26B',
+                'Daisy' => '#FFFFFF',
+            ];
+        @endphp
+        <div class="cq-actions">
+            <span>Preset colors:</span>
+            @foreach ($presetColors as $presetName => $color)
+                <button
+                    type="button"
+                    title="{{ $presetName }} · {{ $color }}"
+                    aria-label="Use {{ $presetName }} color {{ $color }}"
+                    wire:click="$set('teamColor', '{{ $color }}')"
+                >
+                    <span
+                        class="cq-dot"
+                        style="background:{{ $color }}"
+                    ></span>
+                    {{ $presetName }}
+                </button>
+            @endforeach
+        </div>
         <div class="cq-actions"><button type="submit" class="cq-primary" wire:loading.attr="disabled">{{ $teamEditId ? 'Save Team' : 'Add Team' }}</button>@if ($teamEditId)<button type="button" wire:click="cancelTeam">Cancel Edit</button>@endif</div>
     </form>
 </details>

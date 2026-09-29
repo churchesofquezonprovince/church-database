@@ -161,7 +161,6 @@ class ConferenceBlending extends Page
                 ? ($data['workflow']->get($r->id)['needs_action'] ?? false) : $r->response === $this->responseFilter))
                 && (! $question || $this->answerFilter === '' || Workspace::matchesAnswer(collect([$r]), $question->id, $this->answerFilter));
         }) : collect();
-        $recentColors = DB::table('conference_teams')->orderByDesc('updated_at')->limit(100)->pluck('color')->unique()->take(12);
-        return compact('events', 'sheets', 'setupSessions', 'data', 'all', 'questions', 'answerOptions', 'localities', 'rows', 'rowCount', 'currentPage', 'lastPage', 'responses', 'recentColors');
+        return compact('events', 'sheets', 'setupSessions', 'data', 'all', 'questions', 'answerOptions', 'localities', 'rows', 'rowCount', 'currentPage', 'lastPage', 'responses');
     }
 }
