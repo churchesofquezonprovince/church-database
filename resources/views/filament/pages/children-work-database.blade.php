@@ -143,19 +143,42 @@
                 </p>
             </div>
 
-            <a
-                href="{{ \App\Filament\Resources\People\PersonResource::getUrl('index') }}"
-                class="
-                    inline-flex items-center justify-center rounded-xl
-                    border border-gray-300 bg-white px-4 py-2
-                    text-sm font-semibold text-gray-700 shadow-sm
-                    transition hover:bg-gray-50
-                    dark:border-gray-700 dark:bg-gray-950
-                    dark:text-gray-200 dark:hover:bg-gray-800
-                "
-            >
-                Open Persons Database
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a
+                    href="{{
+                        \App\Filament\Resources\People\PersonResource::getUrl(
+                            'create',
+                            ['source' => 'children-work']
+                        )
+                    }}"
+                    class="
+                        inline-flex items-center justify-center rounded-xl
+                        bg-pink-600 px-4 py-2
+                        text-sm font-semibold text-white shadow-sm
+                        transition hover:bg-pink-500
+                    "
+                >
+                    <x-heroicon-o-plus
+                        class="mr-2 h-5 w-5"
+                    />
+
+                    Add Child
+                </a>
+
+                <a
+                    href="{{ \App\Filament\Resources\People\PersonResource::getUrl('index') }}"
+                    class="
+                        inline-flex items-center justify-center rounded-xl
+                        border border-gray-300 bg-white px-4 py-2
+                        text-sm font-semibold text-gray-700 shadow-sm
+                        transition hover:bg-gray-50
+                        dark:border-gray-700 dark:bg-gray-950
+                        dark:text-gray-200 dark:hover:bg-gray-800
+                    "
+                >
+                    Open Persons Database
+                </a>
+            </div>
         </div>
     </div>
 
