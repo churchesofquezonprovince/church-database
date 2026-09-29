@@ -1617,41 +1617,10 @@ class ShepherdingDashboard extends Page
                         ->ministryLessons
                         ->map(
                             function ($lesson): string {
-                                $book =
-                                    trim(
-                                        (string) (
-                                            $lesson
-                                                ->book
-                                                ?->code
-                                            ?: $lesson
-                                                ->book
-                                                ?->title
-                                            ?: ''
-                                        )
-                                    );
-
-                                $lessonLabel =
-                                    trim(
-                                        (string) (
-                                            $lesson->title
-                                            ?: $lesson->code
-                                            ?: ''
-                                        )
-                                    );
-
-                                if (
-                                    $book !== ''
-                                    && $lessonLabel !== ''
-                                ) {
-                                    return $book
-                                        . ' '
-                                        . $lessonLabel;
-                                }
-
-                                return $lessonLabel !== ''
-                                    ? $lessonLabel
-                                    : $book;
-                            }
+                            return $this->shepherdingCopyMinistryLabel(
+                                $lesson, false
+                            );
+                        }
                         )
                         ->filter()
                         ->unique()
@@ -1659,6 +1628,7 @@ class ShepherdingDashboard extends Page
 
                 $ministryAndPractice =
                     $practiceLabels
+                        ->toBase()
                         ->concat(
                             $ministryLabels
                         )
@@ -2172,69 +2142,10 @@ class ShepherdingDashboard extends Page
                   ->ministryLessons
                   ->map(
                       function ($lesson): string {
-                          $book =
-                              trim(
-                                  (string) (
-                                      $lesson
-                                          ->book
-                                          ?->code
-                                      ?: $lesson
-                                          ->book
-                                          ?->short_title
-                                      ?: $lesson
-                                          ->book
-                                          ?->title
-                                      ?: ''
-                                  )
-                              );
-
-                          $lessonCode =
-                              trim(
-                                  (string) (
-                                      $lesson->code
-                                      ?? ''
-                                  )
-                              );
-
-                          $lessonTitle =
-                              trim(
-                                  (string) (
-                                      $lesson->title
-                                      ?? ''
-                                  )
-                              );
-
-                          $lesson = '';
-
-                          if (
-                              $lessonCode !== ''
-                              && $lessonTitle !== ''
-                          ) {
-                              $lesson =
-                                  $lessonCode
-                                  . ' — '
-                                  . $lessonTitle;
-                          } elseif ($lessonTitle !== '') {
-                              $lesson =
-                                  $lessonTitle;
-                          } else {
-                              $lesson =
-                                  $lessonCode;
-                          }
-
-                          if (
-                              $book !== ''
-                              && $lesson !== ''
-                          ) {
-                              return $book
-                                  . ' · '
-                                  . $lesson;
-                          }
-
-                          return $lesson !== ''
-                              ? $lesson
-                              : $book;
-                      }
+                            return $this->shepherdingCopyMinistryLabel(
+                                $lesson, true
+                            );
+                        }
                   )
                   ->filter()
                   ->unique()
@@ -2251,6 +2162,62 @@ class ShepherdingDashboard extends Page
           return $lines;
       }
 
+
+
+    private function shepherdingCopyMinistryLabel(
+        $lesson,
+        bool $activityContents = false
+    ): string {
+        $tagalog = (bool) session('shepherding_ministry_tagalog', false);
+
+        $titleFor = static function ($item) use ($tagalog): string {
+            if (! $item) {
+                return '';
+            }
+
+            $translated = trim((string) ($item->title_tagalog ?? ''));
+
+            return $tagalog && $translated !== ''
+                ? $translated
+                : trim((string) ($item->title ?? ''));
+        };
+
+        $book = $lesson->book;
+        $bookCode = trim((string) ($book?->code ?? ''));
+        $bookTitle = $titleFor($book);
+        $shortTitle = trim((string) ($book?->short_title ?? ''));
+        $lessonTitle = $titleFor($lesson);
+        $lessonCode = trim((string) ($lesson->code ?? ''));
+
+        if (! $activityContents) {
+            $bookLabel = $bookCode !== '' ? $bookCode : $bookTitle;
+            $lessonLabel = $lessonTitle !== '' ? $lessonTitle : $lessonCode;
+
+            return trim($bookLabel . ' ' . $lessonLabel);
+        }
+
+        if ($this->copyContentDetails) {
+            $bookLabel = $bookCode !== '' && $bookTitle !== ''
+                ? $bookCode . ' — ' . $bookTitle
+                : ($bookTitle !== '' ? $bookTitle : $bookCode);
+
+            if ($bookLabel === '') {
+                $bookLabel = $shortTitle;
+            }
+        } else {
+            $bookLabel = $bookCode !== ''
+                ? $bookCode
+                : ($shortTitle !== '' ? $shortTitle : $bookTitle);
+        }
+
+        $lessonLabel = $lessonCode !== '' && $lessonTitle !== ''
+            ? $lessonCode . ' — ' . $lessonTitle
+            : ($lessonTitle !== '' ? $lessonTitle : $lessonCode);
+
+        return $bookLabel !== '' && $lessonLabel !== ''
+            ? $bookLabel . ' · ' . $lessonLabel
+            : ($lessonLabel !== '' ? $lessonLabel : $bookLabel);
+    }
 
     private function shepherdingCopyPersonName(
         $person,
