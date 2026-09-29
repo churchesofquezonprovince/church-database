@@ -400,6 +400,44 @@ class ConferenceBlending extends Page
     }
 
 
+    public function deleteTeam(
+        int $id
+    ): void {
+        $unassigned =
+            Workspace::deleteTeam(
+                $this->currentId(),
+                $id
+            );
+
+        if (
+            $this->teamEditId === $id
+        ) {
+            $this->cancelTeam();
+        }
+
+        if (
+            $this->personTeamId === $id
+        ) {
+            $this->personTeamId = null;
+        }
+
+        if (
+            $this->teamFilter
+            === (string) $id
+        ) {
+            $this->teamFilter = '';
+        }
+
+        $this->success(
+            $unassigned === 1
+                ? 'Team removed; 1 participant is now unassigned'
+                : 'Team removed; '
+                    . $unassigned
+                    . ' participants are now unassigned'
+        );
+    }
+
+
     public function saveInvitation(): void
     {
         $this->validate(['inviterId' => 'required|integer', 'inviteeId' => 'required|integer']);

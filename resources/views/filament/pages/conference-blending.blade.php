@@ -46,7 +46,49 @@
     <p>Totals cover the selected dates before table filters. People are counted once across dates. Form responses are submissions and may include the same person on different dates. Present and Late count as attended.</p>
 </div>
 <details class="cq-card" open><summary>Teams</summary>
-    <div class="cq-actions">@foreach ($data['teams'] as $team)<button type="button" wire:click="editTeam({{ $team->id }})"><span class="cq-dot" style="background:{{ preg_match('/^#[0-9a-fA-F]{6}$/', $team->color) ? $team->color : '#888888' }}"></span> {{ $team->name }} ({{ $all['rows']->where('team_id',$team->id)->count() }})</button>@endforeach</div>
+    <div class="cq-actions">
+        @foreach ($data['teams'] as $team)
+            <span
+                wire:key="conference-team-{{ $team->id }}"
+                class="cq-actions"
+            >
+                <button
+                    type="button"
+                    wire:click="editTeam({{ $team->id }})"
+                >
+                    <span
+                        class="cq-dot"
+                        style="background:{{
+                            preg_match(
+                                '/^#[0-9a-fA-F]{6}$/',
+                                $team->color
+                            )
+                                ? $team->color
+                                : '#888888'
+                        }}"
+                    ></span>
+
+                    {{ $team->name }}
+                    ({{
+                        $all['rows']
+                            ->where(
+                                'team_id',
+                                $team->id
+                            )
+                            ->count()
+                    }})
+                </button>
+
+                <button
+                    type="button"
+                    wire:click="deleteTeam({{ $team->id }})"
+                    wire:confirm="Delete {{ $team->name }}? Participants assigned to this team will become Unassigned. Their roles, attendance, invitations, and custom participant data will be kept."
+                >
+                    Delete
+                </button>
+            </span>
+        @endforeach
+    </div>
     <form wire:submit="saveTeam"><div class="cq-grid"><label>Team name<input wire:model="teamName" maxlength="100" required></label><label>Team color<input type="color" wire:model="teamColor"></label></div>
         @php
             $presetColors = [

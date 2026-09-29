@@ -143,6 +143,141 @@ class ConferenceWorkspace
             ['conference_team_id' => $teamId, 'event_role' => $role ?: null, 'updated_at' => now()]);
     }
 
+    public static function deleteTeam(
+        int $eventId,
+        int $teamId
+    ): int {
+        self::authorize();
+
+        self::event(
+            $eventId
+        );
+
+        return DB::transaction(
+            function () use (
+                $eventId,
+                $teamId
+            ): int {
+                DB::table(
+                    'conference_events'
+                )
+                    ->where(
+                        'id',
+                        $eventId
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+                $team =
+                    DB::table(
+                        'conference_teams'
+                    )
+                        ->where(
+                            'conference_event_id',
+                            $eventId
+                        )
+                        ->where(
+                            'id',
+                            $teamId
+                        )
+                        ->first();
+
+                abort_unless(
+                    $team,
+                    404
+                );
+
+                $unassigned =
+                    DB::table(
+                        'conference_person_details'
+                    )
+                        ->where(
+                            'conference_event_id',
+                            $eventId
+                        )
+                        ->where(
+                            'conference_team_id',
+                            $teamId
+                        )
+                        ->count();
+
+                DB::table(
+                    'conference_person_details'
+                )
+                    ->where(
+                        'conference_event_id',
+                        $eventId
+                    )
+                    ->where(
+                        'conference_team_id',
+                        $teamId
+                    )
+                    ->update([
+                        'conference_team_id' =>
+                            null,
+
+                        'updated_at' =>
+                            now(),
+                    ]);
+
+                if (
+                    \Illuminate\Support\Facades\Schema::hasTable(
+                        'conference_guest_details'
+                    )
+                ) {
+                    $unassigned +=
+                        DB::table(
+                            'conference_guest_details'
+                        )
+                            ->where(
+                                'conference_event_id',
+                                $eventId
+                            )
+                            ->where(
+                                'conference_team_id',
+                                $teamId
+                            )
+                            ->count();
+
+                    DB::table(
+                        'conference_guest_details'
+                    )
+                        ->where(
+                            'conference_event_id',
+                            $eventId
+                        )
+                        ->where(
+                            'conference_team_id',
+                            $teamId
+                        )
+                        ->update([
+                            'conference_team_id' =>
+                                null,
+
+                            'updated_at' =>
+                                now(),
+                        ]);
+                }
+
+                DB::table(
+                    'conference_teams'
+                )
+                    ->where(
+                        'conference_event_id',
+                        $eventId
+                    )
+                    ->where(
+                        'id',
+                        $teamId
+                    )
+                    ->delete();
+
+                return $unassigned;
+            }
+        );
+    }
+
+
     public static function invite(int $eventId, int $inviter, int $invitee): void
     {
         if (\Illuminate\Support\Facades\Schema::hasTable('conference_attendee_invitations')) { GuestConference::invite($eventId,$inviter,$invitee); return; }

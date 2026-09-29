@@ -144,6 +144,120 @@ class GuestAttendanceTest extends ConferenceWorkspaceTest
         $this->assertNull(DB::table('attendance_guests')->where('id',$g)->value('linked_person_id'));
         $this->assertSame(3,W::data($e)['totals']['roster']);
     }
+    public function test_deleting_team_unassigns_people_and_guests_without_removing_roles(): void
+    {
+        $guestId =
+            G::enroll(
+                1,
+                1,
+                'this_meeting',
+                null,
+                null,
+                'Guest Team Member'
+            );
+
+        $eventId =
+            W::create(
+                1,
+                [1],
+                'Conference'
+            );
+
+        $teamId =
+            DB::table(
+                'conference_teams'
+            )->insertGetId([
+                'conference_event_id' =>
+                    $eventId,
+
+                'name' =>
+                    'Temporary Team',
+
+                'color' =>
+                    '#cc0000',
+            ]);
+
+        W::savePerson(
+            $eventId,
+            1,
+            $teamId,
+            'serving_one'
+        );
+
+        W::savePerson(
+            $eventId,
+            -$guestId,
+            $teamId,
+            'young_people'
+        );
+
+        $this->assertSame(
+            2,
+            W::deleteTeam(
+                $eventId,
+                $teamId
+            )
+        );
+
+        $this->assertFalse(
+            DB::table(
+                'conference_teams'
+            )
+                ->where(
+                    'id',
+                    $teamId
+                )
+                ->exists()
+        );
+
+        $person =
+            DB::table(
+                'conference_person_details'
+            )
+                ->where(
+                    'conference_event_id',
+                    $eventId
+                )
+                ->where(
+                    'person_id',
+                    1
+                )
+                ->first();
+
+        $guest =
+            DB::table(
+                'conference_guest_details'
+            )
+                ->where(
+                    'conference_event_id',
+                    $eventId
+                )
+                ->where(
+                    'attendance_guest_id',
+                    $guestId
+                )
+                ->first();
+
+        $this->assertNull(
+            $person->conference_team_id
+        );
+
+        $this->assertSame(
+            'serving_one',
+            $person->event_role
+        );
+
+        $this->assertNull(
+            $guest->conference_team_id
+        );
+
+        $this->assertSame(
+            'young_people',
+            $guest->event_role
+        );
+    }
+
+
     public function test_link_that_would_create_self_invitation_is_rejected(): void
     {
         $g=G::enroll(1,1,'this_meeting',null,null,'Guest'); $e=W::create(1,[1],'Conference'); W::invite($e,1,-$g);
