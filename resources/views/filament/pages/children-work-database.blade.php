@@ -41,6 +41,8 @@
             'educationProfile.school',
             'parentRelationships.parent',
             'parentRelationships.gospelContact',
+            'childrenWorkProfile.locality',
+            'childrenWorkProfile.servingOne',
         ])
         ->whereHas(
             'churchProfile',
@@ -216,6 +218,359 @@
             </div>
         </div>
     </div>
+
+    @if ($editingChildId)
+        @php
+            $editingChild =
+                \App\Models\Person::query()
+                    ->find($editingChildId);
+        @endphp
+
+        <div
+            class="
+                rounded-2xl border border-pink-200
+                bg-pink-50 p-6 shadow-sm
+                dark:border-pink-900 dark:bg-pink-950/40
+            "
+        >
+            <div
+                class="
+                    flex flex-col gap-3
+                    sm:flex-row sm:items-start
+                    sm:justify-between
+                "
+            >
+                <div>
+                    <p
+                        class="
+                            text-sm font-semibold uppercase
+                            tracking-wide text-pink-700
+                            dark:text-pink-300
+                        "
+                    >
+                        Children's Work Profile
+                    </p>
+
+                    <h3
+                        class="
+                            mt-1 text-xl font-bold
+                            text-gray-950 dark:text-white
+                        "
+                    >
+                        {{
+                            $editingChild?->display_name
+                                ?? 'Child'
+                        }}
+                    </h3>
+
+                    <p
+                        class="
+                            mt-1 text-sm
+                            text-gray-600 dark:text-gray-300
+                        "
+                    >
+                        Manage this child's Children's Work
+                        assignment without changing the
+                        master Person record.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    wire:click="cancelChildrenWorkProfile"
+                    class="
+                        inline-flex items-center justify-center
+                        rounded-xl border border-gray-300
+                        bg-white px-4 py-2 text-sm
+                        font-semibold text-gray-700 shadow-sm
+                        hover:bg-gray-50
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-gray-200
+                    "
+                >
+                    Cancel
+                </button>
+            </div>
+
+            <form
+                wire:submit="saveChildrenWorkProfile"
+                class="
+                    mt-6 grid gap-4
+                    md:grid-cols-2
+                "
+            >
+                <div>
+                    <label
+                        class="
+                            mb-1 block text-sm font-semibold
+                            text-gray-700 dark:text-gray-200
+                        "
+                    >
+                        Children's Work Locality
+                    </label>
+
+                    <select
+                        wire:model.live="childrenWorkLocalityId"
+                        class="
+                            block w-full rounded-xl
+                            border-gray-300 bg-white
+                            text-sm text-gray-950 shadow-sm
+                            focus:border-primary-500
+                            focus:ring-primary-500
+                            dark:border-gray-700
+                            dark:bg-gray-950
+                            dark:text-white
+                        "
+                        required
+                    >
+                        <option value="">
+                            Select locality
+                        </option>
+
+                        @foreach (
+                            $this->childrenWorkLocalityOptions()
+                            as $id => $name
+                        )
+                            <option value="{{ $id }}">
+                                {{ $name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p
+                        class="
+                            mt-1 text-xs
+                            text-gray-500 dark:text-gray-400
+                        "
+                    >
+                        Active localities from the configured
+                        primary province.
+                    </p>
+
+                    @error('childrenWorkLocalityId')
+                        <p
+                            class="
+                                mt-1 text-sm text-red-600
+                                dark:text-red-400
+                            "
+                        >
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label
+                        class="
+                            mb-1 block text-sm font-semibold
+                            text-gray-700 dark:text-gray-200
+                        "
+                    >
+                        Serving One
+                    </label>
+
+                    <select
+                        wire:model="childrenWorkServingOneId"
+                        class="
+                            block w-full rounded-xl
+                            border-gray-300 bg-white
+                            text-sm text-gray-950 shadow-sm
+                            focus:border-primary-500
+                            focus:ring-primary-500
+                            dark:border-gray-700
+                            dark:bg-gray-950
+                            dark:text-white
+                        "
+                        @disabled(! $childrenWorkLocalityId)
+                    >
+                        <option value="">
+                            No Serving One assigned
+                        </option>
+
+                        @foreach (
+                            $this->childrenWorkServingOneOptions()
+                            as $id => $name
+                        )
+                            <option value="{{ $id }}">
+                                {{ $name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p
+                        class="
+                            mt-1 text-xs
+                            text-gray-500 dark:text-gray-400
+                        "
+                    >
+                        Choices are limited to people from
+                        the selected Children's Work Locality.
+                    </p>
+
+                    @error('childrenWorkServingOneId')
+                        <p
+                            class="
+                                mt-1 text-sm text-red-600
+                                dark:text-red-400
+                            "
+                        >
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label
+                        class="
+                            mb-1 block text-sm font-semibold
+                            text-gray-700 dark:text-gray-200
+                        "
+                    >
+                        Group / Class
+                    </label>
+
+                    <input
+                        type="text"
+                        wire:model="childrenWorkGroupName"
+                        maxlength="100"
+                        placeholder="e.g. Toddlers, Kinder, Group A"
+                        class="
+                            block w-full rounded-xl
+                            border-gray-300 bg-white
+                            text-sm text-gray-950 shadow-sm
+                            focus:border-primary-500
+                            focus:ring-primary-500
+                            dark:border-gray-700
+                            dark:bg-gray-950
+                            dark:text-white
+                        "
+                    >
+
+                    @error('childrenWorkGroupName')
+                        <p
+                            class="
+                                mt-1 text-sm text-red-600
+                                dark:text-red-400
+                            "
+                        >
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div
+                    class="
+                        flex items-center
+                        rounded-xl border border-gray-200
+                        bg-white px-4 py-3
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                    "
+                >
+                    <label
+                        class="
+                            flex cursor-pointer items-center
+                            gap-3 text-sm font-semibold
+                            text-gray-700 dark:text-gray-200
+                        "
+                    >
+                        <input
+                            type="checkbox"
+                            wire:model="childrenWorkIsActive"
+                            class="
+                                rounded border-gray-300
+                                text-primary-600
+                                focus:ring-primary-500
+                                dark:border-gray-700
+                            "
+                        >
+
+                        Active in Children's Work
+                    </label>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label
+                        class="
+                            mb-1 block text-sm font-semibold
+                            text-gray-700 dark:text-gray-200
+                        "
+                    >
+                        Notes
+                    </label>
+
+                    <textarea
+                        wire:model="childrenWorkNotes"
+                        rows="4"
+                        placeholder="Optional Children's Work notes..."
+                        class="
+                            block w-full rounded-xl
+                            border-gray-300 bg-white
+                            text-sm text-gray-950 shadow-sm
+                            focus:border-primary-500
+                            focus:ring-primary-500
+                            dark:border-gray-700
+                            dark:bg-gray-950
+                            dark:text-white
+                        "
+                    ></textarea>
+
+                    @error('childrenWorkNotes')
+                        <p
+                            class="
+                                mt-1 text-sm text-red-600
+                                dark:text-red-400
+                            "
+                        >
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+
+                <div
+                    class="
+                        flex flex-wrap gap-2
+                        md:col-span-2
+                    "
+                >
+                    <button
+                        type="submit"
+                        wire:loading.attr="disabled"
+                        class="
+                            inline-flex items-center
+                            justify-center rounded-xl
+                            bg-pink-600 px-4 py-2
+                            text-sm font-semibold text-white
+                            shadow-sm hover:bg-pink-500
+                            disabled:opacity-60
+                        "
+                    >
+                        Save Profile
+                    </button>
+
+                    <button
+                        type="button"
+                        wire:click="cancelChildrenWorkProfile"
+                        class="
+                            inline-flex items-center
+                            justify-center rounded-xl
+                            border border-gray-300
+                            bg-white px-4 py-2
+                            text-sm font-semibold
+                            text-gray-700 shadow-sm
+                            hover:bg-gray-50
+                            dark:border-gray-700
+                            dark:bg-gray-950
+                            dark:text-gray-200
+                        "
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
 
     {{-- Summary cards --}}
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -618,7 +973,51 @@
                                     dark:text-gray-400
                                 "
                             >
-                                Locality
+                                Person Locality
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Children's Work Locality
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Group / Class
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                Serving One
+                            </th>
+
+                            <th
+                                class="
+                                    px-4 py-3 text-left
+                                    text-xs font-semibold uppercase
+                                    tracking-wide text-gray-500
+                                    dark:text-gray-400
+                                "
+                            >
+                                CW Status
                             </th>
 
                             <th
@@ -823,6 +1222,113 @@
 
                                 <td
                                     class="
+                                        whitespace-nowrap px-4 py-4
+                                        text-sm text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $person
+                                            ->childrenWorkProfile
+                                            ?->locality
+                                            ?->name
+                                            ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        whitespace-nowrap px-4 py-4
+                                        text-sm text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $person
+                                            ->childrenWorkProfile
+                                            ?->group_name
+                                            ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        whitespace-nowrap px-4 py-4
+                                        text-sm text-gray-700
+                                        dark:text-gray-200
+                                    "
+                                >
+                                    {{
+                                        $person
+                                            ->childrenWorkProfile
+                                            ?->servingOne
+                                            ?->display_name
+                                            ?? '—'
+                                    }}
+                                </td>
+
+                                <td
+                                    class="
+                                        whitespace-nowrap px-4 py-4
+                                    "
+                                >
+                                    @if (
+                                        $person->childrenWorkProfile
+                                    )
+                                        @if (
+                                            $person
+                                                ->childrenWorkProfile
+                                                ->is_active
+                                        )
+                                            <span
+                                                class="
+                                                    inline-flex
+                                                    rounded-full
+                                                    bg-emerald-50
+                                                    px-2.5 py-1
+                                                    text-xs font-semibold
+                                                    text-emerald-700
+                                                    ring-1
+                                                    ring-emerald-200
+                                                    dark:bg-emerald-950
+                                                    dark:text-emerald-300
+                                                    dark:ring-emerald-900
+                                                "
+                                            >
+                                                Active
+                                            </span>
+                                        @else
+                                            <span
+                                                class="
+                                                    inline-flex
+                                                    rounded-full
+                                                    bg-gray-100
+                                                    px-2.5 py-1
+                                                    text-xs font-semibold
+                                                    text-gray-600
+                                                    ring-1
+                                                    ring-gray-200
+                                                    dark:bg-gray-800
+                                                    dark:text-gray-300
+                                                    dark:ring-gray-700
+                                                "
+                                            >
+                                                Inactive
+                                            </span>
+                                        @endif
+                                    @else
+                                        <span
+                                            class="
+                                                text-sm text-gray-400
+                                            "
+                                        >
+                                            Not set
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <td
+                                    class="
                                         px-4 py-4 text-sm
                                         text-gray-700
                                         dark:text-gray-200
@@ -957,6 +1463,19 @@
                                             flex justify-end gap-2
                                         "
                                     >
+                                        <button
+                                            type="button"
+                                            wire:click="editChildrenWorkProfile({{ $person->id }})"
+                                            class="
+                                                font-semibold
+                                                text-pink-600
+                                                hover:underline
+                                                dark:text-pink-400
+                                            "
+                                        >
+                                            Profile
+                                        </button>
+
                                         <a
                                             href="{{
                                                 \App\Filament\Resources\People\PersonResource::getUrl(
