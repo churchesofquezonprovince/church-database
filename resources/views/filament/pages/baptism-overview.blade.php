@@ -38,6 +38,27 @@
             .coqp-baptism :is(button,a,select,input,summary):focus-visible{outline:3px solid #f59e0b;outline-offset:3px}
             @media(max-width:1100px){.coqp-baptism .bp-months:not(.bp-month-view){grid-template-columns:repeat(2,minmax(0,1fr))}}
             @media(max-width:680px){.coqp-baptism .bp-months:not(.bp-month-view){grid-template-columns:1fr}.coqp-baptism .bp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.coqp-baptism .bp-card{padding:14px}.coqp-baptism .bp-day{min-height:38px}.coqp-baptism .bp-month-view .bp-day{min-height:50px}}
+
+            /* Stable baptism table columns */
+            .coqp-baptism .bp-people-table {
+                table-layout: fixed;
+            }
+            .coqp-baptism .bp-people-table td {
+                overflow-wrap: anywhere;
+            }
+            .coqp-baptism .bp-people-table th:nth-child(2) {
+                white-space: nowrap;
+            }
+            .coqp-baptism .bp-people-table .bp-link-editor {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .coqp-baptism .bp-people-table select {
+                box-sizing: border-box;
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+            }
         </style>
 
         <div class="bp-card">
@@ -115,7 +136,12 @@
             <h2>{{ $listTitle }}</h2>
             <p class="bp-muted">{{ $rowCount }} {{ $rowCount === 1 ? 'person' : 'people' }}. Baptism dates come from People → Church Profile. Linking an activity does not change those dates.</p>
             <div class="bp-table-wrap" style="margin-top:14px">
-                <table>
+                <table class="bp-people-table">
+                    <colgroup>
+                        <col style="width:23%">
+                        <col style="width:17%">
+                        <col style="width:60%">
+                    </colgroup>
                     <thead><tr><th scope="col">Person</th><th scope="col">Baptism Date</th><th scope="col">Baptism Activity</th></tr></thead>
                     <tbody>
                         @forelse ($people as $person)
