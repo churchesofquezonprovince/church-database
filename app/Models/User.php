@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'email', 'password', 'role', 'person_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -22,6 +22,54 @@ class User extends Authenticatable
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    public function person(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Person::class, 'person_id');
+    }
+
+    public function preferredLocalityName(): ?string
+    {
+        if (! $this->person_id) {
+            return null;
+        }
+
+        // Read the current canonical locality, never a copied user locality.
+        $provinceId = \Illuminate\Support\Facades\DB::table('province_settings')
+            ->value('primary_province_id');
+
+        if (! $provinceId) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('persons')
+            ->join('localities', 'localities.id', '=', 'persons.locality_id')
+            ->where('persons.id', $this->person_id)
+            ->where('localities.province_id', $provinceId)
+            ->where('localities.is_active', true)
+            ->value('localities.name');
+    }
+
+    public function defaultLocalitySelection(
+        array $allowed,
+        mixed $requested = null,
+        ?string $fallback = null
+    ): ?string {
+        // An explicit selection (including blank) always beats the preference.
+        $candidate = $requested === null
+            ? $this->preferredLocalityName()
+            : (is_string($requested) ? trim($requested) : null);
+
+        if (filled($candidate)) {
+            foreach ($allowed as $name) {
+                if (mb_strtolower((string) $name) === mb_strtolower($candidate)) {
+                    return (string) $name;
+                }
+            }
+        }
+
+        return $fallback;
+    }
 
     public function isAdmin(): bool
     {

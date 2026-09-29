@@ -25,6 +25,14 @@ class HomeMeetingSchedule extends Page
 
     public function mount(): void
     {
+        $requestedLocality = request()->query->has('locality')
+            ? request()->query('locality')
+            : $this->selectedLocality;
+        $this->selectedLocality = auth()->user()?->defaultLocalitySelection(
+            array_keys($this->localityOptions()),
+            $requestedLocality,
+        );
+
         $this->selectedLocality =
             $this->resolvedLocalityName(
                 $this->selectedLocality

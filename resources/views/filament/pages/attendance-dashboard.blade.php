@@ -3,6 +3,11 @@
         $summary = $this->summary();
         $customSheets = $this->customSheets();
         $localities = $this->localities();
+        $defaultLocality = auth()->user()?->defaultLocalitySelection(
+            $localities->all(),
+            request()->query('locality'),
+            $localities->first(),
+        ) ?? $localities->first();
         $todaysMeetings = $this->todaysMeetings();
         $upcomingMeetings = $this->upcomingMeetings();
         $latestMeetingSummaries = $this->latestMeetingSummaries();
@@ -115,7 +120,7 @@
                         class="mt-2 block w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-amber-900 dark:bg-gray-950 dark:text-gray-100"
                     >
                         @forelse ($localities as $locality)
-                            <option value="{{ $locality }}">
+                            <option value="{{ $locality }}" @selected($locality === $defaultLocality)>
                                 {{ $this->localityLabel($locality) }}
                             </option>
                         @empty
@@ -163,7 +168,7 @@
                         class="mt-2 block w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-sky-900 dark:bg-gray-950 dark:text-gray-100"
                     >
                         @forelse ($localities as $locality)
-                            <option value="{{ $locality }}">
+                            <option value="{{ $locality }}" @selected($locality === $defaultLocality)>
                                 {{ $this->localityLabel($locality) }}
                             </option>
                         @empty

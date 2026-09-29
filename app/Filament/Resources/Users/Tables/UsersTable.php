@@ -27,6 +27,20 @@ class UsersTable
                     ->copyable()
                     ->sortable(),
 
+                TextColumn::make('person.lastname')
+                    ->label('Linked Person')
+                    ->formatStateUsing(fn (User $record): ?string =>
+                        $record->person
+                            ? $record->person->lastname . ', ' . $record->person->firstname
+                                . ' (#' . $record->person->id . ')'
+                            : null
+                    )
+                    ->placeholder('Not linked'),
+
+                TextColumn::make('person.localityRecord.name')
+                    ->label('Person Locality')
+                    ->placeholder('No locality'),
+
                 TextColumn::make('role')
                     ->label('Role')
                     ->badge()

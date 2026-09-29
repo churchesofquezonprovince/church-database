@@ -57,7 +57,10 @@ class PrayerMeetingItems extends Page
 
     public function selectedLocality(): ?string
     {
-        $locality = request()->query('locality');
+        $locality = auth()->user()?->defaultLocalitySelection(
+            $this->localities()->pluck('value')->all(),
+            request()->query('locality'),
+        );
 
         if (filled($locality)) {
             $localityRecord = LocalityOptions::primaryProvinceLocality(

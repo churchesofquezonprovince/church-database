@@ -29,6 +29,22 @@ class UserForm
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
 
+                        Select::make('person_id')
+                            ->label('Linked Person')
+                            ->relationship('person', 'lastname')
+                            ->getOptionLabelFromRecordUsing(fn (\App\Models\Person $record): string =>
+                                $record->lastname . ', ' . $record->firstname
+                                . (filled($record->middlename) ? ' ' . $record->middlename : '')
+                                . (filled($record->suffix) ? ' ' . $record->suffix : '')
+                                . ' — ' . ($record->localityRecord?->name ?? 'No locality')
+                                . ' (#' . $record->id . ')'
+                            )
+                            ->searchable(['firstname', 'middlename', 'lastname'])
+                            ->nullable()
+                            ->exists('persons', 'id')
+                            ->placeholder('No linked person')
+                            ->helperText('Choose this user’s existing People record. Their locality becomes the default on Attendance Dashboard, Home Meeting Schedule, and Prayer Meeting Items. They can still choose another locality.'),
+
                         Select::make('role')
                             ->label('Role')
                             ->options([
