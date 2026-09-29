@@ -181,7 +181,7 @@ class AttendanceReportExportController extends Controller
         fputcsv($output, ['Generated At', now()->format('Y-m-d H:i:s')]);
     }
 
-    private function meetingRows(AttendanceSheet $sheet, array $data)
+    private function peopleMeetingRows(AttendanceSheet $sheet, array $data)
     {
         return AttendanceSession::query()
             ->where('attendance_sheet_id', $sheet->id)
@@ -223,8 +223,14 @@ class AttendanceReportExportController extends Controller
             });
     }
 
-    private function personRows(AttendanceSheet $sheet, array $data)
+    private function peopleReportRows(AttendanceSheet $sheet, array $data)
     {
+        if ($sheet->sheet_type==='custom') {
+            $day=isset($data['meeting_day']) && $data['meeting_day']!=='' ? (int)$data['meeting_day'] : null;
+            $sessions=\App\Services\GuestAttendance::reportSessions($sheet->id,$data['date_from'] ?? null,$data['date_to'] ?? null,$day);
+            return \App\Services\GuestAttendance::peopleReportRows($sheet->id,$sessions,$data['category'] ?? null);
+        }
+
         return AttendanceParticipant::query()
             ->with(['person.churchProfile'])
             ->where('attendance_sheet_id', $sheet->id)
@@ -332,4 +338,18 @@ class AttendanceReportExportController extends Controller
             6 => 'Saturday',
         ][$day] ?? 'Unknown';
     }
+    private function meetingRows(AttendanceSheet $sheet, array $data)
+    {
+        $rows=$this->peopleMeetingRows($sheet,$data);
+        return $sheet->sheet_type==='custom' && empty($data['category']) ? $rows->map(fn($r)=>\App\Services\GuestAttendance::addMeetingCounts($r)) : $rows;
+    }
+    private function personRows(AttendanceSheet $sheet, array $data)
+    {
+        $rows=$this->peopleReportRows($sheet,$data);
+        if ($sheet->sheet_type!=='custom' || !empty($data['category'])) return $rows;
+        $day=isset($data['meeting_day']) && $data['meeting_day']!=='' ? (int)$data['meeting_day'] : null;
+        $sessions=\App\Services\GuestAttendance::reportSessions($sheet->id,$data['date_from'] ?? null,$data['date_to'] ?? null,$day);
+        return collect($rows->all())->concat(\App\Services\GuestAttendance::reportRows($sheet->id,$sessions))->sortBy(fn($r)=>$r['person']?->display_name ?? '')->values();
+    }
+
 }

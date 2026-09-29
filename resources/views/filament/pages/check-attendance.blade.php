@@ -266,7 +266,7 @@
                                     </span>
 
                                     <span class="rounded-full bg-gray-600 px-3 py-1 text-xs font-bold text-white">
-                                        Participants: {{ $participantRows->count() }}
+                                        Participants: {{ ($participantRows->count() + ($selectedSession ? \App\Services\GuestAttendance::activeIds($selectedSession->attendance_sheet_id, $selectedSession->session_date->toDateString())->count() : 0)) }}
                                     </span>
                                 @else
                                     <span class="rounded-full bg-primary-600 px-3 py-1 text-xs font-bold text-white">
@@ -396,7 +396,7 @@
         </p>
 
         <p class="mt-1 text-xl font-bold text-sky-600 dark:text-sky-400">
-            {{ $participantRows->count() }}
+            {{ ($participantRows->count() + ($selectedSession ? \App\Services\GuestAttendance::activeIds($selectedSession->attendance_sheet_id, $selectedSession->session_date->toDateString())->count() : 0)) }}
         </p>
     </div>
 
@@ -1960,4 +1960,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+    @php $guestSession = $this->selectedSession(); @endphp
+    @if ($guestSession && $guestSession->sheet?->sheet_type === 'custom')
+        @livewire(\App\Livewire\GuestAttendancePanel::class,
+            ['sheetId'=>(int)$guestSession->attendance_sheet_id,'sessionId'=>(int)$guestSession->id,'mode'=>'check'],
+            key('guest-check-'.$guestSession->id))
+    @endif
 </x-filament-panels::page>

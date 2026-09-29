@@ -2601,4 +2601,10 @@ public function unlinkImmichAlbum(int $sheetId): void
             'mode' => request('mode'),
         ]);
     }
+    #[\Livewire\Attributes\On('guest-attendance-updated')]
+    public function refreshGuestAttendance(): void
+    {
+        abort_unless(auth()->user()?->canManageRecords(), 403);
+    }
+
 }

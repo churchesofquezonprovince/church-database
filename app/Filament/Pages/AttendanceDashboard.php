@@ -116,7 +116,7 @@ class AttendanceDashboard extends Page
                     ->selectRaw(
                         'COUNT(DISTINCT attendance_sheet_id, person_id) AS aggregate'
                     )
-                    ->value('aggregate'),
+                    ->value('aggregate') + (int) \Illuminate\Support\Facades\DB::table('attendance_guests as g')->join('attendance_guest_periods as p','p.attendance_guest_id','=','g.id')->whereNull('g.linked_person_id')->where('p.is_active',true)->distinct()->count('g.id'),
         ];
     }
 
@@ -152,7 +152,7 @@ class AttendanceDashboard extends Page
         return AttendanceSession::query()
             ->with(['sheet'])
             ->whereHas('sheet', fn ($query) => $query->where('is_active', true))
-            ->whereHas('records')
+            ->where(fn($q)=>$q->whereHas('records')->orWhereExists(fn($g)=>$g->selectRaw('1')->from('attendance_guest_records')->whereColumn('attendance_session_id','attendance_sessions.id')))
             ->withCount([
                 'records as present_count' => fn ($query) => $query->where('is_present', true),
                 'records as absent_count' => fn ($query) => $query->where('is_present', false),
@@ -208,6 +208,11 @@ class AttendanceDashboard extends Page
             date: $session->session_date->format('Y-m-d'),
         );
 
+        $extra=\App\Services\GuestAttendance::meetingCounts($session);
+        $expected += $extra['expected'];
+        $session->present_count = (int)$session->present_count + $extra['present'];
+        $session->absent_count = (int)$session->absent_count + $extra['absent'];
+        $session->marked_count = (int)$session->marked_count + $extra['marked'];
         $present = (int) ($session->present_count ?? 0);
         $marked = (int) ($session->marked_count ?? 0);
 

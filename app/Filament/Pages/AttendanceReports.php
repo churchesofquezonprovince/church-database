@@ -224,7 +224,7 @@ class AttendanceReports extends Page
             ->first();
     }
 
-    public function meetingRows(): Collection
+    private function peopleMeetingRows(): Collection
     {
         $sheet = $this->selectedSheet();
 
@@ -467,7 +467,7 @@ class AttendanceReports extends Page
             ->values();
     }
 
-    public function personRows(): Collection
+    private function peopleReportRows(): Collection
     {
         $sheet = $this->selectedSheet();
 
@@ -1271,4 +1271,18 @@ class AttendanceReports extends Page
             ->distinct()
             ->count('person_id');
     }
+    public function meetingRows(): Collection
+    {
+        $rows=$this->peopleMeetingRows();
+        if ($this->selectedReportType()!=='custom' || filled($this->selectedCategory())) return $rows;
+        return $rows->map(fn($row)=>\App\Services\GuestAttendance::addMeetingCounts($row));
+    }
+    public function personRows(): Collection
+    {
+        $rows=$this->peopleReportRows(); $sheet=$this->selectedSheet();
+        if (!$sheet || $sheet->sheet_type!=='custom' || $this->hasInvalidDateRange() || filled($this->selectedCategory())) return $rows;
+        $sessions=\App\Services\GuestAttendance::reportSessions($sheet->id,$this->selectedDateFrom(),$this->selectedDateTo(),$this->selectedMeetingDayFilter());
+        return collect($rows->all())->concat(\App\Services\GuestAttendance::reportRows($sheet->id,$sessions))->sortBy(fn($r)=>$r['person']->display_name)->values();
+    }
+
 }

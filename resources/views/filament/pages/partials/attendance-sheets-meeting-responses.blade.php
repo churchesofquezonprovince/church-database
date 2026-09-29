@@ -233,7 +233,7 @@ $preListedFilterCounts = [
                 class="ml-2 inline-flex w-[calc(100%-2rem)] align-middle items-center justify-between gap-3"
             >
                 <span class="text-lg font-bold">
-                    Pre-listed Responses
+                    {{ $selectedSheet->sheet_type === 'custom' ? 'Registration Responses' : 'Pre-listed Responses' }}
                 </span>
 
                 <span
@@ -854,6 +854,9 @@ $preListedFilterCounts = [
                                         </details>
                                     @endif
 
+                                    @if ($selectedSheet->sheet_type === 'custom')
+                                    <details class="mt-3"><summary class="cursor-pointer text-sm font-semibold">Identity details and People linking</summary>
+                                    @endif
                                     @include(
                                         'filament.pages.partials.meeting-response-promotion',
                                         [
@@ -867,6 +870,10 @@ $preListedFilterCounts = [
                                             'response' => $response,
                                         ]
                                     )
+
+                                    @if ($selectedSheet->sheet_type === 'custom')
+                                    </details>
+                                    @endif
 
                                     @include(
                                         'filament.pages.partials.meeting-response-attendance-participant',

@@ -22,15 +22,13 @@ class AttendanceMeetingResponseParticipantController extends Controller
             403
         );
 
-        if (
-            $response->respondent_type
-            !== AttendanceMeetingResponse::RESPONDENT_PERSON
-            || ! $response->person_id
-        ) {
-            return back()->withErrors([
-                'meeting_response_participant' =>
-                    'This pre-listed entry must be linked to the People Database before it can be added to Attendance Participants.',
-            ]);
+        if ($response->respondent_type !== AttendanceMeetingResponse::RESPONDENT_PERSON || !$response->person_id) {
+            $data=$request->validate(['participant_response_id'=>'required|integer','participant_scope'=>'required|in:this_meeting,onward','participant_guest_id'=>'nullable|integer|min:1']);
+            abort_unless((int)$data['participant_response_id']===(int)$response->id,404);
+            $session=AttendanceSession::findOrFail($response->attendance_session_id);
+            \App\Services\GuestAttendance::enroll((int)$session->attendance_sheet_id,(int)$session->id,$data['participant_scope'],(int)$response->id,isset($data['participant_guest_id']) ? (int)$data['participant_guest_id'] : null);
+            \Filament\Notifications\Notification::make()->title('Guest/contact enrolled; attendance not marked')->success()->send();
+            return back();
         }
 
         $data = $request->validate([

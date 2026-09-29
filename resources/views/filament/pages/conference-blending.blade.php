@@ -83,7 +83,7 @@
     </form>
 </details>
 <div class="cq-card"><h2>Participants</h2>
-    <p>People with roster membership, a People-linked response, or an attendance record for the selected dates. Guests awaiting identity review appear under Form Responses below.</p>
+    <p>People, enrolled guests, and contacts share conference totals, teams, and invitations. Enroll guests through Attendance Sheets; check them in through Check Attendance.</p>
     <div class="cq-grid">
         <label>Search names<input type="search" wire:model.live.debounce.350ms="search"></label>
         <label>Locality<select wire:model.live="localityFilter"><option value="">All localities</option>@foreach ($localities as $locality)<option>{{ $locality }}</option>@endforeach</select></label>
@@ -108,7 +108,7 @@
     </tbody></table></div>
     <div class="cq-actions"><button type="button" wire:click="changePage({{ $currentPage - 1 }})" @disabled($currentPage <= 1)>Previous</button><span>{{ $rowCount }} people · Page {{ $currentPage }} of {{ $lastPage }}</span><button type="button" wire:click="changePage({{ $currentPage + 1 }})" @disabled($currentPage >= $lastPage)>Next</button></div>
 </div>
-<details class="cq-card"><summary>Invitations</summary><p>Select who invited whom. Review and link guest identities through Attendance Sheets first. Saving replaces any previously recorded inviter for the invited person.</p>
+<details class="cq-card"><summary>Invitations</summary><p>Select who invited whom. Guests and contacts can be assigned without creating a Person. Saving replaces any previously recorded inviter for the invited person.</p>
     <form wire:submit="saveInvitation"><div class="cq-grid">@foreach (['inviterId'=>'Invited by','inviteeId'=>'Invited person'] as $field=>$label)<label>{{ $label }}<select wire:model="{{ $field }}" required><option value="">Choose a person</option>@foreach ($all['rows'] as $row)<option value="{{ $row['id'] }}">{{ $row['name'] }}</option>@endforeach</select></label>@endforeach</div><div class="cq-actions"><button class="cq-primary" type="submit" wire:loading.attr="disabled">Save Invitation Link</button></div></form>
     @foreach ($all['invitations'] as $invite)<div class="cq-actions"><span>{{ $all['rows']->get($invite->inviter_person_id)['name'] ?? 'Person no longer in conference list' }} invited {{ $all['rows']->get($invite->invitee_person_id)['name'] ?? 'Person no longer in conference list' }}</span><button type="button" wire:click="removeInvitation({{ $invite->id }})" wire:confirm="Remove this invitation link?">Remove Link</button></div>@endforeach
 </details>
@@ -125,7 +125,7 @@
 <dialog class="cq-dialog" wire:key="cq-detail-{{ $detailPersonId }}" x-data x-init="$el.showModal()" x-on:cancel.prevent="$wire.closePerson()" aria-labelledby="cq-person-title">
     <h2 id="cq-person-title">{{ $detail['name'] }}</h2><p>{{ $detail['locality'] }}</p><p>Team: {{ $detail['team']?->name ?? 'Unassigned' }}<br>Role: {{ $roles[$detail['role']] ?? 'Unassigned' }}</p>
     <p>{{ $detail['roster'] ? 'On the roster for at least one conference date.' : 'Not on the roster for these conference dates.' }} {{ $detail['attended'] ? 'Attended at least one conference date.' : 'No Present / Late record for the conference dates.' }}</p>
-    <div class="cq-actions"><a class="cq-link" href="{{ \App\Filament\Resources\People\PersonResource::getUrl('view', ['record'=>$detailPersonId]) }}">View Person</a><button type="button" wire:click="closePerson">Close</button></div>
+    <div class="cq-actions">@if ($detailPersonId > 0)<a class="cq-link" href="{{ \App\Filament\Resources\People\PersonResource::getUrl('view', ['record'=>$detailPersonId]) }}">View Person</a>@else<a class="cq-link" href="{{ \App\Filament\Pages\AttendanceSheets::getUrl(['sheetId'=>$data['sheet']->id]) }}">Open Guest Enrollment</a>@endif<button type="button" wire:click="closePerson">Close</button></div>
 </dialog>
 @endif
 @endif

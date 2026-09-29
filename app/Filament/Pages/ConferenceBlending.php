@@ -112,7 +112,7 @@ class ConferenceBlending extends Page
     }
     public function removeInvitation(int $id): void
     {
-        DB::table('conference_invitations')->where('conference_event_id', $this->currentId())->where('id', $id)->delete();
+        \App\Services\GuestConference::remove($this->currentId(), $id);
         $this->success('Invitation link removed');
     }
     public function showPerson(int $id): void

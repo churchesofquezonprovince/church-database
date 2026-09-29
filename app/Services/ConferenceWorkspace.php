@@ -100,11 +100,12 @@ class ConferenceWorkspace
                 'invites' => $invitations->where('inviter_person_id', $p->id)->pluck('invitee_person_id')->all(),
             ];
         })->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE);
-        return compact('event', 'sheet', 'sessions', 'scope', 'roster', 'records', 'responses', 'workflow', 'teams', 'rows', 'invitations') + [
+        $result = compact('event', 'sheet', 'sessions', 'scope', 'roster', 'records', 'responses', 'workflow', 'teams', 'rows', 'invitations') + [
             'totals' => ['roster' => $roster->count(), 'attended' => $attended->count(),
                 'responses' => $responses->count(), 'yes' => $responses->where('response', 'yes')->count(),
                 'review' => $workflow->filter(fn ($w) => $w['needs_action'])->count()],
         ];
+        return \Illuminate\Support\Facades\Schema::hasTable('attendance_guests') ? GuestConference::extend($result) : $result;
     }
 
     public static function name(object $person): string
@@ -131,6 +132,7 @@ class ConferenceWorkspace
 
     public static function savePerson(int $eventId, int $personId, ?int $teamId, string $role): void
     {
+        if ($personId < 0) { GuestConference::save($eventId,$personId,$teamId,$role); return; }
         self::authorize();
         $data = self::data($eventId);
         if (! $data['rows']->has($personId)) abort(404);
@@ -143,6 +145,7 @@ class ConferenceWorkspace
 
     public static function invite(int $eventId, int $inviter, int $invitee): void
     {
+        if (\Illuminate\Support\Facades\Schema::hasTable('conference_attendee_invitations')) { GuestConference::invite($eventId,$inviter,$invitee); return; }
         $data = self::data($eventId);
         if ($inviter === $invitee || ! $data['rows']->has($inviter) || ! $data['rows']->has($invitee)) {
             throw ValidationException::withMessages(['inviteeId' => 'Choose two different people from this conference.']);

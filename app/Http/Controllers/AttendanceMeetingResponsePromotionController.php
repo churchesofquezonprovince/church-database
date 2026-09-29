@@ -118,6 +118,7 @@ public function createGuestPerson(
     Request $request,
     AttendanceMeetingResponse $response
 ): RedirectResponse {
+    \App\Services\GuestAttendance::guardOldPromotion($response);
     abort_unless(
         auth()->user()?->canManageRecords(),
         403
@@ -476,6 +477,7 @@ public function linkGuestToPerson(
     Request $request,
     AttendanceMeetingResponse $response
 ): RedirectResponse {
+    \App\Services\GuestAttendance::guardOldPromotion($response);
     abort_unless(
         auth()->user()?->canManageRecords(),
         403
@@ -710,6 +712,7 @@ public function searchPeople(
         Request $request,
         AttendanceMeetingResponse $response
     ): RedirectResponse {
+    \App\Services\GuestAttendance::guardOldPromotion($response);
         abort_unless(
             auth()->user()?->canManageRecords(),
             403
@@ -1016,6 +1019,7 @@ public function linkCampusToPerson(
     Request $request,
     AttendanceMeetingResponse $response
 ): RedirectResponse {
+    \App\Services\GuestAttendance::guardOldPromotion($response);
     abort_unless(
         auth()->user()?->canManageRecords(),
         403
@@ -1400,6 +1404,7 @@ public function createPersonFromCampus(
     Request $request,
     AttendanceMeetingResponse $response
 ): RedirectResponse {
+    \App\Services\GuestAttendance::guardOldPromotion($response);
     abort_unless(
         auth()->user()?->canManageRecords(),
         403

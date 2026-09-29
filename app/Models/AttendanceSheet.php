@@ -227,6 +227,14 @@ public function immichAlbum(): HasOne
             );
         }
 
+        if (\Illuminate\Support\Facades\Schema::hasTable('attendance_guests')) {
+            $guestCount=\Illuminate\Support\Facades\DB::table('attendance_guests as g')
+                ->join('attendance_guest_periods as p','p.attendance_guest_id','=','g.id')
+                ->whereColumn('g.attendance_sheet_id','attendance_sheets.id')->whereNull('g.linked_person_id')
+                ->when($activeOnly,fn($q)=>$q->where('p.is_active',true))->selectRaw('COUNT(DISTINCT g.id)');
+            if ($query->getQuery()->columns===null) $query->select('attendance_sheets.*');
+            $query->addSelect(['guest_participants_count'=>$guestCount]);
+        }
         return $query->addSelect([
             'participants_count' =>
                 $participantCount,
@@ -352,5 +360,10 @@ private function meetingFormSlugBase(
 
     return $datePart . '-' . $titlePart;
 }
+
+    public function getParticipantsCountAttribute($value): int
+    {
+        return (int)$value + (int)($this->attributes['guest_participants_count'] ?? 0);
+    }
 
 }

@@ -49,6 +49,7 @@
     </style>
 
     <div class="attendance-sheets-page">
+<p class="mb-4 text-sm">Enroll from Registration Responses, or use Add Attendee for People, Campus Contacts, Gospel Contacts, and Guests. Creating a Person is optional.</p>
 
     <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <p class="text-sm font-bold text-gray-900 dark:text-white">
@@ -1171,7 +1172,7 @@
 
                     <details class="min-w-0 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm dark:border-emerald-900 dark:bg-emerald-950">
                         <summary class="cursor-pointer px-4 py-4 text-lg font-bold text-emerald-900 hover:bg-emerald-100 dark:text-emerald-100 dark:hover:bg-emerald-900 sm:px-6">
-                            Add Participants
+                            {{ $selectedSheet->sheet_type === 'custom' ? 'Bulk Add People (paste or select names)' : 'Add Participants' }}
                         </summary>
 
                         <div class="border-t border-emerald-200 p-4 dark:border-emerald-900 sm:p-6">
@@ -2170,6 +2171,11 @@
                     </script>
 
 
+                    @if ($selectedSheet->sheet_type === 'custom' && $selectedSession)
+                        @livewire(\App\Livewire\AttendeeEnrollmentPanel::class,
+                            ['sheetId'=>(int)$selectedSheet->id, 'sessionId'=>(int)$selectedSession->id, 'mode'=>'enroll'],
+                            key('attendee-enroll-'.$selectedSession->id))
+                    @else
                     <div class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:p-6">
                         <div class="flex items-center gap-4">
                             <h3 class="break-words text-lg font-bold text-gray-900 dark:text-white">
@@ -2329,6 +2335,8 @@
                         </div>
                     </div>
 
+                    @endif
+
 @endif
 
 
@@ -2337,4 +2345,5 @@
         @endif
     </div>
     </div>
+
 </x-filament-panels::page>

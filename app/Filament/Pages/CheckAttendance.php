@@ -989,7 +989,7 @@ public function presentPersonIds(): array
             ->all();
     }
 
-    public function recordCounts(): array
+    private function peopleRecordCounts(): array
     {
         $session = $this->selectedSession();
 
@@ -1135,5 +1135,20 @@ public function confirmAllImmichAttendance(): void
         ->success()
         ->send();
 }
+
+    #[\Livewire\Attributes\On('guest-attendance-updated')]
+    public function refreshGuestAttendance(): void
+    {
+        abort_unless(auth()->user()?->canManageRecords(), 403);
+    }
+
+    public function recordCounts(): array
+    {
+        $counts=$this->peopleRecordCounts(); $s=$this->selectedSession();
+        if (!$s || $s->sheet->sheet_type!=='custom') return $counts;
+        $extra=\App\Services\GuestAttendance::meetingCounts($s);
+        foreach (['present','absent','marked'] as $key) $counts[$key]+=$extra[$key];
+        return $counts;
+    }
 
 }
