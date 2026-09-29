@@ -123,7 +123,7 @@ class ConferenceWorkspaceTest extends TestCase
         $id=W::create(1,[1],'Conference'); $other=W::create(2,[3],'Conference');
         $team=DB::table('conference_teams')->insertGetId(['conference_event_id'=>$other,'name'=>'Other','color'=>'#cc0000']);
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        W::savePerson($id,1,$team,'young_person');
+        W::savePerson($id,1,$team,'young_people');
     }
     public function test_self_invitation_is_rejected(): void
     {

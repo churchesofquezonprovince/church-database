@@ -135,7 +135,7 @@ class ConferenceWorkspace
         $data = self::data($eventId);
         if (! $data['rows']->has($personId)) abort(404);
         if ($teamId && ! $data['teams']->has($teamId)) abort(422, 'Choose a team in this conference.');
-        if (! in_array($role, ['', 'young_person', 'serving_one', 'other'], true)) abort(422);
+        if (! in_array($role, ['', 'young_people', 'serving_one', 'other'], true)) abort(422);
         DB::table('conference_person_details')->updateOrInsert(
             ['conference_event_id' => $eventId, 'person_id' => $personId],
             ['conference_team_id' => $teamId, 'event_role' => $role ?: null, 'updated_at' => now()]);

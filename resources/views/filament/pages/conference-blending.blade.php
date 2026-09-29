@@ -26,7 +26,7 @@
     </form>
 </details>
 @if ($data)
-@php $roles = ['young_person'=>'Young Person', 'serving_one'=>'Serving One', 'other'=>'Other']; @endphp
+@php $roles = ['young_people'=>'Young People', 'serving_one'=>'Serving One', 'other'=>'Other']; @endphp
 <div class="cq-card">
     <p>{{ $data['event']->activity_type }}</p>
     @if (! $data['sheet']->is_active)<p>This attendance sheet is archived. Its conference records remain available; existing attendance pages may require reactivating the sheet.</p>@endif
