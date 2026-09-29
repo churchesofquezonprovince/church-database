@@ -201,8 +201,20 @@ class HomeMeetingSchedule extends Page
                 'household',
                 'contactPerson',
             ])
-            ->orderBy('sort_order')
+            /*
+             * Automatically order the weekly schedule:
+             *
+             * Monday -> Saturday -> Lord's Day,
+             * then earlier meeting times first.
+             *
+             * sort_order is retained only as a legacy
+             * database column and is no longer used here.
+             */
+            ->orderByRaw(
+                'CASE WHEN day_of_week = 0 THEN 7 ELSE day_of_week END'
+            )
             ->orderBy('meeting_time')
+            ->orderBy('display_name')
             ->get();
     }
 
