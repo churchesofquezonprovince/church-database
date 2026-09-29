@@ -120,6 +120,14 @@ public function immichMapping(): HasOne
         return $this->hasOne(EducationProfile::class, 'person_id');
     }
 
+    public function childrenWorkProfile(): HasOne
+    {
+        return $this->hasOne(
+            ChildrenWorkProfile::class,
+            'person_id'
+        );
+    }
+
     public function campusContact(): HasOne
     {
         return $this->hasOne(CampusContact::class, 'person_id');
