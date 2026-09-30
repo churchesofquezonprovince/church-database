@@ -129,10 +129,13 @@ class ChildrenWorkDatabase extends Page
     public function updatedChildrenWorkLocalityId(): void
     {
         /*
-         * Match the Home Meeting form behavior:
-         * changing Locality clears dependent Person selection.
+         * Children's Work Locality and Serving One are
+         * intentionally independent.
+         *
+         * A serving one may care for a child from another
+         * locality, so changing the Children's Work Locality
+         * must not clear the Serving One.
          */
-        $this->childrenWorkServingOneId = null;
     }
 
     public function cancelChildrenWorkProfile(): void
@@ -208,18 +211,12 @@ class ChildrenWorkDatabase extends Page
         if ($servingOneId) {
             $servingOneExists = Person::query()
                 ->whereKey($servingOneId)
-                ->where(
-                    'locality_id',
-                    $localityId
-                )
                 ->exists();
 
             if (! $servingOneExists) {
                 throw ValidationException::withMessages([
                     'childrenWorkServingOneId' =>
-                        'The Serving One must belong to '
-                        . 'the selected Children’s Work '
-                        . 'Locality.',
+                        'Select a valid Person as the Serving One.',
                 ]);
             }
         }
@@ -291,18 +288,7 @@ class ChildrenWorkDatabase extends Page
 
     public function childrenWorkServingOneOptions(): array
     {
-        $localityId =
-            (int) ($this->childrenWorkLocalityId ?? 0);
-
-        if ($localityId <= 0) {
-            return [];
-        }
-
         return Person::query()
-            ->where(
-                'locality_id',
-                $localityId
-            )
             ->orderBy('lastname')
             ->orderBy('firstname')
             ->get()

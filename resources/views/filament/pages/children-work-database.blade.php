@@ -15,89 +15,449 @@
             fn ($query) => $query->where('category', 'Children')
         );
 
-    $totalChildren = (clone $childrenBaseQuery)->count();
+    $totalChildren =
+        (clone $childrenBaseQuery)->count();
 
-    $boysCount = (clone $childrenBaseQuery)
-        ->where('sex', 'Male')
-        ->count();
+    $withoutBirthdateCount =
+        (clone $childrenBaseQuery)
+            ->whereNull('birthdate')
+            ->count();
 
-    $girlsCount = (clone $childrenBaseQuery)
-        ->where('sex', 'Female')
-        ->count();
+    $activeChildrenWorkCount =
+        (clone $childrenBaseQuery)
+            ->whereHas(
+                'childrenWorkProfile',
+                fn ($query) =>
+                    $query->where(
+                        'is_active',
+                        true
+                    )
+            )
+            ->count();
 
-    $withoutBirthdateCount = (clone $childrenBaseQuery)
-        ->whereNull('birthdate')
-        ->count();
+    $profilesNotSetCount =
+        (clone $childrenBaseQuery)
+            ->whereDoesntHave(
+                'childrenWorkProfile'
+            )
+            ->count();
 
-    $search = trim((string) request('search', ''));
-    $sex = trim((string) request('sex', ''));
-    $localityId = request()->integer('locality_id');
+    $childrenWorkLocalitiesCount =
+        \App\Models\ChildrenWorkProfile::query()
+            ->whereHas(
+                'person.churchProfile',
+                fn ($query) =>
+                    $query->where(
+                        'category',
+                        'Children'
+                    )
+            )
+            ->whereNotNull('locality_id')
+            ->distinct()
+            ->count('locality_id');
 
-    $childrenQuery = \App\Models\Person::query()
-        ->with([
-            'churchProfile',
-            'localityRecord',
-            'household',
-            'educationProfile.school',
-            'parentRelationships.parent',
-            'parentRelationships.gospelContact',
-            'childrenWorkProfile.locality',
-            'childrenWorkProfile.servingOne',
-        ])
-        ->whereHas(
-            'churchProfile',
-            fn ($query) => $query->where('category', 'Children')
+    /*
+     * Existing Person filters.
+     */
+    $search =
+        trim(
+            (string) request(
+                'search',
+                ''
+            )
         );
 
+    $sex =
+        trim(
+            (string) request(
+                'sex',
+                ''
+            )
+        );
+
+    $localityId =
+        request()->integer(
+            'locality_id'
+        );
+
+    /*
+     * Children's Work profile filters.
+     */
+    $childrenWorkLocalityId =
+        request()->integer(
+            'children_work_locality_id'
+        );
+
+    $childrenWorkStatus =
+        trim(
+            (string) request(
+                'children_work_status',
+                ''
+            )
+        );
+
+    $childrenWorkGroup =
+        trim(
+            (string) request(
+                'children_work_group',
+                ''
+            )
+        );
+
+    $servingOneId =
+        request()->integer(
+            'serving_one_id'
+        );
+
+    $childrenQuery =
+        \App\Models\Person::query()
+            ->with([
+                'churchProfile',
+                'localityRecord',
+                'household',
+                'educationProfile.school',
+                'parentRelationships.parent',
+                'parentRelationships.gospelContact',
+                'childrenWorkProfile.locality',
+                'childrenWorkProfile.servingOne',
+            ])
+            ->whereHas(
+                'churchProfile',
+                fn ($query) =>
+                    $query->where(
+                        'category',
+                        'Children'
+                    )
+            );
+
+    /*
+     * Search both canonical Person data and
+     * Children's Work assignment data.
+     */
     if ($search !== '') {
-        $childrenQuery->where(function ($query) use ($search): void {
-            $like = '%' . $search . '%';
+        $childrenQuery->where(
+            function ($query) use ($search): void {
+                $like =
+                    '%' . $search . '%';
 
-            $query
-                ->where('firstname', 'like', $like)
-                ->orWhere('middlename', 'like', $like)
-                ->orWhere('lastname', 'like', $like)
-                ->orWhere('suffix', 'like', $like)
-                ->orWhere('nickname', 'like', $like)
-                ->orWhere('contact_number', 'like', $like)
-                ->orWhere('locality', 'like', $like)
-                ->orWhereHas(
-                    'localityRecord',
-                    fn ($localityQuery) =>
-                        $localityQuery->where('name', 'like', $like)
-                );
-        });
+                $query
+                    ->where(
+                        'firstname',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'middlename',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'lastname',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'suffix',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'nickname',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'contact_number',
+                        'like',
+                        $like
+                    )
+                    ->orWhere(
+                        'locality',
+                        'like',
+                        $like
+                    )
+                    ->orWhereHas(
+                        'localityRecord',
+                        fn ($localityQuery) =>
+                            $localityQuery->where(
+                                'name',
+                                'like',
+                                $like
+                            )
+                    )
+                    ->orWhereHas(
+                        'childrenWorkProfile',
+                        function (
+                            $profileQuery
+                        ) use (
+                            $like
+                        ): void {
+                            $profileQuery
+                                ->where(
+                                    'group_name',
+                                    'like',
+                                    $like
+                                )
+                                ->orWhereHas(
+                                    'locality',
+                                    fn ($localityQuery) =>
+                                        $localityQuery
+                                            ->where(
+                                                'name',
+                                                'like',
+                                                $like
+                                            )
+                                )
+                                ->orWhereHas(
+                                    'servingOne',
+                                    function (
+                                        $personQuery
+                                    ) use (
+                                        $like
+                                    ): void {
+                                        $personQuery
+                                            ->where(
+                                                'firstname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'middlename',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'lastname',
+                                                'like',
+                                                $like
+                                            )
+                                            ->orWhere(
+                                                'nickname',
+                                                'like',
+                                                $like
+                                            );
+                                    }
+                                );
+                        }
+                    );
+            }
+        );
     }
 
-    if (in_array($sex, ['Male', 'Female'], true)) {
-        $childrenQuery->where('sex', $sex);
-    }
-
-    if ($localityId > 0) {
-        $childrenQuery->where('locality_id', $localityId);
-    }
-
-    $children = $childrenQuery
-        ->orderBy('lastname')
-        ->orderBy('firstname')
-        ->paginate(30)
-        ->withQueryString();
-
-    $localities = \App\Models\Locality::query()
-        ->whereHas(
-            'people',
-            fn ($query) =>
-                $query->whereHas(
-                    'churchProfile',
-                    fn ($profileQuery) =>
-                        $profileQuery->where(
-                            'category',
-                            'Children'
-                        )
-                )
+    if (
+        in_array(
+            $sex,
+            ['Male', 'Female'],
+            true
         )
-        ->orderBy('name')
-        ->get();
+    ) {
+        $childrenQuery->where(
+            'sex',
+            $sex
+        );
+    }
+
+    /*
+     * Person Locality.
+     */
+    if ($localityId > 0) {
+        $childrenQuery->where(
+            'locality_id',
+            $localityId
+        );
+    }
+
+    /*
+     * Children's Work Locality.
+     */
+    if ($childrenWorkLocalityId > 0) {
+        $childrenQuery->whereHas(
+            'childrenWorkProfile',
+            fn ($query) =>
+                $query->where(
+                    'locality_id',
+                    $childrenWorkLocalityId
+                )
+        );
+    }
+
+    /*
+     * Children's Work profile status.
+     */
+    if ($childrenWorkStatus === 'active') {
+        $childrenQuery->whereHas(
+            'childrenWorkProfile',
+            fn ($query) =>
+                $query->where(
+                    'is_active',
+                    true
+                )
+        );
+    } elseif (
+        $childrenWorkStatus === 'inactive'
+    ) {
+        $childrenQuery->whereHas(
+            'childrenWorkProfile',
+            fn ($query) =>
+                $query->where(
+                    'is_active',
+                    false
+                )
+        );
+    } elseif (
+        $childrenWorkStatus === 'not_set'
+    ) {
+        $childrenQuery->whereDoesntHave(
+            'childrenWorkProfile'
+        );
+    }
+
+    /*
+     * Group / Class.
+     */
+    if ($childrenWorkGroup !== '') {
+        $childrenQuery->whereHas(
+            'childrenWorkProfile',
+            fn ($query) =>
+                $query->where(
+                    'group_name',
+                    $childrenWorkGroup
+                )
+        );
+    }
+
+    /*
+     * Serving One.
+     */
+    if ($servingOneId > 0) {
+        $childrenQuery->whereHas(
+            'childrenWorkProfile',
+            fn ($query) =>
+                $query->where(
+                    'serving_one_id',
+                    $servingOneId
+                )
+        );
+    }
+
+    $children =
+        $childrenQuery
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->paginate(30)
+            ->withQueryString();
+
+    /*
+     * Canonical Person Localities represented
+     * by children.
+     */
+    $localities =
+        \App\Models\Locality::query()
+            ->whereHas(
+                'people',
+                fn ($query) =>
+                    $query->whereHas(
+                        'churchProfile',
+                        fn ($profileQuery) =>
+                            $profileQuery->where(
+                                'category',
+                                'Children'
+                            )
+                    )
+            )
+            ->orderBy('name')
+            ->get();
+
+    /*
+     * Children's Work Localities currently
+     * represented by Children's Work profiles.
+     */
+    $childrenWorkLocalities =
+        \App\Models\Locality::query()
+            ->whereIn(
+                'id',
+                \App\Models\ChildrenWorkProfile::query()
+                    ->whereHas(
+                        'person.churchProfile',
+                        fn ($query) =>
+                            $query->where(
+                                'category',
+                                'Children'
+                            )
+                    )
+                    ->whereNotNull(
+                        'locality_id'
+                    )
+                    ->select(
+                        'locality_id'
+                    )
+            )
+            ->orderBy('name')
+            ->get();
+
+    /*
+     * Existing Children's Work groups/classes.
+     */
+    $childrenWorkGroups =
+        \App\Models\ChildrenWorkProfile::query()
+            ->whereHas(
+                'person.churchProfile',
+                fn ($query) =>
+                    $query->where(
+                        'category',
+                        'Children'
+                    )
+            )
+            ->whereNotNull(
+                'group_name'
+            )
+            ->where(
+                'group_name',
+                '!=',
+                ''
+            )
+            ->orderBy(
+                'group_name'
+            )
+            ->distinct()
+            ->pluck(
+                'group_name'
+            );
+
+    /*
+     * Serving One filter options.
+     *
+     * Use the same locality eligibility rule as the
+     * Children's Work Profile editor:
+     *
+     * - if a Children's Work Locality filter is selected,
+     *   show Persons from that Locality;
+     * - otherwise show Persons from all active Localities
+     *   in the configured primary province.
+     *
+     * Do not require the Person to already be assigned
+     * as a Serving One, otherwise a new/empty setup gives
+     * an unusable dropdown.
+     */
+    $servingOneLocalityIds =
+        $childrenWorkLocalityId > 0
+            ? [$childrenWorkLocalityId]
+            : array_map(
+                'intval',
+                array_keys(
+                    $this->childrenWorkLocalityOptions()
+                )
+            );
+
+    $servingOnes =
+        \App\Models\Person::query()
+            ->whereIn(
+                'locality_id',
+                $servingOneLocalityIds
+            )
+            ->orderBy('lastname')
+            ->orderBy('firstname')
+            ->get();
 
     /*
      * Parent / guardian identity can come from:
@@ -382,7 +742,6 @@
                             dark:bg-gray-950
                             dark:text-white
                         "
-                        @disabled(! $childrenWorkLocalityId)
                     >
                         <option value="">
                             No Serving One assigned
@@ -404,8 +763,8 @@
                             text-gray-500 dark:text-gray-400
                         "
                     >
-                        Choices are limited to people from
-                        the selected Children's Work Locality.
+                        Choose any Person who serves with
+                        or cares for this child.
                     </p>
 
                     @error('childrenWorkServingOneId')
@@ -573,10 +932,16 @@
     @endif
 
     {{-- Summary cards --}}
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div
+        class="
+            grid gap-4
+            sm:grid-cols-2 xl:grid-cols-4
+        "
+    >
         <div
             class="
-                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
+                rounded-2xl border border-gray-200
+                bg-white p-5 shadow-sm
                 dark:border-gray-700 dark:bg-gray-900
             "
         >
@@ -601,7 +966,8 @@
 
         <div
             class="
-                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
+                rounded-2xl border border-gray-200
+                bg-white p-5 shadow-sm
                 dark:border-gray-700 dark:bg-gray-900
             "
         >
@@ -611,7 +977,67 @@
                     text-gray-500 dark:text-gray-400
                 "
             >
-                Boys
+                Active in Children's Work
+            </p>
+
+            <p
+                class="
+                    mt-2 text-3xl font-bold
+                    text-emerald-600 dark:text-emerald-400
+                "
+            >
+                {{
+                    number_format(
+                        $activeChildrenWorkCount
+                    )
+                }}
+            </p>
+        </div>
+
+        <div
+            class="
+                rounded-2xl border border-gray-200
+                bg-white p-5 shadow-sm
+                dark:border-gray-700 dark:bg-gray-900
+            "
+        >
+            <p
+                class="
+                    text-sm font-medium
+                    text-gray-500 dark:text-gray-400
+                "
+            >
+                Profiles Not Set
+            </p>
+
+            <p
+                class="
+                    mt-2 text-3xl font-bold
+                    text-amber-600 dark:text-amber-400
+                "
+            >
+                {{
+                    number_format(
+                        $profilesNotSetCount
+                    )
+                }}
+            </p>
+        </div>
+
+        <div
+            class="
+                rounded-2xl border border-gray-200
+                bg-white p-5 shadow-sm
+                dark:border-gray-700 dark:bg-gray-900
+            "
+        >
+            <p
+                class="
+                    text-sm font-medium
+                    text-gray-500 dark:text-gray-400
+                "
+            >
+                Localities Represented
             </p>
 
             <p
@@ -620,64 +1046,12 @@
                     text-gray-950 dark:text-white
                 "
             >
-                {{ number_format($boysCount) }}
+                {{
+                    number_format(
+                        $childrenWorkLocalitiesCount
+                    )
+                }}
             </p>
-        </div>
-
-        <div
-            class="
-                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
-                dark:border-gray-700 dark:bg-gray-900
-            "
-        >
-            <p
-                class="
-                    text-sm font-medium
-                    text-gray-500 dark:text-gray-400
-                "
-            >
-                Girls
-            </p>
-
-            <p
-                class="
-                    mt-2 text-3xl font-bold
-                    text-gray-950 dark:text-white
-                "
-            >
-                {{ number_format($girlsCount) }}
-            </p>
-        </div>
-
-        <div
-            class="
-                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
-                dark:border-gray-700 dark:bg-gray-900
-            "
-        >
-            <p
-                class="
-                    text-sm font-medium
-                    text-gray-500 dark:text-gray-400
-                "
-            >
-                Category
-            </p>
-
-            <div class="mt-3">
-                <span
-                    class="
-                        inline-flex rounded-full
-                        bg-sky-50 px-3 py-1
-                        text-sm font-semibold text-sky-700
-                        ring-1 ring-sky-200
-                        dark:bg-sky-950 dark:text-sky-300
-                        dark:ring-sky-900
-                    "
-                >
-                    Children
-                </span>
-            </div>
         </div>
     </div>
 
@@ -685,13 +1059,35 @@
     <form
         method="GET"
         class="
-            rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
+            rounded-2xl border border-gray-200
+            bg-white p-5 shadow-sm
             dark:border-gray-700 dark:bg-gray-900
         "
     >
+        <div>
+            <h3
+                class="
+                    text-base font-bold
+                    text-gray-950 dark:text-white
+                "
+            >
+                Filter Children
+            </h3>
+
+            <p
+                class="
+                    mt-1 text-sm
+                    text-gray-500 dark:text-gray-400
+                "
+            >
+                Person Locality and Children's Work Locality
+                are separate filters.
+            </p>
+        </div>
+
         <div
             class="
-                grid gap-4
+                mt-4 grid gap-4
                 md:grid-cols-2 xl:grid-cols-4
             "
         >
@@ -711,12 +1107,14 @@
                     name="search"
                     type="search"
                     value="{{ $search }}"
-                    placeholder="Name, nickname, contact, locality..."
+                    placeholder="Name, contact, locality, group, serving one..."
                     class="
                         block w-full rounded-xl border-gray-300
                         bg-white text-sm text-gray-950 shadow-sm
-                        focus:border-primary-500 focus:ring-primary-500
-                        dark:border-gray-700 dark:bg-gray-950
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
                         dark:text-white
                     "
                 >
@@ -739,12 +1137,16 @@
                     class="
                         block w-full rounded-xl border-gray-300
                         bg-white text-sm text-gray-950 shadow-sm
-                        focus:border-primary-500 focus:ring-primary-500
-                        dark:border-gray-700 dark:bg-gray-950
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
                         dark:text-white
                     "
                 >
-                    <option value="">All</option>
+                    <option value="">
+                        All
+                    </option>
 
                     <option
                         value="Male"
@@ -770,7 +1172,7 @@
                         text-gray-700 dark:text-gray-200
                     "
                 >
-                    Locality
+                    Person Locality
                 </label>
 
                 <select
@@ -779,18 +1181,24 @@
                     class="
                         block w-full rounded-xl border-gray-300
                         bg-white text-sm text-gray-950 shadow-sm
-                        focus:border-primary-500 focus:ring-primary-500
-                        dark:border-gray-700 dark:bg-gray-950
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
                         dark:text-white
                     "
                 >
-                    <option value="">All Localities</option>
+                    <option value="">
+                        All Person Localities
+                    </option>
 
                     @foreach ($localities as $locality)
                         <option
                             value="{{ $locality->id }}"
                             @selected(
-                                $localityId === (int) $locality->id
+                                $localityId
+                                ===
+                                (int) $locality->id
                             )
                         >
                             {{ $locality->name }}
@@ -798,15 +1206,219 @@
                     @endforeach
                 </select>
             </div>
+
+            <div>
+                <label
+                    for="children-work-locality"
+                    class="
+                        mb-1 block text-sm font-semibold
+                        text-gray-700 dark:text-gray-200
+                    "
+                >
+                    Children's Work Locality
+                </label>
+
+                <select
+                    id="children-work-locality"
+                    name="children_work_locality_id"
+                    class="
+                        block w-full rounded-xl border-gray-300
+                        bg-white text-sm text-gray-950 shadow-sm
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-white
+                    "
+                >
+                    <option value="">
+                        All CW Localities
+                    </option>
+
+                    @foreach (
+                        $childrenWorkLocalities
+                        as $locality
+                    )
+                        <option
+                            value="{{ $locality->id }}"
+                            @selected(
+                                $childrenWorkLocalityId
+                                ===
+                                (int) $locality->id
+                            )
+                        >
+                            {{ $locality->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label
+                    for="children-work-status"
+                    class="
+                        mb-1 block text-sm font-semibold
+                        text-gray-700 dark:text-gray-200
+                    "
+                >
+                    CW Status
+                </label>
+
+                <select
+                    id="children-work-status"
+                    name="children_work_status"
+                    class="
+                        block w-full rounded-xl border-gray-300
+                        bg-white text-sm text-gray-950 shadow-sm
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-white
+                    "
+                >
+                    <option value="">
+                        All Statuses
+                    </option>
+
+                    <option
+                        value="active"
+                        @selected(
+                            $childrenWorkStatus
+                            === 'active'
+                        )
+                    >
+                        Active
+                    </option>
+
+                    <option
+                        value="inactive"
+                        @selected(
+                            $childrenWorkStatus
+                            === 'inactive'
+                        )
+                    >
+                        Inactive
+                    </option>
+
+                    <option
+                        value="not_set"
+                        @selected(
+                            $childrenWorkStatus
+                            === 'not_set'
+                        )
+                    >
+                        Profile Not Set
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label
+                    for="children-work-group"
+                    class="
+                        mb-1 block text-sm font-semibold
+                        text-gray-700 dark:text-gray-200
+                    "
+                >
+                    Group / Class
+                </label>
+
+                <select
+                    id="children-work-group"
+                    name="children_work_group"
+                    class="
+                        block w-full rounded-xl border-gray-300
+                        bg-white text-sm text-gray-950 shadow-sm
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-white
+                    "
+                >
+                    <option value="">
+                        All Groups / Classes
+                    </option>
+
+                    @foreach (
+                        $childrenWorkGroups
+                        as $groupName
+                    )
+                        <option
+                            value="{{ $groupName }}"
+                            @selected(
+                                $childrenWorkGroup
+                                === $groupName
+                            )
+                        >
+                            {{ $groupName }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label
+                    for="children-serving-one"
+                    class="
+                        mb-1 block text-sm font-semibold
+                        text-gray-700 dark:text-gray-200
+                    "
+                >
+                    Serving One
+                </label>
+
+                <select
+                    id="children-serving-one"
+                    name="serving_one_id"
+                    class="
+                        block w-full rounded-xl border-gray-300
+                        bg-white text-sm text-gray-950 shadow-sm
+                        focus:border-primary-500
+                        focus:ring-primary-500
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-white
+                    "
+                >
+                    <option value="">
+                        All Serving Ones
+                    </option>
+
+                    @foreach (
+                        $servingOnes
+                        as $servingOne
+                    )
+                        <option
+                            value="{{ $servingOne->id }}"
+                            @selected(
+                                $servingOneId
+                                ===
+                                (int) $servingOne->id
+                            )
+                        >
+                            {{
+                                $servingOne->display_name
+                            }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
-        <div class="mt-4 flex flex-wrap gap-2">
+        <div
+            class="
+                mt-4 flex flex-wrap gap-2
+            "
+        >
             <button
                 type="submit"
                 class="
-                    inline-flex items-center justify-center rounded-xl
-                    bg-primary-600 px-4 py-2
-                    text-sm font-semibold text-white shadow-sm
+                    inline-flex items-center justify-center
+                    rounded-xl bg-primary-600
+                    px-4 py-2 text-sm font-semibold
+                    text-white shadow-sm
                     transition hover:bg-primary-500
                 "
             >
@@ -817,16 +1429,24 @@
                 $search !== ''
                 || $sex !== ''
                 || $localityId > 0
+                || $childrenWorkLocalityId > 0
+                || $childrenWorkStatus !== ''
+                || $childrenWorkGroup !== ''
+                || $servingOneId > 0
             )
                 <a
                     href="{{ \App\Filament\Pages\ChildrenWorkDatabase::getUrl() }}"
                     class="
-                        inline-flex items-center justify-center rounded-xl
-                        border border-gray-300 bg-white px-4 py-2
-                        text-sm font-semibold text-gray-700 shadow-sm
+                        inline-flex items-center justify-center
+                        rounded-xl border border-gray-300
+                        bg-white px-4 py-2
+                        text-sm font-semibold
+                        text-gray-700 shadow-sm
                         transition hover:bg-gray-50
-                        dark:border-gray-700 dark:bg-gray-950
-                        dark:text-gray-200 dark:hover:bg-gray-800
+                        dark:border-gray-700
+                        dark:bg-gray-950
+                        dark:text-gray-200
+                        dark:hover:bg-gray-800
                     "
                 >
                     Clear Filters
